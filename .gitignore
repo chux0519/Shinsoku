@@ -1,0 +1,10 @@
+/build/
+/.vs/
+/.idea/
+/.vscode/
+*.user
+*.suo
+*.vcxproj.user
+*.db
+vcpkg_installed
+scripts/

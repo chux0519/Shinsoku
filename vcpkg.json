@@ -1,0 +1,11 @@
+{
+  "name": "ohmytypeless",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "curl",
+    "miniaudio",
+    "nlohmann-json",
+    "qtbase",
+    "sqlite3"
+  ]
+}
