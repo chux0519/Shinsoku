@@ -30,6 +30,12 @@ public:
     bool copy_to_clipboard_enabled() const;
     bool paste_to_focused_window_enabled() const;
     QString paste_keys() const;
+    bool proxy_enabled() const;
+    QString proxy_type() const;
+    QString proxy_host() const;
+    int proxy_port() const;
+    QString proxy_username() const;
+    QString proxy_password() const;
     QString asr_base_url() const;
     QString asr_api_key() const;
     QString asr_model() const;
@@ -56,6 +62,12 @@ public:
     void set_copy_to_clipboard_enabled(bool enabled);
     void set_paste_to_focused_window_enabled(bool enabled);
     void set_paste_keys(const QString& keys);
+    void set_proxy_enabled(bool enabled);
+    void set_proxy_type(const QString& type);
+    void set_proxy_host(const QString& text);
+    void set_proxy_port(int value);
+    void set_proxy_username(const QString& text);
+    void set_proxy_password(const QString& text);
     void set_asr_base_url(const QString& text);
     void set_asr_api_key(const QString& text);
     void set_asr_model(const QString& text);
@@ -88,6 +100,12 @@ private:
     QCheckBox* copy_to_clipboard_check_ = nullptr;
     QCheckBox* paste_to_focused_window_check_ = nullptr;
     QComboBox* paste_keys_combo_ = nullptr;
+    QCheckBox* proxy_enabled_check_ = nullptr;
+    QComboBox* proxy_type_combo_ = nullptr;
+    QLineEdit* proxy_host_edit_ = nullptr;
+    QSpinBox* proxy_port_spin_ = nullptr;
+    QLineEdit* proxy_username_edit_ = nullptr;
+    QLineEdit* proxy_password_edit_ = nullptr;
     QLineEdit* asr_base_url_edit_ = nullptr;
     QLineEdit* asr_api_key_edit_ = nullptr;
     QLineEdit* asr_model_edit_ = nullptr;

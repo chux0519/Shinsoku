@@ -30,7 +30,10 @@ std::string trim(std::string value) {
 
 }  // namespace
 
-AsrClient::AsrClient(AppConfig config) : config_(std::move(config.pipeline.asr)), sample_rate_(config.audio.sample_rate) {}
+AsrClient::AsrClient(AppConfig config)
+    : config_(std::move(config.pipeline.asr)),
+      transport_options_(make_curl_transport_options(config)),
+      sample_rate_(config.audio.sample_rate) {}
 
 std::string AsrClient::transcribe(const std::vector<float>& samples, const std::atomic_bool* cancel_flag) const {
     if (samples.empty()) {
@@ -62,6 +65,7 @@ std::string AsrClient::transcribe(const std::vector<float>& samples, const std::
     curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 180L);
     curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
+    apply_curl_transport_options(curl.get(), transport_options_);
 
     CurlCancelContext cancel_context{cancel_flag};
     curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, &curl_cancel_callback);

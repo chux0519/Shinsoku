@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/app_config.hpp"
+#include "core/curl_support.hpp"
 
 #include <atomic>
 #include <string>
@@ -15,6 +16,7 @@ public:
 
 private:
     EndpointConfig config_;
+    CurlTransportOptions transport_options_;
     std::uint32_t sample_rate_ = kFixedSampleRate;
 };
 

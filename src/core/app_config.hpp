@@ -72,6 +72,19 @@ struct OutputConfig {
     std::string paste_keys = "ctrl+shift+v";
 };
 
+struct NetworkProxyConfig {
+    bool enabled = false;
+    std::string type = "http";
+    std::string host;
+    int port = 8080;
+    std::string username;
+    std::string password;
+};
+
+struct NetworkConfig {
+    NetworkProxyConfig proxy;
+};
+
 struct VadConfig {
     bool enabled = true;
     float threshold = 0.5f;
@@ -93,6 +106,7 @@ struct AppConfig {
     PipelineConfig pipeline;
     AudioConfig audio;
     OutputConfig output;
+    NetworkConfig network;
     VadConfig vad;
     ObservabilityConfig observability;
     HudConfig hud;

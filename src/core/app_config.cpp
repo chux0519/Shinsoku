@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QStandardPaths>
 
+#include <cctype>
 #include <fstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -164,6 +165,17 @@ bool parse_bool(const std::string& value, bool fallback) {
     return fallback;
 }
 
+std::string normalize_proxy_type(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "http" || value == "socks5") {
+        return value;
+    }
+    return "http";
+}
+
 std::size_t parse_size(const std::string& value, std::size_t fallback) {
     try {
         return static_cast<std::size_t>(std::stoull(trim(value)));
@@ -305,6 +317,24 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "output", "paste_keys")) {
         config.output.paste_keys = unquote(*value);
     }
+    if (const auto value = get_value(sections, "network.proxy", "enabled")) {
+        config.network.proxy.enabled = parse_bool(*value, config.network.proxy.enabled);
+    }
+    if (const auto value = get_value(sections, "network.proxy", "type")) {
+        config.network.proxy.type = normalize_proxy_type(unquote(*value));
+    }
+    if (const auto value = get_value(sections, "network.proxy", "host")) {
+        config.network.proxy.host = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "network.proxy", "port")) {
+        config.network.proxy.port = parse_int(*value, config.network.proxy.port);
+    }
+    if (const auto value = get_value(sections, "network.proxy", "username")) {
+        config.network.proxy.username = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "network.proxy", "password")) {
+        config.network.proxy.password = unquote(*value);
+    }
     if (const auto value = get_value(sections, "vad", "enabled")) {
         config.vad.enabled = parse_bool(*value, config.vad.enabled);
     }
@@ -354,6 +384,13 @@ AppConfig load_config() {
     if (config.output.paste_keys.empty()) {
         config.output.paste_keys = defaults.output.paste_keys;
     }
+    if (config.network.proxy.type.empty()) {
+        config.network.proxy.type = defaults.network.proxy.type;
+    }
+    config.network.proxy.type = normalize_proxy_type(config.network.proxy.type);
+    if (config.network.proxy.port <= 0) {
+        config.network.proxy.port = defaults.network.proxy.port;
+    }
 
     std::filesystem::create_directories(config.audio.recordings_dir);
     return config;
@@ -401,6 +438,14 @@ void save_config(const AppConfig& config) {
     output << "copy_to_clipboard = " << (config.output.copy_to_clipboard ? "true" : "false") << "\n";
     output << "paste_to_focused_window = " << (config.output.paste_to_focused_window ? "true" : "false") << "\n";
     output << "paste_keys = \"" << escape_toml_string(config.output.paste_keys) << "\"\n\n";
+
+    output << "[network.proxy]\n";
+    output << "enabled = " << (config.network.proxy.enabled ? "true" : "false") << "\n";
+    output << "type = \"" << escape_toml_string(normalize_proxy_type(config.network.proxy.type)) << "\"\n";
+    output << "host = \"" << escape_toml_string(config.network.proxy.host) << "\"\n";
+    output << "port = " << config.network.proxy.port << "\n";
+    output << "username = \"" << escape_toml_string(config.network.proxy.username) << "\"\n";
+    output << "password = \"" << escape_toml_string(config.network.proxy.password) << "\"\n\n";
 
     output << "[vad]\n";
     output << "enabled = " << (config.vad.enabled ? "true" : "false") << "\n";

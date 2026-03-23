@@ -31,7 +31,8 @@ std::string trim(std::string value) {
 
 TextRefiner::TextRefiner(AppConfig config)
     : fallback_api_(std::move(config.pipeline.asr)),
-      config_(std::move(config.pipeline.refine)) {}
+      config_(std::move(config.pipeline.refine)),
+      transport_options_(make_curl_transport_options(config)) {}
 
 std::string TextRefiner::refine(const std::string& text, const std::atomic_bool* cancel_flag) const {
     if (!config_.enabled || text.empty()) {
@@ -79,6 +80,7 @@ std::string TextRefiner::refine(const std::string& text, const std::atomic_bool*
     curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, body_string.c_str());
     curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE, static_cast<long>(body_string.size()));
     curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 0L);
+    apply_curl_transport_options(curl.get(), transport_options_);
 
     CurlCancelContext cancel_context{cancel_flag};
     curl_easy_setopt(curl.get(), CURLOPT_XFERINFOFUNCTION, &curl_cancel_callback);

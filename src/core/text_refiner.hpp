@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/app_config.hpp"
+#include "core/curl_support.hpp"
 
 #include <atomic>
 #include <string>
@@ -16,6 +17,7 @@ public:
 private:
     EndpointConfig fallback_api_;
     RefineStageConfig config_;
+    CurlTransportOptions transport_options_;
 };
 
 }  // namespace ohmytypeless

@@ -137,6 +137,27 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     output_form->addRow("Paste Keys", paste_keys_combo_);
     content_layout->addWidget(output_section);
 
+    QFormLayout* network_form = nullptr;
+    auto* network_section = make_section("Network", content, &network_form);
+    proxy_enabled_check_ = new QCheckBox("Route HTTP requests through a proxy", network_section);
+    proxy_type_combo_ = new QComboBox(network_section);
+    proxy_type_combo_->addItem("HTTP", "http");
+    proxy_type_combo_->addItem("SOCKS5", "socks5");
+    proxy_host_edit_ = new QLineEdit(network_section);
+    proxy_port_spin_ = new QSpinBox(network_section);
+    proxy_port_spin_->setRange(1, 65535);
+    proxy_port_spin_->setValue(8080);
+    proxy_username_edit_ = new QLineEdit(network_section);
+    proxy_password_edit_ = new QLineEdit(network_section);
+    proxy_password_edit_->setEchoMode(QLineEdit::Password);
+    network_form->addRow("Enabled", proxy_enabled_check_);
+    network_form->addRow("Type", proxy_type_combo_);
+    network_form->addRow("Host", proxy_host_edit_);
+    network_form->addRow("Port", proxy_port_spin_);
+    network_form->addRow("Username", proxy_username_edit_);
+    network_form->addRow("Password", proxy_password_edit_);
+    content_layout->addWidget(network_section);
+
     QFormLayout* asr_form = nullptr;
     auto* asr_section = make_section("ASR", content, &asr_form);
     asr_base_url_edit_ = new QLineEdit(asr_section);
@@ -258,6 +279,30 @@ QString SettingsWindow::paste_keys() const {
     return paste_keys_combo_->currentText();
 }
 
+bool SettingsWindow::proxy_enabled() const {
+    return proxy_enabled_check_->isChecked();
+}
+
+QString SettingsWindow::proxy_type() const {
+    return proxy_type_combo_->currentData().toString();
+}
+
+QString SettingsWindow::proxy_host() const {
+    return proxy_host_edit_->text().trimmed();
+}
+
+int SettingsWindow::proxy_port() const {
+    return proxy_port_spin_->value();
+}
+
+QString SettingsWindow::proxy_username() const {
+    return proxy_username_edit_->text().trimmed();
+}
+
+QString SettingsWindow::proxy_password() const {
+    return proxy_password_edit_->text();
+}
+
 QString SettingsWindow::asr_base_url() const {
     return asr_base_url_edit_->text().trimmed();
 }
@@ -372,6 +417,30 @@ void SettingsWindow::set_paste_keys(const QString& keys) {
     if (index >= 0) {
         paste_keys_combo_->setCurrentIndex(index);
     }
+}
+
+void SettingsWindow::set_proxy_enabled(bool enabled) {
+    proxy_enabled_check_->setChecked(enabled);
+}
+
+void SettingsWindow::set_proxy_type(const QString& type) {
+    set_combo_by_value(proxy_type_combo_, type);
+}
+
+void SettingsWindow::set_proxy_host(const QString& text) {
+    proxy_host_edit_->setText(text);
+}
+
+void SettingsWindow::set_proxy_port(int value) {
+    proxy_port_spin_->setValue(value);
+}
+
+void SettingsWindow::set_proxy_username(const QString& text) {
+    proxy_username_edit_->setText(text);
+}
+
+void SettingsWindow::set_proxy_password(const QString& text) {
+    proxy_password_edit_->setText(text);
 }
 
 void SettingsWindow::set_asr_base_url(const QString& text) {

@@ -138,6 +138,12 @@ void AppController::initialize() {
     window_->settings_window()->set_copy_to_clipboard_enabled(config_.output.copy_to_clipboard);
     window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     window_->settings_window()->set_paste_keys(QString::fromStdString(config_.output.paste_keys));
+    window_->settings_window()->set_proxy_enabled(config_.network.proxy.enabled);
+    window_->settings_window()->set_proxy_type(QString::fromStdString(config_.network.proxy.type));
+    window_->settings_window()->set_proxy_host(QString::fromStdString(config_.network.proxy.host));
+    window_->settings_window()->set_proxy_port(config_.network.proxy.port);
+    window_->settings_window()->set_proxy_username(QString::fromStdString(config_.network.proxy.username));
+    window_->settings_window()->set_proxy_password(QString::fromStdString(config_.network.proxy.password));
     window_->settings_window()->set_asr_base_url(QString::fromStdString(config_.pipeline.asr.base_url));
     window_->settings_window()->set_asr_api_key(QString::fromStdString(config_.pipeline.asr.api_key));
     window_->settings_window()->set_asr_model(QString::fromStdString(config_.pipeline.asr.model));
@@ -208,6 +214,12 @@ void AppController::apply_settings() {
     config_.output.copy_to_clipboard = window_->settings_window()->copy_to_clipboard_enabled();
     config_.output.paste_to_focused_window = window_->settings_window()->paste_to_focused_window_enabled();
     config_.output.paste_keys = window_->settings_window()->paste_keys().toStdString();
+    config_.network.proxy.enabled = window_->settings_window()->proxy_enabled();
+    config_.network.proxy.type = window_->settings_window()->proxy_type().toStdString();
+    config_.network.proxy.host = window_->settings_window()->proxy_host().toStdString();
+    config_.network.proxy.port = window_->settings_window()->proxy_port();
+    config_.network.proxy.username = window_->settings_window()->proxy_username().toStdString();
+    config_.network.proxy.password = window_->settings_window()->proxy_password().toStdString();
     config_.pipeline.asr.base_url = window_->settings_window()->asr_base_url().toStdString();
     config_.pipeline.asr.api_key = window_->settings_window()->asr_api_key().toStdString();
     config_.pipeline.asr.model = window_->settings_window()->asr_model().toStdString();
