@@ -1,5 +1,6 @@
 #include "core/app_config.hpp"
 
+#include <QDir>
 #include <QStandardPaths>
 
 #include <fstream>
@@ -12,6 +13,18 @@ namespace {
 
 using SectionMap = std::unordered_map<std::string, std::unordered_map<std::string, std::string>>;
 
+std::filesystem::path path_from_qstring(const QString& path) {
+    return std::filesystem::path(QDir::fromNativeSeparators(path).toStdWString());
+}
+
+QString path_to_qstring(const std::filesystem::path& path) {
+    return QDir::cleanPath(QString::fromStdWString(path.generic_wstring()));
+}
+
+std::string path_to_portable_string(const std::filesystem::path& path) {
+    return path_to_qstring(path).toStdString();
+}
+
 std::filesystem::path app_data_root() {
     QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     if (path.isEmpty()) {
@@ -20,7 +33,7 @@ std::filesystem::path app_data_root() {
     if (path.isEmpty()) {
         return std::filesystem::temp_directory_path() / "ohmytypeless";
     }
-    return std::filesystem::path(path.toStdWString());
+    return path_from_qstring(path);
 }
 
 std::filesystem::path config_root() {
@@ -31,7 +44,7 @@ std::filesystem::path config_root() {
     if (path.isEmpty()) {
         return std::filesystem::temp_directory_path() / "ohmytypeless";
     }
-    return std::filesystem::path(path.toStdWString());
+    return path_from_qstring(path);
 }
 
 std::string trim(std::string value) {
@@ -275,7 +288,7 @@ AppConfig load_config() {
         config.audio.save_recordings = parse_bool(*value, config.audio.save_recordings);
     }
     if (const auto value = get_value(sections, "audio", "recordings_dir")) {
-        config.audio.recordings_dir = std::filesystem::path(unquote(*value));
+        config.audio.recordings_dir = path_from_qstring(QString::fromStdString(unquote(*value)));
     }
     if (const auto value = get_value(sections, "audio.rotation", "mode")) {
         config.audio.rotation.mode = unquote(*value);
@@ -375,7 +388,7 @@ void save_config(const AppConfig& config) {
     output << "[audio]\n";
     output << "input_device_id = \"" << escape_toml_string(config.audio.input_device_id) << "\"\n";
     output << "save_recordings = " << (config.audio.save_recordings ? "true" : "false") << "\n";
-    output << "recordings_dir = \"" << escape_toml_string(config.audio.recordings_dir.string()) << "\"\n\n";
+    output << "recordings_dir = \"" << escape_toml_string(path_to_portable_string(config.audio.recordings_dir)) << "\"\n\n";
 
     output << "[audio.rotation]\n";
     output << "mode = \"" << escape_toml_string(config.audio.rotation.mode) << "\"\n";

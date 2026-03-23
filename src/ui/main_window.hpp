@@ -37,12 +37,14 @@ signals:
 
 private:
     void setup_tray();
+    void refresh_tray_state(SessionState state);
 
     QLabel* state_badge_label_ = nullptr;
     QLabel* status_label_ = nullptr;
     QPushButton* record_button_ = nullptr;
     QSystemTrayIcon* tray_icon_ = nullptr;
     QAction* tray_state_action_ = nullptr;
+    SessionState tray_state_ = SessionState::Idle;
     SettingsWindow* settings_window_ = nullptr;
     HistoryWindow* history_window_ = nullptr;
 };

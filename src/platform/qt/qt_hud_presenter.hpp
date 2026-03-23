@@ -4,8 +4,10 @@
 
 #include <QObject>
 #include <QPointer>
+#include <vector>
 
 class QLabel;
+class QScreen;
 class QWidget;
 class QTimer;
 
@@ -25,13 +27,19 @@ public:
     void hide() override;
 
 private:
-    void ensure_widget();
+    struct HudOverlay {
+        QPointer<QScreen> screen;
+        QPointer<QWidget> widget;
+        QPointer<QWidget> panel;
+        QPointer<QLabel> label;
+        QPointer<QTimer> hide_timer;
+    };
+
+    void rebuild_overlays();
+    void ensure_overlays();
     void show_text(const QString& text, const QString& accent, int duration_ms);
 
-    QPointer<QWidget> widget_;
-    QPointer<QWidget> panel_;
-    QPointer<QLabel> label_;
-    QPointer<QTimer> hide_timer_;
+    std::vector<HudOverlay> overlays_;
     HudConfig config_;
 };
 

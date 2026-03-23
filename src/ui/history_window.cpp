@@ -28,6 +28,17 @@ QString build_summary(const HistoryEntry& entry) {
 
     const auto& diagnostics = *diagnostics_it;
     QString summary;
+    const auto pipeline_it = diagnostics.find("pipeline");
+    const bool single_pass = pipeline_it != diagnostics.end() && pipeline_it->is_string() &&
+                             pipeline_it->get<std::string>() == "multimodal_single_pass";
+
+    if (single_pass) {
+        const auto model_it = diagnostics.find("model");
+        if (model_it != diagnostics.end() && model_it->is_string()) {
+            summary = QString::fromStdString(model_it->get<std::string>());
+        }
+    }
+
     if (const auto it = diagnostics.find("asr"); it != diagnostics.end() && it->is_object()) {
         const auto model_it = it->find("model");
         if (model_it != it->end() && model_it->is_string()) {
@@ -42,9 +53,22 @@ QString build_summary(const HistoryEntry& entry) {
         }
     }
     if (const auto it = diagnostics.find("timing"); it != diagnostics.end() && it->is_object()) {
-        const auto total_it = it->find("total");
-        if (total_it != it->end() && total_it->is_number_integer()) {
-            const QString timing = QString("total=%1ms").arg(total_it->get<long long>());
+        QStringList timing_parts;
+        for (const char* key : {"encode", "first_byte", "download", "asr_ms", "refine_ms", "total"}) {
+            const auto timing_it = it->find(key);
+            if (timing_it == it->end() || !timing_it->is_number_integer()) {
+                continue;
+            }
+
+            QString label = QString::fromUtf8(key);
+            if (label.endsWith("_ms")) {
+                label.chop(3);
+            }
+            timing_parts.append(QString("%1=%2ms").arg(label).arg(timing_it->get<long long>()));
+        }
+
+        if (!timing_parts.isEmpty()) {
+            const QString timing = timing_parts.join(' ');
             summary = summary.isEmpty() ? timing : summary + " • " + timing;
         }
     }

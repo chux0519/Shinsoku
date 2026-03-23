@@ -3,6 +3,7 @@
 #include <sqlite3.h>
 
 #include <QByteArray>
+#include <QDir>
 
 #include <stdexcept>
 
@@ -57,8 +58,9 @@ void HistoryStore::add_entry(const QString& text,
     sqlite3_bind_text(stmt, 1, text_utf8.constData(), text_utf8.size(), SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, meta_string.c_str(), static_cast<int>(meta_string.size()), SQLITE_TRANSIENT);
     if (audio_path.has_value()) {
-        const std::string path_text = audio_path->string();
-        sqlite3_bind_text(stmt, 3, path_text.c_str(), static_cast<int>(path_text.size()), SQLITE_TRANSIENT);
+        const QString path_text = QDir::cleanPath(QString::fromStdWString(audio_path->generic_wstring()));
+        const QByteArray path_utf8 = path_text.toUtf8();
+        sqlite3_bind_text(stmt, 3, path_utf8.constData(), path_utf8.size(), SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 3);
     }

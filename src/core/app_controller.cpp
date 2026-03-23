@@ -9,6 +9,7 @@
 #include "ui/settings_window.hpp"
 
 #include <QApplication>
+#include <QDir>
 #include <QMessageBox>
 #include <QCheckBox>
 #include <QtConcurrent/QtConcurrent>
@@ -95,6 +96,10 @@ QString pretty_details(const HistoryEntry& entry) {
     return QString::fromStdString(details.dump(2));
 }
 
+QString display_path(const std::filesystem::path& path) {
+    return QDir::cleanPath(QString::fromStdWString(path.generic_wstring()));
+}
+
 }  // namespace
 
 AppController::AppController(MainWindow* window,
@@ -127,7 +132,7 @@ void AppController::initialize() {
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
-    window_->settings_window()->set_recordings_dir(QString::fromStdWString(config_.audio.recordings_dir.wstring()));
+    window_->settings_window()->set_recordings_dir(display_path(config_.audio.recordings_dir));
     window_->settings_window()->set_rotation_mode(QString::fromStdString(config_.audio.rotation.mode));
     window_->settings_window()->set_max_files(static_cast<int>(config_.audio.rotation.max_files.value_or(50U)));
     window_->settings_window()->set_copy_to_clipboard_enabled(config_.output.copy_to_clipboard);

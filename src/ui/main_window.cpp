@@ -102,6 +102,7 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::set_session_state(SessionState state) {
+    tray_state_ = state;
     QString text = "State: ";
     switch (state) {
     case SessionState::Idle:
@@ -133,6 +134,8 @@ void MainWindow::set_session_state(SessionState state) {
     if (tray_state_action_ != nullptr) {
         tray_state_action_->setText(text);
     }
+
+    refresh_tray_state(state);
 }
 
 void MainWindow::set_status_text(const QString& text) {
@@ -142,6 +145,9 @@ void MainWindow::set_status_text(const QString& text) {
 void MainWindow::set_tray_available(bool available) {
     if (tray_icon_ != nullptr) {
         tray_icon_->setVisible(available);
+        if (available) {
+            refresh_tray_state(tray_state_);
+        }
     }
 }
 
@@ -179,14 +185,41 @@ void MainWindow::setup_tray() {
 
     tray_icon_->setContextMenu(menu);
     tray_icon_->show();
+    refresh_tray_state(tray_state_);
 
     connect(tray_icon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
-            showNormal();
-            raise();
-            activateWindow();
+            emit show_history_requested();
         }
     });
+}
+
+void MainWindow::refresh_tray_state(SessionState state) {
+    if (tray_icon_ == nullptr) {
+        return;
+    }
+
+    QString title = "OhMyTypeless";
+    QIcon icon = style()->standardIcon(QStyle::SP_MediaVolume);
+    switch (state) {
+    case SessionState::Idle:
+        title = "OhMyTypeless";
+        icon = style()->standardIcon(QStyle::SP_MediaVolume);
+        break;
+    case SessionState::Recording:
+    case SessionState::HandsFree:
+    case SessionState::Transcribing:
+        title = "OhMyTypeless Active";
+        icon = style()->standardIcon(QStyle::SP_MediaPlay);
+        break;
+    case SessionState::Error:
+        title = "OhMyTypeless Error";
+        icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
+        break;
+    }
+
+    tray_icon_->setIcon(icon);
+    tray_icon_->setToolTip(title);
 }
 
 }  // namespace ohmytypeless
