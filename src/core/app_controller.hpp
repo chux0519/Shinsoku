@@ -12,6 +12,8 @@
 #include <QObject>
 #include <QtGlobal>
 
+#include <nlohmann/json.hpp>
+
 #include <atomic>
 #include <filesystem>
 #include <memory>
@@ -27,7 +29,7 @@ class MainWindow;
 struct TranscriptionResult {
     quint64 job_id = 0;
     QString text;
-    QString summary;
+    nlohmann::json meta = nlohmann::json::object();
     QString error_text;
     bool cancelled = false;
     std::optional<std::filesystem::path> audio_path;
@@ -46,17 +48,24 @@ public:
 
 private slots:
     void toggle_recording();
-    void copy_demo_text();
     void apply_settings();
     void show_history();
     void show_settings();
     void quit_application();
-    void on_hotkey_activated();
+    void on_hold_started();
+    void on_hold_stopped();
+    void on_hands_free_enabled();
+    void on_hands_free_disabled();
     void on_hotkey_failed(const QString& reason);
+    void copy_history_entry(qint64 id);
+    void show_history_entry_details(qint64 id);
+    void delete_history_entry(qint64 id, bool delete_audio_if_present);
+    void load_older_history();
 
 private:
+    void start_recording(SessionState mode);
+    void stop_recording();
     void set_state(SessionState state, const QString& status);
-    void seed_history();
     void load_history();
     void refresh_audio_devices();
     void cancel_active_transcription();
@@ -76,6 +85,7 @@ private:
     QList<QPair<QString, QString>> audio_devices_;
     SessionState state_ = SessionState::Idle;
     QList<HistoryEntry> history_;
+    std::optional<qint64> oldest_loaded_history_id_;
     quint64 next_transcription_job_id_ = 1;
     quint64 active_transcription_job_id_ = 0;
     bool shutting_down_ = false;

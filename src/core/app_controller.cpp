@@ -3,14 +3,18 @@
 #include "platform/clipboard_service.hpp"
 #include "platform/global_hotkey.hpp"
 #include "platform/hud_presenter.hpp"
+#include "ui/history_details_dialog.hpp"
+#include "ui/history_window.hpp"
 #include "ui/main_window.hpp"
 #include "ui/settings_window.hpp"
-#include "ui/history_window.hpp"
 
 #include <QApplication>
+#include <QMessageBox>
+#include <QCheckBox>
 #include <QtConcurrent/QtConcurrent>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <exception>
 
@@ -18,53 +22,77 @@ namespace ohmytypeless {
 
 namespace {
 
-std::string trim_copy(std::string value) {
-    const auto begin = value.find_first_not_of(" \t\r\n");
-    if (begin == std::string::npos) {
-        return {};
-    }
-    const auto end = value.find_last_not_of(" \t\r\n");
-    return value.substr(begin, end - begin + 1U);
-}
+constexpr std::size_t kHistoryPageSize = 50;
 
-struct AudioDiagnostics {
-    double duration_seconds = 0.0;
+struct AudioAnalysis {
+    bool has_speech = false;
+    double speech_duration_seconds = 0.0;
+    double speech_ratio = 0.0;
     double rms = 0.0;
-    double peak = 0.0;
 };
 
-AudioDiagnostics analyze_audio(const std::vector<float>& samples, std::uint32_t sample_rate, std::uint32_t channels) {
-    AudioDiagnostics diagnostics;
-    if (samples.empty() || sample_rate == 0 || channels == 0) {
-        return diagnostics;
+float calculate_rms(std::span<const float> samples) {
+    if (samples.empty()) {
+        return 0.0f;
     }
 
-    diagnostics.duration_seconds =
-        static_cast<double>(samples.size()) / static_cast<double>(sample_rate * channels);
-
-    double sum_squares = 0.0;
-    double peak = 0.0;
+    float sum_squares = 0.0f;
     for (float sample : samples) {
-        const double value = static_cast<double>(sample);
-        sum_squares += value * value;
-        peak = std::max(peak, std::abs(value));
+        sum_squares += sample * sample;
+    }
+    return std::sqrt(sum_squares / static_cast<float>(samples.size()));
+}
+
+float map_threshold_to_energy(float config_threshold) {
+    const float t = std::clamp(config_threshold, 0.0f, 1.0f);
+    return 0.001f * std::pow(100.0f, t);
+}
+
+AudioAnalysis analyze_audio(const std::vector<float>& samples, const VadConfig& config) {
+    AudioAnalysis analysis;
+    if (samples.empty()) {
+        return analysis;
     }
 
-    diagnostics.rms = std::sqrt(sum_squares / static_cast<double>(samples.size()));
-    diagnostics.peak = peak;
-    return diagnostics;
+    constexpr std::size_t kFrameMs = 20;
+    const std::size_t frame_size = kFixedSampleRate * kFrameMs / 1000;
+    const float threshold = map_threshold_to_energy(config.threshold);
+    std::size_t speech_frames = 0;
+    std::size_t total_frames = 0;
+    float total_energy = 0.0f;
+
+    for (std::size_t offset = 0; offset < samples.size(); offset += frame_size) {
+        const std::size_t remaining = samples.size() - offset;
+        const std::size_t frame_len = std::min(frame_size, remaining);
+        const float rms = calculate_rms(std::span<const float>(samples.data() + offset, frame_len));
+        total_energy += rms;
+        ++total_frames;
+        if (rms >= threshold) {
+            ++speech_frames;
+        }
+    }
+
+    analysis.rms = total_frames > 0 ? static_cast<double>(total_energy) / static_cast<double>(total_frames) : 0.0;
+    analysis.speech_duration_seconds = static_cast<double>(speech_frames * kFrameMs) / 1000.0;
+    analysis.speech_ratio = total_frames > 0 ? static_cast<double>(speech_frames) / static_cast<double>(total_frames) : 0.0;
+    analysis.has_speech = analysis.speech_duration_seconds >= (static_cast<double>(config.min_speech_duration_ms) / 1000.0);
+    return analysis;
 }
 
-bool looks_like_silence(const AudioDiagnostics& diagnostics) {
-    return diagnostics.duration_seconds > 0.15 && diagnostics.peak < 0.001 && diagnostics.rms < 0.0002;
+bool should_skip_transcription(const AudioAnalysis& analysis, const VadConfig& config) {
+    return config.enabled && !analysis.has_speech;
 }
 
-QString audio_summary(const AudioDiagnostics& diagnostics, bool saved) {
-    return QString("capture %1s • rms=%2 peak=%3%4")
-        .arg(diagnostics.duration_seconds, 0, 'f', 1)
-        .arg(diagnostics.rms, 0, 'g', 3)
-        .arg(diagnostics.peak, 0, 'g', 3)
-        .arg(saved ? " • wav saved" : "");
+QString pretty_details(const HistoryEntry& entry) {
+    nlohmann::json details = nlohmann::json::object();
+    details["id"] = entry.id;
+    details["created_at"] = entry.created_at.toStdString();
+    details["text"] = entry.text.toStdString();
+    if (entry.audio_path.has_value()) {
+        details["audio_path"] = entry.audio_path->toStdString();
+    }
+    details["meta"] = entry.meta;
+    return QString::fromStdString(details.dump(2));
 }
 
 }  // namespace
@@ -85,18 +113,26 @@ AppController::AppController(MainWindow* window,
       transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()) {}
 
 void AppController::initialize() {
-    seed_history();
+    QString startup_warning;
     try {
         refresh_audio_devices();
     } catch (const std::exception& exception) {
-        window_->settings_window()->set_status_text(QString::fromUtf8(exception.what()));
+        startup_warning = QString("Audio device enumeration failed: %1").arg(QString::fromUtf8(exception.what()));
+        window_->settings_window()->set_status_text(startup_warning);
+        hud_->show_error("Audio device enumeration failed");
     }
     load_history();
 
-    window_->settings_window()->set_hotkey_sequence(QString::fromStdString(config_.hotkey.sequence));
+    window_->settings_window()->set_hold_key(QString::fromStdString(config_.hotkey.hold_key));
+    window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
     window_->settings_window()->set_recordings_dir(QString::fromStdWString(config_.audio.recordings_dir.wstring()));
+    window_->settings_window()->set_rotation_mode(QString::fromStdString(config_.audio.rotation.mode));
+    window_->settings_window()->set_max_files(static_cast<int>(config_.audio.rotation.max_files.value_or(50U)));
+    window_->settings_window()->set_copy_to_clipboard_enabled(config_.output.copy_to_clipboard);
+    window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
+    window_->settings_window()->set_paste_keys(QString::fromStdString(config_.output.paste_keys));
     window_->settings_window()->set_asr_base_url(QString::fromStdString(config_.pipeline.asr.base_url));
     window_->settings_window()->set_asr_api_key(QString::fromStdString(config_.pipeline.asr.api_key));
     window_->settings_window()->set_asr_model(QString::fromStdString(config_.pipeline.asr.model));
@@ -104,111 +140,107 @@ void AppController::initialize() {
     window_->settings_window()->set_refine_base_url(QString::fromStdString(config_.pipeline.refine.endpoint.base_url));
     window_->settings_window()->set_refine_api_key(QString::fromStdString(config_.pipeline.refine.endpoint.api_key));
     window_->settings_window()->set_refine_model(QString::fromStdString(config_.pipeline.refine.endpoint.model));
+    window_->settings_window()->set_refine_system_prompt(QString::fromStdString(config_.pipeline.refine.system_prompt));
+    window_->settings_window()->set_vad_enabled(config_.vad.enabled);
+    window_->settings_window()->set_vad_threshold(config_.vad.threshold);
+    window_->settings_window()->set_vad_min_speech_duration_ms(static_cast<int>(config_.vad.min_speech_duration_ms));
+    window_->settings_window()->set_record_metadata_enabled(config_.observability.record_metadata);
+    window_->settings_window()->set_record_timing_enabled(config_.observability.record_timing);
+    window_->settings_window()->set_hud_enabled(config_.hud.enabled);
+    window_->settings_window()->set_hud_bottom_margin(config_.hud.bottom_margin);
 
+    hud_->apply_config(config_.hud);
     window_->set_session_state(state_);
     window_->set_status_text(QString("Ready. Hotkey backend: %1").arg(hotkey_->backend_name()));
     window_->update_history(history_);
     window_->set_tray_available(true);
 
     connect(window_, &MainWindow::toggle_recording_requested, this, &AppController::toggle_recording);
-    connect(window_, &MainWindow::copy_demo_text_requested, this, &AppController::copy_demo_text);
     connect(window_, &MainWindow::register_hotkey_requested, this, &AppController::apply_settings);
     connect(window_, &MainWindow::show_history_requested, this, &AppController::show_history);
     connect(window_, &MainWindow::show_settings_requested, this, &AppController::show_settings);
     connect(window_, &MainWindow::quit_requested, this, &AppController::quit_application);
     connect(window_->settings_window(), &SettingsWindow::apply_clicked, this, &AppController::apply_settings);
-    connect(hotkey_, &GlobalHotkey::activated, this, &AppController::on_hotkey_activated);
+    connect(window_->history_window(), &HistoryWindow::copy_entry_requested, this, &AppController::copy_history_entry);
+    connect(window_->history_window(), &HistoryWindow::show_details_requested, this, &AppController::show_history_entry_details);
+    connect(window_->history_window(), &HistoryWindow::delete_entry_requested, this, &AppController::delete_history_entry);
+    connect(window_->history_window(), &HistoryWindow::load_older_requested, this, &AppController::load_older_history);
+    connect(hotkey_, &GlobalHotkey::hold_started, this, &AppController::on_hold_started);
+    connect(hotkey_, &GlobalHotkey::hold_stopped, this, &AppController::on_hold_stopped);
+    connect(hotkey_, &GlobalHotkey::hands_free_enabled, this, &AppController::on_hands_free_enabled);
+    connect(hotkey_, &GlobalHotkey::hands_free_disabled, this, &AppController::on_hands_free_disabled);
     connect(hotkey_, &GlobalHotkey::registration_failed, this, &AppController::on_hotkey_failed);
     connect(transcription_watcher_.get(), &QFutureWatcher<TranscriptionResult>::finished, this,
             &AppController::on_transcription_finished);
 
     apply_settings();
+
+    if (!startup_warning.isEmpty()) {
+        window_->set_status_text(startup_warning);
+    }
 }
 
 void AppController::toggle_recording() {
     if (state_ == SessionState::Idle || state_ == SessionState::Error) {
-        try {
-            recorder_.start(config_.audio.sample_rate, config_.audio.channels, config_.audio.input_device_id);
-            set_state(SessionState::Recording, "Recording started.");
-            hud_->show_recording();
-        } catch (const std::exception& exception) {
-            on_hotkey_failed(QString::fromUtf8(exception.what()));
-        }
-        return;
+        start_recording(SessionState::Recording);
+    } else if (state_ == SessionState::Recording || state_ == SessionState::HandsFree) {
+        stop_recording();
     }
-
-    if (state_ == SessionState::Recording || state_ == SessionState::HandsFree) {
-        set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
-        hud_->show_transcribing();
-
-        try {
-            const std::vector<float> samples = recorder_.stop();
-            const auto audio_path = recording_store_->save_recording(samples);
-            const AudioDiagnostics diagnostics =
-                analyze_audio(samples, config_.audio.sample_rate, config_.audio.channels);
-
-            if (looks_like_silence(diagnostics)) {
-                const QString text =
-                    "Captured audio looks silent. The selected input device may be wrong, muted, or inaccessible.";
-                const QString summary = audio_summary(diagnostics, audio_path.has_value());
-                history_store_->add_entry(text, summary, audio_path);
-                load_history();
-                on_hotkey_failed("Recorded audio is effectively silent. Check the selected input device.");
-                return;
-            }
-
-            transcribe_async(samples, audio_path);
-        } catch (const std::exception& exception) {
-            on_hotkey_failed(QString::fromUtf8(exception.what()));
-        }
-    }
-}
-
-void AppController::copy_demo_text() {
-    const QString text = "OhMyTypeless clipboard path is wired through QClipboard.";
-    clipboard_->copy_text(text);
-    window_->set_status_text("Copied demo text to clipboard.");
-    hud_->show_notice("Copied demo text");
 }
 
 void AppController::apply_settings() {
     const AppConfig defaults;
-    config_.hotkey.sequence = trim_copy(window_->settings_window()->hotkey_sequence().toStdString());
+
+    config_.hotkey.hold_key = window_->settings_window()->hold_key().toStdString();
+    config_.hotkey.hands_free_chord_key = window_->settings_window()->hands_free_chord_key().toStdString();
     config_.audio.input_device_id = window_->settings_window()->selected_input_device_id().toStdString();
     config_.audio.save_recordings = window_->settings_window()->save_recordings_enabled();
-    const QString recordings_dir_text = window_->settings_window()->recordings_dir();
-    if (!recordings_dir_text.isEmpty()) {
-        config_.audio.recordings_dir = std::filesystem::path(recordings_dir_text.toStdWString());
+    if (!window_->settings_window()->recordings_dir().isEmpty()) {
+        config_.audio.recordings_dir = std::filesystem::path(window_->settings_window()->recordings_dir().toStdWString());
     }
-    config_.pipeline.asr.base_url = trim_copy(window_->settings_window()->asr_base_url().toStdString());
-    config_.pipeline.asr.api_key = trim_copy(window_->settings_window()->asr_api_key().toStdString());
-    config_.pipeline.asr.model = trim_copy(window_->settings_window()->asr_model().toStdString());
+    config_.audio.rotation.mode = window_->settings_window()->rotation_mode().toStdString();
+    config_.audio.rotation.max_files = static_cast<std::size_t>(window_->settings_window()->max_files());
+    config_.output.copy_to_clipboard = window_->settings_window()->copy_to_clipboard_enabled();
+    config_.output.paste_to_focused_window = window_->settings_window()->paste_to_focused_window_enabled();
+    config_.output.paste_keys = window_->settings_window()->paste_keys().toStdString();
+    config_.pipeline.asr.base_url = window_->settings_window()->asr_base_url().toStdString();
+    config_.pipeline.asr.api_key = window_->settings_window()->asr_api_key().toStdString();
+    config_.pipeline.asr.model = window_->settings_window()->asr_model().toStdString();
     config_.pipeline.refine.enabled = window_->settings_window()->refine_enabled();
-    config_.pipeline.refine.endpoint.base_url = trim_copy(window_->settings_window()->refine_base_url().toStdString());
-    config_.pipeline.refine.endpoint.api_key = trim_copy(window_->settings_window()->refine_api_key().toStdString());
-    config_.pipeline.refine.endpoint.model = trim_copy(window_->settings_window()->refine_model().toStdString());
+    config_.pipeline.refine.endpoint.base_url = window_->settings_window()->refine_base_url().toStdString();
+    config_.pipeline.refine.endpoint.api_key = window_->settings_window()->refine_api_key().toStdString();
+    config_.pipeline.refine.endpoint.model = window_->settings_window()->refine_model().toStdString();
+    config_.pipeline.refine.system_prompt = window_->settings_window()->refine_system_prompt().toStdString();
+    config_.vad.enabled = window_->settings_window()->vad_enabled();
+    config_.vad.threshold = static_cast<float>(window_->settings_window()->vad_threshold());
+    config_.vad.min_speech_duration_ms = static_cast<std::uint32_t>(window_->settings_window()->vad_min_speech_duration_ms());
+    config_.observability.record_metadata = window_->settings_window()->record_metadata_enabled();
+    config_.observability.record_timing = window_->settings_window()->record_timing_enabled();
+    config_.hud.enabled = window_->settings_window()->hud_enabled();
+    config_.hud.bottom_margin = window_->settings_window()->hud_bottom_margin();
 
     if (config_.pipeline.asr.base_url.empty()) {
         config_.pipeline.asr.base_url = defaults.pipeline.asr.base_url;
     }
     if (config_.pipeline.asr.model.empty()) {
         config_.pipeline.asr.model = defaults.pipeline.asr.model;
-        window_->settings_window()->set_asr_model(QString::fromStdString(config_.pipeline.asr.model));
     }
     if (config_.pipeline.refine.endpoint.model.empty()) {
         config_.pipeline.refine.endpoint.model = defaults.pipeline.refine.endpoint.model;
-        window_->settings_window()->set_refine_model(QString::fromStdString(config_.pipeline.refine.endpoint.model));
     }
     if (config_.pipeline.refine.system_prompt.empty()) {
         config_.pipeline.refine.system_prompt = defaults.pipeline.refine.system_prompt;
     }
 
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
+    hud_->apply_config(config_.hud);
     save_config(config_);
 
-    const QString sequence = QString::fromStdString(config_.hotkey.sequence);
-    if (hotkey_->register_hotkey(sequence)) {
-        const QString status = QString("Settings applied. Hotkey: %1").arg(sequence);
+    if (hotkey_->register_hotkeys(QString::fromStdString(config_.hotkey.hold_key),
+                                  QString::fromStdString(config_.hotkey.hands_free_chord_key))) {
+        const QString status = QString("Settings applied. Hold: %1, chord: %2")
+                                   .arg(QString::fromStdString(config_.hotkey.hold_key),
+                                        QString::fromStdString(config_.hotkey.hands_free_chord_key));
         window_->settings_window()->set_status_text(status);
         window_->set_status_text(status);
         hud_->show_notice(status);
@@ -243,8 +275,27 @@ void AppController::quit_application() {
     QApplication::quit();
 }
 
-void AppController::on_hotkey_activated() {
-    toggle_recording();
+void AppController::on_hold_started() {
+    start_recording(SessionState::Recording);
+}
+
+void AppController::on_hold_stopped() {
+    if (state_ == SessionState::Recording) {
+        stop_recording();
+    }
+}
+
+void AppController::on_hands_free_enabled() {
+    if (state_ == SessionState::Recording) {
+        set_state(SessionState::HandsFree, "Hands-free recording.");
+        hud_->show_recording();
+    }
+}
+
+void AppController::on_hands_free_disabled() {
+    if (state_ == SessionState::HandsFree) {
+        stop_recording();
+    }
 }
 
 void AppController::on_hotkey_failed(const QString& reason) {
@@ -253,23 +304,132 @@ void AppController::on_hotkey_failed(const QString& reason) {
     hud_->show_error(reason);
 }
 
+void AppController::copy_history_entry(qint64 id) {
+    const auto entry = history_store_->get_entry(id);
+    if (!entry.has_value()) {
+        return;
+    }
+
+    clipboard_->copy_text(entry->text);
+    window_->set_status_text("Copied history entry.");
+    hud_->show_notice("Copied history entry");
+}
+
+void AppController::show_history_entry_details(qint64 id) {
+    const auto entry = history_store_->get_entry(id);
+    if (!entry.has_value()) {
+        return;
+    }
+
+    auto* dialog = new HistoryDetailsDialog(window_->history_window());
+    dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+    dialog->set_entry(
+        QString("Structured metadata for entry %1.").arg(entry->id),
+        pretty_details(*entry));
+    dialog->open();
+}
+
+void AppController::delete_history_entry(qint64 id, bool delete_audio_if_present) {
+    QMessageBox confirm(window_->history_window());
+    confirm.setWindowTitle("Delete History Entry");
+    confirm.setIcon(QMessageBox::Warning);
+    confirm.setText("Delete this history entry?");
+    confirm.setInformativeText("This cannot be undone.");
+    confirm.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
+    confirm.setDefaultButton(QMessageBox::Cancel);
+
+    QCheckBox* delete_audio_box = nullptr;
+    if (delete_audio_if_present) {
+        delete_audio_box = new QCheckBox("Also delete the saved recording file", &confirm);
+        confirm.setCheckBox(delete_audio_box);
+    }
+
+    if (confirm.exec() != QMessageBox::Ok) {
+        return;
+    }
+
+    if (delete_audio_box != nullptr && delete_audio_box->isChecked()) {
+        if (const auto entry = history_store_->get_entry(id); entry.has_value() && entry->audio_path.has_value()) {
+            std::error_code error;
+            std::filesystem::remove(std::filesystem::path(entry->audio_path->toStdWString()), error);
+        }
+    }
+
+    history_store_->delete_entry(id);
+    load_history();
+}
+
+void AppController::load_older_history() {
+    if (!oldest_loaded_history_id_.has_value()) {
+        return;
+    }
+
+    const QList<HistoryEntry> older = history_store_->list_before_id(*oldest_loaded_history_id_, kHistoryPageSize);
+    if (older.isEmpty()) {
+        window_->history_window()->set_load_older_visible(false);
+        return;
+    }
+
+    oldest_loaded_history_id_ = older.back().id;
+    history_.append(older);
+    window_->history_window()->append_entries(older);
+    window_->history_window()->set_load_older_visible(older.size() == static_cast<qsizetype>(kHistoryPageSize));
+}
+
+void AppController::start_recording(SessionState mode) {
+    if (state_ != SessionState::Idle && state_ != SessionState::Error) {
+        return;
+    }
+
+    try {
+        clipboard_->begin_paste_session();
+        recorder_.start(config_.audio.sample_rate, config_.audio.channels, config_.audio.input_device_id);
+        set_state(mode, mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
+        hud_->show_recording();
+    } catch (const std::exception& exception) {
+        on_hotkey_failed(QString::fromUtf8(exception.what()));
+    }
+}
+
+void AppController::stop_recording() {
+    if (state_ != SessionState::Recording && state_ != SessionState::HandsFree) {
+        return;
+    }
+
+    set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
+    hud_->show_transcribing();
+
+    try {
+        const std::vector<float> samples = recorder_.stop();
+        const AudioAnalysis analysis = analyze_audio(samples, config_.vad);
+        if (should_skip_transcription(analysis, config_.vad)) {
+            set_state(SessionState::Idle, "No speech detected.");
+            hud_->show_notice("No speech detected");
+            return;
+        }
+
+        const auto audio_path = recording_store_->save_recording(samples);
+        transcribe_async(samples, audio_path);
+    } catch (const std::exception& exception) {
+        on_hotkey_failed(QString::fromUtf8(exception.what()));
+    }
+}
+
 void AppController::set_state(SessionState state, const QString& status) {
     state_ = state;
     window_->set_session_state(state_);
     window_->set_status_text(status);
 }
 
-void AppController::seed_history() {
-    if (history_store_->list_recent(1).isEmpty()) {
-        history_store_->add_entry(
-            "Bootstrap shell created. Real recording, config, and history persistence are now connected.",
-            "bootstrap");
-    }
-}
-
 void AppController::load_history() {
-    history_ = history_store_->list_recent(100);
+    history_ = history_store_->list_recent(kHistoryPageSize);
+    if (history_.isEmpty()) {
+        oldest_loaded_history_id_.reset();
+    } else {
+        oldest_loaded_history_id_ = history_.back().id;
+    }
     window_->update_history(history_);
+    window_->history_window()->set_load_older_visible(history_.size() == static_cast<qsizetype>(kHistoryPageSize));
 }
 
 void AppController::refresh_audio_devices() {
@@ -315,6 +475,7 @@ void AppController::on_transcription_finished() {
     active_transcription_job_id_ = 0;
 
     if (result.cancelled) {
+        clipboard_->clear_paste_session();
         if (shutting_down_) {
             QApplication::quit();
             return;
@@ -326,20 +487,43 @@ void AppController::on_transcription_finished() {
     }
 
     if (!result.error_text.isEmpty()) {
-        const QString failure_text = QString("Transcription failed: %1").arg(result.error_text);
-        history_store_->add_entry(failure_text, "asr error", result.audio_path);
+        history_store_->add_entry(QString("Transcription failed: %1").arg(result.error_text),
+                                  result.audio_path,
+                                  result.meta);
         load_history();
+        clipboard_->clear_paste_session();
         on_hotkey_failed(result.error_text);
     } else {
-        history_store_->add_entry(result.text, result.summary, result.audio_path);
-        load_history();
-
         if (config_.output.copy_to_clipboard) {
             clipboard_->copy_text(result.text);
         }
+        bool auto_paste_ok = true;
+        QString auto_paste_debug;
+        if (config_.output.paste_to_focused_window) {
+            auto_paste_ok = clipboard_->paste_text_to_last_target(result.text, QString::fromStdString(config_.output.paste_keys));
+            auto_paste_debug = clipboard_->last_debug_info();
+        }
 
-        hud_->show_notice("Transcription copied");
+        history_store_->add_entry(result.text, result.audio_path, result.meta);
+        load_history();
+
         set_state(SessionState::Idle, "Ready.");
+
+        if (config_.output.paste_to_focused_window && !auto_paste_ok) {
+            const QString status = auto_paste_debug.isEmpty() ? "Auto paste failed." : QString("Auto paste failed.\n%1").arg(auto_paste_debug);
+            window_->set_status_text(status);
+            window_->settings_window()->set_status_text(status);
+            hud_->show_error("Auto paste failed");
+        } else {
+            const bool copied = config_.output.copy_to_clipboard;
+            const bool pasted = config_.output.paste_to_focused_window && auto_paste_ok;
+            if (copied || pasted) {
+                hud_->show_notice(copied ? "Transcription copied" : "Transcription pasted");
+            } else {
+                hud_->show_notice("Transcription complete");
+            }
+        }
+        clipboard_->clear_paste_session();
     }
 
     if (shutting_down_) {
@@ -363,21 +547,56 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
         [config_snapshot, samples = std::move(samples), audio_path = std::move(audio_path), job_id, cancel_flag]() mutable {
             TranscriptionResult result;
             result.job_id = job_id;
-            result.summary = "asr";
             result.audio_path = std::move(audio_path);
 
             try {
                 AsrClient asr_client(config_snapshot);
                 TextRefiner text_refiner(config_snapshot);
 
+                nlohmann::json meta = nlohmann::json::object();
+                nlohmann::json diagnostics = nlohmann::json::object();
+                nlohmann::json timing = nlohmann::json::object();
+
+                const auto asr_start = std::chrono::steady_clock::now();
                 std::string text = asr_client.transcribe(samples, cancel_flag.get());
+                timing["asr_ms"] =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - asr_start).count();
+                diagnostics["pipeline"] = "asr_refine";
+                diagnostics["asr"] = nlohmann::json{
+                    {"provider", config_snapshot.pipeline.asr.provider},
+                    {"model", config_snapshot.pipeline.asr.model},
+                };
+
                 if (config_snapshot.pipeline.refine.enabled) {
+                    const auto refine_start = std::chrono::steady_clock::now();
                     text = text_refiner.refine(text, cancel_flag.get());
-                    result.summary = "asr -> refine";
+                    timing["refine_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                              std::chrono::steady_clock::now() - refine_start)
+                                              .count();
+                    diagnostics["refine"] = nlohmann::json{
+                        {"provider", config_snapshot.pipeline.refine.endpoint.provider},
+                        {"model", config_snapshot.pipeline.refine.endpoint.model},
+                    };
                 }
+
+                long long total_ms = 0;
+                for (auto it = timing.begin(); it != timing.end(); ++it) {
+                    if (it.value().is_number_integer()) {
+                        total_ms += it.value().get<long long>();
+                    }
+                }
+                timing["total"] = total_ms;
+                if (config_snapshot.observability.record_timing) {
+                    diagnostics["timing"] = timing;
+                }
+                meta["diagnostics"] = diagnostics;
+
                 result.text = QString::fromStdString(text).trimmed();
                 if (result.text.isEmpty()) {
                     throw std::runtime_error("transcription result is empty");
+                }
+                if (config_snapshot.observability.record_metadata) {
+                    result.meta = std::move(meta);
                 }
             } catch (const std::exception& exception) {
                 const QString message = QString::fromUtf8(exception.what());
@@ -385,6 +604,10 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                     result.cancelled = true;
                 } else {
                     result.error_text = message;
+                    result.meta = nlohmann::json{
+                        {"summary", "transcription failed"},
+                        {"diagnostics", {{"error", message.toStdString()}}},
+                    };
                 }
             }
 

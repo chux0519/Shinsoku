@@ -11,7 +11,8 @@ inline constexpr std::uint32_t kFixedSampleRate = 16000;
 inline constexpr std::uint32_t kFixedChannelCount = 1;
 
 struct HotkeyConfig {
-    std::string sequence = "ctrl+alt+space";
+    std::string hold_key = "KEY_RIGHTALT";
+    std::string hands_free_chord_key = "KEY_SPACE";
 };
 
 struct EndpointConfig {
@@ -67,6 +68,24 @@ struct AudioConfig {
 
 struct OutputConfig {
     bool copy_to_clipboard = true;
+    bool paste_to_focused_window = false;
+    std::string paste_keys = "ctrl+shift+v";
+};
+
+struct VadConfig {
+    bool enabled = true;
+    float threshold = 0.5f;
+    std::uint32_t min_speech_duration_ms = 100;
+};
+
+struct ObservabilityConfig {
+    bool record_metadata = true;
+    bool record_timing = true;
+};
+
+struct HudConfig {
+    bool enabled = true;
+    int bottom_margin = 104;
 };
 
 struct AppConfig {
@@ -74,6 +93,9 @@ struct AppConfig {
     PipelineConfig pipeline;
     AudioConfig audio;
     OutputConfig output;
+    VadConfig vad;
+    ObservabilityConfig observability;
+    HudConfig hud;
     std::filesystem::path history_db_path;
     std::filesystem::path config_path;
 };

@@ -11,12 +11,15 @@ public:
     using QObject::QObject;
     ~GlobalHotkey() override = default;
 
-    virtual bool register_hotkey(const QString& sequence) = 0;
+    virtual bool register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) = 0;
     virtual void unregister_hotkey() = 0;
     virtual QString backend_name() const = 0;
 
 signals:
-    void activated();
+    void hold_started();
+    void hold_stopped();
+    void hands_free_enabled();
+    void hands_free_disabled();
     void registration_failed(const QString& reason);
 };
 

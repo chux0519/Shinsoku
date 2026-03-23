@@ -45,17 +45,28 @@ qt_add_executable(ohmytypeless
     src/platform/hud_presenter.hpp
     src/platform/qt/qt_clipboard_service.hpp
     src/platform/qt/qt_clipboard_service.cpp
+    src/platform/qt/qt_global_hotkey.hpp
+    src/platform/qt/qt_global_hotkey.cpp
     src/platform/qt/qt_hud_presenter.hpp
     src/platform/qt/qt_hud_presenter.cpp
-    src/platform/windows/windows_global_hotkey.hpp
-    src/platform/windows/windows_global_hotkey.cpp
     src/ui/main_window.hpp
     src/ui/main_window.cpp
+    src/ui/history_details_dialog.hpp
+    src/ui/history_details_dialog.cpp
     src/ui/settings_window.hpp
     src/ui/settings_window.cpp
     src/ui/history_window.hpp
     src/ui/history_window.cpp
 )
+
+if(WIN32)
+    target_sources(ohmytypeless PRIVATE
+        src/platform/windows/windows_clipboard_service.hpp
+        src/platform/windows/windows_clipboard_service.cpp
+        src/platform/windows/windows_global_hotkey.hpp
+        src/platform/windows/windows_global_hotkey.cpp
+    )
+endif()
 
 target_include_directories(ohmytypeless PRIVATE src ${MINIAUDIO_INCLUDE_DIRS})
 

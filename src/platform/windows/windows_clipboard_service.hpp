@@ -6,9 +6,9 @@ class QClipboard;
 
 namespace ohmytypeless {
 
-class QtClipboardService final : public ClipboardService {
+class WindowsClipboardService final : public ClipboardService {
 public:
-    explicit QtClipboardService(QClipboard* clipboard);
+    explicit WindowsClipboardService(QClipboard* clipboard);
 
     void begin_paste_session() override;
     void clear_paste_session() override;
@@ -17,7 +17,13 @@ public:
     QString last_debug_info() const override;
 
 private:
+    void set_debug_info(const QString& text);
+
     QClipboard* clipboard_ = nullptr;
+    quintptr target_window_ = 0;
+    quintptr target_focus_ = 0;
+    unsigned long target_thread_id_ = 0;
+    QString last_debug_info_;
 };
 
 }  // namespace ohmytypeless

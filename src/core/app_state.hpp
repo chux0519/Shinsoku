@@ -2,6 +2,8 @@
 
 #include <QtGlobal>
 
+#include <nlohmann/json.hpp>
+
 #include <optional>
 #include <QString>
 
@@ -19,7 +21,7 @@ struct HistoryEntry {
     qint64 id = 0;
     QString created_at;
     QString text;
-    QString summary;
+    nlohmann::json meta;
     std::optional<QString> audio_path;
 };
 

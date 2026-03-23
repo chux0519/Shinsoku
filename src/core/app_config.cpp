@@ -39,13 +39,8 @@ std::string trim(std::string value) {
     if (begin == std::string::npos) {
         return {};
     }
-
     const auto end = value.find_last_not_of(" \t\r\n");
     return value.substr(begin, end - begin + 1U);
-}
-
-std::string normalized_string(std::string value) {
-    return trim(std::move(value));
 }
 
 std::string strip_comments(std::string line) {
@@ -81,7 +76,6 @@ std::string unquote(std::string value) {
     value = value.substr(1, value.size() - 2U);
     std::string out;
     out.reserve(value.size());
-
     bool escaped = false;
     for (const char ch : value) {
         if (!escaped) {
@@ -115,7 +109,6 @@ std::string unquote(std::string value) {
         }
         escaped = false;
     }
-
     return out;
 }
 
@@ -166,6 +159,22 @@ std::size_t parse_size(const std::string& value, std::size_t fallback) {
     }
 }
 
+int parse_int(const std::string& value, int fallback) {
+    try {
+        return std::stoi(trim(value));
+    } catch (...) {
+        return fallback;
+    }
+}
+
+float parse_float(const std::string& value, float fallback) {
+    try {
+        return std::stof(trim(value));
+    } catch (...) {
+        return fallback;
+    }
+}
+
 SectionMap parse_toml_like_file(const std::filesystem::path& path) {
     SectionMap sections;
     std::ifstream input(path);
@@ -180,7 +189,6 @@ SectionMap parse_toml_like_file(const std::filesystem::path& path) {
         if (line.empty()) {
             continue;
         }
-
         if (line.front() == '[' && line.back() == ']') {
             current_section = trim(line.substr(1, line.size() - 2U));
             continue;
@@ -190,7 +198,6 @@ SectionMap parse_toml_like_file(const std::filesystem::path& path) {
         if (equals_pos == std::string::npos) {
             continue;
         }
-
         sections[current_section][trim(line.substr(0, equals_pos))] = trim(line.substr(equals_pos + 1U));
     }
 
@@ -202,12 +209,10 @@ std::optional<std::string> get_value(const SectionMap& sections, const std::stri
     if (section_it == sections.end()) {
         return std::nullopt;
     }
-
     const auto value_it = section_it->second.find(key);
     if (value_it == section_it->second.end()) {
         return std::nullopt;
     }
-
     return value_it->second;
 }
 
@@ -227,32 +232,38 @@ AppConfig load_config() {
 
     const SectionMap sections = parse_toml_like_file(config.config_path);
 
-    if (const auto value = get_value(sections, "hotkey", "sequence")) {
-        config.hotkey.sequence = normalized_string(unquote(*value));
+    if (const auto value = get_value(sections, "hotkey", "hold_key")) {
+        config.hotkey.hold_key = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "hotkey", "hands_free_chord_key")) {
+        config.hotkey.hands_free_chord_key = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.asr", "provider")) {
-        config.pipeline.asr.provider = normalized_string(unquote(*value));
+        config.pipeline.asr.provider = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.asr", "base_url")) {
-        config.pipeline.asr.base_url = normalized_string(unquote(*value));
+        config.pipeline.asr.base_url = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.asr", "api_key")) {
-        config.pipeline.asr.api_key = normalized_string(unquote(*value));
+        config.pipeline.asr.api_key = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.asr", "model")) {
-        config.pipeline.asr.model = normalized_string(unquote(*value));
+        config.pipeline.asr.model = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.refine", "enabled")) {
         config.pipeline.refine.enabled = parse_bool(*value, config.pipeline.refine.enabled);
     }
+    if (const auto value = get_value(sections, "pipeline.refine", "provider")) {
+        config.pipeline.refine.endpoint.provider = unquote(*value);
+    }
     if (const auto value = get_value(sections, "pipeline.refine", "base_url")) {
-        config.pipeline.refine.endpoint.base_url = normalized_string(unquote(*value));
+        config.pipeline.refine.endpoint.base_url = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.refine", "api_key")) {
-        config.pipeline.refine.endpoint.api_key = normalized_string(unquote(*value));
+        config.pipeline.refine.endpoint.api_key = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.refine", "model")) {
-        config.pipeline.refine.endpoint.model = normalized_string(unquote(*value));
+        config.pipeline.refine.endpoint.model = unquote(*value);
     }
     if (const auto value = get_value(sections, "pipeline.refine", "system_prompt")) {
         config.pipeline.refine.system_prompt = unquote(*value);
@@ -275,7 +286,40 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "output", "copy_to_clipboard")) {
         config.output.copy_to_clipboard = parse_bool(*value, config.output.copy_to_clipboard);
     }
+    if (const auto value = get_value(sections, "output", "paste_to_focused_window")) {
+        config.output.paste_to_focused_window = parse_bool(*value, config.output.paste_to_focused_window);
+    }
+    if (const auto value = get_value(sections, "output", "paste_keys")) {
+        config.output.paste_keys = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "vad", "enabled")) {
+        config.vad.enabled = parse_bool(*value, config.vad.enabled);
+    }
+    if (const auto value = get_value(sections, "vad", "threshold")) {
+        config.vad.threshold = parse_float(*value, config.vad.threshold);
+    }
+    if (const auto value = get_value(sections, "vad", "min_speech_duration_ms")) {
+        config.vad.min_speech_duration_ms = static_cast<std::uint32_t>(parse_int(*value, static_cast<int>(config.vad.min_speech_duration_ms)));
+    }
+    if (const auto value = get_value(sections, "observability", "record_metadata")) {
+        config.observability.record_metadata = parse_bool(*value, config.observability.record_metadata);
+    }
+    if (const auto value = get_value(sections, "observability", "record_timing")) {
+        config.observability.record_timing = parse_bool(*value, config.observability.record_timing);
+    }
+    if (const auto value = get_value(sections, "hud", "enabled")) {
+        config.hud.enabled = parse_bool(*value, config.hud.enabled);
+    }
+    if (const auto value = get_value(sections, "hud", "bottom_margin")) {
+        config.hud.bottom_margin = parse_int(*value, config.hud.bottom_margin);
+    }
 
+    if (config.hotkey.hold_key.empty()) {
+        config.hotkey.hold_key = defaults.hotkey.hold_key;
+    }
+    if (config.hotkey.hands_free_chord_key.empty()) {
+        config.hotkey.hands_free_chord_key = defaults.hotkey.hands_free_chord_key;
+    }
     if (config.pipeline.asr.provider.empty()) {
         config.pipeline.asr.provider = defaults.pipeline.asr.provider;
     }
@@ -294,6 +338,9 @@ AppConfig load_config() {
     if (config.pipeline.refine.system_prompt.empty()) {
         config.pipeline.refine.system_prompt = defaults.pipeline.refine.system_prompt;
     }
+    if (config.output.paste_keys.empty()) {
+        config.output.paste_keys = defaults.output.paste_keys;
+    }
 
     std::filesystem::create_directories(config.audio.recordings_dir);
     return config;
@@ -308,7 +355,8 @@ void save_config(const AppConfig& config) {
     }
 
     output << "[hotkey]\n";
-    output << "sequence = \"" << escape_toml_string(config.hotkey.sequence) << "\"\n\n";
+    output << "hold_key = \"" << escape_toml_string(config.hotkey.hold_key) << "\"\n";
+    output << "hands_free_chord_key = \"" << escape_toml_string(config.hotkey.hands_free_chord_key) << "\"\n\n";
 
     output << "[pipeline.asr]\n";
     output << "provider = \"" << escape_toml_string(config.pipeline.asr.provider) << "\"\n";
@@ -318,6 +366,7 @@ void save_config(const AppConfig& config) {
 
     output << "[pipeline.refine]\n";
     output << "enabled = " << (config.pipeline.refine.enabled ? "true" : "false") << "\n";
+    output << "provider = \"" << escape_toml_string(config.pipeline.refine.endpoint.provider) << "\"\n";
     output << "base_url = \"" << escape_toml_string(config.pipeline.refine.endpoint.base_url) << "\"\n";
     output << "api_key = \"" << escape_toml_string(config.pipeline.refine.endpoint.api_key) << "\"\n";
     output << "model = \"" << escape_toml_string(config.pipeline.refine.endpoint.model) << "\"\n";
@@ -337,6 +386,21 @@ void save_config(const AppConfig& config) {
 
     output << "[output]\n";
     output << "copy_to_clipboard = " << (config.output.copy_to_clipboard ? "true" : "false") << "\n";
+    output << "paste_to_focused_window = " << (config.output.paste_to_focused_window ? "true" : "false") << "\n";
+    output << "paste_keys = \"" << escape_toml_string(config.output.paste_keys) << "\"\n\n";
+
+    output << "[vad]\n";
+    output << "enabled = " << (config.vad.enabled ? "true" : "false") << "\n";
+    output << "threshold = " << config.vad.threshold << "\n";
+    output << "min_speech_duration_ms = " << config.vad.min_speech_duration_ms << "\n\n";
+
+    output << "[observability]\n";
+    output << "record_metadata = " << (config.observability.record_metadata ? "true" : "false") << "\n";
+    output << "record_timing = " << (config.observability.record_timing ? "true" : "false") << "\n\n";
+
+    output << "[hud]\n";
+    output << "enabled = " << (config.hud.enabled ? "true" : "false") << "\n";
+    output << "bottom_margin = " << config.hud.bottom_margin << "\n";
 }
 
 }  // namespace ohmytypeless

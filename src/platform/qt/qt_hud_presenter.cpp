@@ -3,49 +3,50 @@
 #include <QApplication>
 #include <QGuiApplication>
 #include <QLabel>
+#include <QHBoxLayout>
 #include <QScreen>
+#include <QStyleHints>
 #include <QTimer>
-#include <QVBoxLayout>
 #include <QWidget>
 
 namespace ohmytypeless {
 
 namespace {
 
-QString base_style(const QString& accent) {
-    return QString(
-               "QWidget {"
-               "background-color: rgba(20, 22, 26, 232);"
-               "border: 1px solid rgba(255, 255, 255, 24);"
-               "border-radius: 14px;"
-               "}"
-               "QLabel {"
-               "color: %1;"
-               "font-size: 14px;"
-               "font-weight: 600;"
-               "padding: 10px 16px;"
-               "}")
-        .arg(accent);
-}
-
 }  // namespace
 
 QtHudPresenter::QtHudPresenter(QObject* parent) : QObject(parent) {}
 
+void QtHudPresenter::apply_config(const HudConfig& config) {
+    config_ = config;
+    if (!config_.enabled) {
+        hide();
+    }
+}
+
 void QtHudPresenter::show_recording() {
-    show_text("Recording", base_style("#57d38c"), 0);
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    show_text("Recording", dark ? "#f3f4f6" : "#111315", 0);
 }
 
 void QtHudPresenter::show_transcribing() {
-    show_text("Transcribing", base_style("#8cb6ff"), 0);
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    show_text("Transcribing", dark ? "#d1d5db" : "#1f2933", 0);
+}
+
+void QtHudPresenter::show_thinking() {
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    show_text("Thinking", dark ? "#cbd5e1" : "#374151", 0);
 }
 
 void QtHudPresenter::show_notice(const QString& text, int duration_ms) {
-    show_text(text, base_style("#d9dde7"), duration_ms);
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    show_text(text, dark ? "#e5e7eb" : "#111315", duration_ms);
 }
 
 void QtHudPresenter::show_error(const QString& text, int duration_ms) {
-    show_text(text, base_style("#ff6e6e"), duration_ms);
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    show_text(text, dark ? "#fca5a5" : "#991b1b", duration_ms);
 }
 
 void QtHudPresenter::hide() {
@@ -68,31 +69,61 @@ void QtHudPresenter::ensure_widget() {
     widget->setWindowFlag(Qt::WindowStaysOnTopHint, true);
     widget->setAttribute(Qt::WA_ShowWithoutActivating, true);
     widget->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    widget->setAttribute(Qt::WA_TranslucentBackground, true);
 
-    auto* layout = new QVBoxLayout(widget);
-    layout->setContentsMargins(0, 0, 0, 0);
+    auto* layout = new QHBoxLayout(widget);
+    layout->setContentsMargins(18, 18, 18, 18);
 
-    auto* label = new QLabel(widget);
+    auto* panel = new QWidget(widget);
+    panel->setObjectName("hudPanel");
+    auto* panel_layout = new QHBoxLayout(panel);
+    panel_layout->setContentsMargins(20, 14, 20, 14);
+
+    auto* label = new QLabel(panel);
     label->setAlignment(Qt::AlignCenter);
-    layout->addWidget(label);
+    label->setWordWrap(true);
+    panel_layout->addWidget(label);
+    layout->addWidget(panel);
 
     auto* timer = new QTimer(widget);
     timer->setSingleShot(true);
     connect(timer, &QTimer::timeout, widget, &QWidget::hide);
 
     widget_ = widget;
+    panel_ = panel;
     label_ = label;
     hide_timer_ = timer;
 }
 
-void QtHudPresenter::show_text(const QString& text, const QString& style_sheet, int duration_ms) {
+void QtHudPresenter::show_text(const QString& text, const QString& accent, int duration_ms) {
+    if (!config_.enabled) {
+        return;
+    }
     ensure_widget();
-    if (widget_ == nullptr || label_ == nullptr) {
+    if (widget_ == nullptr || panel_ == nullptr || label_ == nullptr) {
         return;
     }
 
     label_->setText(text);
-    widget_->setStyleSheet(style_sheet);
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    widget_->setStyleSheet(
+        QString(
+            "QWidget { background: transparent; }"
+            "#hudPanel {"
+            "background-color: %1;"
+            "border: 1px solid %2;"
+            "border-radius: 18px;"
+            "}"
+            "QLabel {"
+            "background: transparent;"
+            "color: %3;"
+            "font-size: 14px;"
+            "font-weight: 700;"
+            "padding: 0;"
+            "}")
+            .arg(dark ? "rgba(29, 33, 38, 244)" : "rgba(255, 255, 255, 244)",
+                 dark ? "rgba(255,255,255,0.10)" : "rgba(17,19,21,0.08)",
+                 accent));
     widget_->adjustSize();
 
     QScreen* screen = QGuiApplication::primaryScreen();
@@ -100,7 +131,7 @@ void QtHudPresenter::show_text(const QString& text, const QString& style_sheet, 
         const QRect available = screen->availableGeometry();
         const QSize size = widget_->sizeHint();
         const int x = available.x() + (available.width() - size.width()) / 2;
-        const int y = available.bottom() - size.height() - 96;
+        const int y = available.bottom() - size.height() - config_.bottom_margin;
         widget_->setGeometry(x, y, size.width(), size.height());
     }
 

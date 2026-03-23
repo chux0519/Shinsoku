@@ -30,7 +30,6 @@ public:
 
 signals:
     void toggle_recording_requested();
-    void copy_demo_text_requested();
     void register_hotkey_requested();
     void show_history_requested();
     void show_settings_requested();
