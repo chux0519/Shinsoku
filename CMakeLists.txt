@@ -20,6 +20,7 @@ find_path(MINIAUDIO_INCLUDE_DIRS miniaudio.h REQUIRED)
 qt_standard_project_setup()
 
 qt_add_executable(ohmytypeless
+    resources/app_theme.qrc
     src/main.cpp
     src/core/app_config.hpp
     src/core/app_config.cpp
@@ -49,6 +50,8 @@ qt_add_executable(ohmytypeless
     src/platform/qt/qt_global_hotkey.cpp
     src/platform/qt/qt_hud_presenter.hpp
     src/platform/qt/qt_hud_presenter.cpp
+    src/ui/app_theme.hpp
+    src/ui/app_theme.cpp
     src/ui/main_window.hpp
     src/ui/main_window.cpp
     src/ui/history_details_dialog.hpp

@@ -38,7 +38,7 @@ signals:
 private:
     void setup_tray();
 
-    QLabel* state_label_ = nullptr;
+    QLabel* state_badge_label_ = nullptr;
     QLabel* status_label_ = nullptr;
     QPushButton* record_button_ = nullptr;
     QSystemTrayIcon* tray_icon_ = nullptr;

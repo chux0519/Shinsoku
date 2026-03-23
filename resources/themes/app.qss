@@ -1,0 +1,269 @@
+QMainWindow, QDialog, QWidget {
+    background: {{bg}};
+    color: {{text}};
+    font-size: 14px;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+QScrollArea > QWidget > QWidget {
+    background: transparent;
+}
+
+#heroCard, #statusCard, #actionCard, #headerCard, #sectionCard, #statusBanner, #historyHeader, #entryCard, #summaryCard {
+    background: {{panel}};
+    border: 1px solid {{border}};
+    border-radius: 16px;
+}
+
+#eyebrow, #headerEyebrow, #historyEyebrow {
+    color: {{muted}};
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#heroTitle, #headerTitle, #historyTitle {
+    color: {{text}};
+    font-weight: 700;
+}
+
+#heroTitle {
+    font-size: 26px;
+    letter-spacing: -0.4px;
+}
+
+#headerTitle, #historyTitle {
+    font-size: 24px;
+}
+
+#heroBody, #headerBody, #historyBody, #entrySummary, #statusText {
+    color: {{muted}};
+}
+
+#stateBadge {
+    background: {{badge_bg}};
+    color: {{badge_text}};
+    border: 1px solid {{border}};
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-weight: 700;
+}
+
+#entryHeader, #summaryLabel {
+    color: {{text}};
+    font-weight: 700;
+}
+
+#entryPreview {
+    color: {{text}};
+    font-size: 15px;
+}
+
+QGroupBox#sectionCard {
+    margin-top: 0;
+    padding-top: 8px;
+    font-weight: 700;
+    color: {{text}};
+}
+
+QGroupBox#sectionCard::title {
+    subcontrol-origin: margin;
+    left: 22px;
+    top: 14px;
+    padding: 0 6px 0 0;
+}
+
+QLabel {
+    background: transparent;
+}
+
+#inlineFieldRow {
+    background: transparent;
+}
+
+QListWidget {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+QListWidget::item {
+    background: transparent;
+    border: none;
+}
+
+QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+    background: {{input_bg}};
+    border: 1px solid {{control_border}};
+    border-radius: 10px;
+    padding: 9px 11px;
+    selection-background-color: {{muted}};
+    selection-color: {{selection_text}};
+}
+
+QPlainTextEdit {
+    padding: 10px;
+}
+
+QComboBox {
+    padding-right: 34px;
+}
+
+QSpinBox, QDoubleSpinBox {
+    padding-right: 34px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 28px;
+    border-left: 1px solid {{control_border}};
+    background: {{control_fill}};
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+QComboBox::down-arrow {
+    image: url({{combo_arrow_icon}});
+    width: 12px;
+    height: 12px;
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 28px;
+    border-left: 1px solid {{control_border}};
+    border-bottom: 1px solid {{control_border}};
+    background: {{control_fill}};
+    border-top-right-radius: 10px;
+}
+
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 28px;
+    border-left: 1px solid {{control_border}};
+    background: {{control_fill}};
+    border-bottom-right-radius: 10px;
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    image: url({{spin_up_icon}});
+    width: 12px;
+    height: 12px;
+}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    image: url({{spin_down_icon}});
+    width: 12px;
+    height: 12px;
+}
+
+QCheckBox {
+    background: transparent;
+    spacing: 8px;
+    color: {{text}};
+}
+
+QCheckBox::indicator {
+    width: 20px;
+    height: 20px;
+}
+
+QCheckBox::indicator:unchecked {
+    background: {{input_bg}};
+    border: 2px solid {{control_border}};
+    border-radius: 6px;
+}
+
+QCheckBox::indicator:checked {
+    background: {{primary}};
+    border: 2px solid {{primary}};
+    border-radius: 6px;
+    image: url({{checkbox_check_icon}});
+}
+
+QCheckBox::indicator:hover {
+    border-color: {{text}};
+}
+
+QPushButton {
+    background: {{button_bg}};
+    border: 1px solid {{border}};
+    border-radius: 10px;
+    padding: 10px 15px;
+    font-weight: 600;
+    color: {{text}};
+}
+
+QPushButton:hover {
+    background: {{button_hover}};
+}
+
+QPushButton:pressed {
+    background: {{badge_bg}};
+}
+
+#recordButton, #applyButton {
+    background: {{primary}};
+    color: {{primary_text}};
+    border: none;
+}
+
+#recordButton:hover, #applyButton:hover {
+    background: {{primary_hover}};
+    color: {{primary_text}};
+}
+
+#statusBanner {
+    background: {{status_bg}};
+    color: {{muted}};
+    padding: 14px 16px;
+}
+
+QScrollBar:vertical {
+    background: {{scrollbar_track}};
+    width: 8px;
+    margin: 2px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background: {{scrollbar_handle}};
+    min-height: 28px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: {{text}};
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background: {{scrollbar_track}};
+    height: 8px;
+    margin: 2px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background: {{scrollbar_handle}};
+    min-width: 28px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: {{text}};
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}

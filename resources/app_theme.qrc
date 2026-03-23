@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>themes/app.qss</file>
+        <file>icons/chevron-down-dark.xpm</file>
+        <file>icons/chevron-down-light.xpm</file>
+        <file>icons/chevron-up-dark.xpm</file>
+        <file>icons/chevron-up-light.xpm</file>
+        <file>icons/check-dark.xpm</file>
+        <file>icons/check-light.xpm</file>
+    </qresource>
+</RCC>

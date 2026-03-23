@@ -13,6 +13,12 @@ namespace ohmytypeless {
 
 namespace {
 
+QSize hud_size_for(QWidget* widget) {
+    const QSize preferred = widget->sizeHint();
+    const QSize minimum = widget->minimumSizeHint();
+    return preferred.expandedTo(minimum);
+}
+
 }  // namespace
 
 QtHudPresenter::QtHudPresenter(QObject* parent) : QObject(parent) {}
@@ -124,15 +130,15 @@ void QtHudPresenter::show_text(const QString& text, const QString& accent, int d
             .arg(dark ? "rgba(29, 33, 38, 244)" : "rgba(255, 255, 255, 244)",
                  dark ? "rgba(255,255,255,0.10)" : "rgba(17,19,21,0.08)",
                  accent));
-    widget_->adjustSize();
+    const QSize size = hud_size_for(widget_);
+    widget_->resize(size);
 
     QScreen* screen = QGuiApplication::primaryScreen();
     if (screen != nullptr) {
         const QRect available = screen->availableGeometry();
-        const QSize size = widget_->sizeHint();
         const int x = available.x() + (available.width() - size.width()) / 2;
         const int y = available.bottom() - size.height() - config_.bottom_margin;
-        widget_->setGeometry(x, y, size.width(), size.height());
+        widget_->move(x, y);
     }
 
     widget_->show();

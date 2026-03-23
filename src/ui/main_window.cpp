@@ -55,9 +55,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     status_layout->setContentsMargins(24, 20, 24, 20);
     status_layout->setSpacing(10);
 
-    state_label_ = new QLabel("State: Idle", status_card);
-    state_label_->setObjectName("stateBadge");
-    status_layout->addWidget(state_label_, 0, Qt::AlignLeft);
+    state_badge_label_ = new QLabel("State: Idle", status_card);
+    state_badge_label_->setObjectName("stateBadge");
+    status_layout->addWidget(state_badge_label_, 0, Qt::AlignLeft);
 
     status_label_ = new QLabel("Ready.", status_card);
     status_label_->setObjectName("statusText");
@@ -126,7 +126,9 @@ void MainWindow::set_session_state(SessionState state) {
         break;
     }
 
-    state_label_->setText(text);
+    if (state_badge_label_ != nullptr) {
+        state_badge_label_->setText(text);
+    }
 
     if (tray_state_action_ != nullptr) {
         tray_state_action_->setText(text);

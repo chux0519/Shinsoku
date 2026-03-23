@@ -104,6 +104,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     input_device_combo_ = new QComboBox(audio_section);
     save_recordings_check_ = new QCheckBox("Save recordings as .wav", audio_section);
     auto* recordings_dir_row = new QWidget(audio_section);
+    recordings_dir_row->setObjectName("inlineFieldRow");
     auto* recordings_dir_layout = new QHBoxLayout(recordings_dir_row);
     recordings_dir_layout->setContentsMargins(0, 0, 0, 0);
     recordings_dir_edit_ = new QLineEdit(recordings_dir_row);
