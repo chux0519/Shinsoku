@@ -3,10 +3,11 @@
 #include "core/app_config.hpp"
 #include "core/app_state.hpp"
 #include "core/audio_recorder.hpp"
-#include "core/asr_client.hpp"
+#include "core/backend/asr_backend.hpp"
+#include "core/backend/text_transform_backend.hpp"
 #include "core/history_store.hpp"
 #include "core/recording_store.hpp"
-#include "core/text_refiner.hpp"
+#include "core/task_types.hpp"
 
 #include <QFutureWatcher>
 #include <QObject>
@@ -25,6 +26,7 @@ class ClipboardService;
 class GlobalHotkey;
 class HudPresenter;
 class MainWindow;
+class SelectionService;
 
 struct TranscriptionResult {
     quint64 job_id = 0;
@@ -40,6 +42,7 @@ class AppController final : public QObject {
 public:
     AppController(MainWindow* window,
                   ClipboardService* clipboard,
+                  SelectionService* selection,
                   GlobalHotkey* hotkey,
                   HudPresenter* hud,
                   QObject* parent = nullptr);
@@ -48,6 +51,7 @@ public:
 
 private slots:
     void toggle_recording();
+    void arm_selection_command();
     void apply_settings();
     void show_history();
     void show_settings();
@@ -71,15 +75,21 @@ private:
     void cancel_active_transcription();
     void on_transcription_finished();
     void transcribe_async(std::vector<float> samples, std::optional<std::filesystem::path> audio_path);
+    void transcribe_selection_command_async(TextTask task,
+                                            std::vector<float> samples,
+                                            std::optional<std::filesystem::path> audio_path);
 
     MainWindow* window_ = nullptr;
     ClipboardService* clipboard_ = nullptr;
+    SelectionService* selection_ = nullptr;
     GlobalHotkey* hotkey_ = nullptr;
     HudPresenter* hud_ = nullptr;
     AppConfig config_;
     AudioRecorder recorder_;
     std::unique_ptr<HistoryStore> history_store_;
     std::unique_ptr<RecordingStore> recording_store_;
+    std::unique_ptr<AsrBackend> asr_backend_;
+    std::unique_ptr<TextTransformBackend> refine_backend_;
     std::unique_ptr<QFutureWatcher<TranscriptionResult>> transcription_watcher_;
     std::shared_ptr<std::atomic_bool> transcription_cancel_flag_;
     QList<QPair<QString, QString>> audio_devices_;
@@ -89,6 +99,9 @@ private:
     quint64 next_transcription_job_id_ = 1;
     quint64 active_transcription_job_id_ = 0;
     bool shutting_down_ = false;
+    CaptureMode pending_capture_mode_ = CaptureMode::Dictation;
+    CaptureMode active_capture_mode_ = CaptureMode::Dictation;
+    QString pending_selection_debug_info_;
 };
 
 }  // namespace ohmytypeless

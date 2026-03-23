@@ -27,6 +27,23 @@ std::string trim(std::string value) {
     return value.substr(begin, end - begin + 1U);
 }
 
+std::string stringify_optional(const std::optional<std::string>& value) {
+    return value.has_value() ? value.value() : std::string{};
+}
+
+std::string selection_command_system_prompt() {
+    return "You are a text transformation assistant.\n\n"
+           "You will receive:\n"
+           "1. a spoken instruction\n"
+           "2. an input text selection\n\n"
+           "Apply the instruction to the input text exactly as requested.\n"
+           "You may translate, rewrite, shorten, expand, or restyle the text when the instruction asks for it.\n"
+           "Return only the final transformed text.\n"
+           "Do not explain what you did.\n"
+           "Do not quote the instruction.\n"
+           "Do not add commentary or markdown fences.";
+}
+
 }  // namespace
 
 TextRefiner::TextRefiner(AppConfig config)
@@ -34,9 +51,35 @@ TextRefiner::TextRefiner(AppConfig config)
       config_(std::move(config.pipeline.refine)),
       transport_options_(make_curl_transport_options(config)) {}
 
+std::string TextRefiner::name() const {
+    return config_.endpoint.provider.empty() ? "text_refine" : config_.endpoint.provider;
+}
+
+std::string TextRefiner::transform(const TextTransformRequest& request, const std::atomic_bool* cancel_flag) const {
+    if (request.input_text.empty()) {
+        return {};
+    }
+    if (request.instruction.empty() || request.instruction == "refine") {
+        return refine(request.input_text, cancel_flag);
+    }
+
+    const std::string prompt = build_user_prompt(request);
+    return request_completion(prompt, selection_command_system_prompt(), true, cancel_flag);
+}
+
 std::string TextRefiner::refine(const std::string& text, const std::atomic_bool* cancel_flag) const {
-    if (!config_.enabled || text.empty()) {
-        return text;
+    return request_completion(text, config_.system_prompt, false, cancel_flag);
+}
+
+std::string TextRefiner::request_completion(const std::string& user_content,
+                                            const std::string& system_prompt,
+                                            bool bypass_enabled_gate,
+                                            const std::atomic_bool* cancel_flag) const {
+    if (user_content.empty()) {
+        return {};
+    }
+    if (!bypass_enabled_gate && !config_.enabled) {
+        return user_content;
     }
 
     const std::string& base_url =
@@ -44,7 +87,6 @@ std::string TextRefiner::refine(const std::string& text, const std::atomic_bool*
     const std::string& api_key =
         config_.endpoint.api_key.empty() ? fallback_api_.api_key : config_.endpoint.api_key;
     const std::string& model = config_.endpoint.model;
-    const std::string& system_prompt = config_.system_prompt;
     if (base_url.empty() || model.empty()) {
         throw std::runtime_error("refine configuration is incomplete");
     }
@@ -64,7 +106,7 @@ std::string TextRefiner::refine(const std::string& text, const std::atomic_bool*
         {"messages",
          {
              {{"role", "system"}, {"content", system_prompt}},
-             {{"role", "user"}, {"content", text}},
+             {{"role", "user"}, {"content", user_content}},
          }},
     };
 
@@ -115,7 +157,7 @@ std::string TextRefiner::refine(const std::string& text, const std::atomic_bool*
         throw std::runtime_error(trim(response_body));
     }
     if (json.is_discarded()) {
-        throw std::runtime_error("refine response returned invalid JSON");
+        throw std::runtime_error("text transform response returned invalid JSON");
     }
     if (json.contains("error")) {
         const auto& error = json["error"];
@@ -124,15 +166,32 @@ std::string TextRefiner::refine(const std::string& text, const std::atomic_bool*
         }
     }
     if (!json.contains("choices") || !json["choices"].is_array() || json["choices"].empty()) {
-        throw std::runtime_error("refine response missing choices");
+        throw std::runtime_error("text transform response missing choices");
     }
 
     const auto& choice = json["choices"][0];
     if (!choice.contains("message") || !choice["message"].contains("content")) {
-        throw std::runtime_error("refine response missing message content");
+        throw std::runtime_error("text transform response missing message content");
     }
 
     return choice["message"]["content"].get<std::string>();
+}
+
+std::string TextRefiner::build_user_prompt(const TextTransformRequest& request) const {
+    std::string prompt;
+    prompt += "Apply the spoken instruction to the provided text.\n";
+    prompt += "Return only the transformed text, with no explanation.\n\n";
+    prompt += "Instruction:\n";
+    prompt += request.instruction;
+    prompt += "\n\nInput text:\n";
+    prompt += request.input_text;
+
+    const std::string context = stringify_optional(request.context);
+    if (!context.empty()) {
+        prompt += "\n\nContext:\n";
+        prompt += context;
+    }
+    return prompt;
 }
 
 }  // namespace ohmytypeless

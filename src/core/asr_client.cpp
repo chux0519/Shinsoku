@@ -35,6 +35,14 @@ AsrClient::AsrClient(AppConfig config)
       transport_options_(make_curl_transport_options(config)),
       sample_rate_(config.audio.sample_rate) {}
 
+std::string AsrClient::name() const {
+    return config_.provider.empty() ? "batch_http_asr" : config_.provider;
+}
+
+bool AsrClient::supports_streaming() const {
+    return false;
+}
+
 std::string AsrClient::transcribe(const std::vector<float>& samples, const std::atomic_bool* cancel_flag) const {
     if (samples.empty()) {
         return {};

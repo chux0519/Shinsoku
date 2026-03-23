@@ -2,6 +2,7 @@
 #include "platform/qt/qt_clipboard_service.hpp"
 #include "platform/qt/qt_global_hotkey.hpp"
 #include "platform/qt/qt_hud_presenter.hpp"
+#include "platform/qt/qt_selection_service.hpp"
 #include "ui/app_theme.hpp"
 #include "ui/main_window.hpp"
 
@@ -11,6 +12,7 @@
 #ifdef Q_OS_WIN
 #include "platform/windows/windows_clipboard_service.hpp"
 #include "platform/windows/windows_global_hotkey.hpp"
+#include "platform/windows/windows_selection_service.hpp"
 #endif
 
 int main(int argc, char* argv[]) {
@@ -25,13 +27,15 @@ int main(int argc, char* argv[]) {
     ohmytypeless::MainWindow window;
 #ifdef Q_OS_WIN
     ohmytypeless::WindowsClipboardService clipboard(app.clipboard());
+    ohmytypeless::WindowsSelectionService selection(app.clipboard());
     ohmytypeless::WindowsGlobalHotkey hotkey;
 #else
     ohmytypeless::QtClipboardService clipboard(app.clipboard());
+    ohmytypeless::QtSelectionService selection(app.clipboard());
     ohmytypeless::QtGlobalHotkey hotkey;
 #endif
     ohmytypeless::QtHudPresenter hud;
-    ohmytypeless::AppController controller(&window, &clipboard, &hotkey, &hud);
+    ohmytypeless::AppController controller(&window, &clipboard, &selection, &hotkey, &hud);
 
     controller.initialize();
     window.show();

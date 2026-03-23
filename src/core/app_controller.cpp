@@ -1,8 +1,11 @@
 #include "core/app_controller.hpp"
 
+#include "core/backend/backend_factory.hpp"
+#include "core/task_types.hpp"
 #include "platform/clipboard_service.hpp"
 #include "platform/global_hotkey.hpp"
 #include "platform/hud_presenter.hpp"
+#include "platform/selection_service.hpp"
 #include "ui/history_details_dialog.hpp"
 #include "ui/history_window.hpp"
 #include "ui/main_window.hpp"
@@ -104,17 +107,21 @@ QString display_path(const std::filesystem::path& path) {
 
 AppController::AppController(MainWindow* window,
                              ClipboardService* clipboard,
+                             SelectionService* selection,
                              GlobalHotkey* hotkey,
                              HudPresenter* hud,
                              QObject* parent)
     : QObject(parent),
       window_(window),
       clipboard_(clipboard),
+      selection_(selection),
       hotkey_(hotkey),
       hud_(hud),
       config_(load_config()),
       history_store_(std::make_unique<HistoryStore>(config_.history_db_path)),
       recording_store_(std::make_unique<RecordingStore>(config_.audio)),
+      asr_backend_(make_asr_backend(config_)),
+      refine_backend_(make_refine_backend(config_)),
       transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()) {}
 
 void AppController::initialize() {
@@ -162,11 +169,13 @@ void AppController::initialize() {
 
     hud_->apply_config(config_.hud);
     window_->set_session_state(state_);
-    window_->set_status_text(QString("Ready. Hotkey backend: %1").arg(hotkey_->backend_name()));
+    window_->set_status_text(
+        QString("Ready. Hotkey: %1, Selection: %2").arg(hotkey_->backend_name(), selection_->backend_name()));
     window_->update_history(history_);
     window_->set_tray_available(true);
 
     connect(window_, &MainWindow::toggle_recording_requested, this, &AppController::toggle_recording);
+    connect(window_, &MainWindow::arm_selection_command_requested, this, &AppController::arm_selection_command);
     connect(window_, &MainWindow::register_hotkey_requested, this, &AppController::apply_settings);
     connect(window_, &MainWindow::show_history_requested, this, &AppController::show_history);
     connect(window_, &MainWindow::show_settings_requested, this, &AppController::show_settings);
@@ -197,6 +206,19 @@ void AppController::toggle_recording() {
     } else if (state_ == SessionState::Recording || state_ == SessionState::HandsFree) {
         stop_recording();
     }
+}
+
+void AppController::arm_selection_command() {
+    if (state_ != SessionState::Idle && state_ != SessionState::Error) {
+        return;
+    }
+
+    pending_capture_mode_ = CaptureMode::SelectionCommand;
+    const QString status =
+        "Selection command armed. Return to the target app, keep the text selected, then use the normal recording hotkey.";
+    window_->set_status_text(status);
+    window_->settings_window()->set_status_text(status);
+    hud_->show_notice("Selection command armed");
 }
 
 void AppController::apply_settings() {
@@ -250,6 +272,8 @@ void AppController::apply_settings() {
     }
 
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
+    asr_backend_ = make_asr_backend(config_);
+    refine_backend_ = make_refine_backend(config_);
     hud_->apply_config(config_.hud);
     save_config(config_);
 
@@ -400,10 +424,17 @@ void AppController::start_recording(SessionState mode) {
 
     try {
         clipboard_->begin_paste_session();
+        active_capture_mode_ = pending_capture_mode_;
+        pending_capture_mode_ = CaptureMode::Dictation;
         recorder_.start(config_.audio.sample_rate, config_.audio.channels, config_.audio.input_device_id);
-        set_state(mode, mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
+        const QString status = active_capture_mode_ == CaptureMode::SelectionCommand
+                                   ? "Recording command for selected text."
+                                   : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
+        set_state(mode, status);
         hud_->show_recording();
     } catch (const std::exception& exception) {
+        active_capture_mode_ = CaptureMode::Dictation;
+        pending_capture_mode_ = CaptureMode::Dictation;
         on_hotkey_failed(QString::fromUtf8(exception.what()));
     }
 }
@@ -422,12 +453,42 @@ void AppController::stop_recording() {
         if (should_skip_transcription(analysis, config_.vad)) {
             set_state(SessionState::Idle, "No speech detected.");
             hud_->show_notice("No speech detected");
+            active_capture_mode_ = CaptureMode::Dictation;
             return;
         }
 
         const auto audio_path = recording_store_->save_recording(samples);
-        transcribe_async(samples, audio_path);
+        const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
+        const SelectionCaptureResult selection = selection_->capture_selection();
+        pending_selection_debug_info_ = selection.debug_info;
+
+        if (selection.success) {
+            active_capture_mode_ = CaptureMode::SelectionCommand;
+            TextTask task;
+            task.mode = CaptureMode::SelectionCommand;
+            task.selected_text = selection.selected_text;
+            transcribe_selection_command_async(std::move(task), samples, audio_path);
+        } else if (forced_selection_command) {
+            active_capture_mode_ = CaptureMode::SelectionCommand;
+            const QString status = selection.debug_info.isEmpty()
+                                       ? "No selected text captured."
+                                       : QString("No selected text captured.\n%1").arg(selection.debug_info);
+            set_state(SessionState::Error, status);
+            window_->settings_window()->set_status_text(status);
+            hud_->show_error("No selected text captured");
+            clipboard_->clear_paste_session();
+            active_capture_mode_ = CaptureMode::Dictation;
+            return;
+        } else {
+            active_capture_mode_ = CaptureMode::Dictation;
+            if (!selection.debug_info.isEmpty()) {
+                window_->set_status_text(QString("No command selection detected. Falling back to dictation.\n%1").arg(selection.debug_info));
+                window_->settings_window()->set_status_text(selection.debug_info);
+            }
+            transcribe_async(samples, audio_path);
+        }
     } catch (const std::exception& exception) {
+        active_capture_mode_ = CaptureMode::Dictation;
         on_hotkey_failed(QString::fromUtf8(exception.what()));
     }
 }
@@ -491,9 +552,11 @@ void AppController::on_transcription_finished() {
 
     active_transcription_job_id_ = 0;
 
-    if (result.cancelled) {
-        clipboard_->clear_paste_session();
-        if (shutting_down_) {
+        if (result.cancelled) {
+            clipboard_->clear_paste_session();
+            active_capture_mode_ = CaptureMode::Dictation;
+            pending_selection_debug_info_.clear();
+            if (shutting_down_) {
             QApplication::quit();
             return;
         }
@@ -509,14 +572,21 @@ void AppController::on_transcription_finished() {
                                   result.meta);
         load_history();
         clipboard_->clear_paste_session();
+        active_capture_mode_ = CaptureMode::Dictation;
+        pending_selection_debug_info_.clear();
         on_hotkey_failed(result.error_text);
     } else {
-        if (config_.output.copy_to_clipboard) {
+        bool replaced_selection = false;
+        QString replace_debug;
+        if (active_capture_mode_ == CaptureMode::SelectionCommand) {
+            replaced_selection = selection_->replace_selection(result.text);
+            replace_debug = selection_->last_debug_info();
+        } else if (config_.output.copy_to_clipboard) {
             clipboard_->copy_text(result.text);
         }
         bool auto_paste_ok = true;
         QString auto_paste_debug;
-        if (config_.output.paste_to_focused_window) {
+        if (active_capture_mode_ == CaptureMode::Dictation && config_.output.paste_to_focused_window) {
             auto_paste_ok = clipboard_->paste_text_to_last_target(result.text, QString::fromStdString(config_.output.paste_keys));
             auto_paste_debug = clipboard_->last_debug_info();
         }
@@ -526,26 +596,142 @@ void AppController::on_transcription_finished() {
 
         set_state(SessionState::Idle, "Ready.");
 
-        if (config_.output.paste_to_focused_window && !auto_paste_ok) {
+        if (active_capture_mode_ == CaptureMode::SelectionCommand && !replaced_selection) {
+            const QString status =
+                replace_debug.isEmpty() ? "Selection replace failed." : QString("Selection replace failed.\n%1").arg(replace_debug);
+            window_->set_status_text(status);
+            window_->settings_window()->set_status_text(status);
+            hud_->show_error("Selection replace failed");
+        } else if (config_.output.paste_to_focused_window && !auto_paste_ok) {
             const QString status = auto_paste_debug.isEmpty() ? "Auto paste failed." : QString("Auto paste failed.\n%1").arg(auto_paste_debug);
             window_->set_status_text(status);
             window_->settings_window()->set_status_text(status);
             hud_->show_error("Auto paste failed");
         } else {
-            const bool copied = config_.output.copy_to_clipboard;
-            const bool pasted = config_.output.paste_to_focused_window && auto_paste_ok;
-            if (copied || pasted) {
+        const bool copied = active_capture_mode_ == CaptureMode::Dictation && config_.output.copy_to_clipboard;
+            const bool pasted = active_capture_mode_ == CaptureMode::Dictation &&
+                                config_.output.paste_to_focused_window && auto_paste_ok;
+            if (active_capture_mode_ == CaptureMode::SelectionCommand) {
+                hud_->show_notice("Selection command complete");
+            } else if (copied || pasted) {
                 hud_->show_notice(copied ? "Transcription copied" : "Transcription pasted");
             } else {
                 hud_->show_notice("Transcription complete");
             }
         }
         clipboard_->clear_paste_session();
+        active_capture_mode_ = CaptureMode::Dictation;
+        pending_selection_debug_info_.clear();
     }
 
     if (shutting_down_) {
         QApplication::quit();
     }
+}
+
+void AppController::transcribe_selection_command_async(TextTask task,
+                                                       std::vector<float> samples,
+                                                       std::optional<std::filesystem::path> audio_path) {
+    if (transcription_watcher_->isRunning()) {
+        on_hotkey_failed("A transcription job is already running.");
+        return;
+    }
+
+    const AppConfig config_snapshot = config_;
+    const std::string selection_backend_name = selection_->backend_name().toStdString();
+    const QString selection_debug_info = pending_selection_debug_info_;
+    const quint64 job_id = next_transcription_job_id_++;
+    active_transcription_job_id_ = job_id;
+    transcription_cancel_flag_ = std::make_shared<std::atomic_bool>(false);
+    const auto cancel_flag = transcription_cancel_flag_;
+
+    transcription_watcher_->setFuture(QtConcurrent::run(
+        [config_snapshot,
+         selection_backend_name,
+         selection_debug_info,
+         task = std::move(task),
+         samples = std::move(samples),
+         audio_path = std::move(audio_path),
+         job_id,
+         cancel_flag]() mutable {
+            TranscriptionResult result;
+            result.job_id = job_id;
+            result.audio_path = std::move(audio_path);
+
+            try {
+                std::unique_ptr<AsrBackend> asr_backend = make_asr_backend(config_snapshot);
+                std::unique_ptr<TextTransformBackend> refine_backend = make_refine_backend(config_snapshot);
+
+                nlohmann::json meta = nlohmann::json::object();
+                nlohmann::json diagnostics = nlohmann::json::object();
+                nlohmann::json timing = nlohmann::json::object();
+
+                const auto asr_start = std::chrono::steady_clock::now();
+                const std::string instruction = asr_backend->transcribe(samples, cancel_flag.get());
+                timing["asr_ms"] =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - asr_start).count();
+                diagnostics["pipeline"] = "selection_command";
+                diagnostics["asr"] = nlohmann::json{
+                    {"provider", config_snapshot.pipeline.asr.provider},
+                    {"model", config_snapshot.pipeline.asr.model},
+                };
+
+                const auto transform_start = std::chrono::steady_clock::now();
+                const std::string transformed = refine_backend->transform(
+                    TextTransformRequest{
+                        .input_text = task.selected_text.toStdString(),
+                        .instruction = instruction,
+                        .context = std::optional<std::string>("Rewrite the selected text according to the spoken instruction."),
+                    },
+                    cancel_flag.get());
+                timing["transform_ms"] =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - transform_start).count();
+                diagnostics["transform"] = nlohmann::json{
+                    {"provider", config_snapshot.pipeline.refine.endpoint.provider},
+                    {"model", config_snapshot.pipeline.refine.endpoint.model},
+                    {"instruction", instruction},
+                };
+
+                long long total_ms = 0;
+                for (auto it = timing.begin(); it != timing.end(); ++it) {
+                    if (it.value().is_number_integer()) {
+                        total_ms += it.value().get<long long>();
+                    }
+                }
+                timing["total"] = total_ms;
+                if (config_snapshot.observability.record_timing) {
+                    diagnostics["timing"] = timing;
+                }
+                meta["diagnostics"] = diagnostics;
+                meta["selection"] = {
+                    {"source_text", task.selected_text.toStdString()},
+                    {"spoken_instruction", instruction},
+                    {"capture_backend", selection_backend_name},
+                    {"capture_debug", selection_debug_info.toStdString()},
+                };
+
+                result.text = QString::fromStdString(transformed).trimmed();
+                if (result.text.isEmpty()) {
+                    throw std::runtime_error("selection command result is empty");
+                }
+                if (config_snapshot.observability.record_metadata) {
+                    result.meta = std::move(meta);
+                }
+            } catch (const std::exception& exception) {
+                const QString message = QString::fromUtf8(exception.what());
+                if (cancel_flag->load() && message == "request cancelled") {
+                    result.cancelled = true;
+                } else {
+                    result.error_text = message;
+                    result.meta = nlohmann::json{
+                        {"summary", "selection command failed"},
+                        {"diagnostics", {{"error", message.toStdString()}}},
+                    };
+                }
+            }
+
+            return result;
+        }));
 }
 
 void AppController::transcribe_async(std::vector<float> samples, std::optional<std::filesystem::path> audio_path) {
@@ -555,27 +741,33 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
     }
 
     const AppConfig config_snapshot = config_;
+    const QString selection_debug_info = pending_selection_debug_info_;
     const quint64 job_id = next_transcription_job_id_++;
     active_transcription_job_id_ = job_id;
     transcription_cancel_flag_ = std::make_shared<std::atomic_bool>(false);
     const auto cancel_flag = transcription_cancel_flag_;
 
     transcription_watcher_->setFuture(QtConcurrent::run(
-        [config_snapshot, samples = std::move(samples), audio_path = std::move(audio_path), job_id, cancel_flag]() mutable {
+        [config_snapshot,
+         selection_debug_info,
+         samples = std::move(samples),
+         audio_path = std::move(audio_path),
+         job_id,
+         cancel_flag]() mutable {
             TranscriptionResult result;
             result.job_id = job_id;
             result.audio_path = std::move(audio_path);
 
             try {
-                AsrClient asr_client(config_snapshot);
-                TextRefiner text_refiner(config_snapshot);
+                std::unique_ptr<AsrBackend> asr_backend = make_asr_backend(config_snapshot);
+                std::unique_ptr<TextTransformBackend> refine_backend = make_refine_backend(config_snapshot);
 
                 nlohmann::json meta = nlohmann::json::object();
                 nlohmann::json diagnostics = nlohmann::json::object();
                 nlohmann::json timing = nlohmann::json::object();
 
                 const auto asr_start = std::chrono::steady_clock::now();
-                std::string text = asr_client.transcribe(samples, cancel_flag.get());
+                std::string text = asr_backend->transcribe(samples, cancel_flag.get());
                 timing["asr_ms"] =
                     std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - asr_start).count();
                 diagnostics["pipeline"] = "asr_refine";
@@ -586,7 +778,10 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
 
                 if (config_snapshot.pipeline.refine.enabled) {
                     const auto refine_start = std::chrono::steady_clock::now();
-                    text = text_refiner.refine(text, cancel_flag.get());
+                    text = refine_backend->transform(TextTransformRequest{
+                        .input_text = text,
+                        .instruction = "refine",
+                    }, cancel_flag.get());
                     timing["refine_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(
                                               std::chrono::steady_clock::now() - refine_start)
                                               .count();
@@ -607,6 +802,12 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                     diagnostics["timing"] = timing;
                 }
                 meta["diagnostics"] = diagnostics;
+                if (!selection_debug_info.isEmpty()) {
+                    meta["selection_detection"] = {
+                        {"capture_backend", "windows_uia_textpattern"},
+                        {"capture_debug", selection_debug_info.toStdString()},
+                    };
+                }
 
                 result.text = QString::fromStdString(text).trimmed();
                 if (result.text.isEmpty()) {

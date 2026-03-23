@@ -72,11 +72,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     actions->setSpacing(12);
     record_button_ = new QPushButton("Toggle Recording", action_card);
     record_button_->setObjectName("recordButton");
+    selection_command_button_ = new QPushButton("Selection Command", action_card);
     auto* hotkey_button = new QPushButton("Apply Settings", action_card);
     auto* history_button = new QPushButton("History", action_card);
     auto* settings_button = new QPushButton("Settings", action_card);
 
     actions->addWidget(record_button_);
+    actions->addWidget(selection_command_button_);
     actions->addWidget(hotkey_button);
     actions->addWidget(history_button);
     actions->addWidget(settings_button);
@@ -91,6 +93,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setup_tray();
 
     connect(record_button_, &QPushButton::clicked, this, &MainWindow::toggle_recording_requested);
+    connect(selection_command_button_, &QPushButton::clicked, this, &MainWindow::arm_selection_command_requested);
     connect(hotkey_button, &QPushButton::clicked, this, &MainWindow::register_hotkey_requested);
     connect(history_button, &QPushButton::clicked, this, &MainWindow::show_history_requested);
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::show_settings_requested);

@@ -27,6 +27,10 @@ qt_add_executable(ohmytypeless
     src/core/app_state.hpp
     src/core/audio_recorder.hpp
     src/core/audio_recorder.cpp
+    src/core/backend/asr_backend.hpp
+    src/core/backend/text_transform_backend.hpp
+    src/core/backend/backend_factory.hpp
+    src/core/backend/backend_factory.cpp
     src/core/asr_client.hpp
     src/core/asr_client.cpp
     src/core/app_controller.hpp
@@ -37,6 +41,7 @@ qt_add_executable(ohmytypeless
     src/core/history_store.cpp
     src/core/recording_store.hpp
     src/core/recording_store.cpp
+    src/core/task_types.hpp
     src/core/text_refiner.hpp
     src/core/text_refiner.cpp
     src/core/wav_encoder.hpp
@@ -44,12 +49,15 @@ qt_add_executable(ohmytypeless
     src/platform/clipboard_service.hpp
     src/platform/global_hotkey.hpp
     src/platform/hud_presenter.hpp
+    src/platform/selection_service.hpp
     src/platform/qt/qt_clipboard_service.hpp
     src/platform/qt/qt_clipboard_service.cpp
     src/platform/qt/qt_global_hotkey.hpp
     src/platform/qt/qt_global_hotkey.cpp
     src/platform/qt/qt_hud_presenter.hpp
     src/platform/qt/qt_hud_presenter.cpp
+    src/platform/qt/qt_selection_service.hpp
+    src/platform/qt/qt_selection_service.cpp
     src/ui/app_theme.hpp
     src/ui/app_theme.cpp
     src/ui/main_window.hpp
@@ -68,6 +76,8 @@ if(WIN32)
         src/platform/windows/windows_clipboard_service.cpp
         src/platform/windows/windows_global_hotkey.hpp
         src/platform/windows/windows_global_hotkey.cpp
+        src/platform/windows/windows_selection_service.hpp
+        src/platform/windows/windows_selection_service.cpp
     )
 endif()
 
@@ -100,7 +110,7 @@ if(WIN32)
 endif()
 
 if(WIN32)
-    target_link_libraries(ohmytypeless PRIVATE user32)
+    target_link_libraries(ohmytypeless PRIVATE ole32 uiautomationcore user32)
 endif()
 
 target_compile_options(ohmytypeless PRIVATE

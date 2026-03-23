@@ -30,6 +30,7 @@ public:
 
 signals:
     void toggle_recording_requested();
+    void arm_selection_command_requested();
     void register_hotkey_requested();
     void show_history_requested();
     void show_settings_requested();
@@ -42,6 +43,7 @@ private:
     QLabel* state_badge_label_ = nullptr;
     QLabel* status_label_ = nullptr;
     QPushButton* record_button_ = nullptr;
+    QPushButton* selection_command_button_ = nullptr;
     QSystemTrayIcon* tray_icon_ = nullptr;
     QAction* tray_state_action_ = nullptr;
     SessionState tray_state_ = SessionState::Idle;

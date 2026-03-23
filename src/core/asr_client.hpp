@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/app_config.hpp"
+#include "core/backend/asr_backend.hpp"
 #include "core/curl_support.hpp"
 
 #include <atomic>
@@ -9,10 +10,12 @@
 
 namespace ohmytypeless {
 
-class AsrClient {
+class AsrClient final : public AsrBackend {
 public:
     explicit AsrClient(AppConfig config);
-    std::string transcribe(const std::vector<float>& samples, const std::atomic_bool* cancel_flag = nullptr) const;
+    std::string name() const override;
+    bool supports_streaming() const override;
+    std::string transcribe(const std::vector<float>& samples, const std::atomic_bool* cancel_flag = nullptr) const override;
 
 private:
     EndpointConfig config_;
