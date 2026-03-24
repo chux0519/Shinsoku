@@ -282,7 +282,6 @@ void AppController::apply_settings() {
         const QString status = QString("Settings applied. Hold: %1, chord: %2")
                                    .arg(QString::fromStdString(config_.hotkey.hold_key),
                                         QString::fromStdString(config_.hotkey.hands_free_chord_key));
-        window_->settings_window()->set_status_text(status);
         window_->set_status_text(status);
         hud_->show_notice(status);
     }

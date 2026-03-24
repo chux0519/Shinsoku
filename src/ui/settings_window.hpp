@@ -8,9 +8,11 @@ class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
+class QListWidget;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QStackedWidget;
 class QSpinBox;
 
 namespace ohmytypeless {
@@ -89,6 +91,8 @@ signals:
     void apply_clicked();
 
 private:
+    QListWidget* navigation_list_ = nullptr;
+    QStackedWidget* page_stack_ = nullptr;
     QComboBox* hold_key_combo_ = nullptr;
     QComboBox* hands_free_chord_combo_ = nullptr;
     QComboBox* input_device_combo_ = nullptr;

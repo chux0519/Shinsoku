@@ -14,6 +14,8 @@ without losing architectural boundaries.
    - replace the selected text with the result
 3. Prepare for more ASR backends, including streaming / websocket backends.
 4. Add an offline fallback / forced-local mode with `sherpa-onnx`.
+5. Redesign settings information architecture so provider-specific configuration
+   can expand without turning the settings window into one long page.
 
 ## Guiding Rules
 
@@ -29,9 +31,10 @@ without losing architectural boundaries.
 2. Backend abstraction pass 1
 3. Selection service abstraction
 4. Selection command MVP
-5. Streaming backend support
-6. Offline `sherpa-onnx` mode
-7. Online/offline fallback policy refinement
+5. Settings information architecture redesign
+6. Streaming backend support
+7. Offline `sherpa-onnx` mode
+8. Online/offline fallback policy refinement
 
 ## Status
 
@@ -39,9 +42,10 @@ without losing architectural boundaries.
 - Phase 2: completed
 - Phase 3: completed
 - Phase 4: in progress
-- Phase 5: pending
+- Phase 5: in progress
 - Phase 6: pending
 - Phase 7: pending
+- Phase 8: pending
 
 ---
 
@@ -371,7 +375,104 @@ template. Do not build a general agent system yet.
 
 ---
 
-## Phase 5: Streaming Backend Support
+## Phase 5: Settings Information Architecture Redesign
+
+### Outcome
+
+The settings UI stops growing as one long scrollable form and becomes a
+navigation-based settings shell that can host both common settings and
+provider-specific pages cleanly.
+
+### Design Direction
+
+Use a settings container with:
+
+- left-side navigation (`QListWidget` or equivalent)
+- right-side `QStackedWidget` pages
+- card-style sections inside each page
+
+Initial page split:
+
+- `General`
+- `Audio`
+- `ASR`
+- `Transform`
+- `Network`
+- `Providers`
+- `Advanced`
+
+### Config Shape Direction
+
+Gradually align config to these conceptual groups:
+
+- `general`
+- `audio`
+- `asr`
+  - `batch`
+  - `streaming`
+- `transform`
+- `network`
+- `providers`
+  - `openai_compatible`
+  - `soniox`
+  - `bailian`
+  - `sherpa_onnx`
+- `advanced`
+
+Provider-specific settings should live under `providers.<name>` instead of
+being flattened into generic sections.
+
+### Files To Change
+
+#### `src/ui/settings_window.hpp`
+#### `src/ui/settings_window.cpp`
+
+Refactor the current monolithic layout into:
+
+- navigation list
+- stacked pages
+- per-page section builders
+
+Keep current fields functional while moving them into the new grouping.
+
+#### `src/core/app_config.hpp`
+#### `src/core/app_config.cpp`
+
+Prepare for future config reshaping where needed, but avoid a breaking config
+migration unless it is required for correctness. It is acceptable to keep the
+existing storage shape temporarily while the UI grouping changes first.
+
+#### `src/core/app_controller.cpp`
+
+Keep settings synchronization logic working while fields move between pages.
+
+#### New file: `docs/settings-redesign.md`
+
+Track:
+
+- page structure
+- field-to-page mapping
+- legacy config names vs future config grouping
+- which settings stay generic vs which move under provider-specific config
+
+### Acceptance Criteria
+
+- Settings are split into navigation-based pages instead of one long form.
+- Existing settings remain editable and persisted correctly.
+- There is a clear home for provider-specific configuration before streaming and
+  offline providers are added.
+
+### Progress Notes
+
+- Added `docs/settings-redesign.md` to track page grouping and field mapping.
+- `SettingsWindow` now uses a navigation-based shell with dedicated pages for
+  General, Audio, ASR, Transform, Network, Providers, and Advanced.
+- Existing settings getters and setters were kept stable so controller sync and
+  config persistence did not need to change in the first pass.
+
+---
+
+## Phase 6: Streaming Backend Support
 
 ### Outcome
 
@@ -428,7 +529,7 @@ Optional later extension:
 
 ---
 
-## Phase 6: Offline `sherpa-onnx`
+## Phase 7: Offline `sherpa-onnx`
 
 ### Outcome
 
@@ -477,7 +578,7 @@ Add offline section:
 
 ---
 
-## Phase 7: Fallback Policy Refinement
+## Phase 8: Fallback Policy Refinement
 
 ### Outcome
 
@@ -530,6 +631,7 @@ This ships the first major new user-facing interaction.
 - Phase 5
 - Phase 6
 - Phase 7
+- Phase 8
 
 This expands provider coverage and resilience.
 

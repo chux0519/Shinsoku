@@ -3,15 +3,18 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QFrame>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
 #include <QLineEdit>
 #include <QFileDialog>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QStackedWidget>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -32,6 +35,53 @@ QGroupBox* make_section(const QString& title, QWidget* parent, QFormLayout** for
         *form_out = layout;
     }
     return box;
+}
+
+QWidget* make_page_shell(QWidget* parent, QVBoxLayout** content_layout_out) {
+    auto* scroll = new QScrollArea(parent);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+
+    auto* content = new QWidget(scroll);
+    auto* content_layout = new QVBoxLayout(content);
+    content_layout->setContentsMargins(4, 4, 4, 4);
+    content_layout->setSpacing(16);
+    content_layout->addStretch();
+    scroll->setWidget(content);
+
+    if (content_layout_out != nullptr) {
+        *content_layout_out = content_layout;
+    }
+    return scroll;
+}
+
+void insert_section_before_stretch(QVBoxLayout* layout, QWidget* section) {
+    layout->insertWidget(layout->count() - 1, section);
+}
+
+QWidget* make_info_card(const QString& eyebrow,
+                        const QString& title,
+                        const QString& body,
+                        QWidget* parent) {
+    auto* card = new QGroupBox(parent);
+    card->setObjectName("headerCard");
+    auto* layout = new QVBoxLayout(card);
+    layout->setContentsMargins(24, 22, 24, 22);
+    layout->setSpacing(8);
+
+    auto* eyebrow_label = new QLabel(eyebrow, card);
+    eyebrow_label->setObjectName("headerEyebrow");
+    auto* title_label = new QLabel(title, card);
+    title_label->setObjectName("headerTitle");
+    title_label->setWordWrap(true);
+    auto* body_label = new QLabel(body, card);
+    body_label->setObjectName("headerBody");
+    body_label->setWordWrap(true);
+
+    layout->addWidget(eyebrow_label);
+    layout->addWidget(title_label);
+    layout->addWidget(body_label);
+    return card;
 }
 
 QComboBox* make_key_combo(QWidget* parent) {
@@ -57,50 +107,73 @@ void set_combo_by_value(QComboBox* combo, const QString& value) {
 
 SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     setWindowTitle("Settings");
-    resize(760, 720);
-    setMinimumSize(720, 640);
+    resize(980, 720);
+    setMinimumSize(900, 640);
 
     auto* root_layout = new QVBoxLayout(this);
     root_layout->setContentsMargins(22, 20, 22, 20);
     root_layout->setSpacing(16);
-    auto* scroll = new QScrollArea(this);
-    scroll->setWidgetResizable(true);
-    root_layout->addWidget(scroll);
 
-    auto* content = new QWidget(scroll);
-    auto* content_layout = new QVBoxLayout(content);
-    content_layout->setContentsMargins(4, 4, 4, 4);
-    content_layout->setSpacing(16);
-    scroll->setWidget(content);
+    auto* shell_layout = new QHBoxLayout();
+    shell_layout->setSpacing(16);
+    root_layout->addLayout(shell_layout, 1);
 
-    auto* header_card = new QGroupBox(content);
-    header_card->setObjectName("headerCard");
-    auto* header_layout = new QVBoxLayout(header_card);
-    header_layout->setContentsMargins(24, 22, 24, 22);
-    header_layout->setSpacing(8);
-    auto* header_eyebrow = new QLabel("Workspace Control", header_card);
-    header_eyebrow->setObjectName("headerEyebrow");
-    auto* header_title = new QLabel("Tune capture, output, and refinement in one place.", header_card);
-    header_title->setObjectName("headerTitle");
-    header_title->setWordWrap(true);
-    auto* header_body = new QLabel("The defaults are optimized for quick dictation. Adjust routing, observability, and cleanup behavior here without digging through config files.", header_card);
-    header_body->setObjectName("headerBody");
-    header_body->setWordWrap(true);
-    header_layout->addWidget(header_eyebrow);
-    header_layout->addWidget(header_title);
-    header_layout->addWidget(header_body);
-    content_layout->addWidget(header_card);
+    auto* sidebar = new QWidget(this);
+    sidebar->setObjectName("settingsSidebar");
+    sidebar->setFixedWidth(220);
+    auto* sidebar_layout = new QVBoxLayout(sidebar);
+    sidebar_layout->setContentsMargins(14, 16, 14, 16);
+    sidebar_layout->setSpacing(10);
+
+    auto* sidebar_title = new QLabel("Settings", sidebar);
+    sidebar_title->setObjectName("settingsSidebarTitle");
+    sidebar_layout->addWidget(sidebar_title);
+
+    navigation_list_ = new QListWidget(sidebar);
+    navigation_list_->setObjectName("settingsNav");
+    navigation_list_->setSpacing(8);
+    navigation_list_->setAlternatingRowColors(false);
+    navigation_list_->setUniformItemSizes(true);
+    navigation_list_->addItems({"General", "Audio", "ASR", "Transform", "Network", "Providers", "Advanced"});
+    sidebar_layout->addWidget(navigation_list_, 1);
+    shell_layout->addWidget(sidebar);
+
+    page_stack_ = new QStackedWidget(this);
+    page_stack_->setObjectName("settingsPageHost");
+    shell_layout->addWidget(page_stack_, 1);
+
+    QVBoxLayout* general_layout = nullptr;
+    QVBoxLayout* audio_layout = nullptr;
+    QVBoxLayout* asr_layout = nullptr;
+    QVBoxLayout* transform_layout = nullptr;
+    QVBoxLayout* network_layout = nullptr;
+    QVBoxLayout* providers_layout = nullptr;
+    QVBoxLayout* advanced_layout = nullptr;
+    page_stack_->addWidget(make_page_shell(page_stack_, &general_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &audio_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &asr_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &transform_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &network_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &providers_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &advanced_layout));
+
+    insert_section_before_stretch(general_layout,
+                                  make_info_card("Workspace Control",
+                                                 "Tune capture, output, and on-screen behavior.",
+                                                 "General settings cover hotkeys, clipboard routing, and the HUD. "
+                                                 "Audio, providers, and network routing now live in dedicated pages.",
+                                                 this));
 
     QFormLayout* hotkey_form = nullptr;
-    auto* hotkey_section = make_section("Hotkey", content, &hotkey_form);
+    auto* hotkey_section = make_section("Hotkey", this, &hotkey_form);
     hold_key_combo_ = make_key_combo(hotkey_section);
     hands_free_chord_combo_ = make_key_combo(hotkey_section);
     hotkey_form->addRow("Hold Key", hold_key_combo_);
     hotkey_form->addRow("Hands-free Chord", hands_free_chord_combo_);
-    content_layout->addWidget(hotkey_section);
+    insert_section_before_stretch(general_layout, hotkey_section);
 
     QFormLayout* audio_form = nullptr;
-    auto* audio_section = make_section("Audio", content, &audio_form);
+    auto* audio_section = make_section("Capture", this, &audio_form);
     input_device_combo_ = new QComboBox(audio_section);
     save_recordings_check_ = new QCheckBox("Save recordings as .wav", audio_section);
     auto* recordings_dir_row = new QWidget(audio_section);
@@ -122,10 +195,16 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     audio_form->addRow("Recordings Dir", recordings_dir_row);
     audio_form->addRow("Rotation Mode", rotation_mode_combo_);
     audio_form->addRow("Max Files", max_files_spin_);
-    content_layout->addWidget(audio_section);
+    insert_section_before_stretch(audio_layout,
+                                  make_info_card("Audio Input",
+                                                 "Choose capture devices and retention behavior.",
+                                                 "These settings control where audio comes from, whether recordings "
+                                                 "are stored, and how old files are rotated.",
+                                                 this));
+    insert_section_before_stretch(audio_layout, audio_section);
 
     QFormLayout* output_form = nullptr;
-    auto* output_section = make_section("Output", content, &output_form);
+    auto* output_section = make_section("Output", this, &output_form);
     copy_to_clipboard_check_ = new QCheckBox("Copy text to clipboard", output_section);
     paste_to_focused_window_check_ = new QCheckBox("Paste into focused window", output_section);
     paste_keys_combo_ = new QComboBox(output_section);
@@ -135,10 +214,10 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     output_form->addRow("Clipboard", copy_to_clipboard_check_);
     output_form->addRow("Auto Paste", paste_to_focused_window_check_);
     output_form->addRow("Paste Keys", paste_keys_combo_);
-    content_layout->addWidget(output_section);
+    insert_section_before_stretch(general_layout, output_section);
 
     QFormLayout* network_form = nullptr;
-    auto* network_section = make_section("Network", content, &network_form);
+    auto* network_section = make_section("Proxy", this, &network_form);
     proxy_enabled_check_ = new QCheckBox("Route HTTP requests through a proxy", network_section);
     proxy_type_combo_ = new QComboBox(network_section);
     proxy_type_combo_->addItem("HTTP", "http");
@@ -156,10 +235,16 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     network_form->addRow("Port", proxy_port_spin_);
     network_form->addRow("Username", proxy_username_edit_);
     network_form->addRow("Password", proxy_password_edit_);
-    content_layout->addWidget(network_section);
+    insert_section_before_stretch(network_layout,
+                                  make_info_card("Network Routing",
+                                                 "Route outbound requests through a proxy.",
+                                                 "This page currently applies to the existing HTTP backends and gives "
+                                                 "future streaming providers a stable transport home.",
+                                                 this));
+    insert_section_before_stretch(network_layout, network_section);
 
     QFormLayout* asr_form = nullptr;
-    auto* asr_section = make_section("ASR", content, &asr_form);
+    auto* asr_section = make_section("Batch ASR", this, &asr_form);
     asr_base_url_edit_ = new QLineEdit(asr_section);
     asr_api_key_edit_ = new QLineEdit(asr_section);
     asr_api_key_edit_->setEchoMode(QLineEdit::Password);
@@ -167,10 +252,16 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     asr_form->addRow("Base URL", asr_base_url_edit_);
     asr_form->addRow("API Key", asr_api_key_edit_);
     asr_form->addRow("Model", asr_model_edit_);
-    content_layout->addWidget(asr_section);
+    insert_section_before_stretch(asr_layout,
+                                  make_info_card("Speech Recognition",
+                                                 "Manage transcription backends and capture heuristics.",
+                                                 "Batch ASR stays here. Real-time providers will plug into this area "
+                                                 "without forcing another full-page redesign.",
+                                                 this));
+    insert_section_before_stretch(asr_layout, asr_section);
 
     QFormLayout* refine_form = nullptr;
-    auto* refine_section = make_section("Refine", content, &refine_form);
+    auto* refine_section = make_section("Text Transform", this, &refine_form);
     refine_enabled_check_ = new QCheckBox("Run second-pass text refine", refine_section);
     refine_base_url_edit_ = new QLineEdit(refine_section);
     refine_api_key_edit_ = new QLineEdit(refine_section);
@@ -183,10 +274,16 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     refine_form->addRow("API Key", refine_api_key_edit_);
     refine_form->addRow("Model", refine_model_edit_);
     refine_form->addRow("System Prompt", refine_system_prompt_edit_);
-    content_layout->addWidget(refine_section);
+    insert_section_before_stretch(transform_layout,
+                                  make_info_card("Text Transform",
+                                                 "Configure command-mode and second-pass text processing.",
+                                                 "This page intentionally separates transform settings from base ASR so "
+                                                 "selection-command workflows can grow without hiding under \"Refine\".",
+                                                 this));
+    insert_section_before_stretch(transform_layout, refine_section);
 
     QFormLayout* vad_form = nullptr;
-    auto* vad_section = make_section("VAD", content, &vad_form);
+    auto* vad_section = make_section("Voice Activity Detection", this, &vad_form);
     vad_enabled_check_ = new QCheckBox("Skip silence-only recordings", vad_section);
     vad_threshold_spin_ = new QDoubleSpinBox(vad_section);
     vad_threshold_spin_->setRange(0.0, 1.0);
@@ -198,25 +295,38 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     vad_form->addRow("Enabled", vad_enabled_check_);
     vad_form->addRow("Threshold", vad_threshold_spin_);
     vad_form->addRow("Min Speech (ms)", vad_min_duration_spin_);
-    content_layout->addWidget(vad_section);
+    insert_section_before_stretch(audio_layout, vad_section);
 
     QFormLayout* observability_form = nullptr;
-    auto* observability_section = make_section("Observability", content, &observability_form);
+    auto* observability_section = make_section("Observability", this, &observability_form);
     record_metadata_check_ = new QCheckBox("Store pipeline metadata in history", observability_section);
     record_timing_check_ = new QCheckBox("Store timing in history", observability_section);
     observability_form->addRow("Metadata", record_metadata_check_);
     observability_form->addRow("Timing", record_timing_check_);
-    content_layout->addWidget(observability_section);
+    insert_section_before_stretch(advanced_layout,
+                                  make_info_card("Advanced Controls",
+                                                 "Keep diagnostics and experimental knobs out of the main flow.",
+                                                 "This page is the home for observability today and can absorb future "
+                                                 "advanced provider flags later.",
+                                                 this));
+    insert_section_before_stretch(advanced_layout, observability_section);
 
     QFormLayout* hud_form = nullptr;
-    auto* hud_section = make_section("HUD", content, &hud_form);
+    auto* hud_section = make_section("HUD", this, &hud_form);
     hud_enabled_check_ = new QCheckBox("Show overlay while recording/transcribing", hud_section);
     hud_bottom_margin_spin_ = new QSpinBox(hud_section);
     hud_bottom_margin_spin_->setRange(0, 400);
     hud_bottom_margin_spin_->setValue(104);
     hud_form->addRow("Enabled", hud_enabled_check_);
     hud_form->addRow("Bottom Margin", hud_bottom_margin_spin_);
-    content_layout->addWidget(hud_section);
+    insert_section_before_stretch(general_layout, hud_section);
+
+    insert_section_before_stretch(providers_layout,
+                                  make_info_card("Provider Profiles",
+                                                 "Provider-specific settings will move here.",
+                                                 "This page is reserved for Soniox, Bailian, and future offline "
+                                                 "provider profiles so common pages stay stable as integrations grow.",
+                                                 this));
 
     auto* actions = new QHBoxLayout();
     actions->addStretch();
@@ -228,6 +338,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     status_label_ = new QLabel(this);
     status_label_->setObjectName("statusBanner");
     status_label_->setWordWrap(true);
+    status_label_->setVisible(false);
     root_layout->addWidget(status_label_);
 
     connect(button, &QPushButton::clicked, this, &SettingsWindow::apply_clicked);
@@ -237,6 +348,8 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
             recordings_dir_edit_->setText(selected);
         }
     });
+    connect(navigation_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
+    navigation_list_->setCurrentRow(0);
 }
 
 QString SettingsWindow::hold_key() const {
@@ -505,6 +618,7 @@ void SettingsWindow::set_hud_bottom_margin(int value) {
 
 void SettingsWindow::set_status_text(const QString& text) {
     status_label_->setText(text);
+    status_label_->setVisible(!text.trimmed().isEmpty());
 }
 
 }  // namespace ohmytypeless

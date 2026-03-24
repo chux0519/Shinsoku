@@ -85,15 +85,56 @@ QLabel {
     background: transparent;
 }
 
-QListWidget {
+#settingsSidebar {
+    background: {{panel}};
+    border: 1px solid {{border}};
+    border-radius: 18px;
+}
+
+#settingsSidebarTitle {
+    color: {{muted}};
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 6px 10px 6px;
+}
+
+#settingsPageHost {
+    background: transparent;
+    border: none;
+}
+
+QListWidget, #settingsNav {
     background: transparent;
     border: none;
     outline: none;
 }
 
-QListWidget::item {
+#settingsNav::item {
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 0;
+    color: {{muted}};
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#settingsNav::item:hover {
+    background: {{badge_bg}};
+    color: {{text}};
+}
+
+#settingsNav::item:selected {
+    background: {{primary}};
+    color: {{primary_text}};
+}
+
+#settingsNav::item:selected:active,
+#settingsNav::item:selected:!active {
+    background: {{primary}};
+    color: {{primary_text}};
 }
 
 QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
