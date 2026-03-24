@@ -19,10 +19,121 @@
 #include <QVariantAnimation>
 #include <QWidget>
 #include <QFontMetrics>
+#include <algorithm>
+#include <array>
+#include <cmath>
 
 namespace ohmytypeless {
 
 namespace {
+
+class HudWaveformWidget final : public QWidget {
+public:
+    explicit HudWaveformWidget(QWidget* parent = nullptr) : QWidget(parent) {
+        setObjectName("hudWaveform");
+        setFixedSize(20, 18);
+    }
+
+    void set_accent(const QColor& color) {
+        accent_ = color;
+        update();
+    }
+
+    void set_command_mode(bool enabled) {
+        command_mode_ = enabled;
+        update();
+    }
+
+    void set_phase(qreal phase) {
+        phase_ = phase;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        Q_UNUSED(event);
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+
+        QColor bar_color = accent_;
+        bar_color.setAlphaF(command_mode_ ? 0.92 : 0.88);
+        painter.setBrush(bar_color);
+
+        constexpr std::array<qreal, 5> offsets = {0.0, 0.19, 0.37, 0.58, 0.81};
+        constexpr std::array<qreal, 5> baselines = {0.36, 0.58, 0.8, 0.58, 0.36};
+        constexpr int bar_width = 3;
+        constexpr int spacing = 1;
+        constexpr int min_height = 4;
+        constexpr qreal kTau = 6.28318530717958647692;
+        const int total_width = (bar_width * static_cast<int>(offsets.size())) +
+                                (spacing * (static_cast<int>(offsets.size()) - 1));
+        const int x_origin = (width() - total_width) / 2;
+        const int center_y = height() / 2;
+
+        for (int i = 0; i < static_cast<int>(offsets.size()); ++i) {
+            const qreal wave = 0.5 + 0.5 * std::sin((phase_ + offsets[static_cast<std::size_t>(i)]) * kTau);
+            const qreal amplitude = baselines[static_cast<std::size_t>(i)] + (wave * 0.34);
+            const int bar_height = std::clamp(static_cast<int>(std::round(amplitude * height())), min_height, height());
+            const int x = x_origin + i * (bar_width + spacing);
+            const int y = center_y - (bar_height / 2);
+            painter.drawRoundedRect(QRectF(x, y, bar_width, bar_height), 1.5, 1.5);
+        }
+    }
+
+private:
+    QColor accent_ = QColor("#111315");
+    qreal phase_ = 0.0;
+    bool command_mode_ = false;
+};
+
+class HudProcessingDotsWidget final : public QWidget {
+public:
+    explicit HudProcessingDotsWidget(QWidget* parent = nullptr) : QWidget(parent) {
+        setObjectName("hudProcessing");
+        setFixedSize(20, 18);
+    }
+
+    void set_accent(const QColor& color) {
+        accent_ = color;
+        update();
+    }
+
+    void set_phase(qreal phase) {
+        phase_ = phase;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        Q_UNUSED(event);
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+
+        constexpr qreal kTau = 6.28318530717958647692;
+        constexpr std::array<qreal, 3> offsets = {0.0, 0.17, 0.34};
+        constexpr int dot_size = 4;
+        constexpr int gap = 3;
+        const int total_width = dot_size * 3 + gap * 2;
+        const int x_origin = (width() - total_width) / 2;
+        const int y_origin = (height() - dot_size) / 2;
+
+        for (int i = 0; i < 3; ++i) {
+            QColor dot_color = accent_;
+            const qreal pulse = 0.35 + 0.65 * (0.5 + 0.5 * std::sin((phase_ + offsets[static_cast<std::size_t>(i)]) * kTau));
+            dot_color.setAlphaF(pulse);
+            painter.setBrush(dot_color);
+            painter.drawEllipse(QRectF(x_origin + i * (dot_size + gap), y_origin, dot_size, dot_size));
+        }
+    }
+
+private:
+    QColor accent_ = QColor("#111315");
+    qreal phase_ = 0.0;
+};
 
 QSize hud_size_for(QWidget* widget) {
     const QSize preferred = widget->sizeHint();
@@ -32,6 +143,14 @@ QSize hud_size_for(QWidget* widget) {
 
 bool is_persistent_hud_state(const QString& text) {
     return text == "Recording" || text == "Listening" || text == "Transcribing" || text == "Thinking";
+}
+
+bool uses_waveform_indicator(const QString& text) {
+    return text == "Recording" || text == "Listening";
+}
+
+bool uses_processing_indicator(const QString& text) {
+    return text == "Transcribing" || text == "Thinking";
 }
 
 int persistent_label_width(const QFont& font) {
@@ -49,7 +168,7 @@ int stable_hud_width(QLabel* label, const QString& text) {
     }
 
     if (is_persistent_hud_state(text)) {
-        constexpr int kIconWidth = 18;
+        constexpr int kIconWidth = 20;
         constexpr int kSpacing = 10;
         constexpr int kPanelHorizontalPadding = 44;
         return persistent_label_width(label->font()) + kIconWidth + kSpacing + kPanelHorizontalPadding;
@@ -57,7 +176,7 @@ int stable_hud_width(QLabel* label, const QString& text) {
 
     const QFontMetrics metrics(label->font());
     const int text_width = metrics.horizontalAdvance(text);
-    constexpr int kIconWidth = 18;
+    constexpr int kIconWidth = 20;
     constexpr int kSpacing = 10;
     constexpr int kPanelHorizontalPadding = 44;
     constexpr int kMinimumWidth = 168;
@@ -131,6 +250,12 @@ void QtHudPresenter::set_icon(const QString& icon_path, const QString& color, in
             if (overlay.icon != nullptr) {
                 overlay.icon->clear();
             }
+            if (overlay.waveform != nullptr) {
+                overlay.waveform->hide();
+            }
+            if (overlay.processing != nullptr) {
+                overlay.processing->hide();
+            }
         }
         return;
     }
@@ -140,6 +265,12 @@ void QtHudPresenter::set_icon(const QString& icon_path, const QString& color, in
         for (auto& overlay : overlays_) {
             if (overlay.icon != nullptr) {
                 overlay.icon->clear();
+            }
+            if (overlay.waveform != nullptr) {
+                overlay.waveform->hide();
+            }
+            if (overlay.processing != nullptr) {
+                overlay.processing->hide();
             }
         }
         return;
@@ -153,6 +284,13 @@ void QtHudPresenter::set_icon(const QString& icon_path, const QString& color, in
     for (auto& overlay : overlays_) {
         if (overlay.icon != nullptr) {
             overlay.icon->setPixmap(pixmap);
+            overlay.icon->show();
+        }
+        if (overlay.waveform != nullptr) {
+            overlay.waveform->hide();
+        }
+        if (overlay.processing != nullptr) {
+            overlay.processing->hide();
         }
     }
 }
@@ -212,10 +350,21 @@ void QtHudPresenter::rebuild_overlays() {
         icon->setGraphicsEffect(icon_opacity);
         panel_layout->addWidget(icon);
 
+        auto* waveform = new HudWaveformWidget(panel);
+        waveform->hide();
+        panel_layout->addWidget(waveform);
+
+        auto* processing = new HudProcessingDotsWidget(panel);
+        processing->hide();
+        panel_layout->addWidget(processing);
+
         auto* label = new QLabel(panel);
         label->setAlignment(Qt::AlignCenter);
         label->setWordWrap(false);
         label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+        auto* label_opacity = new QGraphicsOpacityEffect(label);
+        label_opacity->setOpacity(1.0);
+        label->setGraphicsEffect(label_opacity);
         panel_layout->addWidget(label);
         panel_layout->addStretch(1);
         layout->addWidget(panel);
@@ -226,21 +375,22 @@ void QtHudPresenter::rebuild_overlays() {
 
         auto* icon_pulse = new QVariantAnimation(widget);
         icon_pulse->setLoopCount(-1);
-        connect(icon_pulse, &QVariantAnimation::valueChanged, widget, [icon_opacity](const QVariant& value) {
-            if (icon_opacity != nullptr) {
-                icon_opacity->setOpacity(value.toDouble());
-            }
-        });
+        auto* label_pulse = new QVariantAnimation(widget);
+        label_pulse->setLoopCount(-1);
 
         overlays_.push_back(HudOverlay{
             .screen = screen,
             .widget = widget,
             .panel = panel,
             .icon = icon,
+            .waveform = waveform,
+            .processing = processing,
             .label = label,
             .hide_timer = timer,
             .icon_opacity = icon_opacity,
+            .label_opacity = label_opacity,
             .icon_pulse = icon_pulse,
+            .label_pulse = label_pulse,
             .anchor_center = {},
             .anchor_locked = false,
         });
@@ -281,17 +431,15 @@ void QtHudPresenter::show_text(const QString& text, const QString& accent, int d
     const QString panel_border = command_mode ? (dark ? "rgba(255,255,255,0.18)" : "rgba(17,19,21,0.18)")
                                               : (dark ? "rgba(255,255,255,0.10)" : "rgba(17,19,21,0.08)");
     const QString style = load_hud_stylesheet(panel_background, panel_border, accent);
+    const bool waveform_mode = uses_waveform_indicator(text);
+    const bool processing_mode = uses_processing_indicator(text);
     QString icon_path = ":/icons/audio-lines.svg";
-    if (text == "Recording") {
-        icon_path = ":/icons/mic.svg";
-    } else if (text == "Listening") {
-        icon_path = ":/icons/command.svg";
-    } else if (text == "Thinking") {
-        icon_path = ":/icons/sparkles.svg";
-    } else if (text.contains("error", Qt::CaseInsensitive)) {
+    if (text.contains("error", Qt::CaseInsensitive)) {
         icon_path = ":/icons/triangle-alert.svg";
     }
-    set_icon(icon_path, accent, 18);
+    if (!waveform_mode && !processing_mode) {
+        set_icon(icon_path, accent, 18);
+    }
     start_motion(text);
 
     for (auto& overlay : overlays_) {
@@ -301,6 +449,28 @@ void QtHudPresenter::show_text(const QString& text, const QString& accent, int d
 
         overlay.label->setText(text);
         overlay.widget->setStyleSheet(style);
+        if (overlay.waveform != nullptr) {
+            if (waveform_mode) {
+                auto* waveform = static_cast<HudWaveformWidget*>(overlay.waveform.data());
+                waveform->set_accent(QColor(accent));
+                waveform->set_command_mode(command_mode);
+                waveform->show();
+            } else {
+                overlay.waveform->hide();
+            }
+        }
+        if (overlay.processing != nullptr) {
+            if (processing_mode) {
+                auto* processing = static_cast<HudProcessingDotsWidget*>(overlay.processing.data());
+                processing->set_accent(QColor(accent));
+                processing->show();
+            } else {
+                overlay.processing->hide();
+            }
+        }
+        if (overlay.icon != nullptr) {
+            overlay.icon->setVisible(!waveform_mode && !processing_mode);
+        }
         const int panel_width = stable_hud_width(overlay.label, text);
         if (is_persistent_hud_state(text)) {
             overlay.panel->setFixedWidth(panel_width);
@@ -356,35 +526,57 @@ void QtHudPresenter::show_text(const QString& text, const QString& accent, int d
 }
 
 void QtHudPresenter::start_motion(const QString& text) {
-    const bool breathing = text == "Recording" || text == "Listening";
-    const bool active = breathing || text == "Transcribing" || text == "Thinking";
+    const bool waveform_mode = uses_waveform_indicator(text);
+    const bool processing_mode = uses_processing_indicator(text);
+    const bool active = waveform_mode || processing_mode;
 
     for (auto& overlay : overlays_) {
-        if (overlay.icon_pulse == nullptr || overlay.icon_opacity == nullptr) {
+        if (overlay.icon_pulse == nullptr || overlay.icon_opacity == nullptr || overlay.label_pulse == nullptr ||
+            overlay.label_opacity == nullptr) {
             continue;
         }
 
         overlay.icon_pulse->stop();
+        overlay.label_pulse->stop();
         if (!active) {
             overlay.icon_opacity->setOpacity(0.96);
+            overlay.label_opacity->setOpacity(1.0);
+            if (overlay.waveform != nullptr) {
+                overlay.waveform->update();
+            }
+            if (overlay.processing != nullptr) {
+                overlay.processing->update();
+            }
             continue;
         }
 
-        if (breathing) {
-            overlay.icon_pulse->setDuration(1100);
-            overlay.icon_pulse->setStartValue(0.42);
-            overlay.icon_pulse->setKeyValueAt(0.5, 1.0);
-            overlay.icon_pulse->setEndValue(0.42);
-            overlay.icon_pulse->setEasingCurve(QEasingCurve::InOutSine);
-        } else {
+        QObject::disconnect(overlay.icon_pulse, nullptr, nullptr, nullptr);
+        if (waveform_mode) {
             overlay.icon_pulse->setDuration(760);
-            overlay.icon_pulse->setStartValue(0.55);
-            overlay.icon_pulse->setKeyValueAt(0.5, 1.0);
-            overlay.icon_pulse->setEndValue(0.55);
-            overlay.icon_pulse->setEasingCurve(QEasingCurve::InOutQuad);
+            overlay.icon_pulse->setStartValue(0.0);
+            overlay.icon_pulse->setEndValue(1.0);
+            overlay.icon_pulse->setEasingCurve(QEasingCurve::InOutSine);
+            overlay.icon_pulse->setDirection(QAbstractAnimation::Forward);
+            QObject::connect(overlay.icon_pulse, &QVariantAnimation::valueChanged, overlay.widget, [waveform = overlay.waveform](const QVariant& value) {
+                if (waveform != nullptr) {
+                    static_cast<HudWaveformWidget*>(waveform.data())->set_phase(value.toDouble());
+                }
+            });
+            overlay.icon_pulse->start();
+        } else if (processing_mode) {
+            overlay.icon_pulse->setDuration(text == "Thinking" ? 980 : 760);
+            overlay.icon_pulse->setStartValue(0.0);
+            overlay.icon_pulse->setEndValue(1.0);
+            overlay.icon_pulse->setEasingCurve(QEasingCurve::InOutSine);
+            overlay.icon_pulse->setDirection(QAbstractAnimation::Forward);
+            QObject::connect(overlay.icon_pulse, &QVariantAnimation::valueChanged, overlay.widget, [processing = overlay.processing](const QVariant& value) {
+                if (processing != nullptr) {
+                    static_cast<HudProcessingDotsWidget*>(processing.data())->set_phase(value.toDouble());
+                }
+            });
+            overlay.icon_pulse->start();
         }
-        overlay.icon_pulse->setDirection(QAbstractAnimation::Forward);
-        overlay.icon_pulse->start();
+        overlay.label_opacity->setOpacity(1.0);
     }
 }
 
@@ -393,8 +585,20 @@ void QtHudPresenter::stop_motion() {
         if (overlay.icon_pulse != nullptr) {
             overlay.icon_pulse->stop();
         }
+        if (overlay.label_pulse != nullptr) {
+            overlay.label_pulse->stop();
+        }
         if (overlay.icon_opacity != nullptr) {
             overlay.icon_opacity->setOpacity(0.96);
+        }
+        if (overlay.label_opacity != nullptr) {
+            overlay.label_opacity->setOpacity(1.0);
+        }
+        if (overlay.waveform != nullptr) {
+            static_cast<HudWaveformWidget*>(overlay.waveform.data())->set_phase(0.0);
+        }
+        if (overlay.processing != nullptr) {
+            static_cast<HudProcessingDotsWidget*>(overlay.processing.data())->set_phase(0.0);
         }
     }
 }

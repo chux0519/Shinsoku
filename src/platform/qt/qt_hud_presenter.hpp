@@ -35,10 +35,14 @@ private:
         QPointer<QWidget> widget;
         QPointer<QWidget> panel;
         QPointer<QLabel> icon;
+        QPointer<QWidget> waveform;
+        QPointer<QWidget> processing;
         QPointer<QLabel> label;
         QPointer<QTimer> hide_timer;
         QPointer<QGraphicsOpacityEffect> icon_opacity;
+        QPointer<QGraphicsOpacityEffect> label_opacity;
         QPointer<QVariantAnimation> icon_pulse;
+        QPointer<QVariantAnimation> label_pulse;
         QPoint anchor_center;
         bool anchor_locked = false;
     };

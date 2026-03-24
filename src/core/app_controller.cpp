@@ -1106,7 +1106,7 @@ void AppController::on_transcription_finished() {
         }
 
         set_state(SessionState::Idle, "Transcription cancelled.");
-        hud_->show_notice("Transcription cancelled");
+        hud_->hide();
         return;
     }
 
@@ -1153,16 +1153,7 @@ void AppController::on_transcription_finished() {
             window_->settings_window()->set_status_text(status);
             hud_->show_error("Auto paste failed");
         } else {
-        const bool copied = active_capture_mode_ == CaptureMode::Dictation && config_.output.copy_to_clipboard;
-            const bool pasted = active_capture_mode_ == CaptureMode::Dictation &&
-                                config_.output.paste_to_focused_window && auto_paste_ok;
-            if (active_capture_mode_ == CaptureMode::SelectionCommand) {
-                hud_->show_notice("Updated");
-            } else if (copied || pasted) {
-                hud_->show_notice(copied ? "Transcription copied" : "Transcription pasted");
-            } else {
-                hud_->show_notice("Transcription complete");
-            }
+            hud_->hide();
         }
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
