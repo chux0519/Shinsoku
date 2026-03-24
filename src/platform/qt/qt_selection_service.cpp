@@ -10,6 +10,10 @@ QString QtSelectionService::backend_name() const {
     return "qt_stub";
 }
 
+bool QtSelectionService::supports_automatic_detection() const {
+    return false;
+}
+
 SelectionCaptureResult QtSelectionService::capture_selection() {
     Q_UNUSED(clipboard_);
     return SelectionCaptureResult{

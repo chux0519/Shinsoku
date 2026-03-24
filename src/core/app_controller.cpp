@@ -459,8 +459,14 @@ void AppController::stop_recording() {
 
         const auto audio_path = recording_store_->save_recording(samples);
         const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
-        const SelectionCaptureResult selection = selection_->capture_selection();
-        pending_selection_debug_info_ = selection.debug_info;
+        const bool auto_detection_enabled = selection_->supports_automatic_detection();
+        SelectionCaptureResult selection;
+        if (forced_selection_command || auto_detection_enabled) {
+            selection = selection_->capture_selection();
+            pending_selection_debug_info_ = selection.debug_info;
+        } else {
+            pending_selection_debug_info_.clear();
+        }
 
         if (selection.success) {
             active_capture_mode_ = CaptureMode::SelectionCommand;
@@ -481,7 +487,7 @@ void AppController::stop_recording() {
             return;
         } else {
             active_capture_mode_ = CaptureMode::Dictation;
-            if (!selection.debug_info.isEmpty()) {
+            if (auto_detection_enabled && !selection.debug_info.isEmpty()) {
                 window_->set_status_text(QString("No command selection detected. Falling back to dictation.\n%1").arg(selection.debug_info));
                 window_->settings_window()->set_status_text(selection.debug_info);
             }
@@ -742,6 +748,7 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
 
     const AppConfig config_snapshot = config_;
     const QString selection_debug_info = pending_selection_debug_info_;
+    const std::string selection_backend_name = selection_->backend_name().toStdString();
     const quint64 job_id = next_transcription_job_id_++;
     active_transcription_job_id_ = job_id;
     transcription_cancel_flag_ = std::make_shared<std::atomic_bool>(false);
@@ -750,6 +757,7 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
     transcription_watcher_->setFuture(QtConcurrent::run(
         [config_snapshot,
          selection_debug_info,
+         selection_backend_name,
          samples = std::move(samples),
          audio_path = std::move(audio_path),
          job_id,
@@ -804,7 +812,7 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                 meta["diagnostics"] = diagnostics;
                 if (!selection_debug_info.isEmpty()) {
                     meta["selection_detection"] = {
-                        {"capture_backend", "windows_uia_textpattern"},
+                        {"capture_backend", selection_backend_name},
                         {"capture_debug", selection_debug_info.toStdString()},
                     };
                 }

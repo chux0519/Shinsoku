@@ -1,15 +1,12 @@
 #include "platform/windows/windows_selection_service.hpp"
 
 #include <QClipboard>
-#include <QCoreApplication>
-#include <QImage>
-#include <QMimeData>
 #include <QStringList>
-#include <QUrl>
 #include <chrono>
-#include <memory>
+#include <cstring>
 #include <optional>
 #include <thread>
+#include <vector>
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -45,6 +42,16 @@ struct WindowTarget {
     HWND window = nullptr;
     HWND focus = nullptr;
     DWORD thread_id = 0;
+};
+
+struct ClipboardEntry {
+    UINT format = 0;
+    std::vector<std::byte> data;
+};
+
+struct ClipboardSnapshot {
+    bool captured = false;
+    std::vector<ClipboardEntry> entries;
 };
 
 template <typename T>
@@ -117,6 +124,45 @@ QString window_class_name(HWND hwnd) {
 bool supports_wm_paste(HWND hwnd) {
     const QString class_name = window_class_name(hwnd);
     return class_name == "Edit" || class_name.startsWith("RichEdit", Qt::CaseInsensitive);
+}
+
+QString clipboard_format_name(UINT format) {
+    wchar_t buffer[256] = {};
+    const int length = ::GetClipboardFormatNameW(format, buffer, static_cast<int>(std::size(buffer)));
+    return length > 0 ? QString::fromWCharArray(buffer, length) : QString();
+}
+
+bool is_supported_snapshot_format(UINT format) {
+    switch (format) {
+    case CF_UNICODETEXT:
+    case CF_TEXT:
+    case CF_OEMTEXT:
+    case CF_LOCALE:
+    case CF_HDROP:
+    case CF_DIB:
+    case CF_DIBV5:
+        return true;
+    default:
+        break;
+    }
+
+    const QString format_name = clipboard_format_name(format);
+    if (format_name.compare("HTML Format", Qt::CaseInsensitive) == 0 ||
+        format_name.compare("PNG", Qt::CaseInsensitive) == 0 ||
+        format_name.compare("JFIF", Qt::CaseInsensitive) == 0) {
+        return true;
+    }
+
+    switch (format) {
+    case CF_BITMAP:
+    case CF_METAFILEPICT:
+    case CF_PALETTE:
+    case CF_ENHMETAFILE:
+    case CF_OWNERDISPLAY:
+        return false;
+    default:
+        return false;
+    }
 }
 
 WindowTarget capture_foreground_target() {
@@ -279,35 +325,6 @@ QString selected_text_from_element(IUIAutomationElement* element, QStringList* d
     return parts.join("");
 }
 
-std::unique_ptr<QMimeData> clone_mime_data(const QMimeData* source) {
-    auto clone = std::make_unique<QMimeData>();
-    if (source == nullptr) {
-        return clone;
-    }
-
-    if (source->hasText()) {
-        clone->setText(source->text());
-    }
-    if (source->hasHtml()) {
-        clone->setHtml(source->html());
-    }
-    if (source->hasUrls()) {
-        clone->setUrls(source->urls());
-    }
-    if (source->hasImage()) {
-        clone->setImageData(qvariant_cast<QImage>(source->imageData()));
-    }
-
-    const QStringList formats = source->formats();
-    for (const QString& format : formats) {
-        if (format == "text/plain" || format == "text/html" || format == "text/uri-list") {
-            continue;
-        }
-        clone->setData(format, source->data(format));
-    }
-    return clone;
-}
-
 bool open_clipboard_with_retry() {
     for (int attempt = 0; attempt < 12; ++attempt) {
         if (::OpenClipboard(nullptr) != FALSE) {
@@ -316,6 +333,45 @@ bool open_clipboard_with_retry() {
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
     return false;
+}
+
+ClipboardSnapshot snapshot_clipboard_native() {
+    ClipboardSnapshot snapshot;
+    if (!open_clipboard_with_retry()) {
+        return snapshot;
+    }
+
+    snapshot.captured = true;
+    UINT format = 0;
+    while ((format = ::EnumClipboardFormats(format)) != 0) {
+        if (!is_supported_snapshot_format(format)) {
+            continue;
+        }
+
+        HANDLE handle = ::GetClipboardData(format);
+        if (handle == nullptr) {
+            continue;
+        }
+
+        SIZE_T size = ::GlobalSize(handle);
+        if (size == 0) {
+            continue;
+        }
+
+        const void* data = ::GlobalLock(handle);
+        if (data == nullptr) {
+            continue;
+        }
+
+        ClipboardEntry entry;
+        entry.format = format;
+        entry.data.resize(static_cast<std::size_t>(size));
+        std::memcpy(entry.data.data(), data, static_cast<std::size_t>(size));
+        ::GlobalUnlock(handle);
+        snapshot.entries.push_back(std::move(entry));
+    }
+    ::CloseClipboard();
+    return snapshot;
 }
 
 std::optional<QString> read_clipboard_text_native() {
@@ -386,6 +442,46 @@ void restore_clipboard_text_native(const std::optional<QString>& snapshot_text) 
     set_clipboard_text_native(snapshot_text.value());
 }
 
+bool restore_clipboard_snapshot_native(const ClipboardSnapshot& snapshot) {
+    if (!snapshot.captured || snapshot.entries.empty()) {
+        return false;
+    }
+    if (!open_clipboard_with_retry()) {
+        return false;
+    }
+
+    ::EmptyClipboard();
+    for (const ClipboardEntry& entry : snapshot.entries) {
+        if (!is_supported_snapshot_format(entry.format)) {
+            continue;
+        }
+        if (entry.data.empty()) {
+            continue;
+        }
+
+        HGLOBAL memory = ::GlobalAlloc(GMEM_MOVEABLE, entry.data.size());
+        if (memory == nullptr) {
+            continue;
+        }
+
+        void* destination = ::GlobalLock(memory);
+        if (destination == nullptr) {
+            ::GlobalFree(memory);
+            continue;
+        }
+
+        std::memcpy(destination, entry.data.data(), entry.data.size());
+        ::GlobalUnlock(memory);
+
+        if (::SetClipboardData(entry.format, memory) == nullptr) {
+            ::GlobalFree(memory);
+        }
+    }
+
+    ::CloseClipboard();
+    return true;
+}
+
 bool send_ctrl_shortcut(WORD key) {
     INPUT inputs[4] = {};
     inputs[0].type = INPUT_KEYBOARD;
@@ -415,6 +511,10 @@ WindowsSelectionService::WindowsSelectionService(QClipboard* clipboard) : clipbo
 
 QString WindowsSelectionService::backend_name() const {
     return "windows_uia_textpattern";
+}
+
+bool WindowsSelectionService::supports_automatic_detection() const {
+    return true;
 }
 
 SelectionCaptureResult WindowsSelectionService::capture_selection() {
@@ -460,17 +560,18 @@ SelectionCaptureResult WindowsSelectionService::capture_selection() {
         };
     }
 
+    const ClipboardSnapshot snapshot = snapshot_clipboard_native();
     const std::optional<QString> snapshot_text = read_clipboard_text_native();
     clear_clipboard_native();
     const bool shortcut_sent = send_ctrl_shortcut('C');
     std::this_thread::sleep_for(std::chrono::milliseconds(120));
-    QCoreApplication::processEvents();
     const QString copied_text = read_clipboard_text_native().value_or(QString());
     lines << "capture path=clipboard_ctrl_c";
     lines << QString("copy_shortcut_sent=%1").arg(shortcut_sent ? "true" : "false");
     lines << QString("clipboard after copy: %1").arg(summarize_clipboard_native());
     lines << QString("copied_text_length=%1").arg(copied_text.size());
-    restore_clipboard_text_native(snapshot_text);
+    const bool restored = restore_clipboard_snapshot_native(snapshot);
+    lines << QString("clipboard_restore_ok=%1").arg(restored ? "true" : "false");
     lines << QString("clipboard restored_text_length=%1").arg(snapshot_text.has_value() ? snapshot_text->size() : 0);
     set_debug_info(lines.join('\n'));
 
@@ -487,6 +588,7 @@ bool WindowsSelectionService::replace_selection(const QString& text) {
         return false;
     }
 
+    const ClipboardSnapshot snapshot = snapshot_clipboard_native();
     const std::optional<QString> snapshot_text = read_clipboard_text_native();
     const bool clipboard_set = set_clipboard_text_native(text);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -515,10 +617,11 @@ bool WindowsSelectionService::replace_selection(const QString& text) {
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    restore_clipboard_text_native(snapshot_text);
+    const bool restored = restore_clipboard_snapshot_native(snapshot);
 
     lines << QString("paste_shortcut_sent=%1").arg(sent ? "true" : "false")
           << QString("text_length=%1").arg(text.size())
+          << QString("clipboard_restore_ok=%1").arg(restored ? "true" : "false")
           << QString("clipboard restored_text_length=%1").arg(snapshot_text.has_value() ? snapshot_text->size() : 0);
     set_debug_info(lines.join('\n'));
     return clipboard_set && sent;

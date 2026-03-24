@@ -11,6 +11,7 @@ public:
     explicit WindowsSelectionService(QClipboard* clipboard);
 
     QString backend_name() const override;
+    bool supports_automatic_detection() const override;
     SelectionCaptureResult capture_selection() override;
     bool replace_selection(const QString& text) override;
     QString last_debug_info() const override;
