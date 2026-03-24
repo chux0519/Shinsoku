@@ -20,7 +20,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <exception>
+#include <thread>
 
 namespace ohmytypeless {
 
@@ -103,6 +105,16 @@ QString display_path(const std::filesystem::path& path) {
     return QDir::cleanPath(QString::fromStdWString(path.generic_wstring()));
 }
 
+std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
+    std::vector<std::byte> bytes(samples.size() * sizeof(std::int16_t));
+    auto* out = reinterpret_cast<std::int16_t*>(bytes.data());
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+        const float clamped = std::clamp(samples[i], -1.0f, 1.0f);
+        out[i] = static_cast<std::int16_t>(clamped * 32767.0f);
+    }
+    return bytes;
+}
+
 }  // namespace
 
 AppController::AppController(MainWindow* window,
@@ -121,6 +133,7 @@ AppController::AppController(MainWindow* window,
       history_store_(std::make_unique<HistoryStore>(config_.history_db_path)),
       recording_store_(std::make_unique<RecordingStore>(config_.audio)),
       asr_backend_(make_asr_backend(config_)),
+      streaming_asr_backend_(make_streaming_asr_backend(config_)),
       refine_backend_(make_refine_backend(config_)),
       transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()) {}
 
@@ -154,11 +167,17 @@ void AppController::initialize() {
     window_->settings_window()->set_asr_base_url(QString::fromStdString(config_.pipeline.asr.base_url));
     window_->settings_window()->set_asr_api_key(QString::fromStdString(config_.pipeline.asr.api_key));
     window_->settings_window()->set_asr_model(QString::fromStdString(config_.pipeline.asr.model));
+    window_->settings_window()->set_streaming_enabled(config_.pipeline.streaming.enabled);
+    window_->settings_window()->set_streaming_provider(QString::fromStdString(config_.pipeline.streaming.provider));
+    window_->settings_window()->set_streaming_language(QString::fromStdString(config_.pipeline.streaming.language));
     window_->settings_window()->set_refine_enabled(config_.pipeline.refine.enabled);
     window_->settings_window()->set_refine_base_url(QString::fromStdString(config_.pipeline.refine.endpoint.base_url));
     window_->settings_window()->set_refine_api_key(QString::fromStdString(config_.pipeline.refine.endpoint.api_key));
     window_->settings_window()->set_refine_model(QString::fromStdString(config_.pipeline.refine.endpoint.model));
     window_->settings_window()->set_refine_system_prompt(QString::fromStdString(config_.pipeline.refine.system_prompt));
+    window_->settings_window()->set_soniox_url(QString::fromStdString(config_.providers.soniox.url));
+    window_->settings_window()->set_soniox_api_key(QString::fromStdString(config_.providers.soniox.api_key));
+    window_->settings_window()->set_soniox_model(QString::fromStdString(config_.providers.soniox.model));
     window_->settings_window()->set_vad_enabled(config_.vad.enabled);
     window_->settings_window()->set_vad_threshold(config_.vad.threshold);
     window_->settings_window()->set_vad_min_speech_duration_ms(static_cast<int>(config_.vad.min_speech_duration_ms));
@@ -245,11 +264,17 @@ void AppController::apply_settings() {
     config_.pipeline.asr.base_url = window_->settings_window()->asr_base_url().toStdString();
     config_.pipeline.asr.api_key = window_->settings_window()->asr_api_key().toStdString();
     config_.pipeline.asr.model = window_->settings_window()->asr_model().toStdString();
+    config_.pipeline.streaming.enabled = window_->settings_window()->streaming_enabled();
+    config_.pipeline.streaming.provider = window_->settings_window()->streaming_provider().toStdString();
+    config_.pipeline.streaming.language = window_->settings_window()->streaming_language().toStdString();
     config_.pipeline.refine.enabled = window_->settings_window()->refine_enabled();
     config_.pipeline.refine.endpoint.base_url = window_->settings_window()->refine_base_url().toStdString();
     config_.pipeline.refine.endpoint.api_key = window_->settings_window()->refine_api_key().toStdString();
     config_.pipeline.refine.endpoint.model = window_->settings_window()->refine_model().toStdString();
     config_.pipeline.refine.system_prompt = window_->settings_window()->refine_system_prompt().toStdString();
+    config_.providers.soniox.url = window_->settings_window()->soniox_url().toStdString();
+    config_.providers.soniox.api_key = window_->settings_window()->soniox_api_key().toStdString();
+    config_.providers.soniox.model = window_->settings_window()->soniox_model().toStdString();
     config_.vad.enabled = window_->settings_window()->vad_enabled();
     config_.vad.threshold = static_cast<float>(window_->settings_window()->vad_threshold());
     config_.vad.min_speech_duration_ms = static_cast<std::uint32_t>(window_->settings_window()->vad_min_speech_duration_ms());
@@ -270,9 +295,19 @@ void AppController::apply_settings() {
     if (config_.pipeline.refine.system_prompt.empty()) {
         config_.pipeline.refine.system_prompt = defaults.pipeline.refine.system_prompt;
     }
+    if (config_.pipeline.streaming.provider.empty()) {
+        config_.pipeline.streaming.provider = defaults.pipeline.streaming.provider;
+    }
+    if (config_.providers.soniox.url.empty()) {
+        config_.providers.soniox.url = defaults.providers.soniox.url;
+    }
+    if (config_.providers.soniox.model.empty()) {
+        config_.providers.soniox.model = defaults.providers.soniox.model;
+    }
 
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
     asr_backend_ = make_asr_backend(config_);
+    streaming_asr_backend_ = make_streaming_asr_backend(config_);
     refine_backend_ = make_refine_backend(config_);
     hud_->apply_config(config_.hud);
     save_config(config_);
@@ -426,6 +461,9 @@ void AppController::start_recording(SessionState mode) {
         active_capture_mode_ = pending_capture_mode_;
         pending_capture_mode_ = CaptureMode::Dictation;
         recorder_.start(config_.audio.sample_rate, config_.audio.channels, config_.audio.input_device_id);
+        if (should_use_streaming_dictation()) {
+            start_streaming_dictation();
+        }
         const QString status = active_capture_mode_ == CaptureMode::SelectionCommand
                                    ? "Recording command for selected text."
                                    : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
@@ -450,13 +488,33 @@ void AppController::stop_recording() {
         const std::vector<float> samples = recorder_.stop();
         const AudioAnalysis analysis = analyze_audio(samples, config_.vad);
         if (should_skip_transcription(analysis, config_.vad)) {
+            if (streaming_session_ != nullptr) {
+                if (streaming_pump_cancel_flag_) {
+                    streaming_pump_cancel_flag_->store(true);
+                }
+                if (streaming_pump_thread_.joinable()) {
+                    streaming_pump_thread_.join();
+                }
+                if (streaming_connect_thread_.joinable()) {
+                    streaming_connect_thread_.join();
+                }
+                streaming_session_->cancel();
+                streaming_session_.reset();
+                streaming_active_ = false;
+            }
             set_state(SessionState::Idle, "No speech detected.");
             hud_->show_notice("No speech detected");
+            clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
+            pending_selection_debug_info_.clear();
             return;
         }
 
         const auto audio_path = recording_store_->save_recording(samples);
+        if (streaming_session_ != nullptr) {
+            stop_streaming_dictation(samples, audio_path);
+            return;
+        }
         const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
         const bool auto_detection_enabled = selection_->supports_automatic_detection();
         SelectionCaptureResult selection;
@@ -502,6 +560,341 @@ void AppController::set_state(SessionState state, const QString& status) {
     state_ = state;
     window_->set_session_state(state_);
     window_->set_status_text(status);
+}
+
+bool AppController::should_use_streaming_dictation() const {
+    return active_capture_mode_ == CaptureMode::Dictation && config_.pipeline.streaming.enabled &&
+           streaming_asr_backend_ != nullptr;
+}
+
+void AppController::start_streaming_dictation() {
+    streaming_session_ = streaming_asr_backend_->create_session();
+    if (!streaming_session_) {
+        throw std::runtime_error("streaming backend session creation failed");
+    }
+
+    streaming_pump_cancel_flag_ = std::make_shared<std::atomic_bool>(false);
+    streaming_samples_sent_ = 0;
+    streaming_chunk_count_ = 0;
+    streaming_partial_update_count_ = 0;
+    streaming_final_update_count_ = 0;
+    streaming_started_at_ = std::chrono::steady_clock::now();
+    streaming_ready_at_.reset();
+    {
+        std::lock_guard lock(streaming_mutex_);
+        streaming_partial_text_.clear();
+        streaming_final_text_.clear();
+        streaming_error_text_.clear();
+        streaming_closed_ = false;
+        streaming_session_ready_ = false;
+    }
+    streaming_active_ = true;
+
+    StreamingAsrCallbacks callbacks;
+    callbacks.on_session_started = [this]() {
+        {
+            std::lock_guard lock(streaming_mutex_);
+            streaming_session_ready_ = true;
+        }
+        streaming_ready_at_ = std::chrono::steady_clock::now();
+        streaming_condition_.notify_all();
+    };
+    callbacks.on_partial_text = [this](std::string text) {
+        const QString partial = QString::fromStdString(std::move(text));
+        {
+            std::lock_guard lock(streaming_mutex_);
+            streaming_partial_text_ = partial;
+            ++streaming_partial_update_count_;
+        }
+        QMetaObject::invokeMethod(
+            window_,
+            [window = window_, partial]() {
+                window->set_status_text(partial.isEmpty() ? "Streaming dictation..." : partial);
+            },
+            Qt::QueuedConnection);
+    };
+    callbacks.on_final_text = [this](std::string text) {
+        std::lock_guard lock(streaming_mutex_);
+        streaming_final_text_ = QString::fromStdString(std::move(text));
+        ++streaming_final_update_count_;
+    };
+    callbacks.on_error = [this](std::string error) {
+        {
+            std::lock_guard lock(streaming_mutex_);
+            streaming_error_text_ = QString::fromStdString(std::move(error));
+        }
+        streaming_condition_.notify_all();
+    };
+    callbacks.on_session_closed = [this]() {
+        {
+            std::lock_guard lock(streaming_mutex_);
+            streaming_closed_ = true;
+        }
+        streaming_condition_.notify_all();
+    };
+
+    const StreamingAsrStartOptions start_options{
+        .audio_format = StreamingAudioFormat{
+            .encoding = StreamingAudioEncoding::Pcm16Le,
+            .sample_rate_hz = config_.audio.sample_rate,
+            .channel_count = static_cast<std::uint16_t>(config_.audio.channels),
+        },
+        .language = config_.pipeline.streaming.language.empty()
+                        ? std::nullopt
+                        : std::optional<std::string>(config_.pipeline.streaming.language),
+        .emit_partial_results = true,
+    };
+
+    streaming_connect_thread_ = std::thread([this, start_options, callbacks = std::move(callbacks)]() mutable {
+        if (streaming_session_ != nullptr) {
+            streaming_session_->start(start_options, std::move(callbacks));
+        }
+    });
+
+    streaming_pump_thread_ = std::thread([this, cancel_flag = streaming_pump_cancel_flag_]() {
+        while (!cancel_flag->load()) {
+            bool ready = false;
+            {
+                std::lock_guard lock(streaming_mutex_);
+                ready = streaming_session_ready_;
+            }
+            if (!ready) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                continue;
+            }
+            const std::vector<float> chunk = recorder_.take_pending_samples();
+            if (!chunk.empty() && streaming_session_ != nullptr) {
+                std::vector<std::byte> bytes = encode_pcm16(chunk);
+                streaming_session_->push_audio(bytes);
+                {
+                    std::lock_guard lock(streaming_mutex_);
+                    streaming_samples_sent_ += chunk.size();
+                    ++streaming_chunk_count_;
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        }
+    });
+}
+
+void AppController::stop_streaming_dictation(const std::vector<float>& samples,
+                                             std::optional<std::filesystem::path> audio_path) {
+    const auto stop_started_at = std::chrono::steady_clock::now();
+    if (streaming_connect_thread_.joinable()) {
+        streaming_connect_thread_.join();
+    }
+    bool session_ready = false;
+    {
+        std::lock_guard lock(streaming_mutex_);
+        session_ready = streaming_session_ready_;
+    }
+    if (streaming_pump_cancel_flag_) {
+        streaming_pump_cancel_flag_->store(true);
+    }
+    if (streaming_pump_thread_.joinable()) {
+        streaming_pump_thread_.join();
+    }
+
+    std::size_t samples_sent = 0;
+    {
+        std::lock_guard lock(streaming_mutex_);
+        samples_sent = streaming_samples_sent_;
+    }
+    if (streaming_session_ != nullptr && session_ready && samples_sent < samples.size()) {
+        const std::span<const float> remainder(samples.data() + samples_sent, samples.size() - samples_sent);
+        std::vector<std::byte> bytes = encode_pcm16(remainder);
+        streaming_session_->push_audio(bytes);
+        {
+            std::lock_guard lock(streaming_mutex_);
+            streaming_samples_sent_ += remainder.size();
+            ++streaming_chunk_count_;
+        }
+    }
+
+    if (streaming_session_ != nullptr && session_ready) {
+        streaming_session_->finish();
+    }
+
+    QString final_text;
+    QString error_text;
+    {
+        std::unique_lock lock(streaming_mutex_);
+        streaming_condition_.wait_for(lock, std::chrono::seconds(10),
+                                      [this]() { return streaming_closed_ || !streaming_error_text_.isEmpty(); });
+        final_text = streaming_final_text_.isEmpty() ? streaming_partial_text_ : streaming_final_text_;
+        error_text = streaming_error_text_;
+    }
+
+    nlohmann::json streaming_meta = nlohmann::json::object();
+    const auto stop_finished_at = std::chrono::steady_clock::now();
+    const auto connect_ms = streaming_ready_at_.has_value()
+                                ? std::chrono::duration_cast<std::chrono::milliseconds>(*streaming_ready_at_ - streaming_started_at_).count()
+                                : -1;
+    const auto stop_wait_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(stop_finished_at - stop_started_at).count();
+    const auto total_audio_ms =
+        static_cast<std::int64_t>((1000.0 * static_cast<double>(samples.size())) / static_cast<double>(config_.audio.sample_rate));
+    {
+        std::lock_guard lock(streaming_mutex_);
+        streaming_meta["streaming"] = {
+            {"backend", streaming_asr_backend_ != nullptr ? streaming_asr_backend_->name() : std::string()},
+            {"provider", config_.pipeline.streaming.provider},
+            {"session_ready", session_ready},
+            {"connect_ms", connect_ms},
+            {"stop_wait_ms", stop_wait_ms},
+            {"audio_ms", total_audio_ms},
+            {"samples_sent", streaming_samples_sent_},
+            {"chunk_count", streaming_chunk_count_},
+            {"partial_updates", streaming_partial_update_count_},
+            {"final_updates", streaming_final_update_count_},
+        };
+    }
+    if (streaming_session_ != nullptr) {
+        streaming_meta["streaming"]["provider_runtime"] = streaming_session_->runtime_diagnostics();
+    }
+
+    if (streaming_session_ != nullptr) {
+        streaming_session_->cancel();
+        streaming_session_.reset();
+    }
+    streaming_active_ = false;
+
+    if (!error_text.isEmpty()) {
+        clipboard_->clear_paste_session();
+        active_capture_mode_ = CaptureMode::Dictation;
+        pending_selection_debug_info_.clear();
+        history_store_->add_entry(QString("Streaming transcription failed: %1").arg(error_text),
+                                  audio_path,
+                                  nlohmann::json{{"diagnostics", {{"error", error_text.toStdString()}}}, {"streaming", streaming_meta["streaming"]}});
+        load_history();
+        on_hotkey_failed(error_text);
+        return;
+    }
+    if (final_text.trimmed().isEmpty()) {
+        clipboard_->clear_paste_session();
+        active_capture_mode_ = CaptureMode::Dictation;
+        pending_selection_debug_info_.clear();
+        history_store_->add_entry("Streaming transcription returned no text.",
+                                  audio_path,
+                                  nlohmann::json{{"diagnostics", {{"error", "Streaming transcription returned no text."}}}, {"streaming", streaming_meta["streaming"]}});
+        load_history();
+        on_hotkey_failed("Streaming transcription returned no text.");
+        return;
+    }
+
+    transcribe_streaming_result_async(final_text.trimmed(), std::move(audio_path), std::move(streaming_meta));
+}
+
+void AppController::transcribe_streaming_result_async(QString transcript,
+                                                      std::optional<std::filesystem::path> audio_path,
+                                                      nlohmann::json streaming_meta) {
+    if (transcription_watcher_->isRunning()) {
+        on_hotkey_failed("A transcription job is already running.");
+        return;
+    }
+
+    const AppConfig config_snapshot = config_;
+    const quint64 job_id = next_transcription_job_id_++;
+    active_transcription_job_id_ = job_id;
+    transcription_cancel_flag_ = std::make_shared<std::atomic_bool>(false);
+    const auto cancel_flag = transcription_cancel_flag_;
+
+    transcription_watcher_->setFuture(QtConcurrent::run(
+        [config_snapshot,
+         transcript = std::move(transcript),
+         audio_path = std::move(audio_path),
+         streaming_meta = std::move(streaming_meta),
+         job_id,
+         cancel_flag]() mutable {
+            TranscriptionResult result;
+            result.job_id = job_id;
+            result.audio_path = std::move(audio_path);
+
+            try {
+                std::unique_ptr<TextTransformBackend> refine_backend = make_refine_backend(config_snapshot);
+
+                nlohmann::json meta = nlohmann::json::object();
+                nlohmann::json diagnostics = nlohmann::json::object();
+                nlohmann::json timing = nlohmann::json::object();
+                diagnostics["pipeline"] = "streaming_asr_refine";
+                diagnostics["asr"] = {
+                    {"provider", config_snapshot.pipeline.streaming.provider},
+                    {"model", config_snapshot.providers.soniox.model},
+                };
+
+                std::string text = transcript.toStdString();
+                if (config_snapshot.pipeline.refine.enabled) {
+                    const auto refine_start = std::chrono::steady_clock::now();
+                    text = refine_backend->transform(TextTransformRequest{
+                        .input_text = text,
+                        .instruction = "refine",
+                    }, cancel_flag.get());
+                    timing["refine_ms"] =
+                        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - refine_start).count();
+                    diagnostics["refine"] = {
+                        {"provider", config_snapshot.pipeline.refine.endpoint.provider},
+                        {"model", config_snapshot.pipeline.refine.endpoint.model},
+                    };
+                }
+                if (streaming_meta.contains("streaming")) {
+                    diagnostics["streaming"] = streaming_meta["streaming"];
+                    const auto& runtime = streaming_meta["streaming"];
+                    if (runtime.contains("provider_runtime") && runtime["provider_runtime"].contains("total_audio_proc_ms")) {
+                        timing["asr_ms"] = runtime["provider_runtime"]["total_audio_proc_ms"];
+                    } else if (runtime.contains("audio_ms")) {
+                        timing["asr_ms"] = runtime["audio_ms"];
+                    }
+                    if (runtime.contains("connect_ms") && runtime["connect_ms"].is_number_integer() &&
+                        runtime["connect_ms"].get<int>() >= 0) {
+                        timing["connect_ms"] = runtime["connect_ms"];
+                    }
+                    if (runtime.contains("stop_wait_ms")) {
+                        timing["stop_wait_ms"] = runtime["stop_wait_ms"];
+                    }
+                }
+                if (!timing.empty()) {
+                    std::int64_t total_ms = 0;
+                    if (timing.contains("asr_ms")) {
+                        total_ms += timing["asr_ms"].get<std::int64_t>();
+                    }
+                    if (timing.contains("refine_ms")) {
+                        total_ms += timing["refine_ms"].get<std::int64_t>();
+                    }
+                    if (timing.contains("connect_ms")) {
+                        total_ms += timing["connect_ms"].get<std::int64_t>();
+                    }
+                    if (timing.contains("stop_wait_ms")) {
+                        total_ms += timing["stop_wait_ms"].get<std::int64_t>();
+                    }
+                    timing["total"] = total_ms;
+                    diagnostics["timing"] = timing;
+                }
+
+                result.text = QString::fromStdString(text).trimmed();
+                if (result.text.isEmpty()) {
+                    throw std::runtime_error("streaming transcription result is empty");
+                }
+                if (config_snapshot.observability.record_metadata) {
+                    meta["diagnostics"] = diagnostics;
+                    meta["streaming"] = streaming_meta.value("streaming", nlohmann::json::object());
+                    result.meta = std::move(meta);
+                }
+            } catch (const std::exception& exception) {
+                const QString message = QString::fromUtf8(exception.what());
+                if (cancel_flag->load() && message == "request cancelled") {
+                    result.cancelled = true;
+                } else {
+                    result.error_text = message;
+                    result.meta = nlohmann::json{
+                        {"summary", "streaming transcription failed"},
+                        {"diagnostics", {{"error", message.toStdString()}}},
+                        {"streaming", streaming_meta.value("streaming", nlohmann::json::object())},
+                    };
+                }
+            }
+
+            return result;
+        }));
 }
 
 void AppController::load_history() {

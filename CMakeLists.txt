@@ -13,6 +13,7 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Concurrent Core Gui Widgets)
 find_package(CURL REQUIRED)
+find_package(ixwebsocket CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_path(MINIAUDIO_INCLUDE_DIRS miniaudio.h REQUIRED)
@@ -28,6 +29,13 @@ qt_add_executable(ohmytypeless
     src/core/audio_recorder.hpp
     src/core/audio_recorder.cpp
     src/core/backend/asr_backend.hpp
+    src/core/backend/streaming_asr_backend.hpp
+    src/core/backend/streaming/websocket_transport_options.hpp
+    src/core/backend/streaming/websocket_transport_options.cpp
+    src/core/backend/streaming/ix_proxy_socket.hpp
+    src/core/backend/streaming/ix_proxy_socket.cpp
+    src/core/backend/streaming/soniox/soniox_streaming_asr_backend.hpp
+    src/core/backend/streaming/soniox/soniox_streaming_asr_backend.cpp
     src/core/backend/text_transform_backend.hpp
     src/core/backend/backend_factory.hpp
     src/core/backend/backend_factory.cpp
@@ -89,6 +97,7 @@ target_link_libraries(ohmytypeless PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
+    ixwebsocket::ixwebsocket
     nlohmann_json::nlohmann_json
     unofficial::sqlite3::sqlite3
 )
@@ -110,7 +119,7 @@ if(WIN32)
 endif()
 
 if(WIN32)
-    target_link_libraries(ohmytypeless PRIVATE ole32 uiautomationcore user32)
+    target_link_libraries(ohmytypeless PRIVATE bcrypt ole32 uiautomationcore user32)
 endif()
 
 target_compile_options(ohmytypeless PRIVATE

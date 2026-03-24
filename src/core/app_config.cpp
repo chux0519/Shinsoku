@@ -293,6 +293,15 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "pipeline.refine", "system_prompt")) {
         config.pipeline.refine.system_prompt = unquote(*value);
     }
+    if (const auto value = get_value(sections, "pipeline.streaming", "enabled")) {
+        config.pipeline.streaming.enabled = parse_bool(*value, config.pipeline.streaming.enabled);
+    }
+    if (const auto value = get_value(sections, "pipeline.streaming", "provider")) {
+        config.pipeline.streaming.provider = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "pipeline.streaming", "language")) {
+        config.pipeline.streaming.language = unquote(*value);
+    }
     if (const auto value = get_value(sections, "audio", "input_device_id")) {
         config.audio.input_device_id = unquote(*value);
     }
@@ -335,6 +344,15 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "network.proxy", "password")) {
         config.network.proxy.password = unquote(*value);
     }
+    if (const auto value = get_value(sections, "providers.soniox", "url")) {
+        config.providers.soniox.url = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "providers.soniox", "api_key")) {
+        config.providers.soniox.api_key = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "providers.soniox", "model")) {
+        config.providers.soniox.model = unquote(*value);
+    }
     if (const auto value = get_value(sections, "vad", "enabled")) {
         config.vad.enabled = parse_bool(*value, config.vad.enabled);
     }
@@ -375,11 +393,20 @@ AppConfig load_config() {
     if (config.pipeline.refine.endpoint.provider.empty()) {
         config.pipeline.refine.endpoint.provider = defaults.pipeline.refine.endpoint.provider;
     }
+    if (config.pipeline.streaming.provider.empty()) {
+        config.pipeline.streaming.provider = defaults.pipeline.streaming.provider;
+    }
     if (config.pipeline.refine.endpoint.model.empty()) {
         config.pipeline.refine.endpoint.model = defaults.pipeline.refine.endpoint.model;
     }
     if (config.pipeline.refine.system_prompt.empty()) {
         config.pipeline.refine.system_prompt = defaults.pipeline.refine.system_prompt;
+    }
+    if (config.providers.soniox.url.empty()) {
+        config.providers.soniox.url = defaults.providers.soniox.url;
+    }
+    if (config.providers.soniox.model.empty()) {
+        config.providers.soniox.model = defaults.providers.soniox.model;
     }
     if (config.output.paste_keys.empty()) {
         config.output.paste_keys = defaults.output.paste_keys;
@@ -422,6 +449,11 @@ void save_config(const AppConfig& config) {
     output << "model = \"" << escape_toml_string(config.pipeline.refine.endpoint.model) << "\"\n";
     output << "system_prompt = \"" << escape_toml_string(config.pipeline.refine.system_prompt) << "\"\n\n";
 
+    output << "[pipeline.streaming]\n";
+    output << "enabled = " << (config.pipeline.streaming.enabled ? "true" : "false") << "\n";
+    output << "provider = \"" << escape_toml_string(config.pipeline.streaming.provider) << "\"\n";
+    output << "language = \"" << escape_toml_string(config.pipeline.streaming.language) << "\"\n\n";
+
     output << "[audio]\n";
     output << "input_device_id = \"" << escape_toml_string(config.audio.input_device_id) << "\"\n";
     output << "save_recordings = " << (config.audio.save_recordings ? "true" : "false") << "\n";
@@ -446,6 +478,11 @@ void save_config(const AppConfig& config) {
     output << "port = " << config.network.proxy.port << "\n";
     output << "username = \"" << escape_toml_string(config.network.proxy.username) << "\"\n";
     output << "password = \"" << escape_toml_string(config.network.proxy.password) << "\"\n\n";
+
+    output << "[providers.soniox]\n";
+    output << "url = \"" << escape_toml_string(config.providers.soniox.url) << "\"\n";
+    output << "api_key = \"" << escape_toml_string(config.providers.soniox.api_key) << "\"\n";
+    output << "model = \"" << escape_toml_string(config.providers.soniox.model) << "\"\n\n";
 
     output << "[vad]\n";
     output << "enabled = " << (config.vad.enabled ? "true" : "false") << "\n";

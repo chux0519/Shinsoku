@@ -44,6 +44,12 @@ Later additions:
 - streaming provider choice
 - common ASR defaults shared across providers
 
+Current first pass:
+
+- streaming enabled
+- streaming provider selection
+- streaming language hint
+
 ### Transform
 
 - refine enabled
@@ -71,6 +77,12 @@ Reserved for provider-specific pages or cards:
 - Soniox
 - Alibaba Bailian
 - sherpa-onnx
+
+Current first pass:
+
+- `OpenAI-compatible batch ASR`
+- `OpenAI-compatible text transform`
+- `Soniox streaming`
 
 ### Advanced
 

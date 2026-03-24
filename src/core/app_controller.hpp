@@ -4,6 +4,7 @@
 #include "core/app_state.hpp"
 #include "core/audio_recorder.hpp"
 #include "core/backend/asr_backend.hpp"
+#include "core/backend/streaming_asr_backend.hpp"
 #include "core/backend/text_transform_backend.hpp"
 #include "core/history_store.hpp"
 #include "core/recording_store.hpp"
@@ -16,9 +17,12 @@
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <thread>
+#include <chrono>
 
 namespace ohmytypeless {
 
@@ -70,6 +74,12 @@ private:
     void start_recording(SessionState mode);
     void stop_recording();
     void set_state(SessionState state, const QString& status);
+    bool should_use_streaming_dictation() const;
+    void start_streaming_dictation();
+    void stop_streaming_dictation(const std::vector<float>& samples, std::optional<std::filesystem::path> audio_path);
+    void transcribe_streaming_result_async(QString transcript,
+                                           std::optional<std::filesystem::path> audio_path,
+                                           nlohmann::json streaming_meta);
     void load_history();
     void refresh_audio_devices();
     void cancel_active_transcription();
@@ -89,6 +99,7 @@ private:
     std::unique_ptr<HistoryStore> history_store_;
     std::unique_ptr<RecordingStore> recording_store_;
     std::unique_ptr<AsrBackend> asr_backend_;
+    std::unique_ptr<StreamingAsrBackend> streaming_asr_backend_;
     std::unique_ptr<TextTransformBackend> refine_backend_;
     std::unique_ptr<QFutureWatcher<TranscriptionResult>> transcription_watcher_;
     std::shared_ptr<std::atomic_bool> transcription_cancel_flag_;
@@ -102,6 +113,24 @@ private:
     CaptureMode pending_capture_mode_ = CaptureMode::Dictation;
     CaptureMode active_capture_mode_ = CaptureMode::Dictation;
     QString pending_selection_debug_info_;
+    std::unique_ptr<StreamingAsrSession> streaming_session_;
+    std::thread streaming_connect_thread_;
+    std::thread streaming_pump_thread_;
+    std::shared_ptr<std::atomic_bool> streaming_pump_cancel_flag_;
+    mutable std::mutex streaming_mutex_;
+    std::condition_variable streaming_condition_;
+    QString streaming_partial_text_;
+    QString streaming_final_text_;
+    QString streaming_error_text_;
+    bool streaming_closed_ = false;
+    bool streaming_active_ = false;
+    bool streaming_session_ready_ = false;
+    std::size_t streaming_samples_sent_ = 0;
+    std::size_t streaming_chunk_count_ = 0;
+    std::size_t streaming_partial_update_count_ = 0;
+    std::size_t streaming_final_update_count_ = 0;
+    std::chrono::steady_clock::time_point streaming_started_at_{};
+    std::optional<std::chrono::steady_clock::time_point> streaming_ready_at_;
 };
 
 }  // namespace ohmytypeless

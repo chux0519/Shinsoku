@@ -47,9 +47,26 @@ struct RefineStageConfig {
         "Output only the corrected text.";
 };
 
+struct StreamingStageConfig {
+    bool enabled = false;
+    std::string provider = "none";
+    std::string language;
+};
+
+struct SonioxConfig {
+    std::string url = "wss://stt-rt.soniox.com/transcribe-websocket";
+    std::string api_key;
+    std::string model = "stt-rt-preview";
+};
+
+struct ProvidersConfig {
+    SonioxConfig soniox;
+};
+
 struct PipelineConfig {
     EndpointConfig asr;
     RefineStageConfig refine;
+    StreamingStageConfig streaming;
 };
 
 struct RotationConfig {
@@ -107,6 +124,7 @@ struct AppConfig {
     AudioConfig audio;
     OutputConfig output;
     NetworkConfig network;
+    ProvidersConfig providers;
     VadConfig vad;
     ObservabilityConfig observability;
     HudConfig hud;

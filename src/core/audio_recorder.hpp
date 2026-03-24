@@ -26,6 +26,7 @@ public:
 
     void start(std::uint32_t sample_rate, std::uint32_t channels, const std::string& device_id);
     std::vector<float> stop();
+    std::vector<float> take_pending_samples();
     bool is_recording() const;
     static std::vector<AudioInputDevice> list_input_devices();
 
@@ -38,6 +39,7 @@ private:
     ma_device* device_ = nullptr;
     mutable std::mutex mutex_;
     std::vector<float> samples_;
+    std::vector<float> pending_samples_;
     bool recording_ = false;
     std::uint32_t channels_ = 1;
 };

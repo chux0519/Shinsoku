@@ -247,11 +247,20 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     QFormLayout* asr_form = nullptr;
     auto* asr_section = make_section("Transcription Flow", this, &asr_form);
     auto* asr_mode_label = new QLabel(
-        "Batch transcription is active today. Streaming provider selection will live here once websocket backends land.",
+        "Batch transcription is active today. Streaming backend support is being prepared and can be enabled here once a provider is configured.",
         asr_section);
     asr_mode_label->setWordWrap(true);
     asr_mode_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     asr_form->addRow(asr_mode_label);
+    streaming_enabled_check_ = new QCheckBox("Enable real-time streaming ASR", asr_section);
+    streaming_provider_combo_ = new QComboBox(asr_section);
+    streaming_provider_combo_->addItem("None", "none");
+    streaming_provider_combo_->addItem("Soniox", "soniox");
+    streaming_language_edit_ = new QLineEdit(asr_section);
+    streaming_language_edit_->setPlaceholderText("Optional language hint, e.g. en");
+    asr_form->addRow("Streaming", streaming_enabled_check_);
+    asr_form->addRow("Provider", streaming_provider_combo_);
+    asr_form->addRow("Language", streaming_language_edit_);
     insert_section_before_stretch(asr_layout,
                                   make_info_card("Speech Recognition",
                                                  "Manage transcription backends and capture heuristics.",
@@ -344,11 +353,22 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     openai_transform_form->addRow("Model", refine_model_edit_);
     insert_section_before_stretch(providers_layout, openai_transform_section);
 
+    QFormLayout* soniox_form = nullptr;
+    auto* soniox_section = make_section("Soniox Streaming", this, &soniox_form);
+    soniox_url_edit_ = new QLineEdit(soniox_section);
+    soniox_api_key_edit_ = new QLineEdit(soniox_section);
+    soniox_api_key_edit_->setEchoMode(QLineEdit::Password);
+    soniox_model_edit_ = new QLineEdit(soniox_section);
+    soniox_form->addRow("WebSocket URL", soniox_url_edit_);
+    soniox_form->addRow("API Key", soniox_api_key_edit_);
+    soniox_form->addRow("Model", soniox_model_edit_);
+    insert_section_before_stretch(providers_layout, soniox_section);
+
     insert_section_before_stretch(providers_layout,
                                   make_info_card("Upcoming Providers",
-                                                 "Soniox, Bailian, and offline profiles will land here next.",
-                                                 "This area is intentionally ready for provider-specific cards so "
-                                                 "future websocket and local inference settings stay modular.",
+                                                 "Bailian and offline profiles will land here next.",
+                                                 "This area is intentionally ready for provider-specific cards so future "
+                                                 "websocket and local inference settings stay modular.",
                                                  this));
 
     auto* actions = new QHBoxLayout();
@@ -451,6 +471,18 @@ QString SettingsWindow::asr_model() const {
     return asr_model_edit_->text().trimmed();
 }
 
+bool SettingsWindow::streaming_enabled() const {
+    return streaming_enabled_check_->isChecked();
+}
+
+QString SettingsWindow::streaming_provider() const {
+    return streaming_provider_combo_->currentData().toString();
+}
+
+QString SettingsWindow::streaming_language() const {
+    return streaming_language_edit_->text().trimmed();
+}
+
 bool SettingsWindow::refine_enabled() const {
     return refine_enabled_check_->isChecked();
 }
@@ -469,6 +501,18 @@ QString SettingsWindow::refine_model() const {
 
 QString SettingsWindow::refine_system_prompt() const {
     return refine_system_prompt_edit_->toPlainText().trimmed();
+}
+
+QString SettingsWindow::soniox_url() const {
+    return soniox_url_edit_->text().trimmed();
+}
+
+QString SettingsWindow::soniox_api_key() const {
+    return soniox_api_key_edit_->text();
+}
+
+QString SettingsWindow::soniox_model() const {
+    return soniox_model_edit_->text().trimmed();
 }
 
 bool SettingsWindow::vad_enabled() const {
@@ -591,6 +635,18 @@ void SettingsWindow::set_asr_model(const QString& text) {
     asr_model_edit_->setText(text);
 }
 
+void SettingsWindow::set_streaming_enabled(bool enabled) {
+    streaming_enabled_check_->setChecked(enabled);
+}
+
+void SettingsWindow::set_streaming_provider(const QString& text) {
+    set_combo_by_value(streaming_provider_combo_, text);
+}
+
+void SettingsWindow::set_streaming_language(const QString& text) {
+    streaming_language_edit_->setText(text);
+}
+
 void SettingsWindow::set_refine_enabled(bool enabled) {
     refine_enabled_check_->setChecked(enabled);
 }
@@ -609,6 +665,18 @@ void SettingsWindow::set_refine_model(const QString& text) {
 
 void SettingsWindow::set_refine_system_prompt(const QString& text) {
     refine_system_prompt_edit_->setPlainText(text);
+}
+
+void SettingsWindow::set_soniox_url(const QString& text) {
+    soniox_url_edit_->setText(text);
+}
+
+void SettingsWindow::set_soniox_api_key(const QString& text) {
+    soniox_api_key_edit_->setText(text);
+}
+
+void SettingsWindow::set_soniox_model(const QString& text) {
+    soniox_model_edit_->setText(text);
 }
 
 void SettingsWindow::set_vad_enabled(bool enabled) {

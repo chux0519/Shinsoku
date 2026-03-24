@@ -43,7 +43,7 @@ without losing architectural boundaries.
 - Phase 3: completed
 - Phase 4: in progress
 - Phase 5: in progress
-- Phase 6: pending
+- Phase 6: in progress
 - Phase 7: pending
 - Phase 8: pending
 
@@ -526,6 +526,30 @@ Optional later extension:
 
 - Existing batch path still works.
 - One streaming backend can be added without changing the public dictation UX too much.
+
+### Progress Notes
+
+- Added a first `streaming_asr_backend.hpp` interface with session, callbacks,
+  capabilities, and audio format types.
+- Extended `backend_factory` and `AppController` to reserve a streaming backend
+  slot without changing the current batch dictation path yet.
+- Added first-pass streaming settings fields and Soniox provider placeholders so
+  realtime backend configuration can be persisted before the websocket client
+  itself is implemented.
+- Integrated `ixwebsocket` into the build, added websocket transport options
+  derived from the shared proxy config, and introduced a first Soniox backend
+  skeleton so provider-specific websocket work can land without expanding
+  `AppController`.
+- Added a proxy-capable websocket socket layer with HTTP CONNECT and SOCKS5
+  tunneling support for `wss` sessions, and wired the first Soniox streaming
+  session to use it.
+- `AppController` now routes plain dictation through the streaming backend when
+  streaming is enabled, while selection-command mode continues to use the batch
+  path.
+- Added `scripts/soniox_smoke_test.py` for protocol verification; the current
+  test key reaches Soniox successfully but returns `402 Organization balance
+  exhausted`, so product-level streaming still needs a funded key for live
+  transcription validation.
 
 ---
 

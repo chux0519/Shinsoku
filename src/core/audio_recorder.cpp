@@ -167,6 +167,7 @@ void AudioRecorder::start(std::uint32_t sample_rate, std::uint32_t channels, con
             return;
         }
         samples_.clear();
+        pending_samples_.clear();
         channels_ = channels;
         context_ = context;
         device_ = device;
@@ -180,6 +181,7 @@ void AudioRecorder::start(std::uint32_t sample_rate, std::uint32_t channels, con
             device_ = nullptr;
             context_ = nullptr;
             samples_.clear();
+            pending_samples_.clear();
         }
         shutdown_audio_unlocked(device, context);
         throw std::runtime_error("failed to start capture device");
@@ -204,11 +206,19 @@ std::vector<float> AudioRecorder::stop() {
         context_ = nullptr;
         samples = std::move(samples_);
         samples_.clear();
+        pending_samples_.clear();
     }
 
     shutdown_audio_unlocked(device, context);
 
     return samples;
+}
+
+std::vector<float> AudioRecorder::take_pending_samples() {
+    std::scoped_lock lock(mutex_);
+    std::vector<float> chunk = std::move(pending_samples_);
+    pending_samples_.clear();
+    return chunk;
 }
 
 bool AudioRecorder::is_recording() const {
@@ -234,6 +244,7 @@ void AudioRecorder::append_input(const float* input, unsigned int frame_count) {
 
     const auto sample_count = static_cast<std::size_t>(frame_count) * channels_;
     samples_.insert(samples_.end(), input, input + sample_count);
+    pending_samples_.insert(pending_samples_.end(), input, input + sample_count);
 }
 
 void AudioRecorder::shutdown_audio_unlocked(ma_device* device, ma_context* context) noexcept {
