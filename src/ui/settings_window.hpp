@@ -14,6 +14,7 @@ class QPlainTextEdit;
 class QPushButton;
 class QStackedWidget;
 class QSpinBox;
+class QToolButton;
 
 namespace ohmytypeless {
 
@@ -24,6 +25,7 @@ public:
 
     QString hold_key() const;
     QString hands_free_chord_key() const;
+    QString selection_command_trigger() const;
     QString selected_input_device_id() const;
     bool save_recordings_enabled() const;
     QString recordings_dir() const;
@@ -52,6 +54,10 @@ public:
     QString soniox_url() const;
     QString soniox_api_key() const;
     QString soniox_model() const;
+    QString bailian_region() const;
+    QString bailian_url() const;
+    QString bailian_api_key() const;
+    QString bailian_model() const;
     bool vad_enabled() const;
     double vad_threshold() const;
     int vad_min_speech_duration_ms() const;
@@ -62,6 +68,7 @@ public:
 
     void set_hold_key(const QString& text);
     void set_hands_free_chord_key(const QString& text);
+    void set_selection_command_trigger(const QString& text);
     void set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
     void set_save_recordings_enabled(bool enabled);
     void set_recordings_dir(const QString& path);
@@ -90,6 +97,10 @@ public:
     void set_soniox_url(const QString& text);
     void set_soniox_api_key(const QString& text);
     void set_soniox_model(const QString& text);
+    void set_bailian_region(const QString& text);
+    void set_bailian_url(const QString& text);
+    void set_bailian_api_key(const QString& text);
+    void set_bailian_model(const QString& text);
     void set_vad_enabled(bool enabled);
     void set_vad_threshold(double value);
     void set_vad_min_speech_duration_ms(int value);
@@ -107,6 +118,7 @@ private:
     QStackedWidget* page_stack_ = nullptr;
     QComboBox* hold_key_combo_ = nullptr;
     QComboBox* hands_free_chord_combo_ = nullptr;
+    QComboBox* selection_command_trigger_combo_ = nullptr;
     QComboBox* input_device_combo_ = nullptr;
     QCheckBox* save_recordings_check_ = nullptr;
     QLineEdit* recordings_dir_edit_ = nullptr;
@@ -135,7 +147,13 @@ private:
     QPlainTextEdit* refine_system_prompt_edit_ = nullptr;
     QLineEdit* soniox_url_edit_ = nullptr;
     QLineEdit* soniox_api_key_edit_ = nullptr;
-    QLineEdit* soniox_model_edit_ = nullptr;
+    QComboBox* soniox_model_combo_ = nullptr;
+    QToolButton* soniox_help_button_ = nullptr;
+    QComboBox* bailian_region_combo_ = nullptr;
+    QLineEdit* bailian_url_edit_ = nullptr;
+    QLineEdit* bailian_api_key_edit_ = nullptr;
+    QComboBox* bailian_model_combo_ = nullptr;
+    QToolButton* bailian_help_button_ = nullptr;
     QCheckBox* vad_enabled_check_ = nullptr;
     QDoubleSpinBox* vad_threshold_spin_ = nullptr;
     QSpinBox* vad_min_duration_spin_ = nullptr;

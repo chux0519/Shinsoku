@@ -15,7 +15,7 @@ QScrollArea > QWidget > QWidget {
 
 #heroCard, #statusCard, #actionCard, #headerCard, #sectionCard, #statusBanner, #historyHeader, #entryCard, #summaryCard {
     background: {{panel}};
-    border: 1px solid {{border}};
+    border: 1px solid {{panel_border_strong}};
     border-radius: 16px;
 }
 
@@ -115,26 +115,28 @@ QListWidget, #settingsNav {
     border: 1px solid transparent;
     border-radius: 12px;
     padding: 12px 14px;
-    margin: 0;
+    margin: 2px 0;
     color: {{muted}};
     font-size: 16px;
     font-weight: 600;
 }
 
 #settingsNav::item:hover {
-    background: {{badge_bg}};
+    background: {{nav_hover}};
     color: {{text}};
 }
 
 #settingsNav::item:selected {
     background: {{primary}};
     color: {{primary_text}};
+    border: 1px solid {{nav_selected_border}};
 }
 
 #settingsNav::item:selected:active,
 #settingsNav::item:selected:!active {
     background: {{primary}};
     color: {{primary_text}};
+    border: 1px solid {{nav_selected_border}};
 }
 
 QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
@@ -146,16 +148,33 @@ QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     selection-color: {{selection_text}};
 }
 
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 2px solid {{focus_border}};
+    padding: 8px 10px;
+}
+
 QPlainTextEdit {
     padding: 10px;
+}
+
+QPlainTextEdit:focus {
+    padding: 9px;
 }
 
 QComboBox {
     padding-right: 34px;
 }
 
+QComboBox:focus {
+    padding-right: 33px;
+}
+
 QSpinBox, QDoubleSpinBox {
     padding-right: 34px;
+}
+
+QSpinBox:focus, QDoubleSpinBox:focus {
+    padding-right: 33px;
 }
 
 QComboBox::drop-down {
@@ -250,6 +269,31 @@ QPushButton:pressed {
     background: {{badge_bg}};
 }
 
+QPushButton:disabled {
+    background: {{button_bg_disabled}};
+    border: 1px solid {{disabled_border}};
+    color: {{text_disabled}};
+}
+
+#helpButton {
+    background: {{control_fill}};
+    border: 1px solid {{control_border}};
+    border-radius: 12px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: {{muted}};
+}
+
+#helpButton:hover {
+    background: {{badge_bg}};
+    color: {{text}};
+}
+
 #recordButton, #applyButton {
     background: {{primary}};
     color: {{primary_text}};
@@ -267,8 +311,55 @@ QPushButton:pressed {
     padding: 14px 16px;
 }
 
+QListWidget {
+    background: {{panel}};
+    border: 1px solid {{border}};
+    border-radius: 16px;
+    padding: 8px;
+}
+
+QListWidget::item {
+    background: transparent;
+    border: none;
+    border-radius: 14px;
+    margin: 0;
+    padding: 0;
+}
+
+QListWidget::item:selected {
+    background: {{list_selection_bg}};
+    border: 1px solid {{list_selection_border}};
+}
+
+QMenu {
+    background: {{panel}};
+    color: {{text}};
+    border: 1px solid {{border}};
+    border-radius: 12px;
+    padding: 6px;
+}
+
+QMenu::item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 2px 0;
+}
+
+QMenu::item:selected {
+    background: {{badge_bg}};
+}
+
+QToolTip {
+    background: {{panel}};
+    color: {{text}};
+    border: 1px solid {{border}};
+    border-radius: 10px;
+    padding: 6px 8px;
+}
+
 QScrollBar:vertical {
     background: {{scrollbar_track}};
+    border: none;
     width: 8px;
     margin: 2px;
     border-radius: 4px;
@@ -281,7 +372,7 @@ QScrollBar::handle:vertical {
 }
 
 QScrollBar::handle:vertical:hover {
-    background: {{text}};
+    background: {{scrollbar_handle_hover}};
 }
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
@@ -290,6 +381,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 
 QScrollBar:horizontal {
     background: {{scrollbar_track}};
+    border: none;
     height: 8px;
     margin: 2px;
     border-radius: 4px;
@@ -302,7 +394,7 @@ QScrollBar::handle:horizontal {
 }
 
 QScrollBar::handle:horizontal:hover {
-    background: {{text}};
+    background: {{scrollbar_handle_hover}};
 }
 
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {

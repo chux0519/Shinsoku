@@ -29,6 +29,8 @@ namespace ohmytypeless {
 namespace {
 
 constexpr std::size_t kHistoryPageSize = 50;
+constexpr auto kSelectionCommandTapMax = std::chrono::milliseconds(350);
+constexpr auto kSelectionCommandWindow = std::chrono::milliseconds(1200);
 
 struct AudioAnalysis {
     bool has_speech = false;
@@ -105,6 +107,16 @@ QString display_path(const std::filesystem::path& path) {
     return QDir::cleanPath(QString::fromStdWString(path.generic_wstring()));
 }
 
+std::string streaming_model_name(const AppConfig& config) {
+    if (config.pipeline.streaming.provider == "bailian") {
+        return config.providers.bailian.model;
+    }
+    if (config.pipeline.streaming.provider == "soniox") {
+        return config.providers.soniox.model;
+    }
+    return {};
+}
+
 std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
     std::vector<std::byte> bytes(samples.size() * sizeof(std::int16_t));
     auto* out = reinterpret_cast<std::int16_t*>(bytes.data());
@@ -135,7 +147,15 @@ AppController::AppController(MainWindow* window,
       asr_backend_(make_asr_backend(config_)),
       streaming_asr_backend_(make_streaming_asr_backend(config_)),
       refine_backend_(make_refine_backend(config_)),
-      transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()) {}
+      transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()) {
+    selection_command_upgrade_timer_ = new QTimer(this);
+    selection_command_upgrade_timer_->setSingleShot(true);
+    connect(selection_command_upgrade_timer_, &QTimer::timeout, this, [this]() {
+        if (state_ == SessionState::Recording && active_capture_mode_ == CaptureMode::Dictation) {
+            stop_recording();
+        }
+    });
+}
 
 void AppController::initialize() {
     QString startup_warning;
@@ -150,6 +170,7 @@ void AppController::initialize() {
 
     window_->settings_window()->set_hold_key(QString::fromStdString(config_.hotkey.hold_key));
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
+    window_->settings_window()->set_selection_command_trigger(QString::fromStdString(config_.hotkey.selection_command_trigger));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
     window_->settings_window()->set_recordings_dir(display_path(config_.audio.recordings_dir));
@@ -178,6 +199,10 @@ void AppController::initialize() {
     window_->settings_window()->set_soniox_url(QString::fromStdString(config_.providers.soniox.url));
     window_->settings_window()->set_soniox_api_key(QString::fromStdString(config_.providers.soniox.api_key));
     window_->settings_window()->set_soniox_model(QString::fromStdString(config_.providers.soniox.model));
+    window_->settings_window()->set_bailian_region(QString::fromStdString(config_.providers.bailian.region));
+    window_->settings_window()->set_bailian_url(QString::fromStdString(config_.providers.bailian.url));
+    window_->settings_window()->set_bailian_api_key(QString::fromStdString(config_.providers.bailian.api_key));
+    window_->settings_window()->set_bailian_model(QString::fromStdString(config_.providers.bailian.model));
     window_->settings_window()->set_vad_enabled(config_.vad.enabled);
     window_->settings_window()->set_vad_threshold(config_.vad.threshold);
     window_->settings_window()->set_vad_min_speech_duration_ms(static_cast<int>(config_.vad.min_speech_duration_ms));
@@ -245,6 +270,7 @@ void AppController::apply_settings() {
 
     config_.hotkey.hold_key = window_->settings_window()->hold_key().toStdString();
     config_.hotkey.hands_free_chord_key = window_->settings_window()->hands_free_chord_key().toStdString();
+    config_.hotkey.selection_command_trigger = window_->settings_window()->selection_command_trigger().toStdString();
     config_.audio.input_device_id = window_->settings_window()->selected_input_device_id().toStdString();
     config_.audio.save_recordings = window_->settings_window()->save_recordings_enabled();
     if (!window_->settings_window()->recordings_dir().isEmpty()) {
@@ -275,6 +301,10 @@ void AppController::apply_settings() {
     config_.providers.soniox.url = window_->settings_window()->soniox_url().toStdString();
     config_.providers.soniox.api_key = window_->settings_window()->soniox_api_key().toStdString();
     config_.providers.soniox.model = window_->settings_window()->soniox_model().toStdString();
+    config_.providers.bailian.region = window_->settings_window()->bailian_region().toStdString();
+    config_.providers.bailian.url = window_->settings_window()->bailian_url().toStdString();
+    config_.providers.bailian.api_key = window_->settings_window()->bailian_api_key().toStdString();
+    config_.providers.bailian.model = window_->settings_window()->bailian_model().toStdString();
     config_.vad.enabled = window_->settings_window()->vad_enabled();
     config_.vad.threshold = static_cast<float>(window_->settings_window()->vad_threshold());
     config_.vad.min_speech_duration_ms = static_cast<std::uint32_t>(window_->settings_window()->vad_min_speech_duration_ms());
@@ -303,6 +333,15 @@ void AppController::apply_settings() {
     }
     if (config_.providers.soniox.model.empty()) {
         config_.providers.soniox.model = defaults.providers.soniox.model;
+    }
+    if (config_.providers.bailian.region.empty()) {
+        config_.providers.bailian.region = defaults.providers.bailian.region;
+    }
+    if (config_.providers.bailian.url.empty()) {
+        config_.providers.bailian.url = defaults.providers.bailian.url;
+    }
+    if (config_.providers.bailian.model.empty()) {
+        config_.providers.bailian.model = defaults.providers.bailian.model;
     }
 
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
@@ -351,11 +390,38 @@ void AppController::quit_application() {
 }
 
 void AppController::on_hold_started() {
+    if (uses_double_press_selection_command() && state_ == SessionState::Recording &&
+        active_capture_mode_ == CaptureMode::Dictation &&
+        selection_command_upgrade_timer_ != nullptr && selection_command_upgrade_timer_->isActive()) {
+        selection_command_upgrade_timer_->stop();
+        const SelectionCaptureResult selection = selection_->capture_selection(true);
+        pending_selection_debug_info_ = selection.debug_info;
+        if (selection.success && !selection.selected_text.trimmed().isEmpty()) {
+            active_capture_mode_ = CaptureMode::SelectionCommand;
+            captured_selection_text_ = selection.selected_text;
+            set_state(SessionState::Recording, "Listening for selected-text command.");
+            hud_->show_recording(true);
+            return;
+        }
+
+        selection_command_upgrade_timer_->start(static_cast<int>(kSelectionCommandWindow.count()));
+        hud_->show_error("No selected text captured");
+        return;
+    }
     start_recording(SessionState::Recording);
 }
 
 void AppController::on_hold_stopped() {
     if (state_ == SessionState::Recording) {
+        if (uses_double_press_selection_command() && active_capture_mode_ == CaptureMode::Dictation &&
+            selection_command_upgrade_timer_ != nullptr) {
+            const auto elapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - recording_started_at_);
+            if (elapsed <= kSelectionCommandTapMax || selection_command_upgrade_timer_->isActive()) {
+                selection_command_upgrade_timer_->start(static_cast<int>(kSelectionCommandWindow.count()));
+                return;
+            }
+        }
         stop_recording();
     }
 }
@@ -460,17 +526,43 @@ void AppController::start_recording(SessionState mode) {
         clipboard_->begin_paste_session();
         active_capture_mode_ = pending_capture_mode_;
         pending_capture_mode_ = CaptureMode::Dictation;
+        recording_started_at_ = std::chrono::steady_clock::now();
+        captured_selection_text_.reset();
+        pending_selection_debug_info_.clear();
+        const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
+        if (forced_selection_command) {
+            const SelectionCaptureResult selection = selection_->capture_selection(true);
+            pending_selection_debug_info_ = selection.debug_info;
+            if (selection.success) {
+                active_capture_mode_ = CaptureMode::SelectionCommand;
+                captured_selection_text_ = selection.selected_text;
+            }
+        }
+        if (forced_selection_command &&
+            (!captured_selection_text_.has_value() || captured_selection_text_->trimmed().isEmpty())) {
+            clipboard_->clear_paste_session();
+            active_capture_mode_ = CaptureMode::Dictation;
+            const QString status = pending_selection_debug_info_.isEmpty()
+                                       ? "No selected text captured."
+                                       : QString("No selected text captured.\n%1").arg(pending_selection_debug_info_);
+            set_state(SessionState::Error, status);
+            window_->settings_window()->set_status_text(status);
+            hud_->show_error("No selected text captured");
+            return;
+        }
         recorder_.start(config_.audio.sample_rate, config_.audio.channels, config_.audio.input_device_id);
         if (should_use_streaming_dictation()) {
             start_streaming_dictation();
         }
         const QString status = active_capture_mode_ == CaptureMode::SelectionCommand
-                                   ? "Recording command for selected text."
+                                   ? "Listening for selected-text command."
                                    : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
         set_state(mode, status);
-        hud_->show_recording();
+        hud_->show_recording(active_capture_mode_ == CaptureMode::SelectionCommand);
     } catch (const std::exception& exception) {
         active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
+        pending_selection_debug_info_.clear();
         pending_capture_mode_ = CaptureMode::Dictation;
         on_hotkey_failed(QString::fromUtf8(exception.what()));
     }
@@ -479,6 +571,10 @@ void AppController::start_recording(SessionState mode) {
 void AppController::stop_recording() {
     if (state_ != SessionState::Recording && state_ != SessionState::HandsFree) {
         return;
+    }
+
+    if (selection_command_upgrade_timer_ != nullptr) {
+        selection_command_upgrade_timer_->stop();
     }
 
     set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
@@ -506,6 +602,7 @@ void AppController::stop_recording() {
             hud_->show_notice("No speech detected");
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
+            captured_selection_text_.reset();
             pending_selection_debug_info_.clear();
             return;
         }
@@ -515,23 +612,31 @@ void AppController::stop_recording() {
             stop_streaming_dictation(samples, audio_path);
             return;
         }
-        const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
-        const bool auto_detection_enabled = selection_->supports_automatic_detection();
         SelectionCaptureResult selection;
-        if (forced_selection_command || auto_detection_enabled) {
-            selection = selection_->capture_selection();
-            pending_selection_debug_info_ = selection.debug_info;
+        if (captured_selection_text_.has_value()) {
+            selection.success = true;
+            selection.selected_text = *captured_selection_text_;
+            selection.debug_info = pending_selection_debug_info_;
         } else {
-            pending_selection_debug_info_.clear();
+            const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
+            if (forced_selection_command) {
+                selection = selection_->capture_selection(true);
+                pending_selection_debug_info_ = selection.debug_info;
+            } else {
+                pending_selection_debug_info_.clear();
+            }
         }
 
+        const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
         if (selection.success) {
+            captured_selection_text_.reset();
             active_capture_mode_ = CaptureMode::SelectionCommand;
             TextTask task;
             task.mode = CaptureMode::SelectionCommand;
             task.selected_text = selection.selected_text;
             transcribe_selection_command_async(std::move(task), samples, audio_path);
         } else if (forced_selection_command) {
+            captured_selection_text_.reset();
             active_capture_mode_ = CaptureMode::SelectionCommand;
             const QString status = selection.debug_info.isEmpty()
                                        ? "No selected text captured."
@@ -543,15 +648,13 @@ void AppController::stop_recording() {
             active_capture_mode_ = CaptureMode::Dictation;
             return;
         } else {
+            captured_selection_text_.reset();
             active_capture_mode_ = CaptureMode::Dictation;
-            if (auto_detection_enabled && !selection.debug_info.isEmpty()) {
-                window_->set_status_text(QString("No command selection detected. Falling back to dictation.\n%1").arg(selection.debug_info));
-                window_->settings_window()->set_status_text(selection.debug_info);
-            }
             transcribe_async(samples, audio_path);
         }
     } catch (const std::exception& exception) {
         active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
         on_hotkey_failed(QString::fromUtf8(exception.what()));
     }
 }
@@ -562,9 +665,21 @@ void AppController::set_state(SessionState state, const QString& status) {
     window_->set_status_text(status);
 }
 
+bool AppController::uses_double_press_selection_command() const {
+    return config_.hotkey.selection_command_trigger == "double_press_hold";
+}
+
 bool AppController::should_use_streaming_dictation() const {
-    return active_capture_mode_ == CaptureMode::Dictation && config_.pipeline.streaming.enabled &&
-           streaming_asr_backend_ != nullptr;
+    if (!config_.pipeline.streaming.enabled || streaming_asr_backend_ == nullptr) {
+        return false;
+    }
+
+    if (active_capture_mode_ == CaptureMode::Dictation) {
+        return true;
+    }
+
+    return active_capture_mode_ == CaptureMode::SelectionCommand && captured_selection_text_.has_value() &&
+           !captured_selection_text_->trimmed().isEmpty();
 }
 
 void AppController::start_streaming_dictation() {
@@ -762,6 +877,7 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
     if (!error_text.isEmpty()) {
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
         history_store_->add_entry(QString("Streaming transcription failed: %1").arg(error_text),
                                   audio_path,
@@ -773,12 +889,41 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
     if (final_text.trimmed().isEmpty()) {
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
         history_store_->add_entry("Streaming transcription returned no text.",
                                   audio_path,
                                   nlohmann::json{{"diagnostics", {{"error", "Streaming transcription returned no text."}}}, {"streaming", streaming_meta["streaming"]}});
         load_history();
         on_hotkey_failed("Streaming transcription returned no text.");
+        return;
+    }
+
+    if (active_capture_mode_ == CaptureMode::SelectionCommand) {
+        if (!captured_selection_text_.has_value() || captured_selection_text_->trimmed().isEmpty()) {
+            const SelectionCaptureResult selection = selection_->capture_selection(true);
+            pending_selection_debug_info_ = selection.debug_info;
+            if (selection.success && !selection.selected_text.trimmed().isEmpty()) {
+                captured_selection_text_ = selection.selected_text;
+            }
+        }
+        if (!captured_selection_text_.has_value() || captured_selection_text_->trimmed().isEmpty()) {
+            clipboard_->clear_paste_session();
+            active_capture_mode_ = CaptureMode::Dictation;
+            pending_selection_debug_info_.clear();
+            history_store_->add_entry("Selection command could not find selected text.",
+                                      audio_path,
+                                      nlohmann::json{{"diagnostics", {{"error", "Selection command could not find selected text."}}},
+                                                     {"streaming", streaming_meta["streaming"]}});
+            load_history();
+            on_hotkey_failed("No selected text captured.");
+            return;
+        }
+        TextTask task;
+        task.mode = CaptureMode::SelectionCommand;
+        task.selected_text = captured_selection_text_.value_or(QString());
+        task.spoken_instruction = final_text.trimmed();
+        transcribe_selection_command_async(std::move(task), {}, std::move(audio_path), std::move(streaming_meta));
         return;
     }
 
@@ -819,7 +964,7 @@ void AppController::transcribe_streaming_result_async(QString transcript,
                 diagnostics["pipeline"] = "streaming_asr_refine";
                 diagnostics["asr"] = {
                     {"provider", config_snapshot.pipeline.streaming.provider},
-                    {"model", config_snapshot.providers.soniox.model},
+                    {"model", streaming_model_name(config_snapshot)},
                 };
 
                 std::string text = transcript.toStdString();
@@ -953,6 +1098,7 @@ void AppController::on_transcription_finished() {
         if (result.cancelled) {
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
+            captured_selection_text_.reset();
             pending_selection_debug_info_.clear();
             if (shutting_down_) {
             QApplication::quit();
@@ -971,6 +1117,7 @@ void AppController::on_transcription_finished() {
         load_history();
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
         on_hotkey_failed(result.error_text);
     } else {
@@ -1010,7 +1157,7 @@ void AppController::on_transcription_finished() {
             const bool pasted = active_capture_mode_ == CaptureMode::Dictation &&
                                 config_.output.paste_to_focused_window && auto_paste_ok;
             if (active_capture_mode_ == CaptureMode::SelectionCommand) {
-                hud_->show_notice("Selection command complete");
+                hud_->show_notice("Updated");
             } else if (copied || pasted) {
                 hud_->show_notice(copied ? "Transcription copied" : "Transcription pasted");
             } else {
@@ -1019,6 +1166,7 @@ void AppController::on_transcription_finished() {
         }
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
     }
 
@@ -1029,11 +1177,15 @@ void AppController::on_transcription_finished() {
 
 void AppController::transcribe_selection_command_async(TextTask task,
                                                        std::vector<float> samples,
-                                                       std::optional<std::filesystem::path> audio_path) {
+                                                       std::optional<std::filesystem::path> audio_path,
+                                                       nlohmann::json streaming_meta) {
     if (transcription_watcher_->isRunning()) {
         on_hotkey_failed("A transcription job is already running.");
         return;
     }
+
+    set_state(SessionState::Transcribing, "Thinking.");
+    hud_->show_thinking();
 
     const AppConfig config_snapshot = config_;
     const std::string selection_backend_name = selection_->backend_name().toStdString();
@@ -1050,6 +1202,7 @@ void AppController::transcribe_selection_command_async(TextTask task,
          task = std::move(task),
          samples = std::move(samples),
          audio_path = std::move(audio_path),
+         streaming_meta = std::move(streaming_meta),
          job_id,
          cancel_flag]() mutable {
             TranscriptionResult result;
@@ -1057,22 +1210,47 @@ void AppController::transcribe_selection_command_async(TextTask task,
             result.audio_path = std::move(audio_path);
 
             try {
-                std::unique_ptr<AsrBackend> asr_backend = make_asr_backend(config_snapshot);
                 std::unique_ptr<TextTransformBackend> refine_backend = make_refine_backend(config_snapshot);
 
                 nlohmann::json meta = nlohmann::json::object();
                 nlohmann::json diagnostics = nlohmann::json::object();
                 nlohmann::json timing = nlohmann::json::object();
 
-                const auto asr_start = std::chrono::steady_clock::now();
-                const std::string instruction = asr_backend->transcribe(samples, cancel_flag.get());
-                timing["asr_ms"] =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - asr_start).count();
-                diagnostics["pipeline"] = "selection_command";
-                diagnostics["asr"] = nlohmann::json{
-                    {"provider", config_snapshot.pipeline.asr.provider},
-                    {"model", config_snapshot.pipeline.asr.model},
-                };
+                std::string instruction = task.spoken_instruction.trimmed().toStdString();
+                if (instruction.empty()) {
+                    std::unique_ptr<AsrBackend> asr_backend = make_asr_backend(config_snapshot);
+                    const auto asr_start = std::chrono::steady_clock::now();
+                    instruction = asr_backend->transcribe(samples, cancel_flag.get());
+                    timing["asr_ms"] =
+                        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - asr_start).count();
+                    diagnostics["pipeline"] = "selection_command";
+                    diagnostics["asr"] = nlohmann::json{
+                        {"provider", config_snapshot.pipeline.asr.provider},
+                        {"model", config_snapshot.pipeline.asr.model},
+                    };
+                } else {
+                    diagnostics["pipeline"] = "streaming_selection_command";
+                    diagnostics["asr"] = nlohmann::json{
+                        {"provider", config_snapshot.pipeline.streaming.provider},
+                        {"model", streaming_model_name(config_snapshot)},
+                    };
+                    if (streaming_meta.contains("streaming")) {
+                        diagnostics["streaming"] = streaming_meta["streaming"];
+                        const auto& runtime = streaming_meta["streaming"];
+                        if (runtime.contains("provider_runtime") && runtime["provider_runtime"].contains("total_audio_proc_ms")) {
+                            timing["asr_ms"] = runtime["provider_runtime"]["total_audio_proc_ms"];
+                        } else if (runtime.contains("audio_ms")) {
+                            timing["asr_ms"] = runtime["audio_ms"];
+                        }
+                        if (runtime.contains("connect_ms") && runtime["connect_ms"].is_number_integer() &&
+                            runtime["connect_ms"].get<int>() >= 0) {
+                            timing["connect_ms"] = runtime["connect_ms"];
+                        }
+                        if (runtime.contains("stop_wait_ms")) {
+                            timing["stop_wait_ms"] = runtime["stop_wait_ms"];
+                        }
+                    }
+                }
 
                 const auto transform_start = std::chrono::steady_clock::now();
                 const std::string transformed = refine_backend->transform(
@@ -1101,6 +1279,9 @@ void AppController::transcribe_selection_command_async(TextTask task,
                     diagnostics["timing"] = timing;
                 }
                 meta["diagnostics"] = diagnostics;
+                if (streaming_meta.contains("streaming")) {
+                    meta["streaming"] = streaming_meta["streaming"];
+                }
                 meta["selection"] = {
                     {"source_text", task.selected_text.toStdString()},
                     {"spoken_instruction", instruction},

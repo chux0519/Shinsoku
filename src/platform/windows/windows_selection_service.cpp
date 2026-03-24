@@ -4,6 +4,7 @@
 #include <QStringList>
 #include <chrono>
 #include <cstring>
+#include <mutex>
 #include <optional>
 #include <thread>
 #include <vector>
@@ -53,6 +54,8 @@ struct ClipboardSnapshot {
     bool captured = false;
     std::vector<ClipboardEntry> entries;
 };
+
+std::mutex g_copy_paste_mutex;
 
 template <typename T>
 class ComPtr {
@@ -497,12 +500,42 @@ bool send_ctrl_shortcut(WORD key) {
     return ::SendInput(static_cast<UINT>(std::size(inputs)), inputs, sizeof(INPUT)) == std::size(inputs);
 }
 
+void release_modifier_keys() {
+    constexpr WORD keys[] = {
+        VK_CONTROL, VK_LCONTROL, VK_RCONTROL,
+        VK_MENU, VK_LMENU, VK_RMENU,
+        VK_SHIFT, VK_LSHIFT, VK_RSHIFT,
+        VK_SPACE, VK_TAB,
+    };
+
+    std::vector<INPUT> inputs;
+    inputs.reserve(std::size(keys));
+    for (WORD key : keys) {
+        INPUT input{};
+        input.type = INPUT_KEYBOARD;
+        input.ki.wVk = key;
+        input.ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs.push_back(input);
+    }
+    ::SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
+}
+
 QString summarize_clipboard_native() {
     const std::optional<QString> text = read_clipboard_text_native();
     if (!text.has_value()) {
         return "clipboard text unavailable";
     }
     return QString("nativeTextLength=%1").arg(text->size());
+}
+
+QString preview_text(const QString& text) {
+    QString preview = text;
+    preview.replace('\r', "\\r");
+    preview.replace('\n', "\\n");
+    if (preview.size() > 120) {
+        preview = preview.left(120) + "...";
+    }
+    return preview;
 }
 
 }  // namespace
@@ -517,7 +550,8 @@ bool WindowsSelectionService::supports_automatic_detection() const {
     return true;
 }
 
-SelectionCaptureResult WindowsSelectionService::capture_selection() {
+SelectionCaptureResult WindowsSelectionService::capture_selection(bool allow_clipboard_fallback) {
+    const std::lock_guard<std::mutex> guard(g_copy_paste_mutex);
     QStringList lines;
 
     ScopedComInit com_init;
@@ -550,6 +584,16 @@ SelectionCaptureResult WindowsSelectionService::capture_selection() {
         };
     }
 
+    if (!allow_clipboard_fallback) {
+        lines << "clipboard fallback disabled";
+        set_debug_info(lines.join('\n'));
+        return SelectionCaptureResult{
+            .success = false,
+            .selected_text = {},
+            .debug_info = last_debug_info_,
+        };
+    }
+
     if (clipboard_ == nullptr) {
         lines << "clipboard fallback unavailable";
         set_debug_info(lines.join('\n'));
@@ -563,26 +607,34 @@ SelectionCaptureResult WindowsSelectionService::capture_selection() {
     const ClipboardSnapshot snapshot = snapshot_clipboard_native();
     const std::optional<QString> snapshot_text = read_clipboard_text_native();
     clear_clipboard_native();
+    release_modifier_keys();
     const bool shortcut_sent = send_ctrl_shortcut('C');
     std::this_thread::sleep_for(std::chrono::milliseconds(120));
     const QString copied_text = read_clipboard_text_native().value_or(QString());
     lines << "capture path=clipboard_ctrl_c";
+    lines << QString("clipboard_fallback_allowed=%1").arg(allow_clipboard_fallback ? "true" : "false");
     lines << QString("copy_shortcut_sent=%1").arg(shortcut_sent ? "true" : "false");
     lines << QString("clipboard after copy: %1").arg(summarize_clipboard_native());
     lines << QString("copied_text_length=%1").arg(copied_text.size());
+    lines << QString("copied_text_preview=%1").arg(preview_text(copied_text));
     const bool restored = restore_clipboard_snapshot_native(snapshot);
+    const bool has_meaningful_text = !copied_text.trimmed().isEmpty();
     lines << QString("clipboard_restore_ok=%1").arg(restored ? "true" : "false");
     lines << QString("clipboard restored_text_length=%1").arg(snapshot_text.has_value() ? snapshot_text->size() : 0);
+    lines << QString("clipboard restored_text_preview=%1").arg(snapshot_text.has_value() ? preview_text(snapshot_text.value()) : QString());
+    lines << QString("fallback_meaningful_text=%1").arg(has_meaningful_text ? "true" : "false");
+    lines << QString("fallback_success=%1").arg((shortcut_sent && has_meaningful_text) ? "true" : "false");
     set_debug_info(lines.join('\n'));
 
     return SelectionCaptureResult{
-        .success = shortcut_sent && !copied_text.isEmpty(),
+        .success = shortcut_sent && has_meaningful_text,
         .selected_text = copied_text,
         .debug_info = last_debug_info_,
     };
 }
 
 bool WindowsSelectionService::replace_selection(const QString& text) {
+    const std::lock_guard<std::mutex> guard(g_copy_paste_mutex);
     if (clipboard_ == nullptr) {
         set_debug_info("replace failed: clipboard backend is null");
         return false;
@@ -590,6 +642,7 @@ bool WindowsSelectionService::replace_selection(const QString& text) {
 
     const ClipboardSnapshot snapshot = snapshot_clipboard_native();
     const std::optional<QString> snapshot_text = read_clipboard_text_native();
+    release_modifier_keys();
     const bool clipboard_set = set_clipboard_text_native(text);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 

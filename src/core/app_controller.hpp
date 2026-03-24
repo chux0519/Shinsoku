@@ -23,6 +23,7 @@
 #include <optional>
 #include <thread>
 #include <chrono>
+#include <QTimer>
 
 namespace ohmytypeless {
 
@@ -87,7 +88,9 @@ private:
     void transcribe_async(std::vector<float> samples, std::optional<std::filesystem::path> audio_path);
     void transcribe_selection_command_async(TextTask task,
                                             std::vector<float> samples,
-                                            std::optional<std::filesystem::path> audio_path);
+                                            std::optional<std::filesystem::path> audio_path,
+                                            nlohmann::json streaming_meta = nlohmann::json::object());
+    bool uses_double_press_selection_command() const;
 
     MainWindow* window_ = nullptr;
     ClipboardService* clipboard_ = nullptr;
@@ -112,7 +115,10 @@ private:
     bool shutting_down_ = false;
     CaptureMode pending_capture_mode_ = CaptureMode::Dictation;
     CaptureMode active_capture_mode_ = CaptureMode::Dictation;
+    std::optional<QString> captured_selection_text_;
     QString pending_selection_debug_info_;
+    std::chrono::steady_clock::time_point recording_started_at_{};
+    QTimer* selection_command_upgrade_timer_ = nullptr;
     std::unique_ptr<StreamingAsrSession> streaming_session_;
     std::thread streaming_connect_thread_;
     std::thread streaming_pump_thread_;

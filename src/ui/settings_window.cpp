@@ -2,6 +2,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDesktopServices>
 #include <QDoubleSpinBox>
 #include <QFrame>
 #include <QFormLayout>
@@ -17,11 +18,67 @@
 #include <QSizePolicy>
 #include <QStackedWidget>
 #include <QSpinBox>
+#include <QToolButton>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace ohmytypeless {
 
 namespace {
+
+constexpr auto kBailianFunAsrWebSocketUrl = "https://help.aliyun.com/zh/model-studio/fun-asr-realtime-websocket-api";
+
+const QStringList kSonioxModels = {
+    "stt-rt-preview",
+};
+
+const QStringList kBailianChinaModels = {
+    "fun-asr-realtime",
+    "fun-asr-realtime-2026-02-28",
+    "fun-asr-realtime-2025-11-07",
+    "fun-asr-realtime-2025-09-15",
+    "fun-asr-flash-8k-realtime",
+    "fun-asr-flash-8k-realtime-2026-01-28",
+    "gummy-realtime-v1",
+    "gummy-chat-v1",
+    "paraformer-realtime-v2",
+    "paraformer-realtime-v1",
+    "paraformer-realtime-8k-v2",
+    "paraformer-realtime-8k-v1",
+};
+
+const QStringList kBailianIntlModels = {
+    "fun-asr-realtime",
+    "fun-asr-realtime-2025-11-07",
+};
+
+void apply_model_tooltips(QComboBox* combo) {
+    if (combo == nullptr) {
+        return;
+    }
+    for (int i = 0; i < combo->count(); ++i) {
+        const QString model = combo->itemText(i);
+        QString tooltip;
+        if (model == "stt-rt-preview") {
+            tooltip = "Soniox current real-time model. Best for low-latency streaming experiments.";
+        } else if (model.startsWith("fun-asr-flash-8k")) {
+            tooltip = "Optimized for 8 kHz / telephony audio. Prefer this for narrowband call-quality audio.";
+        } else if (model.startsWith("fun-asr-realtime")) {
+            tooltip = "General-purpose Bailian real-time ASR. Best default for live wideband dictation.";
+        } else if (model.startsWith("gummy-realtime")) {
+            tooltip = "Conversation-oriented real-time speech model for spoken interaction flows.";
+        } else if (model.startsWith("gummy-chat")) {
+            tooltip = "Dialogue-oriented speech model family. Better suited to conversational turn-taking.";
+        } else if (model.startsWith("paraformer-realtime-8k")) {
+            tooltip = "Legacy Paraformer real-time model for 8 kHz / telephony scenarios.";
+        } else if (model.startsWith("paraformer-realtime")) {
+            tooltip = "Legacy Paraformer real-time model family kept for compatibility.";
+        } else {
+            tooltip = "See the official provider documentation for exact behavior and tradeoffs.";
+        }
+        combo->setItemData(i, tooltip, Qt::ToolTipRole);
+    }
+}
 
 QGroupBox* make_section(const QString& title, QWidget* parent, QFormLayout** form_out) {
     auto* box = new QGroupBox(title, parent);
@@ -104,6 +161,56 @@ void set_combo_by_value(QComboBox* combo, const QString& value) {
     }
 }
 
+void set_combo_text_if_present(QComboBox* combo, const QString& value) {
+    const int index = combo->findText(value);
+    if (index >= 0) {
+        combo->setCurrentIndex(index);
+    }
+}
+
+QWidget* make_model_row(QComboBox** combo_out, QToolButton** help_out, const QStringList& items, QWidget* parent) {
+    auto* row = new QWidget(parent);
+    row->setObjectName("inlineFieldRow");
+    auto* layout = new QHBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(8);
+
+    auto* combo = new QComboBox(row);
+    combo->addItems(items);
+    apply_model_tooltips(combo);
+    combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    auto* help = new QToolButton(row);
+    help->setObjectName("helpButton");
+    help->setText("?");
+    help->setToolTip("Open provider model guide");
+
+    layout->addWidget(combo, 1);
+    layout->addWidget(help);
+
+    if (combo_out != nullptr) {
+        *combo_out = combo;
+    }
+    if (help_out != nullptr) {
+        *help_out = help;
+    }
+    return row;
+}
+
+void refresh_bailian_model_combo(QComboBox* combo, const QString& region, const QString& preferred_model) {
+    if (combo == nullptr) {
+        return;
+    }
+    const QString current = preferred_model.isEmpty() ? combo->currentText() : preferred_model;
+    const QStringList models = region == "intl-singapore" ? kBailianIntlModels : kBailianChinaModels;
+
+    combo->blockSignals(true);
+    combo->clear();
+    combo->addItems(models);
+    apply_model_tooltips(combo);
+    set_combo_text_if_present(combo, current);
+    combo->blockSignals(false);
+}
+
 }  // namespace
 
 SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
@@ -169,8 +276,12 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     auto* hotkey_section = make_section("Hotkey", this, &hotkey_form);
     hold_key_combo_ = make_key_combo(hotkey_section);
     hands_free_chord_combo_ = make_key_combo(hotkey_section);
+    selection_command_trigger_combo_ = new QComboBox(hotkey_section);
+    selection_command_trigger_combo_->addItem("Button Only", "button_only");
+    selection_command_trigger_combo_->addItem("Double-Press Hold Key", "double_press_hold");
     hotkey_form->addRow("Hold Key", hold_key_combo_);
     hotkey_form->addRow("Hands-free Chord", hands_free_chord_combo_);
+    hotkey_form->addRow("Command Trigger", selection_command_trigger_combo_);
     insert_section_before_stretch(general_layout, hotkey_section);
 
     QFormLayout* audio_form = nullptr;
@@ -256,6 +367,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     streaming_provider_combo_ = new QComboBox(asr_section);
     streaming_provider_combo_->addItem("None", "none");
     streaming_provider_combo_->addItem("Soniox", "soniox");
+    streaming_provider_combo_->addItem("Bailian", "bailian");
     streaming_language_edit_ = new QLineEdit(asr_section);
     streaming_language_edit_->setPlaceholderText("Optional language hint, e.g. en");
     asr_form->addRow("Streaming", streaming_enabled_check_);
@@ -358,18 +470,34 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     soniox_url_edit_ = new QLineEdit(soniox_section);
     soniox_api_key_edit_ = new QLineEdit(soniox_section);
     soniox_api_key_edit_->setEchoMode(QLineEdit::Password);
-    soniox_model_edit_ = new QLineEdit(soniox_section);
+    auto* soniox_model_row = make_model_row(&soniox_model_combo_, &soniox_help_button_, kSonioxModels, soniox_section);
+    soniox_help_button_->setToolTip("Open Soniox documentation.\nThe current app integration targets the low-latency real-time preview model.");
     soniox_form->addRow("WebSocket URL", soniox_url_edit_);
     soniox_form->addRow("API Key", soniox_api_key_edit_);
-    soniox_form->addRow("Model", soniox_model_edit_);
+    soniox_form->addRow("Model", soniox_model_row);
     insert_section_before_stretch(providers_layout, soniox_section);
 
-    insert_section_before_stretch(providers_layout,
-                                  make_info_card("Upcoming Providers",
-                                                 "Bailian and offline profiles will land here next.",
-                                                 "This area is intentionally ready for provider-specific cards so future "
-                                                 "websocket and local inference settings stay modular.",
-                                                 this));
+    QFormLayout* bailian_form = nullptr;
+    auto* bailian_section = make_section("Bailian Streaming", this, &bailian_form);
+    bailian_region_combo_ = new QComboBox(bailian_section);
+    bailian_region_combo_->addItem("China Mainland (Beijing)", "cn-beijing");
+    bailian_region_combo_->addItem("International (Singapore)", "intl-singapore");
+    bailian_url_edit_ = new QLineEdit(bailian_section);
+    bailian_api_key_edit_ = new QLineEdit(bailian_section);
+    bailian_api_key_edit_->setEchoMode(QLineEdit::Password);
+    auto* bailian_model_row =
+        make_model_row(&bailian_model_combo_, &bailian_help_button_, kBailianChinaModels, bailian_section);
+    bailian_help_button_->setToolTip(
+        "Open the official Bailian real-time ASR docs.\n"
+        "fun-asr-realtime is the safest default.\n"
+        "flash-8k is for telephony audio.\n"
+        "gummy focuses more on conversational interaction.\n"
+        "paraformer models are older compatibility options.");
+    bailian_form->addRow("Region", bailian_region_combo_);
+    bailian_form->addRow("WebSocket URL", bailian_url_edit_);
+    bailian_form->addRow("API Key", bailian_api_key_edit_);
+    bailian_form->addRow("Model", bailian_model_row);
+    insert_section_before_stretch(providers_layout, bailian_section);
 
     auto* actions = new QHBoxLayout();
     actions->addStretch();
@@ -391,7 +519,24 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
             recordings_dir_edit_->setText(selected);
         }
     });
+    connect(soniox_help_button_, &QToolButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl("https://docs.soniox.com"));
+    });
+    connect(bailian_help_button_, &QToolButton::clicked, this, []() {
+        QDesktopServices::openUrl(QUrl(kBailianFunAsrWebSocketUrl));
+    });
+    connect(bailian_region_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        const QString region = bailian_region_combo_->currentData().toString();
+        if (region == "intl-singapore") {
+            bailian_url_edit_->setText("wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference/");
+        } else {
+            bailian_url_edit_->setText("wss://dashscope.aliyuncs.com/api-ws/v1/inference/");
+        }
+        refresh_bailian_model_combo(bailian_model_combo_, region, QString());
+    });
     connect(navigation_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
+    refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), QString());
+    bailian_url_edit_->setText("wss://dashscope.aliyuncs.com/api-ws/v1/inference/");
     navigation_list_->setCurrentRow(0);
 }
 
@@ -401,6 +546,10 @@ QString SettingsWindow::hold_key() const {
 
 QString SettingsWindow::hands_free_chord_key() const {
     return hands_free_chord_combo_->currentData().toString();
+}
+
+QString SettingsWindow::selection_command_trigger() const {
+    return selection_command_trigger_combo_->currentData().toString();
 }
 
 QString SettingsWindow::selected_input_device_id() const {
@@ -512,7 +661,23 @@ QString SettingsWindow::soniox_api_key() const {
 }
 
 QString SettingsWindow::soniox_model() const {
-    return soniox_model_edit_->text().trimmed();
+    return soniox_model_combo_->currentText();
+}
+
+QString SettingsWindow::bailian_region() const {
+    return bailian_region_combo_->currentData().toString();
+}
+
+QString SettingsWindow::bailian_url() const {
+    return bailian_url_edit_->text().trimmed();
+}
+
+QString SettingsWindow::bailian_api_key() const {
+    return bailian_api_key_edit_->text();
+}
+
+QString SettingsWindow::bailian_model() const {
+    return bailian_model_combo_->currentText();
 }
 
 bool SettingsWindow::vad_enabled() const {
@@ -549,6 +714,10 @@ void SettingsWindow::set_hold_key(const QString& text) {
 
 void SettingsWindow::set_hands_free_chord_key(const QString& text) {
     set_combo_by_value(hands_free_chord_combo_, text);
+}
+
+void SettingsWindow::set_selection_command_trigger(const QString& text) {
+    set_combo_by_value(selection_command_trigger_combo_, text);
 }
 
 void SettingsWindow::set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
@@ -676,7 +845,24 @@ void SettingsWindow::set_soniox_api_key(const QString& text) {
 }
 
 void SettingsWindow::set_soniox_model(const QString& text) {
-    soniox_model_edit_->setText(text);
+    set_combo_text_if_present(soniox_model_combo_, text);
+}
+
+void SettingsWindow::set_bailian_region(const QString& text) {
+    set_combo_by_value(bailian_region_combo_, text);
+    refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), QString());
+}
+
+void SettingsWindow::set_bailian_url(const QString& text) {
+    bailian_url_edit_->setText(text);
+}
+
+void SettingsWindow::set_bailian_api_key(const QString& text) {
+    bailian_api_key_edit_->setText(text);
+}
+
+void SettingsWindow::set_bailian_model(const QString& text) {
+    refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), text);
 }
 
 void SettingsWindow::set_vad_enabled(bool enabled) {

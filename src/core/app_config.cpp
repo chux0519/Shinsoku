@@ -263,6 +263,9 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "hotkey", "hands_free_chord_key")) {
         config.hotkey.hands_free_chord_key = unquote(*value);
     }
+    if (const auto value = get_value(sections, "hotkey", "selection_command_trigger")) {
+        config.hotkey.selection_command_trigger = unquote(*value);
+    }
     if (const auto value = get_value(sections, "pipeline.asr", "provider")) {
         config.pipeline.asr.provider = unquote(*value);
     }
@@ -353,6 +356,18 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "providers.soniox", "model")) {
         config.providers.soniox.model = unquote(*value);
     }
+    if (const auto value = get_value(sections, "providers.bailian", "region")) {
+        config.providers.bailian.region = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "providers.bailian", "url")) {
+        config.providers.bailian.url = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "providers.bailian", "api_key")) {
+        config.providers.bailian.api_key = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "providers.bailian", "model")) {
+        config.providers.bailian.model = unquote(*value);
+    }
     if (const auto value = get_value(sections, "vad", "enabled")) {
         config.vad.enabled = parse_bool(*value, config.vad.enabled);
     }
@@ -381,6 +396,9 @@ AppConfig load_config() {
     if (config.hotkey.hands_free_chord_key.empty()) {
         config.hotkey.hands_free_chord_key = defaults.hotkey.hands_free_chord_key;
     }
+    if (config.hotkey.selection_command_trigger.empty()) {
+        config.hotkey.selection_command_trigger = defaults.hotkey.selection_command_trigger;
+    }
     if (config.pipeline.asr.provider.empty()) {
         config.pipeline.asr.provider = defaults.pipeline.asr.provider;
     }
@@ -408,6 +426,15 @@ AppConfig load_config() {
     if (config.providers.soniox.model.empty()) {
         config.providers.soniox.model = defaults.providers.soniox.model;
     }
+    if (config.providers.bailian.region.empty()) {
+        config.providers.bailian.region = defaults.providers.bailian.region;
+    }
+    if (config.providers.bailian.url.empty()) {
+        config.providers.bailian.url = defaults.providers.bailian.url;
+    }
+    if (config.providers.bailian.model.empty()) {
+        config.providers.bailian.model = defaults.providers.bailian.model;
+    }
     if (config.output.paste_keys.empty()) {
         config.output.paste_keys = defaults.output.paste_keys;
     }
@@ -433,7 +460,8 @@ void save_config(const AppConfig& config) {
 
     output << "[hotkey]\n";
     output << "hold_key = \"" << escape_toml_string(config.hotkey.hold_key) << "\"\n";
-    output << "hands_free_chord_key = \"" << escape_toml_string(config.hotkey.hands_free_chord_key) << "\"\n\n";
+    output << "hands_free_chord_key = \"" << escape_toml_string(config.hotkey.hands_free_chord_key) << "\"\n";
+    output << "selection_command_trigger = \"" << escape_toml_string(config.hotkey.selection_command_trigger) << "\"\n\n";
 
     output << "[pipeline.asr]\n";
     output << "provider = \"" << escape_toml_string(config.pipeline.asr.provider) << "\"\n";
@@ -483,6 +511,12 @@ void save_config(const AppConfig& config) {
     output << "url = \"" << escape_toml_string(config.providers.soniox.url) << "\"\n";
     output << "api_key = \"" << escape_toml_string(config.providers.soniox.api_key) << "\"\n";
     output << "model = \"" << escape_toml_string(config.providers.soniox.model) << "\"\n\n";
+
+    output << "[providers.bailian]\n";
+    output << "region = \"" << escape_toml_string(config.providers.bailian.region) << "\"\n";
+    output << "url = \"" << escape_toml_string(config.providers.bailian.url) << "\"\n";
+    output << "api_key = \"" << escape_toml_string(config.providers.bailian.api_key) << "\"\n";
+    output << "model = \"" << escape_toml_string(config.providers.bailian.model) << "\"\n\n";
 
     output << "[vad]\n";
     output << "enabled = " << (config.vad.enabled ? "true" : "false") << "\n";

@@ -1,0 +1,25 @@
+QWidget {
+    background: transparent;
+}
+
+#hudPanel {
+    background-color: {{panel_bg}};
+    border: 1px solid {{panel_border}};
+    border-radius: 18px;
+}
+
+#hudIcon {
+    min-width: 18px;
+    min-height: 18px;
+    max-width: 18px;
+    max-height: 18px;
+}
+
+QLabel {
+    background: transparent;
+    color: {{text_color}};
+    font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 0;
+}

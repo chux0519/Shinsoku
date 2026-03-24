@@ -13,6 +13,7 @@ inline constexpr std::uint32_t kFixedChannelCount = 1;
 struct HotkeyConfig {
     std::string hold_key = "KEY_RIGHTALT";
     std::string hands_free_chord_key = "KEY_SPACE";
+    std::string selection_command_trigger = "double_press_hold";
 };
 
 struct EndpointConfig {
@@ -59,8 +60,16 @@ struct SonioxConfig {
     std::string model = "stt-rt-preview";
 };
 
+struct BailianConfig {
+    std::string region = "cn-beijing";
+    std::string url = "wss://dashscope.aliyuncs.com/api-ws/v1/inference/";
+    std::string api_key;
+    std::string model = "fun-asr-realtime";
+};
+
 struct ProvidersConfig {
     SonioxConfig soniox;
+    BailianConfig bailian;
 };
 
 struct PipelineConfig {

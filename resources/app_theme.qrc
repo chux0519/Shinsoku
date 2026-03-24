@@ -1,6 +1,12 @@
 <RCC>
     <qresource prefix="/">
         <file>themes/app.qss</file>
+        <file>themes/hud.qss</file>
+        <file>icons/audio-lines.svg</file>
+        <file>icons/command.svg</file>
+        <file>icons/mic.svg</file>
+        <file>icons/sparkles.svg</file>
+        <file>icons/triangle-alert.svg</file>
         <file>icons/chevron-down-dark.xpm</file>
         <file>icons/chevron-down-light.xpm</file>
         <file>icons/chevron-up-dark.xpm</file>

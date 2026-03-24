@@ -2,6 +2,7 @@
 
 #include "core/asr_client.hpp"
 #include "core/backend/asr_backend.hpp"
+#include "core/backend/streaming/bailian/bailian_streaming_asr_backend.hpp"
 #include "core/backend/streaming/soniox/soniox_streaming_asr_backend.hpp"
 #include "core/backend/streaming_asr_backend.hpp"
 #include "core/backend/text_transform_backend.hpp"
@@ -20,6 +21,9 @@ std::unique_ptr<StreamingAsrBackend> make_streaming_asr_backend(const AppConfig&
 
     if (config.pipeline.streaming.provider == "soniox") {
         return std::make_unique<SonioxStreamingAsrBackend>(config);
+    }
+    if (config.pipeline.streaming.provider == "bailian") {
+        return std::make_unique<BailianStreamingAsrBackend>(config);
     }
 
     return nullptr;

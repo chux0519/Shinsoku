@@ -11,7 +11,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Concurrent Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Concurrent Core Gui Svg Widgets)
 find_package(CURL REQUIRED)
 find_package(ixwebsocket CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -34,6 +34,8 @@ qt_add_executable(ohmytypeless
     src/core/backend/streaming/websocket_transport_options.cpp
     src/core/backend/streaming/ix_proxy_socket.hpp
     src/core/backend/streaming/ix_proxy_socket.cpp
+    src/core/backend/streaming/bailian/bailian_streaming_asr_backend.hpp
+    src/core/backend/streaming/bailian/bailian_streaming_asr_backend.cpp
     src/core/backend/streaming/soniox/soniox_streaming_asr_backend.hpp
     src/core/backend/streaming/soniox/soniox_streaming_asr_backend.cpp
     src/core/backend/text_transform_backend.hpp
@@ -96,6 +98,7 @@ target_link_libraries(ohmytypeless PRIVATE
     Qt6::Concurrent
     Qt6::Core
     Qt6::Gui
+    Qt6::Svg
     Qt6::Widgets
     ixwebsocket::ixwebsocket
     nlohmann_json::nlohmann_json
