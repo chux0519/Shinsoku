@@ -14,6 +14,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QStackedWidget>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -244,41 +245,33 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     insert_section_before_stretch(network_layout, network_section);
 
     QFormLayout* asr_form = nullptr;
-    auto* asr_section = make_section("Batch ASR", this, &asr_form);
-    asr_base_url_edit_ = new QLineEdit(asr_section);
-    asr_api_key_edit_ = new QLineEdit(asr_section);
-    asr_api_key_edit_->setEchoMode(QLineEdit::Password);
-    asr_model_edit_ = new QLineEdit(asr_section);
-    asr_form->addRow("Base URL", asr_base_url_edit_);
-    asr_form->addRow("API Key", asr_api_key_edit_);
-    asr_form->addRow("Model", asr_model_edit_);
+    auto* asr_section = make_section("Transcription Flow", this, &asr_form);
+    auto* asr_mode_label = new QLabel(
+        "Batch transcription is active today. Streaming provider selection will live here once websocket backends land.",
+        asr_section);
+    asr_mode_label->setWordWrap(true);
+    asr_mode_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    asr_form->addRow(asr_mode_label);
     insert_section_before_stretch(asr_layout,
                                   make_info_card("Speech Recognition",
                                                  "Manage transcription backends and capture heuristics.",
-                                                 "Batch ASR stays here. Real-time providers will plug into this area "
-                                                 "without forcing another full-page redesign.",
+                                                 "This page is reserved for workflow-level ASR choices. Provider "
+                                                 "credentials and endpoint details now live under Providers.",
                                                  this));
     insert_section_before_stretch(asr_layout, asr_section);
 
     QFormLayout* refine_form = nullptr;
     auto* refine_section = make_section("Text Transform", this, &refine_form);
     refine_enabled_check_ = new QCheckBox("Run second-pass text refine", refine_section);
-    refine_base_url_edit_ = new QLineEdit(refine_section);
-    refine_api_key_edit_ = new QLineEdit(refine_section);
-    refine_api_key_edit_->setEchoMode(QLineEdit::Password);
-    refine_model_edit_ = new QLineEdit(refine_section);
     refine_system_prompt_edit_ = new QPlainTextEdit(refine_section);
     refine_system_prompt_edit_->setMinimumHeight(140);
     refine_form->addRow("Enabled", refine_enabled_check_);
-    refine_form->addRow("Base URL", refine_base_url_edit_);
-    refine_form->addRow("API Key", refine_api_key_edit_);
-    refine_form->addRow("Model", refine_model_edit_);
     refine_form->addRow("System Prompt", refine_system_prompt_edit_);
     insert_section_before_stretch(transform_layout,
                                   make_info_card("Text Transform",
                                                  "Configure command-mode and second-pass text processing.",
-                                                 "This page intentionally separates transform settings from base ASR so "
-                                                 "selection-command workflows can grow without hiding under \"Refine\".",
+                                                 "Workflow-level transform behavior stays here. Provider endpoint and "
+                                                 "credential details now live under Providers.",
                                                  this));
     insert_section_before_stretch(transform_layout, refine_section);
 
@@ -323,9 +316,39 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     insert_section_before_stretch(providers_layout,
                                   make_info_card("Provider Profiles",
-                                                 "Provider-specific settings will move here.",
-                                                 "This page is reserved for Soniox, Bailian, and future offline "
-                                                 "provider profiles so common pages stay stable as integrations grow.",
+                                                 "Provider-specific settings live here.",
+                                                 "Common workflow settings stay on the other pages. Endpoint URLs, "
+                                                 "API keys, and provider-specific knobs belong here so Soniox, "
+                                                 "Bailian, and offline backends can expand without reshaping the whole UI.",
+                                                 this));
+
+    QFormLayout* openai_asr_form = nullptr;
+    auto* openai_asr_section = make_section("OpenAI-Compatible Batch ASR", this, &openai_asr_form);
+    asr_base_url_edit_ = new QLineEdit(openai_asr_section);
+    asr_api_key_edit_ = new QLineEdit(openai_asr_section);
+    asr_api_key_edit_->setEchoMode(QLineEdit::Password);
+    asr_model_edit_ = new QLineEdit(openai_asr_section);
+    openai_asr_form->addRow("Base URL", asr_base_url_edit_);
+    openai_asr_form->addRow("API Key", asr_api_key_edit_);
+    openai_asr_form->addRow("Model", asr_model_edit_);
+    insert_section_before_stretch(providers_layout, openai_asr_section);
+
+    QFormLayout* openai_transform_form = nullptr;
+    auto* openai_transform_section = make_section("OpenAI-Compatible Text Transform", this, &openai_transform_form);
+    refine_base_url_edit_ = new QLineEdit(openai_transform_section);
+    refine_api_key_edit_ = new QLineEdit(openai_transform_section);
+    refine_api_key_edit_->setEchoMode(QLineEdit::Password);
+    refine_model_edit_ = new QLineEdit(openai_transform_section);
+    openai_transform_form->addRow("Base URL", refine_base_url_edit_);
+    openai_transform_form->addRow("API Key", refine_api_key_edit_);
+    openai_transform_form->addRow("Model", refine_model_edit_);
+    insert_section_before_stretch(providers_layout, openai_transform_section);
+
+    insert_section_before_stretch(providers_layout,
+                                  make_info_card("Upcoming Providers",
+                                                 "Soniox, Bailian, and offline profiles will land here next.",
+                                                 "This area is intentionally ready for provider-specific cards so "
+                                                 "future websocket and local inference settings stay modular.",
                                                  this));
 
     auto* actions = new QHBoxLayout();

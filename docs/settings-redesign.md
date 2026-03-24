@@ -35,9 +35,8 @@ project grows beyond one batch ASR provider.
 
 ### ASR
 
-- batch ASR base URL
-- batch ASR API key
-- batch ASR model
+- workflow-level ASR mode and backend selection
+- shared ASR behavior that is not provider-specific
 
 Later additions:
 
@@ -48,9 +47,6 @@ Later additions:
 ### Transform
 
 - refine enabled
-- refine base URL
-- refine API key
-- refine model
 - refine system prompt
 
 This page is also the future home for selection-command transform settings so
@@ -70,7 +66,8 @@ label.
 
 Reserved for provider-specific pages or cards:
 
-- OpenAI-compatible
+- OpenAI-compatible batch ASR endpoint settings
+- OpenAI-compatible text transform endpoint settings
 - Soniox
 - Alibaba Bailian
 - sherpa-onnx
