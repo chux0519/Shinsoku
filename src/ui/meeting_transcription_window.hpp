@@ -5,7 +5,6 @@
 #include <QWidget>
 
 class QLabel;
-class QListWidget;
 class QPlainTextEdit;
 
 namespace ohmytypeless {
@@ -22,10 +21,13 @@ public:
     void clear_live_text();
 
 private:
+    void refresh_view();
+
     QLabel* profile_label_ = nullptr;
     QLabel* state_label_ = nullptr;
     QPlainTextEdit* live_view_ = nullptr;
-    QListWidget* transcript_list_ = nullptr;
+    QString committed_text_;
+    QString live_preview_text_;
 };
 
 }  // namespace ohmytypeless

@@ -1,9 +1,13 @@
 #include "ui/meeting_transcription_window.hpp"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
 #include <QPlainTextEdit>
+#include <QPushButton>
+#include <QTextCursor>
 #include <QVBoxLayout>
 
 namespace ohmytypeless {
@@ -30,8 +34,8 @@ QString state_text(SessionState state) {
 
 MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidget(parent) {
     setWindowTitle("Meeting Transcription");
-    resize(920, 720);
-    setMinimumSize(780, 600);
+    resize(920, 760);
+    setMinimumSize(760, 620);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(22, 20, 22, 20);
@@ -49,7 +53,7 @@ MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidge
     title->setObjectName("historyTitle");
     title->setWordWrap(true);
     auto* body = new QLabel(
-        "This window is intended for meeting and system-audio workflows. Live text stays here while final segments are appended below.",
+        "This window is intended for meeting and system-audio workflows. Live text stays here in a single lightweight transcript view.",
         header);
     body->setObjectName("historyBody");
     body->setWordWrap(true);
@@ -81,22 +85,38 @@ MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidge
     live_view_ = new QPlainTextEdit(live_card);
     live_view_->setReadOnly(true);
     live_view_->setPlaceholderText("Live streaming partial text will appear here.");
-    live_view_->setMinimumHeight(140);
+    live_view_->setMinimumHeight(0);
     live_layout->addWidget(live_label);
-    live_layout->addWidget(live_view_);
-    layout->addWidget(live_card);
+    live_layout->addWidget(live_view_, 1);
+    layout->addWidget(live_card, 1);
 
-    auto* transcript_card = new QFrame(this);
-    transcript_card->setObjectName("summaryCard");
-    auto* transcript_layout = new QVBoxLayout(transcript_card);
-    transcript_layout->setContentsMargins(20, 18, 20, 18);
-    transcript_layout->setSpacing(10);
-    auto* transcript_label = new QLabel("Transcript Segments", transcript_card);
-    transcript_label->setObjectName("summaryLabel");
-    transcript_list_ = new QListWidget(transcript_card);
-    transcript_layout->addWidget(transcript_label);
-    transcript_layout->addWidget(transcript_list_);
-    layout->addWidget(transcript_card, 1);
+    auto* actions = new QWidget(this);
+    actions->setObjectName("inlineFieldRow");
+    actions->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    auto* actions_layout = new QHBoxLayout(actions);
+    actions_layout->setContentsMargins(0, 4, 0, 0);
+    actions_layout->setSpacing(10);
+    actions_layout->addStretch();
+    auto* copy_button = new QPushButton("Copy", actions);
+    auto* clear_button = new QPushButton("Clear", actions);
+    auto* close_button = new QPushButton("Close", actions);
+    actions_layout->addWidget(copy_button);
+    actions_layout->addWidget(clear_button);
+    actions_layout->addWidget(close_button);
+    layout->addWidget(actions);
+
+    connect(copy_button, &QPushButton::clicked, this, [this]() {
+        const QString text = live_view_->toPlainText().trimmed();
+        if (!text.isEmpty()) {
+            QApplication::clipboard()->setText(text);
+        }
+    });
+    connect(clear_button, &QPushButton::clicked, this, [this]() {
+        committed_text_.clear();
+        live_preview_text_.clear();
+        refresh_view();
+    });
+    connect(close_button, &QPushButton::clicked, this, &QWidget::hide);
 }
 
 void MeetingTranscriptionWindow::set_profile_name(const QString& profile_name) {
@@ -108,19 +128,40 @@ void MeetingTranscriptionWindow::set_session_state(SessionState state) {
 }
 
 void MeetingTranscriptionWindow::set_live_text(const QString& text) {
-    live_view_->setPlainText(text);
+    live_preview_text_ = text.trimmed();
+    refresh_view();
 }
 
 void MeetingTranscriptionWindow::append_transcript_segment(const QString& timestamp, const QString& text) {
+    Q_UNUSED(timestamp);
     if (text.trimmed().isEmpty()) {
         return;
     }
-    transcript_list_->addItem(QString("[%1] %2").arg(timestamp, text));
-    transcript_list_->scrollToBottom();
+    if (!committed_text_.isEmpty()) {
+        committed_text_.append("\n\n");
+    }
+    committed_text_.append(text.trimmed());
+    live_preview_text_.clear();
+    refresh_view();
 }
 
 void MeetingTranscriptionWindow::clear_live_text() {
-    live_view_->clear();
+    live_preview_text_.clear();
+    refresh_view();
+}
+
+void MeetingTranscriptionWindow::refresh_view() {
+    QString combined = committed_text_;
+    if (!live_preview_text_.isEmpty()) {
+        if (!combined.isEmpty()) {
+            combined.append("\n\n");
+        }
+        combined.append(live_preview_text_);
+    }
+    live_view_->setPlainText(combined);
+    QTextCursor cursor = live_view_->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    live_view_->setTextCursor(cursor);
 }
 
 }  // namespace ohmytypeless
