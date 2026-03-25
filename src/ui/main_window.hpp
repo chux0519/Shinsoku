@@ -14,6 +14,7 @@ class QSystemTrayIcon;
 namespace ohmytypeless {
 
 class HistoryWindow;
+class MeetingTranscriptionWindow;
 class SettingsWindow;
 
 class MainWindow final : public QMainWindow {
@@ -31,6 +32,7 @@ public:
 
     SettingsWindow* settings_window() const;
     HistoryWindow* history_window() const;
+    MeetingTranscriptionWindow* meeting_window() const;
 
 signals:
     void toggle_recording_requested();
@@ -55,6 +57,7 @@ private:
     SessionState tray_state_ = SessionState::Idle;
     SettingsWindow* settings_window_ = nullptr;
     HistoryWindow* history_window_ = nullptr;
+    MeetingTranscriptionWindow* meeting_window_ = nullptr;
 };
 
 }  // namespace ohmytypeless

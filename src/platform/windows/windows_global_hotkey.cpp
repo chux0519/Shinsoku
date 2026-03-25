@@ -38,12 +38,22 @@ bool WindowsGlobalHotkey::register_hotkeys(const QString& hold_key_name, const Q
 }
 
 void WindowsGlobalHotkey::unregister_hotkey() {
+    const DWORD hold_vk = hold_vk_;
+    const DWORD chord_vk = chord_vk_;
+    const bool hold_down = hold_down_;
+    const bool chord_down = chord_down_;
     if (hook_ != nullptr) {
         ::UnhookWindowsHookEx(hook_);
         hook_ = nullptr;
     }
     if (active_instance_ == this) {
         active_instance_ = nullptr;
+    }
+    if (hold_down && hold_vk != 0) {
+        send_key_up(hold_vk);
+    }
+    if (chord_down && chord_vk != 0) {
+        send_key_up(chord_vk);
     }
     reset_runtime_state();
 }
@@ -154,6 +164,17 @@ void WindowsGlobalHotkey::reset_runtime_state() {
     chord_down_ = false;
     hands_free_mode_ = false;
     ignore_next_hold_release_ = false;
+}
+
+void WindowsGlobalHotkey::send_key_up(DWORD vk) {
+    if ((::GetAsyncKeyState(static_cast<int>(vk)) & 0x8000) == 0) {
+        return;
+    }
+    INPUT input{};
+    input.type = INPUT_KEYBOARD;
+    input.ki.wVk = static_cast<WORD>(vk);
+    input.ki.dwFlags = KEYEVENTF_KEYUP;
+    ::SendInput(1, &input, sizeof(INPUT));
 }
 
 }  // namespace ohmytypeless

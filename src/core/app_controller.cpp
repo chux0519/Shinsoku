@@ -9,9 +9,11 @@
 #include "ui/history_details_dialog.hpp"
 #include "ui/history_window.hpp"
 #include "ui/main_window.hpp"
+#include "ui/meeting_transcription_window.hpp"
 #include "ui/settings_window.hpp"
 
 #include <QApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QMessageBox>
 #include <QCheckBox>
@@ -286,6 +288,8 @@ void AppController::initialize() {
         QString("Ready. Hotkey: %1, Selection: %2").arg(hotkey_->backend_name(), selection_->backend_name()));
     window_->update_history(history_);
     window_->set_tray_available(true);
+    window_->meeting_window()->set_profile_name(active_profile_name());
+    window_->meeting_window()->set_session_state(SessionState::Idle);
     refresh_capture_mode_ui();
 
     connect(window_, &MainWindow::toggle_recording_requested, this, &AppController::toggle_recording);
@@ -485,22 +489,40 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
                                                                              : profile_id;
     const QString status = QString("Active profile: %1").arg(profile_name);
     window_->set_status_text(status);
+    window_->meeting_window()->set_profile_name(profile_name);
 }
 
 void AppController::quit_application() {
-    shutting_down_ = true;
-    hotkey_->unregister_hotkey();
-    if (audio_capture_ != nullptr && audio_capture_->is_recording()) {
-        audio_capture_->stop();
-    }
-
-    if (transcription_watcher_->isRunning()) {
-        cancel_active_transcription();
-        window_->set_status_text("Stopping active transcription...");
+    if (shutting_down_) {
         return;
     }
+    shutting_down_ = true;
+    if (selection_command_upgrade_timer_ != nullptr) {
+        selection_command_upgrade_timer_->stop();
+    }
+    hud_->hide();
+    window_->set_tray_available(false);
+    window_->meeting_window()->hide();
+    window_->history_window()->hide();
+    window_->settings_window()->hide();
+    window_->hide();
 
-    QApplication::quit();
+    QTimer::singleShot(0, this, [this]() {
+        hotkey_->unregister_hotkey();
+        if (state_ == SessionState::Recording || state_ == SessionState::HandsFree) {
+            stop_recording();
+            return;
+        }
+        if ((audio_capture_ != nullptr && audio_capture_->is_recording()) || streaming_session_ != nullptr) {
+            discard_active_recording_for_shutdown();
+        }
+
+        if (transcription_watcher_->isRunning()) {
+            return;
+        }
+
+        QApplication::quit();
+    });
 }
 
 void AppController::on_hold_started() {
@@ -677,6 +699,13 @@ void AppController::start_recording(SessionState mode) {
                                    : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
         set_state(mode, status);
         hud_->show_recording(active_capture_mode_ == CaptureMode::SelectionCommand);
+        if (active_profile_is_meeting()) {
+            window_->meeting_window()->show();
+            window_->meeting_window()->raise();
+            window_->meeting_window()->activateWindow();
+            window_->meeting_window()->set_session_state(mode);
+            window_->meeting_window()->clear_live_text();
+        }
     } catch (const std::exception& exception) {
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
@@ -697,6 +726,9 @@ void AppController::stop_recording() {
 
     set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
     hud_->show_transcribing();
+    if (active_profile_is_meeting()) {
+        window_->meeting_window()->set_session_state(SessionState::Transcribing);
+    }
 
     try {
         const std::vector<float> samples = audio_capture_->stop();
@@ -791,12 +823,33 @@ bool AppController::uses_system_audio_capture() const {
     return config_.audio.capture_mode == "system";
 }
 
+bool AppController::active_profile_is_meeting() const {
+    const auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                         config_.profiles.items.end(),
+                                         [&](const ProfileConfig& profile) {
+                                             return profile.id == config_.profiles.active_profile_id;
+                                         });
+    return profile_it != config_.profiles.items.end() && profile_it->kind == "meeting";
+}
+
+QString AppController::active_profile_name() const {
+    const auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                         config_.profiles.items.end(),
+                                         [&](const ProfileConfig& profile) {
+                                             return profile.id == config_.profiles.active_profile_id;
+                                         });
+    return profile_it != config_.profiles.items.end() ? QString::fromStdString(profile_it->name) : QString();
+}
+
 void AppController::refresh_capture_mode_ui() {
-    const bool selection_available = !uses_system_audio_capture();
+    const bool selection_available = !uses_system_audio_capture() && !active_profile_is_meeting();
     const QString reason = selection_available ? QString()
-                                              : QString("Selection command requires microphone capture. "
-                                                        "System audio mode is intended for meeting transcription.");
+                                              : (uses_system_audio_capture()
+                                                     ? QString("Selection command requires microphone capture. "
+                                                               "System audio mode is intended for meeting transcription.")
+                                                     : QString("Meeting transcription profiles use the dedicated transcript window instead of selection-command workflows."));
     window_->set_selection_command_available(selection_available, reason);
+    window_->meeting_window()->set_profile_name(active_profile_name());
 }
 
 bool AppController::should_use_streaming_dictation() const {
@@ -834,6 +887,7 @@ void AppController::start_streaming_dictation() {
         streaming_session_ready_ = false;
     }
     streaming_active_ = true;
+    const bool meeting_profile_active = active_profile_is_meeting();
 
     StreamingAsrCallbacks callbacks;
     callbacks.on_session_started = [this]() {
@@ -844,7 +898,7 @@ void AppController::start_streaming_dictation() {
         streaming_ready_at_ = std::chrono::steady_clock::now();
         streaming_condition_.notify_all();
     };
-    callbacks.on_partial_text = [this](std::string text) {
+    callbacks.on_partial_text = [this, meeting_profile_active](std::string text) {
         const QString partial = QString::fromStdString(std::move(text));
         {
             std::lock_guard lock(streaming_mutex_);
@@ -857,6 +911,14 @@ void AppController::start_streaming_dictation() {
                 window->set_status_text(partial.isEmpty() ? "Streaming dictation..." : partial);
             },
             Qt::QueuedConnection);
+        if (meeting_profile_active) {
+            QMetaObject::invokeMethod(
+                window_->meeting_window(),
+                [meeting_window = window_->meeting_window(), partial]() {
+                    meeting_window->set_live_text(partial);
+                },
+                Qt::QueuedConnection);
+        }
     };
     callbacks.on_final_text = [this](std::string text) {
         std::lock_guard lock(streaming_mutex_);
@@ -1220,6 +1282,52 @@ void AppController::cancel_active_transcription() {
     }
 }
 
+void AppController::cancel_streaming_session() {
+    if (streaming_pump_cancel_flag_) {
+        streaming_pump_cancel_flag_->store(true);
+    }
+    if (streaming_pump_thread_.joinable()) {
+        streaming_pump_thread_.join();
+    }
+    if (streaming_connect_thread_.joinable()) {
+        streaming_connect_thread_.join();
+    }
+    if (streaming_session_ != nullptr) {
+        streaming_session_->cancel();
+        streaming_session_.reset();
+    }
+    streaming_active_ = false;
+    {
+        std::lock_guard lock(streaming_mutex_);
+        streaming_closed_ = true;
+        streaming_session_ready_ = false;
+        streaming_partial_text_.clear();
+        streaming_final_text_.clear();
+        streaming_error_text_.clear();
+    }
+}
+
+void AppController::discard_active_recording_for_shutdown() {
+    cancel_streaming_session();
+    if (audio_capture_ != nullptr && audio_capture_->is_recording()) {
+        try {
+            audio_capture_->stop();
+        } catch (...) {
+        }
+    }
+    clipboard_->clear_paste_session();
+    captured_selection_text_.reset();
+    pending_selection_debug_info_.clear();
+    pending_capture_mode_ = CaptureMode::Dictation;
+    active_capture_mode_ = CaptureMode::Dictation;
+    hud_->hide();
+    set_state(SessionState::Idle, "Shutting down...");
+    if (active_profile_is_meeting()) {
+        window_->meeting_window()->set_session_state(SessionState::Idle);
+        window_->meeting_window()->clear_live_text();
+    }
+}
+
 void AppController::on_transcription_finished() {
     const TranscriptionResult result = transcription_watcher_->result();
     transcription_cancel_flag_.reset();
@@ -1242,6 +1350,10 @@ void AppController::on_transcription_finished() {
 
         set_state(SessionState::Idle, "Transcription cancelled.");
         hud_->hide();
+        if (active_profile_is_meeting()) {
+            window_->meeting_window()->set_session_state(SessionState::Idle);
+            window_->meeting_window()->clear_live_text();
+        }
         return;
     }
 
@@ -1275,6 +1387,13 @@ void AppController::on_transcription_finished() {
         load_history();
 
         set_state(SessionState::Idle, "Ready.");
+        if (active_profile_is_meeting()) {
+            window_->meeting_window()->set_session_state(SessionState::Idle);
+            window_->meeting_window()->append_transcript_segment(
+                QDateTime::currentDateTime().toString("HH:mm:ss"),
+                result.text);
+            window_->meeting_window()->clear_live_text();
+        }
 
         if (active_capture_mode_ == CaptureMode::SelectionCommand && !replaced_selection) {
             const QString status =

@@ -1,6 +1,7 @@
 #include "ui/main_window.hpp"
 
 #include "ui/history_window.hpp"
+#include "ui/meeting_transcription_window.hpp"
 #include "ui/settings_window.hpp"
 
 #include <QAction>
@@ -104,6 +105,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     settings_window_ = new SettingsWindow();
     history_window_ = new HistoryWindow();
+    meeting_window_ = new MeetingTranscriptionWindow();
 
     setup_tray();
 
@@ -120,6 +122,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 MainWindow::~MainWindow() {
     delete settings_window_;
     delete history_window_;
+    delete meeting_window_;
 }
 
 void MainWindow::set_session_state(SessionState state) {
@@ -211,6 +214,10 @@ SettingsWindow* MainWindow::settings_window() const {
 
 HistoryWindow* MainWindow::history_window() const {
     return history_window_;
+}
+
+MeetingTranscriptionWindow* MainWindow::meeting_window() const {
+    return meeting_window_;
 }
 
 void MainWindow::setup_tray() {

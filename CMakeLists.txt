@@ -73,6 +73,8 @@ qt_add_executable(ohmytypeless
     src/ui/app_theme.cpp
     src/ui/main_window.hpp
     src/ui/main_window.cpp
+    src/ui/meeting_transcription_window.hpp
+    src/ui/meeting_transcription_window.cpp
     src/ui/history_details_dialog.hpp
     src/ui/history_details_dialog.cpp
     src/ui/settings_window.hpp

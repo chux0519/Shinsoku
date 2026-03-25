@@ -21,6 +21,7 @@ private:
     static LRESULT CALLBACK keyboard_proc(int code, WPARAM w_param, LPARAM l_param);
     bool handle_keyboard_event(WPARAM w_param, const KBDLLHOOKSTRUCT& key_info);
     bool parse_key_name(const QString& key_name, DWORD& vk, QString& error) const;
+    static void send_key_up(DWORD vk);
     void reset_runtime_state();
 
     static WindowsGlobalHotkey* active_instance_;

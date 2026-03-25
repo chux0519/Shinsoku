@@ -87,6 +87,8 @@ private:
     void load_history();
     void refresh_audio_devices();
     void cancel_active_transcription();
+    void cancel_streaming_session();
+    void discard_active_recording_for_shutdown();
     void on_transcription_finished();
     void transcribe_async(std::vector<float> samples, std::optional<std::filesystem::path> audio_path);
     void transcribe_selection_command_async(TextTask task,
@@ -95,6 +97,8 @@ private:
                                             nlohmann::json streaming_meta = nlohmann::json::object());
     bool uses_double_press_selection_command() const;
     bool uses_system_audio_capture() const;
+    bool active_profile_is_meeting() const;
+    QString active_profile_name() const;
     void refresh_capture_mode_ui();
     void apply_active_profile_overrides();
 
