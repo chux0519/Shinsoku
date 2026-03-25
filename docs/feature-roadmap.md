@@ -13,8 +13,10 @@ without losing architectural boundaries.
    - send both to an LLM text transform backend
    - replace the selected text with the result
 3. Prepare for more ASR backends, including streaming / websocket backends.
-4. Add an offline fallback / forced-local mode with `sherpa-onnx`.
-5. Redesign settings information architecture so provider-specific configuration
+4. Add profile / preset support for reusable recurring workflows.
+5. Add system-audio / loopback capture for meeting transcription workflows.
+6. Add an offline fallback / forced-local mode with `sherpa-onnx`.
+7. Redesign settings information architecture so provider-specific configuration
    can expand without turning the settings window into one long page.
 
 ## Guiding Rules
@@ -33,8 +35,11 @@ without losing architectural boundaries.
 4. Selection command MVP
 5. Settings information architecture redesign
 6. Streaming backend support
-7. Offline `sherpa-onnx` mode
-8. Online/offline fallback policy refinement
+7. Profiles / presets
+8. System audio / meeting transcription
+9. Offline `sherpa-onnx` mode
+10. Online/offline fallback policy refinement
+11. Cross-platform capability audit and rollout planning
 
 ## Status
 
@@ -44,8 +49,11 @@ without losing architectural boundaries.
 - Phase 4: in progress
 - Phase 5: in progress
 - Phase 6: in progress
-- Phase 7: pending
-- Phase 8: pending
+- Phase 7: in progress
+- Phase 8: in progress
+- Phase 9: pending
+- Phase 10: pending
+- Phase 11: pending
 
 ---
 
@@ -553,7 +561,128 @@ Optional later extension:
 
 ---
 
-## Phase 7: Offline `sherpa-onnx`
+## Phase 7: Profiles / Presets
+
+### Outcome
+
+Users can save and switch between reusable workflows without editing prompts
+and output behavior every time.
+
+Examples:
+
+- default dictation
+- selection rewrite
+- speak Chinese, output polished English
+- meeting cleanup / summarize
+
+### Design Direction
+
+Profiles should sit above provider configuration. They are workflow presets,
+not transport or provider definitions.
+
+A profile may bind:
+
+- capture mode preference
+- transform enabled/disabled
+- transform prompt template
+- preferred output behavior
+- preferred ASR backend / streaming provider
+
+### Files To Change
+
+#### `src/core/app_config.hpp`
+#### `src/core/app_config.cpp`
+
+Add a profile list / active profile concept, or split profile config out if
+`AppConfig` becomes too large.
+
+#### `src/ui/settings_window.*`
+
+Add a dedicated profile management page or section:
+
+- list profiles
+- create / rename / delete
+- set active profile
+
+#### `src/core/app_controller.*`
+
+Apply the active profile to capture / transform / output behavior without
+polluting provider-specific code paths.
+
+#### New file: `docs/profiles-design.md`
+
+Track:
+
+- profile schema
+- global vs per-profile settings
+- migration plan from the current single refine prompt setup
+
+### Acceptance Criteria
+
+- User can switch profiles without manually editing prompts every time.
+- One profile can express "speak Chinese, output polished English" as a stable
+  workflow.
+- Profiles coexist cleanly with provider-specific settings.
+
+---
+
+## Phase 8: System Audio / Meeting Transcription
+
+### Outcome
+
+The app can capture system output audio, not just microphone input, enabling
+meeting transcription and media transcription workflows.
+
+### Design Direction
+
+Treat this as an input-source feature rather than an ASR-backend feature.
+
+Introduce an audio capture source such as:
+
+- `microphone`
+- `system`
+- later optional `mix`
+
+Start with Windows loopback capture via WASAPI.
+
+### Files To Change
+
+#### `src/core/app_config.hpp`
+#### `src/core/app_config.cpp`
+
+Add capture source configuration under audio.
+
+#### `src/core/audio_recorder.*`
+
+Refactor toward an input-source abstraction so microphone capture and loopback
+capture do not remain hard-coded into one path.
+
+#### `src/ui/settings_window.*`
+
+Expose input source selection in the Audio page.
+
+#### `src/core/app_controller.*`
+
+Ensure meeting-transcription workflows do not assume paste-to-focused-window as
+the primary output path.
+
+#### New file: `docs/system-audio-design.md`
+
+Track:
+
+- loopback MVP scope
+- platform differences
+- output expectations for meeting transcription
+
+### Acceptance Criteria
+
+- Windows can transcribe system audio via loopback capture.
+- Existing microphone dictation still works.
+- Settings clearly distinguish microphone vs system capture.
+
+---
+
+## Phase 9: Offline `sherpa-onnx`
 
 ### Outcome
 
@@ -602,7 +731,7 @@ Add offline section:
 
 ---
 
-## Phase 8: Fallback Policy Refinement
+## Phase 10: Fallback Policy Refinement
 
 ### Outcome
 
@@ -634,6 +763,42 @@ Examples:
 
 ---
 
+## Phase 11: Cross-Platform Capability Audit And Rollout Plan
+
+### Outcome
+
+The project has an explicit rollout plan for macOS and Linux support instead of
+accumulating ad-hoc Windows-first behavior.
+
+### Scope
+
+Document and prioritize platform gaps for:
+
+- global hotkey semantics
+- system audio capture
+- selection capture / replace
+- focused-window paste
+- HUD / tray behavior
+- streaming provider transport support
+
+### Deliverables
+
+#### New file: `docs/platform-capability-matrix.md`
+
+Document:
+
+- supported capabilities by platform
+- degraded / unsupported capabilities
+- rollout order for macOS and Linux
+
+### Acceptance Criteria
+
+- There is a concrete capability matrix for Windows / macOS / Linux.
+- Future cross-platform work can proceed incrementally without re-deciding
+  boundaries each time.
+
+---
+
 ## Suggested Milestones
 
 ### Milestone A
@@ -656,6 +821,9 @@ This ships the first major new user-facing interaction.
 - Phase 6
 - Phase 7
 - Phase 8
+- Phase 9
+- Phase 10
+- Phase 11
 
 This expands provider coverage and resilience.
 
@@ -663,12 +831,14 @@ This expands provider coverage and resilience.
 
 ## Current Recommendation
 
-Start with Milestone A:
+Current recommended order:
 
-1. proxy config in `AppConfig`
-2. settings UI for proxy
-3. transport options in `curl_support`
-4. backend interface extraction pass 1
+1. profiles / presets
+2. system audio / meeting transcription
+3. offline `sherpa-onnx`
+4. online/offline fallback policy
+5. cross-platform capability audit
 
-That is the lowest-risk path and prevents the next three features from growing
-directly into `AppController`.
+This order gives the product a stronger workflow layer first, then adds the
+next major input source, and only after that lands the local backend and the
+policy that decides when to use it.

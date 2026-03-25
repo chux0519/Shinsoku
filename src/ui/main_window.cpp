@@ -5,6 +5,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -47,6 +48,20 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     help->setObjectName("heroBody");
     help->setWordWrap(true);
     hero_layout->addWidget(help);
+
+    auto* profile_row = new QWidget(hero);
+    profile_row->setObjectName("inlineFieldRow");
+    auto* profile_row_layout = new QHBoxLayout(profile_row);
+    profile_row_layout->setContentsMargins(0, 4, 0, 0);
+    profile_row_layout->setSpacing(10);
+    auto* profile_label = new QLabel("Profile", profile_row);
+    profile_label->setObjectName("eyebrow");
+    profile_combo_ = new QComboBox(profile_row);
+    profile_combo_->setObjectName("profileCombo");
+    profile_combo_->setMinimumWidth(260);
+    profile_row_layout->addWidget(profile_label);
+    profile_row_layout->addWidget(profile_combo_, 1);
+    hero_layout->addWidget(profile_row);
     layout->addWidget(hero);
 
     auto* status_card = new QFrame(central);
@@ -97,6 +112,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(hotkey_button, &QPushButton::clicked, this, &MainWindow::register_hotkey_requested);
     connect(history_button, &QPushButton::clicked, this, &MainWindow::show_history_requested);
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::show_settings_requested);
+    connect(profile_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        emit active_profile_changed_requested(profile_combo_->currentData().toString());
+    });
 }
 
 MainWindow::~MainWindow() {
@@ -158,6 +176,33 @@ void MainWindow::update_history(const QList<HistoryEntry>& entries) {
     if (history_window_ != nullptr) {
         history_window_->set_entries(entries);
     }
+}
+
+void MainWindow::set_profiles(const std::vector<std::pair<QString, QString>>& profiles, const QString& active_profile_id) {
+    if (profile_combo_ == nullptr) {
+        return;
+    }
+
+    profile_combo_->blockSignals(true);
+    profile_combo_->clear();
+    for (const auto& [id, name] : profiles) {
+        profile_combo_->addItem(name, id);
+    }
+    const int active_index = profile_combo_->findData(active_profile_id);
+    if (active_index >= 0) {
+        profile_combo_->setCurrentIndex(active_index);
+    } else if (profile_combo_->count() > 0) {
+        profile_combo_->setCurrentIndex(0);
+    }
+    profile_combo_->blockSignals(false);
+}
+
+void MainWindow::set_selection_command_available(bool available, const QString& reason) {
+    if (selection_command_button_ == nullptr) {
+        return;
+    }
+    selection_command_button_->setEnabled(available);
+    selection_command_button_->setToolTip(reason);
 }
 
 SettingsWindow* MainWindow::settings_window() const {

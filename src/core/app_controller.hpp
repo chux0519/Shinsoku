@@ -2,13 +2,13 @@
 
 #include "core/app_config.hpp"
 #include "core/app_state.hpp"
-#include "core/audio_recorder.hpp"
 #include "core/backend/asr_backend.hpp"
 #include "core/backend/streaming_asr_backend.hpp"
 #include "core/backend/text_transform_backend.hpp"
 #include "core/history_store.hpp"
 #include "core/recording_store.hpp"
 #include "core/task_types.hpp"
+#include "platform/audio_capture_service.hpp"
 
 #include <QFutureWatcher>
 #include <QObject>
@@ -32,6 +32,7 @@ class GlobalHotkey;
 class HudPresenter;
 class MainWindow;
 class SelectionService;
+class AudioCaptureService;
 
 struct TranscriptionResult {
     quint64 job_id = 0;
@@ -47,6 +48,7 @@ class AppController final : public QObject {
 public:
     AppController(MainWindow* window,
                   ClipboardService* clipboard,
+                  AudioCaptureService* audio_capture,
                   SelectionService* selection,
                   GlobalHotkey* hotkey,
                   HudPresenter* hud,
@@ -60,6 +62,7 @@ private slots:
     void apply_settings();
     void show_history();
     void show_settings();
+    void on_active_profile_changed(const QString& profile_id);
     void quit_application();
     void on_hold_started();
     void on_hold_stopped();
@@ -91,14 +94,17 @@ private:
                                             std::optional<std::filesystem::path> audio_path,
                                             nlohmann::json streaming_meta = nlohmann::json::object());
     bool uses_double_press_selection_command() const;
+    bool uses_system_audio_capture() const;
+    void refresh_capture_mode_ui();
+    void apply_active_profile_overrides();
 
     MainWindow* window_ = nullptr;
     ClipboardService* clipboard_ = nullptr;
+    AudioCaptureService* audio_capture_ = nullptr;
     SelectionService* selection_ = nullptr;
     GlobalHotkey* hotkey_ = nullptr;
     HudPresenter* hud_ = nullptr;
     AppConfig config_;
-    AudioRecorder recorder_;
     std::unique_ptr<HistoryStore> history_store_;
     std::unique_ptr<RecordingStore> recording_store_;
     std::unique_ptr<AsrBackend> asr_backend_;

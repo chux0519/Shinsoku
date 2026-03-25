@@ -117,6 +117,37 @@ std::string streaming_model_name(const AppConfig& config) {
     return {};
 }
 
+std::vector<std::pair<QString, QString>> profile_items_for_ui(const AppConfig& config) {
+    std::vector<std::pair<QString, QString>> items;
+    items.reserve(config.profiles.items.size());
+    for (const auto& profile : config.profiles.items) {
+        items.emplace_back(QString::fromStdString(profile.id), QString::fromStdString(profile.name));
+    }
+    return items;
+}
+
+AudioCaptureMode audio_capture_mode_from_config(const AppConfig& config) {
+    return config.audio.capture_mode == "system" ? AudioCaptureMode::SystemLoopback : AudioCaptureMode::Microphone;
+}
+
+nlohmann::json capture_context_meta(const AppConfig& config) {
+    nlohmann::json input = {
+        {"capture_mode", config.audio.capture_mode},
+        {"sample_rate", config.audio.sample_rate},
+        {"channels", config.audio.channels},
+    };
+    if (config.audio.capture_mode == "microphone") {
+        input["device_id"] = config.audio.input_device_id;
+    } else {
+        input["device"] = "default_system_output";
+    }
+
+    return {
+        {"input", std::move(input)},
+        {"profile", {{"id", config.profiles.active_profile_id}}},
+    };
+}
+
 std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
     std::vector<std::byte> bytes(samples.size() * sizeof(std::int16_t));
     auto* out = reinterpret_cast<std::int16_t*>(bytes.data());
@@ -129,8 +160,41 @@ std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
 
 }  // namespace
 
+void AppController::apply_active_profile_overrides() {
+    if (config_.profiles.items.empty()) {
+        return;
+    }
+
+    auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                   config_.profiles.items.end(),
+                                   [&](const ProfileConfig& profile) {
+                                       return profile.id == config_.profiles.active_profile_id;
+                                   });
+    if (profile_it == config_.profiles.items.end()) {
+        profile_it = config_.profiles.items.begin();
+        config_.profiles.active_profile_id = profile_it->id;
+    }
+
+    const ProfileConfig& profile = *profile_it;
+    config_.pipeline.streaming.enabled = profile.capture.prefer_streaming;
+    config_.pipeline.streaming.provider = profile.capture.preferred_streaming_provider.empty()
+                                              ? std::string("none")
+                                              : profile.capture.preferred_streaming_provider;
+    config_.pipeline.streaming.language = profile.capture.language_hint;
+    config_.pipeline.refine.enabled = profile.transform.enabled;
+    if (profile.transform.prompt_mode == "custom" && !profile.transform.custom_prompt.empty()) {
+        config_.pipeline.refine.system_prompt = profile.transform.custom_prompt;
+    }
+    config_.output.copy_to_clipboard = profile.output.copy_to_clipboard;
+    config_.output.paste_to_focused_window = profile.output.paste_to_focused_window;
+    if (!profile.output.paste_keys.empty()) {
+        config_.output.paste_keys = profile.output.paste_keys;
+    }
+}
+
 AppController::AppController(MainWindow* window,
                              ClipboardService* clipboard,
+                             AudioCaptureService* audio_capture,
                              SelectionService* selection,
                              GlobalHotkey* hotkey,
                              HudPresenter* hud,
@@ -138,6 +202,7 @@ AppController::AppController(MainWindow* window,
     : QObject(parent),
       window_(window),
       clipboard_(clipboard),
+      audio_capture_(audio_capture),
       selection_(selection),
       hotkey_(hotkey),
       hud_(hud),
@@ -167,10 +232,13 @@ void AppController::initialize() {
         hud_->show_error("Audio device enumeration failed");
     }
     load_history();
+    apply_active_profile_overrides();
 
     window_->settings_window()->set_hold_key(QString::fromStdString(config_.hotkey.hold_key));
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
     window_->settings_window()->set_selection_command_trigger(QString::fromStdString(config_.hotkey.selection_command_trigger));
+    window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+    window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
     window_->settings_window()->set_recordings_dir(display_path(config_.audio.recordings_dir));
@@ -210,6 +278,7 @@ void AppController::initialize() {
     window_->settings_window()->set_record_timing_enabled(config_.observability.record_timing);
     window_->settings_window()->set_hud_enabled(config_.hud.enabled);
     window_->settings_window()->set_hud_bottom_margin(config_.hud.bottom_margin);
+    window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
 
     hud_->apply_config(config_.hud);
     window_->set_session_state(state_);
@@ -217,10 +286,12 @@ void AppController::initialize() {
         QString("Ready. Hotkey: %1, Selection: %2").arg(hotkey_->backend_name(), selection_->backend_name()));
     window_->update_history(history_);
     window_->set_tray_available(true);
+    refresh_capture_mode_ui();
 
     connect(window_, &MainWindow::toggle_recording_requested, this, &AppController::toggle_recording);
     connect(window_, &MainWindow::arm_selection_command_requested, this, &AppController::arm_selection_command);
     connect(window_, &MainWindow::register_hotkey_requested, this, &AppController::apply_settings);
+    connect(window_, &MainWindow::active_profile_changed_requested, this, &AppController::on_active_profile_changed);
     connect(window_, &MainWindow::show_history_requested, this, &AppController::show_history);
     connect(window_, &MainWindow::show_settings_requested, this, &AppController::show_settings);
     connect(window_, &MainWindow::quit_requested, this, &AppController::quit_application);
@@ -256,6 +327,13 @@ void AppController::arm_selection_command() {
     if (state_ != SessionState::Idle && state_ != SessionState::Error) {
         return;
     }
+    if (uses_system_audio_capture()) {
+        const QString status = "Selection command is unavailable while capturing system audio.";
+        window_->set_status_text(status);
+        window_->settings_window()->set_status_text(status);
+        hud_->show_error("Selection command unavailable");
+        return;
+    }
 
     pending_capture_mode_ = CaptureMode::SelectionCommand;
     const QString status =
@@ -271,6 +349,9 @@ void AppController::apply_settings() {
     config_.hotkey.hold_key = window_->settings_window()->hold_key().toStdString();
     config_.hotkey.hands_free_chord_key = window_->settings_window()->hands_free_chord_key().toStdString();
     config_.hotkey.selection_command_trigger = window_->settings_window()->selection_command_trigger().toStdString();
+    config_.profiles.active_profile_id = window_->settings_window()->active_profile_id().toStdString();
+    config_.profiles.items = window_->settings_window()->profiles();
+    config_.audio.capture_mode = window_->settings_window()->audio_capture_mode().toStdString();
     config_.audio.input_device_id = window_->settings_window()->selected_input_device_id().toStdString();
     config_.audio.save_recordings = window_->settings_window()->save_recordings_enabled();
     if (!window_->settings_window()->recordings_dir().isEmpty()) {
@@ -344,12 +425,21 @@ void AppController::apply_settings() {
         config_.providers.bailian.model = defaults.providers.bailian.model;
     }
 
+    apply_active_profile_overrides();
+
+    refresh_audio_devices();
+    window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
+    window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
+    refresh_capture_mode_ui();
+
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
     asr_backend_ = make_asr_backend(config_);
     streaming_asr_backend_ = make_streaming_asr_backend(config_);
     refine_backend_ = make_refine_backend(config_);
     hud_->apply_config(config_.hud);
     save_config(config_);
+    window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
+    window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
 
     if (hotkey_->register_hotkeys(QString::fromStdString(config_.hotkey.hold_key),
                                   QString::fromStdString(config_.hotkey.hands_free_chord_key))) {
@@ -373,11 +463,35 @@ void AppController::show_settings() {
     window_->settings_window()->activateWindow();
 }
 
+void AppController::on_active_profile_changed(const QString& profile_id) {
+    if (profile_id.trimmed().isEmpty()) {
+        return;
+    }
+
+    config_.profiles.active_profile_id = profile_id.toStdString();
+    apply_active_profile_overrides();
+    asr_backend_ = make_asr_backend(config_);
+    streaming_asr_backend_ = make_streaming_asr_backend(config_);
+    refine_backend_ = make_refine_backend(config_);
+    save_config(config_);
+    window_->settings_window()->set_profiles(config_.profiles.items, profile_id);
+    refresh_capture_mode_ui();
+    const auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                         config_.profiles.items.end(),
+                                         [&](const ProfileConfig& profile) {
+                                             return profile.id == config_.profiles.active_profile_id;
+                                         });
+    const QString profile_name = profile_it != config_.profiles.items.end() ? QString::fromStdString(profile_it->name)
+                                                                             : profile_id;
+    const QString status = QString("Active profile: %1").arg(profile_name);
+    window_->set_status_text(status);
+}
+
 void AppController::quit_application() {
     shutting_down_ = true;
     hotkey_->unregister_hotkey();
-    if (recorder_.is_recording()) {
-        recorder_.stop();
+    if (audio_capture_ != nullptr && audio_capture_->is_recording()) {
+        audio_capture_->stop();
     }
 
     if (transcription_watcher_->isRunning()) {
@@ -390,7 +504,7 @@ void AppController::quit_application() {
 }
 
 void AppController::on_hold_started() {
-    if (uses_double_press_selection_command() && state_ == SessionState::Recording &&
+    if (!uses_system_audio_capture() && uses_double_press_selection_command() && state_ == SessionState::Recording &&
         active_capture_mode_ == CaptureMode::Dictation &&
         selection_command_upgrade_timer_ != nullptr && selection_command_upgrade_timer_->isActive()) {
         selection_command_upgrade_timer_->stop();
@@ -413,7 +527,7 @@ void AppController::on_hold_started() {
 
 void AppController::on_hold_stopped() {
     if (state_ == SessionState::Recording) {
-        if (uses_double_press_selection_command() && active_capture_mode_ == CaptureMode::Dictation &&
+        if (!uses_system_audio_capture() && uses_double_press_selection_command() && active_capture_mode_ == CaptureMode::Dictation &&
             selection_command_upgrade_timer_ != nullptr) {
             const auto elapsed =
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - recording_started_at_);
@@ -550,7 +664,11 @@ void AppController::start_recording(SessionState mode) {
             hud_->show_error("No selected text captured");
             return;
         }
-        recorder_.start(config_.audio.sample_rate, config_.audio.channels, config_.audio.input_device_id);
+        const std::string device_id = config_.audio.capture_mode == "system" ? std::string{} : config_.audio.input_device_id;
+        audio_capture_->start(config_.audio.sample_rate,
+                              config_.audio.channels,
+                              device_id,
+                              audio_capture_mode_from_config(config_));
         if (should_use_streaming_dictation()) {
             start_streaming_dictation();
         }
@@ -581,7 +699,7 @@ void AppController::stop_recording() {
     hud_->show_transcribing();
 
     try {
-        const std::vector<float> samples = recorder_.stop();
+        const std::vector<float> samples = audio_capture_->stop();
         const AudioAnalysis analysis = analyze_audio(samples, config_.vad);
         if (should_skip_transcription(analysis, config_.vad)) {
             if (streaming_session_ != nullptr) {
@@ -667,6 +785,18 @@ void AppController::set_state(SessionState state, const QString& status) {
 
 bool AppController::uses_double_press_selection_command() const {
     return config_.hotkey.selection_command_trigger == "double_press_hold";
+}
+
+bool AppController::uses_system_audio_capture() const {
+    return config_.audio.capture_mode == "system";
+}
+
+void AppController::refresh_capture_mode_ui() {
+    const bool selection_available = !uses_system_audio_capture();
+    const QString reason = selection_available ? QString()
+                                              : QString("Selection command requires microphone capture. "
+                                                        "System audio mode is intended for meeting transcription.");
+    window_->set_selection_command_available(selection_available, reason);
 }
 
 bool AppController::should_use_streaming_dictation() const {
@@ -777,7 +907,7 @@ void AppController::start_streaming_dictation() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 continue;
             }
-            const std::vector<float> chunk = recorder_.take_pending_samples();
+            const std::vector<float> chunk = audio_capture_->take_pending_samples();
             if (!chunk.empty() && streaming_session_ != nullptr) {
                 std::vector<std::byte> bytes = encode_pcm16(chunk);
                 streaming_session_->push_audio(bytes);
@@ -966,6 +1096,7 @@ void AppController::transcribe_streaming_result_async(QString transcript,
                     {"provider", config_snapshot.pipeline.streaming.provider},
                     {"model", streaming_model_name(config_snapshot)},
                 };
+                diagnostics.update(capture_context_meta(config_snapshot));
 
                 std::string text = transcript.toStdString();
                 if (config_snapshot.pipeline.refine.enabled) {
@@ -1055,7 +1186,11 @@ void AppController::load_history() {
 
 void AppController::refresh_audio_devices() {
     audio_devices_.clear();
-    const auto devices = AudioRecorder::list_input_devices();
+    if (config_.audio.capture_mode == "system") {
+        audio_devices_.append(qMakePair(QString(), QString("Default system output")));
+        return;
+    }
+    const auto devices = audio_capture_->list_input_devices();
     for (const auto& device : devices) {
         QString label = QString::fromStdString(device.name);
         if (device.is_default) {
@@ -1219,12 +1354,14 @@ void AppController::transcribe_selection_command_async(TextTask task,
                         {"provider", config_snapshot.pipeline.asr.provider},
                         {"model", config_snapshot.pipeline.asr.model},
                     };
+                    diagnostics.update(capture_context_meta(config_snapshot));
                 } else {
                     diagnostics["pipeline"] = "streaming_selection_command";
                     diagnostics["asr"] = nlohmann::json{
                         {"provider", config_snapshot.pipeline.streaming.provider},
                         {"model", streaming_model_name(config_snapshot)},
                     };
+                    diagnostics.update(capture_context_meta(config_snapshot));
                     if (streaming_meta.contains("streaming")) {
                         diagnostics["streaming"] = streaming_meta["streaming"];
                         const auto& runtime = streaming_meta["streaming"];
@@ -1347,6 +1484,7 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                     {"provider", config_snapshot.pipeline.asr.provider},
                     {"model", config_snapshot.pipeline.asr.model},
                 };
+                diagnostics.update(capture_context_meta(config_snapshot));
 
                 if (config_snapshot.pipeline.refine.enabled) {
                     const auto refine_start = std::chrono::steady_clock::now();

@@ -1,4 +1,5 @@
 #include "core/app_controller.hpp"
+#include "platform/miniaudio_audio_capture_service.hpp"
 #include "platform/qt/qt_clipboard_service.hpp"
 #include "platform/qt/qt_global_hotkey.hpp"
 #include "platform/qt/qt_hud_presenter.hpp"
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
     ohmytypeless::install_app_theme(app);
 
     ohmytypeless::MainWindow window;
+    ohmytypeless::MiniaudioAudioCaptureService audio_capture;
 #ifdef Q_OS_WIN
     ohmytypeless::WindowsClipboardService clipboard(app.clipboard());
     ohmytypeless::WindowsSelectionService selection(app.clipboard());
@@ -35,7 +37,7 @@ int main(int argc, char* argv[]) {
     ohmytypeless::QtGlobalHotkey hotkey;
 #endif
     ohmytypeless::QtHudPresenter hud;
-    ohmytypeless::AppController controller(&window, &clipboard, &selection, &hotkey, &hud);
+    ohmytypeless::AppController controller(&window, &clipboard, &audio_capture, &selection, &hotkey, &hud);
 
     controller.initialize();
     window.show();

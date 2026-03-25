@@ -169,6 +169,21 @@ QComboBox:focus {
     padding-right: 33px;
 }
 
+#profileCombo {
+    border: 1px solid {{border}};
+    background: {{panel}};
+}
+
+#profileCombo:focus {
+    border: 1px solid {{border}};
+    padding-right: 34px;
+}
+
+#profileCombo::drop-down {
+    border-left: 1px solid {{border}};
+    background: transparent;
+}
+
 QSpinBox, QDoubleSpinBox {
     padding-right: 34px;
 }
@@ -191,6 +206,39 @@ QComboBox::down-arrow {
     image: url({{combo_arrow_icon}});
     width: 12px;
     height: 12px;
+}
+
+QComboBox QAbstractItemView {
+    background: {{panel}};
+    border: 1px solid {{control_border}};
+    border-radius: 0;
+    padding: 0;
+    outline: none;
+    selection-background-color: {{badge_bg}};
+    selection-color: {{text}};
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 24px;
+    padding: 4px 8px;
+    border-radius: 0;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background: {{badge_bg}};
+    color: {{text}};
+}
+
+QLineEdit:disabled, QPlainTextEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    background: {{button_bg_disabled}};
+    border: 1px solid {{disabled_border}};
+    color: {{text_disabled}};
+}
+
+QComboBox:disabled::drop-down, QSpinBox:disabled::up-button, QSpinBox:disabled::down-button,
+QDoubleSpinBox:disabled::up-button, QDoubleSpinBox:disabled::down-button {
+    background: {{button_bg_disabled}};
+    border-left: 1px solid {{disabled_border}};
 }
 
 QSpinBox::up-button, QDoubleSpinBox::up-button {
@@ -310,6 +358,7 @@ QPushButton:disabled {
     color: {{muted}};
     padding: 14px 16px;
 }
+
 
 QListWidget {
     background: {{panel}};

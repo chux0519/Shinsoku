@@ -1,7 +1,7 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include <miniaudio.h>
 
-#include "core/audio_recorder.hpp"
+#include "platform/miniaudio_audio_capture_service.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -36,7 +36,7 @@ std::string try_decode_utf16_ascii(const ma_device_id& id) {
     const auto* bytes = reinterpret_cast<const unsigned char*>(&id);
     constexpr std::size_t kSize = sizeof(ma_device_id);
 
-    if ((kSize % 2U) != 0U) {
+    if constexpr ((kSize % 2U) != 0U) {
         return {};
     }
 
@@ -78,9 +78,9 @@ bool device_matches(const ma_device_info& device, const std::string& configured)
 
 }  // namespace
 
-AudioRecorder::AudioRecorder() = default;
+MiniaudioAudioCaptureService::MiniaudioAudioCaptureService() = default;
 
-AudioRecorder::~AudioRecorder() {
+MiniaudioAudioCaptureService::~MiniaudioAudioCaptureService() {
     ma_device* device = nullptr;
     ma_context* context = nullptr;
     {
@@ -94,7 +94,10 @@ AudioRecorder::~AudioRecorder() {
     shutdown_audio_unlocked(device, context);
 }
 
-void AudioRecorder::start(std::uint32_t sample_rate, std::uint32_t channels, const std::string& device_id) {
+void MiniaudioAudioCaptureService::start(std::uint32_t sample_rate,
+                                         std::uint32_t channels,
+                                         const std::string& device_id,
+                                         AudioCaptureMode capture_mode) {
     {
         std::scoped_lock lock(mutex_);
         if (recording_) {
@@ -117,32 +120,51 @@ void AudioRecorder::start(std::uint32_t sample_rate, std::uint32_t channels, con
         delete context;
         throw std::runtime_error("failed to enumerate audio devices");
     }
-    static_cast<void>(playback_infos);
-    static_cast<void>(playback_count);
 
     auto* device = new ma_device;
-    ma_device_config config = ma_device_config_init(ma_device_type_capture);
+    const ma_device_type device_type =
+        capture_mode == AudioCaptureMode::SystemLoopback ? ma_device_type_loopback : ma_device_type_capture;
+    ma_device_config config = ma_device_config_init(device_type);
     config.capture.format = ma_format_f32;
     config.capture.channels = channels;
     config.sampleRate = sample_rate;
-    config.dataCallback = &AudioRecorder::data_callback;
+    config.dataCallback = &MiniaudioAudioCaptureService::data_callback;
     config.pUserData = this;
 
     bool found = device_id.empty();
-    for (ma_uint32 i = 0; i < capture_count; ++i) {
-        if (device_id.empty()) {
-            if (capture_infos[i].isDefault != 0) {
+    if (capture_mode == AudioCaptureMode::SystemLoopback) {
+        for (ma_uint32 i = 0; i < playback_count; ++i) {
+            if (device_id.empty()) {
+                if (playback_infos[i].isDefault != 0) {
+                    config.capture.pDeviceID = &playback_infos[i].id;
+                    found = true;
+                    break;
+                }
+                continue;
+            }
+
+            if (device_matches(playback_infos[i], device_id)) {
+                config.capture.pDeviceID = &playback_infos[i].id;
+                found = true;
+                break;
+            }
+        }
+    } else {
+        for (ma_uint32 i = 0; i < capture_count; ++i) {
+            if (device_id.empty()) {
+                if (capture_infos[i].isDefault != 0) {
+                    config.capture.pDeviceID = &capture_infos[i].id;
+                    found = true;
+                    break;
+                }
+                continue;
+            }
+
+            if (device_matches(capture_infos[i], device_id)) {
                 config.capture.pDeviceID = &capture_infos[i].id;
                 found = true;
                 break;
             }
-            continue;
-        }
-
-        if (device_matches(capture_infos[i], device_id)) {
-            config.capture.pDeviceID = &capture_infos[i].id;
-            found = true;
-            break;
         }
     }
 
@@ -150,14 +172,18 @@ void AudioRecorder::start(std::uint32_t sample_rate, std::uint32_t channels, con
         ma_context_uninit(context);
         delete context;
         delete device;
-        throw std::runtime_error("requested input device not found");
+        throw std::runtime_error(capture_mode == AudioCaptureMode::SystemLoopback
+                                     ? "requested loopback device not found"
+                                     : "requested input device not found");
     }
 
     if (ma_device_init(context, &config, device) != MA_SUCCESS) {
         ma_context_uninit(context);
         delete context;
         delete device;
-        throw std::runtime_error("failed to initialize capture device");
+        throw std::runtime_error(capture_mode == AudioCaptureMode::SystemLoopback
+                                     ? "failed to initialize loopback capture device"
+                                     : "failed to initialize capture device");
     }
 
     {
@@ -184,11 +210,13 @@ void AudioRecorder::start(std::uint32_t sample_rate, std::uint32_t channels, con
             pending_samples_.clear();
         }
         shutdown_audio_unlocked(device, context);
-        throw std::runtime_error("failed to start capture device");
+        throw std::runtime_error(capture_mode == AudioCaptureMode::SystemLoopback
+                                     ? "failed to start loopback capture device"
+                                     : "failed to start capture device");
     }
 }
 
-std::vector<float> AudioRecorder::stop() {
+std::vector<float> MiniaudioAudioCaptureService::stop() {
     ma_device* device = nullptr;
     ma_context* context = nullptr;
     std::vector<float> samples;
@@ -210,55 +238,22 @@ std::vector<float> AudioRecorder::stop() {
     }
 
     shutdown_audio_unlocked(device, context);
-
     return samples;
 }
 
-std::vector<float> AudioRecorder::take_pending_samples() {
+std::vector<float> MiniaudioAudioCaptureService::take_pending_samples() {
     std::scoped_lock lock(mutex_);
     std::vector<float> chunk = std::move(pending_samples_);
     pending_samples_.clear();
     return chunk;
 }
 
-bool AudioRecorder::is_recording() const {
+bool MiniaudioAudioCaptureService::is_recording() const {
     std::scoped_lock lock(mutex_);
     return recording_;
 }
 
-void AudioRecorder::data_callback(ma_device* device, void* output, const void* input, unsigned int frame_count) {
-    static_cast<void>(output);
-    auto* recorder = static_cast<AudioRecorder*>(device->pUserData);
-    if (recorder == nullptr || input == nullptr) {
-        return;
-    }
-
-    recorder->append_input(static_cast<const float*>(input), frame_count);
-}
-
-void AudioRecorder::append_input(const float* input, unsigned int frame_count) {
-    std::scoped_lock lock(mutex_);
-    if (!recording_) {
-        return;
-    }
-
-    const auto sample_count = static_cast<std::size_t>(frame_count) * channels_;
-    samples_.insert(samples_.end(), input, input + sample_count);
-    pending_samples_.insert(pending_samples_.end(), input, input + sample_count);
-}
-
-void AudioRecorder::shutdown_audio_unlocked(ma_device* device, ma_context* context) noexcept {
-    if (device != nullptr) {
-        ma_device_uninit(device);
-        delete device;
-    }
-    if (context != nullptr) {
-        ma_context_uninit(context);
-        delete context;
-    }
-}
-
-std::vector<AudioInputDevice> AudioRecorder::list_input_devices() {
+std::vector<AudioInputDevice> MiniaudioAudioCaptureService::list_input_devices() const {
     ma_context context;
     if (ma_context_init(nullptr, 0, nullptr, &context) != MA_SUCCESS) {
         throw std::runtime_error("failed to initialize audio context");
@@ -286,6 +281,38 @@ std::vector<AudioInputDevice> AudioRecorder::list_input_devices() {
 
     ma_context_uninit(&context);
     return devices;
+}
+
+void MiniaudioAudioCaptureService::data_callback(ma_device* device, void* output, const void* input, unsigned int frame_count) {
+    static_cast<void>(output);
+    auto* recorder = static_cast<MiniaudioAudioCaptureService*>(device->pUserData);
+    if (recorder == nullptr || input == nullptr) {
+        return;
+    }
+
+    recorder->append_input(static_cast<const float*>(input), frame_count);
+}
+
+void MiniaudioAudioCaptureService::append_input(const float* input, unsigned int frame_count) {
+    std::scoped_lock lock(mutex_);
+    if (!recording_) {
+        return;
+    }
+
+    const auto sample_count = static_cast<std::size_t>(frame_count) * channels_;
+    samples_.insert(samples_.end(), input, input + sample_count);
+    pending_samples_.insert(pending_samples_.end(), input, input + sample_count);
+}
+
+void MiniaudioAudioCaptureService::shutdown_audio_unlocked(ma_device* device, ma_context* context) noexcept {
+    if (device != nullptr) {
+        ma_device_uninit(device);
+        delete device;
+    }
+    if (context != nullptr) {
+        ma_context_uninit(context);
+        delete context;
+    }
 }
 
 }  // namespace ohmytypeless

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/app_config.hpp"
+
 #include <QList>
 #include <QPair>
 #include <QWidget>
@@ -12,6 +14,7 @@ class QListWidget;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QRadioButton;
 class QStackedWidget;
 class QSpinBox;
 class QToolButton;
@@ -26,6 +29,9 @@ public:
     QString hold_key() const;
     QString hands_free_chord_key() const;
     QString selection_command_trigger() const;
+    QString active_profile_id() const;
+    std::vector<ProfileConfig> profiles() const;
+    QString audio_capture_mode() const;
     QString selected_input_device_id() const;
     bool save_recordings_enabled() const;
     QString recordings_dir() const;
@@ -69,6 +75,8 @@ public:
     void set_hold_key(const QString& text);
     void set_hands_free_chord_key(const QString& text);
     void set_selection_command_trigger(const QString& text);
+    void set_profiles(const std::vector<ProfileConfig>& profiles, const QString& active_profile_id);
+    void set_audio_capture_mode(const QString& text);
     void set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
     void set_save_recordings_enabled(bool enabled);
     void set_recordings_dir(const QString& path);
@@ -114,11 +122,35 @@ signals:
     void apply_clicked();
 
 private:
+    void refresh_profile_list();
+    void load_profile_into_editor(int index);
+    void store_editor_into_profile(int index);
+    QString next_profile_id(const QString& seed) const;
+
     QListWidget* navigation_list_ = nullptr;
     QStackedWidget* page_stack_ = nullptr;
     QComboBox* hold_key_combo_ = nullptr;
     QComboBox* hands_free_chord_combo_ = nullptr;
     QComboBox* selection_command_trigger_combo_ = nullptr;
+    QListWidget* profiles_list_ = nullptr;
+    QPushButton* profile_new_button_ = nullptr;
+    QPushButton* profile_duplicate_button_ = nullptr;
+    QPushButton* profile_delete_button_ = nullptr;
+    QLabel* active_profile_hint_label_ = nullptr;
+    QLineEdit* profile_name_edit_ = nullptr;
+    QComboBox* profile_kind_combo_ = nullptr;
+    QCheckBox* profile_enabled_check_ = nullptr;
+    QCheckBox* profile_prefer_streaming_check_ = nullptr;
+    QComboBox* profile_streaming_provider_combo_ = nullptr;
+    QLineEdit* profile_language_hint_edit_ = nullptr;
+    QCheckBox* profile_transform_enabled_check_ = nullptr;
+    QComboBox* profile_prompt_mode_combo_ = nullptr;
+    QPlainTextEdit* profile_custom_prompt_edit_ = nullptr;
+    QCheckBox* profile_copy_check_ = nullptr;
+    QCheckBox* profile_paste_check_ = nullptr;
+    QComboBox* profile_paste_keys_combo_ = nullptr;
+    QPlainTextEdit* profile_notes_edit_ = nullptr;
+    QComboBox* audio_capture_mode_combo_ = nullptr;
     QComboBox* input_device_combo_ = nullptr;
     QCheckBox* save_recordings_check_ = nullptr;
     QLineEdit* recordings_dir_edit_ = nullptr;
@@ -162,6 +194,10 @@ private:
     QCheckBox* hud_enabled_check_ = nullptr;
     QSpinBox* hud_bottom_margin_spin_ = nullptr;
     QLabel* status_label_ = nullptr;
+    std::vector<ProfileConfig> profiles_;
+    QString active_profile_id_;
+    int profile_editor_index_ = -1;
+    bool syncing_profiles_ = false;
 };
 
 }  // namespace ohmytypeless

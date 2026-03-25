@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace ohmytypeless {
 
@@ -84,6 +85,7 @@ struct RotationConfig {
 };
 
 struct AudioConfig {
+    std::string capture_mode = "microphone";
     std::string input_device_id;
     std::uint32_t sample_rate = kFixedSampleRate;
     std::uint32_t channels = kFixedChannelCount;
@@ -96,6 +98,40 @@ struct OutputConfig {
     bool copy_to_clipboard = true;
     bool paste_to_focused_window = false;
     std::string paste_keys = "ctrl+shift+v";
+};
+
+struct ProfileCaptureConfig {
+    bool prefer_streaming = false;
+    std::string preferred_streaming_provider = "none";
+    std::string language_hint;
+};
+
+struct ProfileTransformConfig {
+    bool enabled = false;
+    std::string prompt_mode = "inherit_global";
+    std::string custom_prompt;
+};
+
+struct ProfileOutputConfig {
+    bool copy_to_clipboard = true;
+    bool paste_to_focused_window = false;
+    std::string paste_keys = "ctrl+shift+v";
+};
+
+struct ProfileConfig {
+    std::string id = "default";
+    std::string name = "Default Dictation";
+    std::string kind = "dictation";
+    bool enabled = true;
+    ProfileCaptureConfig capture;
+    ProfileTransformConfig transform;
+    ProfileOutputConfig output;
+    std::string notes;
+};
+
+struct ProfilesConfig {
+    std::string active_profile_id = "default";
+    std::vector<ProfileConfig> items;
 };
 
 struct NetworkProxyConfig {
@@ -132,6 +168,7 @@ struct AppConfig {
     PipelineConfig pipeline;
     AudioConfig audio;
     OutputConfig output;
+    ProfilesConfig profiles;
     NetworkConfig network;
     ProvidersConfig providers;
     VadConfig vad;

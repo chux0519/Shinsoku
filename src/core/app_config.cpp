@@ -3,8 +3,10 @@
 #include <QDir>
 #include <QStandardPaths>
 
+#include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <set>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -176,6 +178,17 @@ std::string normalize_proxy_type(std::string value) {
     return "http";
 }
 
+std::string normalize_capture_mode(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "microphone" || value == "system") {
+        return value;
+    }
+    return "microphone";
+}
+
 std::size_t parse_size(const std::string& value, std::size_t fallback) {
     try {
         return static_cast<std::size_t>(std::stoull(trim(value)));
@@ -189,6 +202,128 @@ int parse_int(const std::string& value, int fallback) {
         return std::stoi(trim(value));
     } catch (...) {
         return fallback;
+    }
+}
+
+std::string normalize_profile_kind(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "dictation" || value == "selection_command" || value == "meeting") {
+        return value;
+    }
+    return "dictation";
+}
+
+std::string normalize_prompt_mode(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "inherit_global" || value == "custom") {
+        return value;
+    }
+    return "inherit_global";
+}
+
+ProfileConfig make_default_profile(const AppConfig& config) {
+    ProfileConfig profile;
+    profile.id = "default";
+    profile.name = "Default Dictation";
+    profile.kind = "dictation";
+    profile.enabled = true;
+    profile.capture.prefer_streaming = config.pipeline.streaming.enabled;
+    profile.capture.preferred_streaming_provider = config.pipeline.streaming.provider;
+    profile.capture.language_hint = config.pipeline.streaming.language;
+    profile.transform.enabled = config.pipeline.refine.enabled;
+    profile.transform.prompt_mode = "inherit_global";
+    profile.output.copy_to_clipboard = config.output.copy_to_clipboard;
+    profile.output.paste_to_focused_window = config.output.paste_to_focused_window;
+    profile.output.paste_keys = config.output.paste_keys;
+    profile.notes = "Migrated from the original single-profile configuration.";
+    return profile;
+}
+
+ProfileConfig make_chinese_to_english_profile() {
+    ProfileConfig profile;
+    profile.id = "zh-to-en";
+    profile.name = "Chinese To English Conversation";
+    profile.kind = "dictation";
+    profile.enabled = true;
+    profile.capture.prefer_streaming = true;
+    profile.capture.preferred_streaming_provider = "soniox";
+    profile.transform.enabled = true;
+    profile.transform.prompt_mode = "custom";
+    profile.transform.custom_prompt =
+        "You are a bilingual conversation assistant.\n\n"
+        "Convert the user's spoken Chinese into natural, concise, native-sounding English.\n"
+        "Preserve the intended meaning.\n"
+        "Do not explain what you changed.\n"
+        "Return only the final English text.";
+    profile.output.copy_to_clipboard = true;
+    profile.output.paste_to_focused_window = true;
+    profile.output.paste_keys = "ctrl+v";
+    profile.notes = "Speak Chinese and output polished English directly.";
+    return profile;
+}
+
+ProfileConfig make_meeting_transcription_profile() {
+    ProfileConfig profile;
+    profile.id = "meeting-transcription";
+    profile.name = "Meeting Transcription";
+    profile.kind = "meeting";
+    profile.enabled = true;
+    profile.capture.prefer_streaming = true;
+    profile.capture.preferred_streaming_provider = "bailian";
+    profile.transform.enabled = false;
+    profile.output.copy_to_clipboard = false;
+    profile.output.paste_to_focused_window = false;
+    profile.output.paste_keys = "ctrl+v";
+    profile.notes = "Designed for system-audio or meeting capture. Results stay in history instead of auto-paste.";
+    return profile;
+}
+
+void ensure_profiles(AppConfig& config) {
+    if (config.profiles.items.empty()) {
+        config.profiles.items.push_back(make_default_profile(config));
+        config.profiles.items.push_back(make_chinese_to_english_profile());
+        config.profiles.items.push_back(make_meeting_transcription_profile());
+    }
+    if (config.profiles.active_profile_id.empty()) {
+        config.profiles.active_profile_id = config.profiles.items.front().id;
+    }
+
+    std::set<std::string> seen_ids;
+    std::string fallback_active_id;
+    for (auto& profile : config.profiles.items) {
+        if (profile.id.empty() || seen_ids.contains(profile.id)) {
+            profile.id = "profile_" + std::to_string(seen_ids.size() + 1U);
+        }
+        seen_ids.insert(profile.id);
+        if (profile.name.empty()) {
+            profile.name = profile.id;
+        }
+        profile.kind = normalize_profile_kind(profile.kind);
+        if (profile.capture.preferred_streaming_provider.empty()) {
+            profile.capture.preferred_streaming_provider = "none";
+        }
+        profile.transform.prompt_mode = normalize_prompt_mode(profile.transform.prompt_mode);
+        if (profile.output.paste_keys.empty()) {
+            profile.output.paste_keys = "ctrl+shift+v";
+        }
+        if (fallback_active_id.empty()) {
+            fallback_active_id = profile.id;
+        }
+    }
+
+    const bool active_exists = std::any_of(config.profiles.items.begin(),
+                                           config.profiles.items.end(),
+                                           [&](const ProfileConfig& profile) {
+                                               return profile.id == config.profiles.active_profile_id;
+                                           });
+    if (!active_exists) {
+        config.profiles.active_profile_id = fallback_active_id;
     }
 }
 
@@ -308,6 +443,9 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "audio", "input_device_id")) {
         config.audio.input_device_id = unquote(*value);
     }
+    if (const auto value = get_value(sections, "audio", "capture_mode")) {
+        config.audio.capture_mode = normalize_capture_mode(unquote(*value));
+    }
     if (const auto value = get_value(sections, "audio", "save_recordings")) {
         config.audio.save_recordings = parse_bool(*value, config.audio.save_recordings);
     }
@@ -328,6 +466,9 @@ AppConfig load_config() {
     }
     if (const auto value = get_value(sections, "output", "paste_keys")) {
         config.output.paste_keys = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "profiles", "active_profile_id")) {
+        config.profiles.active_profile_id = unquote(*value);
     }
     if (const auto value = get_value(sections, "network.proxy", "enabled")) {
         config.network.proxy.enabled = parse_bool(*value, config.network.proxy.enabled);
@@ -390,6 +531,70 @@ AppConfig load_config() {
         config.hud.bottom_margin = parse_int(*value, config.hud.bottom_margin);
     }
 
+    std::set<std::string> profile_ids;
+    for (const auto& [section_name, _] : sections) {
+        if (!section_name.starts_with("profile.")) {
+            continue;
+        }
+        const std::string remainder = section_name.substr(std::string("profile.").size());
+        const auto dot_pos = remainder.find('.');
+        const std::string profile_id = dot_pos == std::string::npos ? remainder : remainder.substr(0, dot_pos);
+        if (!profile_id.empty()) {
+            profile_ids.insert(profile_id);
+        }
+    }
+
+    for (const std::string& profile_id : profile_ids) {
+        ProfileConfig profile;
+        profile.id = profile_id;
+
+        const std::string base_section = "profile." + profile_id;
+        if (const auto value = get_value(sections, base_section, "name")) {
+            profile.name = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section, "kind")) {
+            profile.kind = normalize_profile_kind(unquote(*value));
+        }
+        if (const auto value = get_value(sections, base_section, "enabled")) {
+            profile.enabled = parse_bool(*value, profile.enabled);
+        }
+        if (const auto value = get_value(sections, base_section, "notes")) {
+            profile.notes = unquote(*value);
+        }
+
+        if (const auto value = get_value(sections, base_section + ".capture", "prefer_streaming")) {
+            profile.capture.prefer_streaming = parse_bool(*value, profile.capture.prefer_streaming);
+        }
+        if (const auto value = get_value(sections, base_section + ".capture", "preferred_streaming_provider")) {
+            profile.capture.preferred_streaming_provider = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section + ".capture", "language_hint")) {
+            profile.capture.language_hint = unquote(*value);
+        }
+
+        if (const auto value = get_value(sections, base_section + ".transform", "enabled")) {
+            profile.transform.enabled = parse_bool(*value, profile.transform.enabled);
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "prompt_mode")) {
+            profile.transform.prompt_mode = normalize_prompt_mode(unquote(*value));
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "custom_prompt")) {
+            profile.transform.custom_prompt = unquote(*value);
+        }
+
+        if (const auto value = get_value(sections, base_section + ".output", "copy_to_clipboard")) {
+            profile.output.copy_to_clipboard = parse_bool(*value, profile.output.copy_to_clipboard);
+        }
+        if (const auto value = get_value(sections, base_section + ".output", "paste_to_focused_window")) {
+            profile.output.paste_to_focused_window = parse_bool(*value, profile.output.paste_to_focused_window);
+        }
+        if (const auto value = get_value(sections, base_section + ".output", "paste_keys")) {
+            profile.output.paste_keys = unquote(*value);
+        }
+
+        config.profiles.items.push_back(std::move(profile));
+    }
+
     if (config.hotkey.hold_key.empty()) {
         config.hotkey.hold_key = defaults.hotkey.hold_key;
     }
@@ -438,6 +643,10 @@ AppConfig load_config() {
     if (config.output.paste_keys.empty()) {
         config.output.paste_keys = defaults.output.paste_keys;
     }
+    if (config.audio.capture_mode.empty()) {
+        config.audio.capture_mode = defaults.audio.capture_mode;
+    }
+    config.audio.capture_mode = normalize_capture_mode(config.audio.capture_mode);
     if (config.network.proxy.type.empty()) {
         config.network.proxy.type = defaults.network.proxy.type;
     }
@@ -445,6 +654,8 @@ AppConfig load_config() {
     if (config.network.proxy.port <= 0) {
         config.network.proxy.port = defaults.network.proxy.port;
     }
+
+    ensure_profiles(config);
 
     std::filesystem::create_directories(config.audio.recordings_dir);
     return config;
@@ -483,6 +694,7 @@ void save_config(const AppConfig& config) {
     output << "language = \"" << escape_toml_string(config.pipeline.streaming.language) << "\"\n\n";
 
     output << "[audio]\n";
+    output << "capture_mode = \"" << escape_toml_string(normalize_capture_mode(config.audio.capture_mode)) << "\"\n";
     output << "input_device_id = \"" << escape_toml_string(config.audio.input_device_id) << "\"\n";
     output << "save_recordings = " << (config.audio.save_recordings ? "true" : "false") << "\n";
     output << "recordings_dir = \"" << escape_toml_string(path_to_portable_string(config.audio.recordings_dir)) << "\"\n\n";
@@ -498,6 +710,33 @@ void save_config(const AppConfig& config) {
     output << "copy_to_clipboard = " << (config.output.copy_to_clipboard ? "true" : "false") << "\n";
     output << "paste_to_focused_window = " << (config.output.paste_to_focused_window ? "true" : "false") << "\n";
     output << "paste_keys = \"" << escape_toml_string(config.output.paste_keys) << "\"\n\n";
+
+    output << "[profiles]\n";
+    output << "active_profile_id = \"" << escape_toml_string(config.profiles.active_profile_id) << "\"\n\n";
+
+    for (const auto& profile : config.profiles.items) {
+        output << "[profile." << profile.id << "]\n";
+        output << "name = \"" << escape_toml_string(profile.name) << "\"\n";
+        output << "kind = \"" << escape_toml_string(normalize_profile_kind(profile.kind)) << "\"\n";
+        output << "enabled = " << (profile.enabled ? "true" : "false") << "\n";
+        output << "notes = \"" << escape_toml_string(profile.notes) << "\"\n\n";
+
+        output << "[profile." << profile.id << ".capture]\n";
+        output << "prefer_streaming = " << (profile.capture.prefer_streaming ? "true" : "false") << "\n";
+        output << "preferred_streaming_provider = \""
+               << escape_toml_string(profile.capture.preferred_streaming_provider) << "\"\n";
+        output << "language_hint = \"" << escape_toml_string(profile.capture.language_hint) << "\"\n\n";
+
+        output << "[profile." << profile.id << ".transform]\n";
+        output << "enabled = " << (profile.transform.enabled ? "true" : "false") << "\n";
+        output << "prompt_mode = \"" << escape_toml_string(normalize_prompt_mode(profile.transform.prompt_mode)) << "\"\n";
+        output << "custom_prompt = \"" << escape_toml_string(profile.transform.custom_prompt) << "\"\n\n";
+
+        output << "[profile." << profile.id << ".output]\n";
+        output << "copy_to_clipboard = " << (profile.output.copy_to_clipboard ? "true" : "false") << "\n";
+        output << "paste_to_focused_window = " << (profile.output.paste_to_focused_window ? "true" : "false") << "\n";
+        output << "paste_keys = \"" << escape_toml_string(profile.output.paste_keys) << "\"\n\n";
+    }
 
     output << "[network.proxy]\n";
     output << "enabled = " << (config.network.proxy.enabled ? "true" : "false") << "\n";

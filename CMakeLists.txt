@@ -26,8 +26,6 @@ qt_add_executable(ohmytypeless
     src/core/app_config.hpp
     src/core/app_config.cpp
     src/core/app_state.hpp
-    src/core/audio_recorder.hpp
-    src/core/audio_recorder.cpp
     src/core/backend/asr_backend.hpp
     src/core/backend/streaming_asr_backend.hpp
     src/core/backend/streaming/websocket_transport_options.hpp
@@ -57,8 +55,11 @@ qt_add_executable(ohmytypeless
     src/core/wav_encoder.hpp
     src/core/wav_encoder.cpp
     src/platform/clipboard_service.hpp
+    src/platform/audio_capture_service.hpp
     src/platform/global_hotkey.hpp
     src/platform/hud_presenter.hpp
+    src/platform/miniaudio_audio_capture_service.hpp
+    src/platform/miniaudio_audio_capture_service.cpp
     src/platform/selection_service.hpp
     src/platform/qt/qt_clipboard_service.hpp
     src/platform/qt/qt_clipboard_service.cpp
