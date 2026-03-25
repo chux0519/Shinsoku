@@ -37,9 +37,9 @@ without losing architectural boundaries.
 6. Streaming backend support
 7. Profiles / presets
 8. System audio / meeting transcription
-9. Offline `sherpa-onnx` mode
-10. Online/offline fallback policy refinement
-11. Cross-platform capability audit and rollout planning
+9. Cross-platform capability audit and rollout planning
+10. Offline `sherpa-onnx` mode
+11. Online/offline fallback policy refinement
 
 ## Status
 
@@ -51,7 +51,7 @@ without losing architectural boundaries.
 - Phase 6: in progress
 - Phase 7: in progress
 - Phase 8: in progress
-- Phase 9: pending
+- Phase 9: in progress
 - Phase 10: pending
 - Phase 11: pending
 
@@ -682,7 +682,54 @@ Track:
 
 ---
 
-## Phase 9: Offline `sherpa-onnx`
+## Phase 9: Cross-Platform Capability Audit And Rollout Plan
+
+### Outcome
+
+The project has an explicit rollout plan for macOS and Linux support instead of
+accumulating ad-hoc Windows-first behavior.
+
+### Scope
+
+Document and prioritize platform gaps for:
+
+- global hotkey semantics
+- system audio capture
+- selection capture / replace
+- focused-window paste
+- HUD / tray behavior
+- streaming provider transport support
+- profile / meeting workflow behavior under degraded platform capabilities
+
+### Deliverables
+
+#### New file: `docs/platform-capability-matrix.md`
+
+Document:
+
+- supported capabilities by platform
+- degraded / unsupported capabilities
+- rollout order for macOS and Linux
+- which currently implemented Windows-first features need abstraction before
+  rollout
+
+#### New file: `docs/platform-rollout-plan.md`
+
+Track:
+
+- target order for macOS vs Linux
+- per-platform blockers
+- which phases can proceed in parallel with product work
+
+### Acceptance Criteria
+
+- There is a concrete capability matrix for Windows / macOS / Linux.
+- There is a phased rollout plan instead of a generic "support later" note.
+- New feature work can point to explicit platform capability assumptions.
+
+---
+
+## Phase 10: Offline `sherpa-onnx`
 
 ### Outcome
 
@@ -731,7 +778,7 @@ Add offline section:
 
 ---
 
-## Phase 10: Fallback Policy Refinement
+## Phase 11: Fallback Policy Refinement
 
 ### Outcome
 
@@ -760,42 +807,6 @@ Examples:
 
 - Users can tell whether the app ran online or offline.
 - Failure policy is deterministic and debuggable.
-
----
-
-## Phase 11: Cross-Platform Capability Audit And Rollout Plan
-
-### Outcome
-
-The project has an explicit rollout plan for macOS and Linux support instead of
-accumulating ad-hoc Windows-first behavior.
-
-### Scope
-
-Document and prioritize platform gaps for:
-
-- global hotkey semantics
-- system audio capture
-- selection capture / replace
-- focused-window paste
-- HUD / tray behavior
-- streaming provider transport support
-
-### Deliverables
-
-#### New file: `docs/platform-capability-matrix.md`
-
-Document:
-
-- supported capabilities by platform
-- degraded / unsupported capabilities
-- rollout order for macOS and Linux
-
-### Acceptance Criteria
-
-- There is a concrete capability matrix for Windows / macOS / Linux.
-- Future cross-platform work can proceed incrementally without re-deciding
-  boundaries each time.
 
 ---
 
@@ -835,10 +846,10 @@ Current recommended order:
 
 1. profiles / presets
 2. system audio / meeting transcription
-3. offline `sherpa-onnx`
-4. online/offline fallback policy
-5. cross-platform capability audit
+3. cross-platform capability audit and rollout planning
+4. offline `sherpa-onnx`
+5. online/offline fallback policy
 
 This order gives the product a stronger workflow layer first, then adds the
-next major input source, and only after that lands the local backend and the
-policy that decides when to use it.
+next major input source, then forces platform boundaries to be made explicit
+before landing the local backend and the policy that decides when to use it.
