@@ -27,8 +27,9 @@ It is intentionally practical:
 
 | Capability | Windows | macOS | Linux X11 | Linux Wayland | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Global hold-to-record hotkey | full | planned | planned | partial | Wayland MVP can use `libevdev` device reads with user input-device permissions; not a universal compositor API |
+| Global hold-to-record hotkey | full | planned | planned | partial | Wayland MVP uses `libevdev` device reads with user input-device permissions; not a universal compositor API |
 | Hands-free chord behavior | full | planned | planned | partial | Depends on the same global input path as the hold hotkey |
+| Hotkey key recording in Settings | planned | planned | planned | partial | Canonical hotkey-name abstraction now exists; Wayland can record the next evdev key, Windows/macOS capture is still pending |
 | Selection capture | partial | planned | planned | partial | Windows uses UIA plus clipboard fallback; Wayland can use clipboard-preserve plus synthetic `Ctrl+C` fallback when key injection works |
 | Selection replace | partial | planned | planned | partial | Wayland path is expected to be clipboard-preserve plus synthetic paste, not semantic focused-text editing |
 | Auto paste to focused window | partial | planned | partial | partial | Wayland can often use `wl-copy` plus `wtype`, but compositor support and focus semantics still vary |
@@ -64,6 +65,7 @@ Current project-level abstractions that should be reused on other platforms:
 - `AudioCaptureService`
 - `HudPresenter`
 - backend interfaces under `src/core/backend/`
+- canonical hotkey naming helpers in `src/platform/hotkey_names.*`
 
 Current Windows-heavy areas still needing careful rollout treatment:
 
@@ -71,6 +73,17 @@ Current Windows-heavy areas still needing careful rollout treatment:
 - `src/platform/windows/windows_clipboard_service.*`
 - `src/platform/windows/windows_selection_service.*`
 - `src/platform/miniaudio_audio_capture_service.*` for system loopback specifics
+
+Current cross-platform progress worth preserving:
+
+- hotkey config now stores canonical internal names such as `right_alt`,
+  `space`, and `menu` instead of Linux-only `KEY_*` values
+- old config values are normalized on load, so existing installs remain
+  compatible
+- selection replacement now takes configured paste keys through the shared
+  `SelectionService` contract
+- Wayland hotkey recording is implemented through `GlobalHotkey`, so Windows
+  can add the same feature later without changing the product-layer workflow
 
 ## Windows Notes
 
@@ -89,10 +102,15 @@ Current caveats:
 - focused paste is inherently app-dependent
 - system audio capture is still MVP-only and should not leak WASAPI assumptions
 - some workflows still rely on Windows-native affordances that must become capability-gated elsewhere
+- hotkey key recording is not implemented yet on Windows even though the
+  shared interface now exists
 
 Likely long-term implementation path:
 
 - hotkeys: current low-level keyboard hook backend
+- hotkey recording:
+  - capture the next keyboard event through the Windows hotkey backend
+  - map that event into the same canonical hotkey names used by config/UI
 - selection: UIA where available, clipboard fallback where acceptable
 - paste: current clipboard/focus restore backend
 - system audio: current loopback path behind `AudioCaptureService`
@@ -169,13 +187,14 @@ Likely implementation path:
     the local `potatype` reference project
   - requires readable `/dev/input/event*` devices, so this is a capability with
     setup requirements rather than a compositor-guaranteed API
+  - key recording can reuse the same input-device access to capture the next
+    pressed key in Settings
 - selection capture:
-  - clipboard-preserve plus synthetic `Ctrl+C` fallback, similar in spirit to
-    the Windows clipboard fallback and the approach used by
-    `get-selected-text`
+  - prefer primary selection reads via `wl-paste --primary`
+  - fall back to clipboard-preserve plus synthetic `Ctrl+C` only when needed
 - selection replace / focused paste:
-  - clipboard-preserve plus synthetic paste such as `Ctrl+V`
-  - helper tools like `wl-copy` and `wtype` are a reasonable MVP path
+  - clipboard-preserve plus synthetic paste such as configured paste keys
+  - `wl-copy` plus `wtype` is the current MVP path
 - system audio:
   - PipeWire/portal-specific capture path
 
@@ -192,6 +211,8 @@ Immediate product policy:
 - do not describe the Wayland path as semantic focused-text access
 - keep `core` unaware of whether the backend uses UIA, clipboard fallback,
   `wtype`, or any future portal/compositor path
+- keep Alt-key conflicts documented as a platform constraint rather than trying
+  to "consume" the key globally from the app layer
 
 Immediate recommendation:
 

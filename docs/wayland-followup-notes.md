@@ -4,66 +4,81 @@ This document captures the current Linux/Wayland state after the recent capabili
 
 ## Current Open Issues
 
-### 1. Recording HUD first-frame rendering is broken
+### 1. Alt-based hold key remains high-conflict on Linux/Wayland
 
 Status:
 
-- `Transcribing`, `Thinking`, notice, and error HUD states render normally.
-- `Recording` / `Listening` on the Wayland layer-shell HUD path still render incorrectly on first show.
+- Default config remains `right_alt` by request.
+- Linux/Wayland warning hints and key-recording support now exist, but the
+  underlying conflict is not fully solvable with the current listener model.
 
 Observed behavior:
 
-- The HUD appears as a white or empty rectangular box.
-- Rounded corners and the expected waveform-style content do not render correctly.
-- This appears specific to the waveform-mode path, not the general HUD path.
+- Apps like VSCode and browsers may still react to `Alt` while recording is
+  triggered.
+- Menu focus / application shortcut behavior can leak through.
+- Some laptop-specific keys may report as `left_meta`, `menu`, or other
+  hardware-dependent codes when recorded.
 
-Likely focus area:
+Important constraint:
 
-- `src/platform/wayland/wayland_layer_shell_hud_presenter.cpp`
-- Compare the `Recording` / `Listening` path against the Windows / Qt HUD behavior in:
-  - `src/platform/qt/qt_hud_presenter.cpp`
+- `libevdev` listening is safe for detection and one-shot key capture.
+- Global keyboard grabbing was attempted and caused severe system-wide input
+  breakage; that approach must not be used.
+
+Relevant files:
+
+- `src/platform/wayland/wayland_global_hotkey.cpp`
+- `src/platform/hotkey_names.hpp`
+- `src/platform/hotkey_names.cpp`
+- `src/ui/settings_window.cpp`
+- `src/core/app_controller.cpp`
 
 Notes:
 
-- A previous attempt to replace QSS panel styling with custom-painted panel rendering regressed other HUD states and was reverted.
-- Any fix should be narrowly scoped to the waveform-mode path.
+- Hotkey config now stores canonical names like `right_alt`, `space`, and
+  `menu` instead of backend-specific `KEY_*` names.
+- Settings can now record the next key on Wayland and temporarily suspend
+  existing hotkeys during capture.
+- If a keyboard exposes a vendor key as the same evdev code as `left_meta`,
+  the application cannot distinguish them.
 
 Current engineering read:
 
-- This looks like a Wayland layer-surface first-show / first-commit issue in the waveform path, not a general HUD failure.
-- The problem likely comes from geometry, child visibility, or first-frame synchronization differences between the Wayland presenter and the stable Qt HUD path.
-- This should be treated as a fixable rendering bug, not as evidence that the layer-shell HUD approach is wrong.
+- This is an architectural limitation of passive `/dev/input` monitoring, not a
+  small implementation defect.
+- The current best path is better warnings, safer alternatives, and clearer
+  recording/configuration UX.
 
 Recommended approach:
 
-- Keep the existing QSS-backed panel structure.
-- Align the Wayland persistent HUD states more closely with `src/platform/qt/qt_hud_presenter.cpp`, especially around stable sizing and indicator visibility.
-- Prefer fixes that stabilize first-frame layout or recreate the Wayland surface only when the initial surface state is clearly invalid.
+- Keep the backend as listener-only.
+- Keep the new record-key UX and canonical hotkey abstraction.
+- Treat `Alt` as a high-conflict option rather than a default-safe key.
+- If defaults are revisited later, prefer a key with better hardware
+  availability and lower menu/editor conflict.
 
-Do not do this:
-
-- Do not replace the whole HUD panel with a custom-painted implementation.
-- Do not mix a broad visual redesign into this fix.
-- Do not change non-waveform HUD states unless the same root cause clearly affects them.
-
-### 2. Selection command does not reliably capture selected text on Wayland
+### 2. Selection command remains partial on Wayland
 
 Status:
 
-- Current implementation exists, but is not reliable in real applications.
+- Core capture and replace now work in some real applications, but the workflow
+  remains app-dependent.
 
 Observed behavior:
 
-- Selection command fails to detect selected text in real targets.
-- Clipboard fallback currently does not produce dependable results.
+- Selected text capture now works in tested browser/editor targets when primary
+  selection is available.
+- Replace now works in browser inputs that accept `wl-copy` plus synthetic
+  paste.
+- Some apps such as VSCode may still fail if the chosen hold key steals focus
+  before paste is sent.
 
 Current implementation approach:
 
-- Save clipboard
-- Write placeholder text
-- Simulate `Ctrl+C`
-- Read clipboard back
-- Restore clipboard
+- Try `wl-paste --primary` first
+- Fall back to clipboard-preserve plus synthetic `Ctrl+C`
+- Replace via `wl-copy` plus configured paste keys, then restore clipboard
 
 Relevant files:
 
@@ -72,63 +87,67 @@ Relevant files:
 
 Notes:
 
-- This is still the main known functional gap for Wayland selection workflows.
-- Needs more investigation against real apps like browsers / editors.
+- Real-world behavior has improved enough that this is no longer a total
+  blocker, but it still is not platform-parity with Windows focused-text
+  editing.
+- Debug info now distinguishes primary-selection success from clipboard
+  fallback behavior.
 
 Current engineering read:
 
-- The current clipboard probe approach is inherently fragile on Wayland.
-- The failure is not just timing noise; it comes from platform constraints around synthetic copy, clipboard ownership, and app-specific behavior.
-- This should not be treated as a near-term parity bug with an obvious one-line fix.
+- The stronger path is primary selection plus explicit clipboard helper tools,
+  not more tuning of the old clipboard-probe-only approach.
+- The remaining failures are mostly focus / injection compatibility issues, not
+  "capture is always broken" failures.
 
 Recommended decision point:
 
-- Either keep this backend explicitly `partial` and message it as best-effort, or redesign the capture path around stronger Linux/Wayland-specific mechanisms.
-- Do not keep tuning sleep durations and expect the current `clipboard -> Ctrl+C -> clipboard` probe to become broadly reliable.
+- Keep this backend explicitly `partial` and message it as app-dependent.
+- Do not keep tuning sleep durations and expect full semantic parity with
+  Windows.
 
 Next investigation targets:
 
-- Test against real targets such as Chromium-based browsers, Firefox, VSCode, and GTK text editors.
-- Check whether `wl-paste`, primary-selection behavior, or compositor-specific paths provide a better signal than the current placeholder probe.
-- Separate "synthetic copy was delivered" from "clipboard content changed" in debug output so failures are easier to classify.
+- Test against more targets such as Chromium-based browsers, Firefox, VSCode,
+  and GTK text editors.
+- Check whether `shift+insert` or other configured paste keys improve specific
+  editor compatibility.
+- Keep distinguishing focus/key-conflict failures from actual capture failures
+  in debug output.
 
-### 3. Alt-based hold key remains high-conflict on Linux/Wayland
+### 3. Windows hotkey recording is still pending
 
 Status:
 
-- Default config remains `KEY_RIGHTALT` by request.
-- Linux/Wayland warning hints were added, but the underlying conflict is not fully solvable with the current listener model.
+- The shared hotkey recording abstraction now exists.
+- Only the Wayland backend currently implements "record the next key."
 
 Observed behavior:
 
-- Apps like VSCode and browsers may still react to `Alt` while recording is triggered.
-- Menu focus / application shortcut behavior can leak through.
-
-Important constraint:
-
-- `libevdev` listening is safe for detection.
-- Global keyboard grabbing was attempted and caused severe system-wide input breakage; that approach must not be used.
+- Windows still relies on selecting from the predefined hotkey list.
+- Settings/workflow already support a backend-provided record-next-key path, so
+  Windows can plug into it later without product-layer redesign.
 
 Relevant files:
 
-- `src/platform/wayland/wayland_global_hotkey.cpp`
+- `src/platform/global_hotkey.hpp`
+- `src/platform/windows/windows_global_hotkey.cpp`
+- `src/platform/hotkey_names.hpp`
+- `src/platform/hotkey_names.cpp`
 - `src/ui/settings_window.cpp`
-
-Notes:
-
-- A previous `libevdev_grab` attempt was removed after causing a major bug.
-- Any future solution should avoid destructive device-level grabs.
 
 Current engineering read:
 
-- This is an architectural limitation of passive `/dev/input` monitoring, not a small implementation defect.
-- The current best path is better warnings, safer defaults, and clearer capability messaging.
+- The interface shape is now good enough for Windows to implement later.
+- The main remaining Windows work is backend event capture and canonical-name
+  mapping, not product/UI design.
 
 Recommended approach:
 
-- Keep the backend as listener-only.
-- Prefer `Ctrl`-based defaults or stronger Linux-specific warnings if the default key is revisited later.
-- Treat any future "consume the key globally" idea as suspect unless it avoids device grabs entirely.
+- Leave the current abstraction in place.
+- When Windows work resumes, implement `supports_key_capture()` and
+  `capture_next_key(...)` in the Windows backend instead of adding a separate UI
+  path.
 
 ### 4. Alt+Space still interferes with app UI in some cases
 
@@ -155,13 +174,15 @@ Current engineering read:
 - This is related to the same Alt propagation problem, but limited to in-app behavior.
 - It should be handled as a local UI mitigation task, not as a platform backend blocker.
 
-### 5. Linux system audio needs more runtime validation
+### 5. Linux system audio still needs broader runtime validation
 
 Status:
 
 - A Linux MVP backend now exists.
-- It compiles and is wired into Linux startup.
-- It still needs more real-world validation.
+- It compiles, is wired into Linux startup, and has passed initial end-to-end
+  validation.
+- It still needs broader real-world validation across more desktops and device
+  changes.
 
 Implementation status:
 
@@ -195,10 +216,17 @@ Validation priorities:
 
 - Wayland global hotkey monitoring works in principle.
 - Wayland layer-shell HUD can show as a real overlay.
-- HUD follows the host window's screen better than the earlier single-screen behavior.
+- HUD follows the host window's screen correctly across multi-monitor placement.
 - HUD bottom margin now affects placement.
+- Wayland `Recording` / `Listening` HUD first-frame rendering has been fixed.
 - `Paste to focused window` no longer resets immediately on apply.
 - Profiles now have usable disabled-profile semantics.
+- Hotkey config now uses canonical internal key names with backward-compatible
+  migration from old `KEY_*` values.
+- Settings can record the next hold key or hands-free chord on Wayland.
+- Wayland selection capture now prefers primary selection and can succeed in
+  real browser/editor targets.
+- Wayland selection replace now reuses configured paste keys.
 - Linux system audio backend now exists as an MVP.
 - The project currently builds successfully with:
 
@@ -208,7 +236,7 @@ cmake --build build-vcpkg -j8
 
 ## Recommended Next Priorities
 
-1. Fix `Recording` / `Listening` HUD first-frame rendering on Wayland.
-2. Decide whether Wayland selection capture should remain best-effort or move to a redesigned backend, then implement that decision.
-3. Validate and harden `system audio + meeting` flows on Linux.
-4. Revisit Alt-related hotkey conflicts only after the above are stable.
+1. Document and later implement Windows hotkey key-capture on top of the new shared abstraction.
+2. Validate and harden `system audio + meeting` flows on Linux across more desktop/device scenarios.
+3. Continue classifying Wayland selection failures by app/focus/paste-key behavior instead of treating them as one generic bug.
+4. Revisit Alt-related hotkey conflicts only as UX policy and messaging, not as a device-grab project.
