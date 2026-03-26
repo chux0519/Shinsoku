@@ -4,8 +4,10 @@
 #include <ixwebsocket/IXSocketConnect.h>
 
 #include <array>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
@@ -398,6 +400,49 @@ bool IxProxySocket::load_system_certificates(std::string& errMsg) {
         return false;
     }
     return true;
+#elif defined(__linux__)
+    const auto try_parse_file = [this](const std::string& path) {
+        return !path.empty() && std::filesystem::exists(path) &&
+               mbedtls_x509_crt_parse_file(&cacert_, path.c_str()) == 0;
+    };
+    const auto try_parse_dir = [this](const std::string& path) {
+        return !path.empty() && std::filesystem::exists(path) &&
+               mbedtls_x509_crt_parse_path(&cacert_, path.c_str()) == 0;
+    };
+
+    if (const char* cert_file = std::getenv("SSL_CERT_FILE"); cert_file != nullptr && try_parse_file(cert_file)) {
+        return true;
+    }
+    if (const char* cert_dir = std::getenv("SSL_CERT_DIR"); cert_dir != nullptr && try_parse_dir(cert_dir)) {
+        return true;
+    }
+
+    static constexpr const char* kCommonCertFiles[] = {
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+        "/etc/ssl/ca-bundle.pem",
+        "/etc/ssl/cert.pem",
+    };
+    for (const char* path : kCommonCertFiles) {
+        if (try_parse_file(path)) {
+            return true;
+        }
+    }
+
+    static constexpr const char* kCommonCertDirs[] = {
+        "/etc/ssl/certs",
+        "/etc/pki/tls/certs",
+        "/etc/pki/ca-trust/extracted/pem",
+    };
+    for (const char* path : kCommonCertDirs) {
+        if (try_parse_dir(path)) {
+            return true;
+        }
+    }
+
+    errMsg = "Failed to load system certificates from common Linux trust-store paths.";
+    return false;
 #else
     errMsg = "System certificate loading is not implemented on this platform.";
     return false;

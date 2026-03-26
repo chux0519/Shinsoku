@@ -1,4 +1,5 @@
 #include "core/app_controller.hpp"
+#include "platform/linux/linux_pulseaudio_audio_capture_service.hpp"
 #include "platform/miniaudio_audio_capture_service.hpp"
 #include "platform/qt/qt_clipboard_service.hpp"
 #include "platform/qt/qt_global_hotkey.hpp"
@@ -33,14 +34,15 @@ int main(int argc, char* argv[]) {
     ohmytypeless::install_app_theme(app);
 
     ohmytypeless::MainWindow window;
-    ohmytypeless::MiniaudioAudioCaptureService audio_capture;
 #ifdef Q_OS_WIN
+    ohmytypeless::MiniaudioAudioCaptureService audio_capture;
     ohmytypeless::WindowsClipboardService clipboard(app.clipboard());
     ohmytypeless::WindowsSelectionService selection(app.clipboard());
     ohmytypeless::WindowsGlobalHotkey hotkey;
 #elif defined(Q_OS_LINUX)
     const QString platform_name = QGuiApplication::platformName().toLower();
     const bool is_wayland = platform_name.contains("wayland");
+    ohmytypeless::LinuxPulseaudioAudioCaptureService audio_capture;
     std::unique_ptr<ohmytypeless::ClipboardService> clipboard_impl;
     std::unique_ptr<ohmytypeless::SelectionService> selection_impl;
     std::unique_ptr<ohmytypeless::GlobalHotkey> hotkey_impl;
@@ -57,6 +59,7 @@ int main(int argc, char* argv[]) {
         hud_impl = std::make_unique<ohmytypeless::QtHudPresenter>(&window);
     }
 #else
+    ohmytypeless::MiniaudioAudioCaptureService audio_capture;
     ohmytypeless::QtClipboardService clipboard(app.clipboard());
     ohmytypeless::QtSelectionService selection(app.clipboard());
     ohmytypeless::QtGlobalHotkey hotkey;

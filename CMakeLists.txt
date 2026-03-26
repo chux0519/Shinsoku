@@ -22,6 +22,8 @@ find_path(MINIAUDIO_INCLUDE_DIRS miniaudio.h REQUIRED)
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBEVDEV REQUIRED IMPORTED_TARGET libevdev)
+    pkg_check_modules(LIBPULSE REQUIRED IMPORTED_TARGET libpulse)
+    pkg_check_modules(LIBPULSE_SIMPLE REQUIRED IMPORTED_TARGET libpulse-simple)
 endif()
 
 option(OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD "Enable Wayland HUD via in-tree layer-shell backend" ON)
@@ -104,6 +106,8 @@ endif()
 
 if(UNIX AND NOT APPLE)
     target_sources(ohmytypeless PRIVATE
+        src/platform/linux/linux_pulseaudio_audio_capture_service.hpp
+        src/platform/linux/linux_pulseaudio_audio_capture_service.cpp
         src/platform/wayland/wayland_clipboard_service.hpp
         src/platform/wayland/wayland_clipboard_service.cpp
         src/platform/wayland/wayland_global_hotkey.hpp
@@ -178,7 +182,7 @@ if(WIN32)
 endif()
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(ohmytypeless PRIVATE PkgConfig::LIBEVDEV)
+    target_link_libraries(ohmytypeless PRIVATE PkgConfig::LIBEVDEV PkgConfig::LIBPULSE PkgConfig::LIBPULSE_SIMPLE)
 endif()
 
 if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)

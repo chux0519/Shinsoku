@@ -165,7 +165,7 @@ Status:
 
 Implementation status:
 
-- Backend path uses PulseAudio monitor-source capture as a practical Linux MVP.
+- Backend path should now prefer the PulseAudio compatibility layer.
 - Microphone capture continues to delegate to miniaudio.
 
 Relevant files:
@@ -177,19 +177,19 @@ Relevant files:
 
 Notes:
 
-- This is not a PipeWire-native backend yet.
+- Default-output capture is enough for the first Linux MVP.
 - It should be tested specifically with `system audio + meeting profile` flows.
 
 Current engineering read:
 
-- The current PulseAudio monitor-source backend is a reasonable Linux MVP.
+- For now, the safest route is to lean on the desktop's PulseAudio compatibility surface, which usually maps to `pipewire-pulse` on mainstream distros.
 - The main remaining risk is runtime behavior across real desktop setups, not basic code structure.
 
 Validation priorities:
 
-- Verify default-sink monitor capture on a normal PulseAudio or PipeWire-Pulse desktop.
+- Verify default-output capture on a normal Linux desktop with `pipewire-pulse` or PulseAudio available.
 - Test `system audio + meeting profile` end-to-end, including start, streaming updates, and stop.
-- Confirm failure behavior when no monitor source is available or when the default sink changes during app lifetime.
+- Confirm failure behavior when the compatibility server is unavailable or when the default output changes during app lifetime.
 
 ## Things That Are Working
 

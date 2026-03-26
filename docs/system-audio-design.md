@@ -83,13 +83,32 @@ For the first pass:
 - microphone mode keeps existing input-device enumeration
 - system mode uses the default playback device
 
+## Linux Direction Update
+
+Linux should currently prefer the PulseAudio compatibility layer for the first
+system-audio MVP.
+
+Reason:
+
+- Ubuntu, Debian, and Fedora desktop sessions usually expose PulseAudio APIs through `pipewire-pulse`, so this covers the common default stack well.
+- The immediate goal is stable system-audio capture on mainstream Linux desktops, not the most advanced native backend.
+- A conservative compatibility-layer backend is less likely to destabilize the user's audio session than an immature native PipeWire implementation.
+
+Current Linux MVP direction:
+
+- microphone capture still delegates to `miniaudio`
+- system-audio capture resolves the default sink monitor source through `libpulse`
+- audio samples are read through `libpulse-simple`
+- default-output capture is sufficient for the first Linux MVP
+- per-output-device selection can remain deferred
+
 ## Platform Notes
 
 - Windows: WASAPI loopback is the initial target
 - macOS: requires a different strategy, likely virtual devices or system APIs
 - Linux:
-  - PipeWire monitor streams are the most promising direction
-  - PulseAudio monitor devices may also be viable depending on distro
+  - PulseAudio monitor devices via `pipewire-pulse` are the current MVP target
+  - a native PipeWire backend can be revisited later once runtime behavior is proven safe
 
 ## File Plan
 
@@ -115,3 +134,4 @@ Apply capture mode when starting recording and keep settings UI synchronized.
 - Windows can record system output audio with the default playback device.
 - Existing microphone dictation still works unchanged.
 - The settings page clearly distinguishes microphone and system-audio capture.
+- Linux can capture default system output through the PulseAudio compatibility layer for meeting-transcription workflows.
