@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QMenu>
 #include <QFileDialog>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -57,15 +58,13 @@ const QStringList kBailianIntlModels = {
     "fun-asr-realtime-2025-11-07",
 };
 
-QString profile_label(const ProfileConfig& profile, const QString& active_profile_id) {
-    QString label = QString::fromStdString(profile.name);
-    if (!profile.enabled) {
-        label += "  Disabled";
+QString profile_hint_text(const QString& profile_id, const QString& input_source) {
+    if (input_source == "system") {
+        return QString("Selected profile ID: %1. It is intended for live caption workflows and pairs naturally with System Audio (Loopback) and the Live Caption window.")
+            .arg(profile_id);
     }
-    if (profile.id == active_profile_id) {
-        label += "  Current";
-    }
-    return label;
+    return QString("Selected profile ID: %1. It is intended for dictation-style workflows and can enable transform or paste behavior.")
+        .arg(profile_id);
 }
 
 QString slugify_profile_id(QString text) {
@@ -246,6 +245,23 @@ void set_combo_by_value(QComboBox* combo, const QString& value) {
     }
 }
 
+void set_device_combo_items(QComboBox* combo, const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
+    if (combo == nullptr) {
+        return;
+    }
+    combo->clear();
+    for (const auto& device : devices) {
+        combo->addItem(device.second, device.first);
+    }
+
+    const int index = combo->findData(selected_device_id);
+    if (index >= 0) {
+        combo->setCurrentIndex(index);
+    } else if (combo->count() > 0) {
+        combo->setCurrentIndex(0);
+    }
+}
+
 void ensure_key_combo_value(QComboBox* combo, const QString& value) {
     if (combo == nullptr || value.trimmed().isEmpty()) {
         return;
@@ -360,7 +376,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     navigation_list_->setSpacing(8);
     navigation_list_->setAlternatingRowColors(false);
     navigation_list_->setUniformItemSizes(true);
-    navigation_list_->addItems({"General", "Profiles", "Audio", "ASR", "Transform", "Network", "Providers", "Advanced"});
+    navigation_list_->addItems({"General", "Providers", "Transform", "Network", "Profiles", "Advanced"});
     sidebar_layout->addWidget(navigation_list_, 1);
     shell_layout->addWidget(sidebar);
 
@@ -370,34 +386,30 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     QVBoxLayout* general_layout = nullptr;
     QVBoxLayout* profiles_layout = nullptr;
-    QVBoxLayout* audio_layout = nullptr;
-    QVBoxLayout* asr_layout = nullptr;
     QVBoxLayout* transform_layout = nullptr;
     QVBoxLayout* network_layout = nullptr;
     QVBoxLayout* providers_layout = nullptr;
     QVBoxLayout* advanced_layout = nullptr;
     page_stack_->addWidget(make_page_shell(page_stack_, &general_layout));
-    page_stack_->addWidget(make_page_shell(page_stack_, &profiles_layout));
-    page_stack_->addWidget(make_page_shell(page_stack_, &audio_layout));
-    page_stack_->addWidget(make_page_shell(page_stack_, &asr_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &providers_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &transform_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &network_layout));
-    page_stack_->addWidget(make_page_shell(page_stack_, &providers_layout));
+    page_stack_->addWidget(make_page_shell(page_stack_, &profiles_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &advanced_layout));
 
     insert_section_before_stretch(general_layout,
                                   make_info_card("Workspace Control",
-                                                 "Tune capture, output, and on-screen behavior.",
-                                                 "General settings cover hotkeys, clipboard routing, and the HUD. "
-                                                 "Audio, providers, and network routing now live in dedicated pages.",
+                                                 "Keep the main workflow in one place.",
+                                                 "General now covers hotkeys, audio input, output routing, voice "
+                                                 "activity detection, and the HUD so the core workflow is easier to scan.",
                                                  this));
 
     insert_section_before_stretch(profiles_layout,
                                   make_info_card("Workflow Profiles",
-                                                 "Save reusable dictation, translation, and meeting presets.",
-                                                 "Profiles let you switch recurring workflows without rewriting prompts "
-                                                 "or toggling output settings each time. The selected profile is the "
-                                                 "active one used by the app.",
+                                                 "Use profiles as workflow presets, not full settings copies.",
+                                                 "Profiles are the right place for workflow intent such as dictation, "
+                                                 "live caption behavior, transform behavior, and output "
+                                                 "preferences.",
                                                  this));
 
     auto* profiles_editor_shell = new QWidget(this);
@@ -407,25 +419,20 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     auto* profiles_sidebar = new QGroupBox("Profiles", profiles_editor_shell);
     profiles_sidebar->setObjectName("sectionCard");
-    profiles_sidebar->setFixedWidth(240);
+    profiles_sidebar->setFixedWidth(300);
     auto* profiles_sidebar_layout = new QVBoxLayout(profiles_sidebar);
     profiles_sidebar_layout->setContentsMargins(18, 22, 18, 18);
     profiles_sidebar_layout->setSpacing(12);
+    profiles_sidebar_layout->addSpacing(8);
+
+    profile_new_button_ = new QPushButton("New Profile", profiles_sidebar);
+    profiles_sidebar_layout->addWidget(profile_new_button_);
 
     profiles_list_ = new QListWidget(profiles_sidebar);
     profiles_list_->setObjectName("settingsNav");
     profiles_list_->setSpacing(8);
+    profiles_list_->setContextMenuPolicy(Qt::CustomContextMenu);
     profiles_sidebar_layout->addWidget(profiles_list_, 1);
-
-    auto* profile_actions = new QHBoxLayout();
-    profile_actions->setSpacing(8);
-    profile_new_button_ = new QPushButton("New", profiles_sidebar);
-    profile_duplicate_button_ = new QPushButton("Duplicate", profiles_sidebar);
-    profile_delete_button_ = new QPushButton("Delete", profiles_sidebar);
-    profile_actions->addWidget(profile_new_button_);
-    profile_actions->addWidget(profile_duplicate_button_);
-    profile_actions->addWidget(profile_delete_button_);
-    profiles_sidebar_layout->addLayout(profile_actions);
 
     profiles_editor_layout->addWidget(profiles_sidebar);
 
@@ -440,17 +447,11 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     active_profile_hint_label_->setWordWrap(true);
     profile_editor_layout->addWidget(active_profile_hint_label_);
 
-    QFormLayout* profile_form = new QFormLayout();
-    profile_form->setHorizontalSpacing(18);
-    profile_form->setVerticalSpacing(14);
-    profile_form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-
     profile_name_edit_ = new QLineEdit(profile_editor_card);
-    profile_kind_combo_ = new QComboBox(profile_editor_card);
-    profile_kind_combo_->addItem("Dictation", "dictation");
-    profile_kind_combo_->addItem("Selection Command", "selection_command");
-    profile_kind_combo_->addItem("Meeting", "meeting");
-    profile_enabled_check_ = new QCheckBox("Profile is available", profile_editor_card);
+    profile_input_source_combo_ = new QComboBox(profile_editor_card);
+    profile_input_source_combo_->addItem("Microphone", "microphone");
+    profile_input_source_combo_->addItem("System Audio (Loopback)", "system");
+    profile_input_device_combo_ = new QComboBox(profile_editor_card);
     profile_prefer_streaming_check_ = new QCheckBox("Prefer streaming ASR", profile_editor_card);
     profile_streaming_provider_combo_ = new QComboBox(profile_editor_card);
     profile_streaming_provider_combo_->addItem("None", "none");
@@ -470,25 +471,40 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     profile_paste_keys_combo_->addItems({"ctrl+shift+v", "ctrl+v", "shift+insert"});
     profile_notes_edit_ = new QPlainTextEdit(profile_editor_card);
     profile_notes_edit_->setMinimumHeight(90);
-    configure_combo_popup(profile_kind_combo_);
+    configure_combo_popup(profile_input_source_combo_);
+    configure_combo_popup(profile_input_device_combo_, 14);
     configure_combo_popup(profile_streaming_provider_combo_);
     configure_combo_popup(profile_prompt_mode_combo_);
     configure_combo_popup(profile_paste_keys_combo_);
 
-    profile_form->addRow("Name", profile_name_edit_);
-    profile_form->addRow("Workflow Type", profile_kind_combo_);
-    profile_form->addRow("Enabled", profile_enabled_check_);
-    profile_form->addRow("Streaming", profile_prefer_streaming_check_);
-    profile_form->addRow("Streaming Provider", profile_streaming_provider_combo_);
-    profile_form->addRow("Language Hint", profile_language_hint_edit_);
-    profile_form->addRow("Transform", profile_transform_enabled_check_);
-    profile_form->addRow("Prompt Source", profile_prompt_mode_combo_);
-    profile_form->addRow("Custom Prompt", profile_custom_prompt_edit_);
-    profile_form->addRow("Clipboard", profile_copy_check_);
-    profile_form->addRow("Auto Paste", profile_paste_check_);
-    profile_form->addRow("Paste Keys", profile_paste_keys_combo_);
-    profile_form->addRow("Notes", profile_notes_edit_);
-    profile_editor_layout->addLayout(profile_form);
+    QFormLayout* profile_identity_form = nullptr;
+    auto* profile_identity_section = make_section("Profile", profile_editor_card, &profile_identity_form);
+    profile_identity_form->addRow("Name", profile_name_edit_);
+    profile_identity_form->addRow("Notes", profile_notes_edit_);
+    profile_editor_layout->addWidget(profile_identity_section);
+
+    QFormLayout* profile_input_form = nullptr;
+    auto* profile_input_section = make_section("Input", profile_editor_card, &profile_input_form);
+    profile_input_form->addRow("Input Source", profile_input_source_combo_);
+    profile_input_form->addRow("Input Device", profile_input_device_combo_);
+    profile_input_form->addRow("Streaming", profile_prefer_streaming_check_);
+    profile_input_form->addRow("Streaming Provider", profile_streaming_provider_combo_);
+    profile_input_form->addRow("Language Hint", profile_language_hint_edit_);
+    profile_editor_layout->addWidget(profile_input_section);
+
+    QFormLayout* profile_transform_form = nullptr;
+    auto* profile_transform_section = make_section("Transform", profile_editor_card, &profile_transform_form);
+    profile_transform_form->addRow("Enabled", profile_transform_enabled_check_);
+    profile_transform_form->addRow("Prompt Source", profile_prompt_mode_combo_);
+    profile_transform_form->addRow("Custom Prompt", profile_custom_prompt_edit_);
+    profile_editor_layout->addWidget(profile_transform_section);
+
+    QFormLayout* profile_output_form = nullptr;
+    auto* profile_output_section = make_section("Output", profile_editor_card, &profile_output_form);
+    profile_output_form->addRow("Clipboard", profile_copy_check_);
+    profile_output_form->addRow("Auto Paste", profile_paste_check_);
+    profile_output_form->addRow("Paste Keys", profile_paste_keys_combo_);
+    profile_editor_layout->addWidget(profile_output_section);
     profiles_editor_layout->addWidget(profile_editor_card, 1);
 
     insert_section_before_stretch(profiles_layout, profiles_editor_shell);
@@ -537,13 +553,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     audio_form->addRow("Recordings Dir", recordings_dir_row);
     audio_form->addRow("Rotation Mode", rotation_mode_combo_);
     audio_form->addRow("Max Files", max_files_spin_);
-    insert_section_before_stretch(audio_layout,
-                                  make_info_card("Audio Input",
-                                                 "Choose capture devices and retention behavior.",
-                                                 "These settings control where audio comes from, whether recordings "
-                                                 "are stored, and how old files are rotated.",
-                                                 this));
-    insert_section_before_stretch(audio_layout, audio_section);
+    insert_section_before_stretch(general_layout, audio_section);
 
     QFormLayout* output_form = nullptr;
     auto* output_section = make_section("Output", this, &output_form);
@@ -587,33 +597,6 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
                                                  this));
     insert_section_before_stretch(network_layout, network_section);
 
-    QFormLayout* asr_form = nullptr;
-    auto* asr_section = make_section("Transcription Flow", this, &asr_form);
-    auto* asr_mode_label = new QLabel(
-        "Batch transcription is active today. Streaming backend support is being prepared and can be enabled here once a provider is configured.",
-        asr_section);
-    asr_mode_label->setWordWrap(true);
-    asr_mode_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    asr_form->addRow(asr_mode_label);
-    streaming_enabled_check_ = new QCheckBox("Enable real-time streaming ASR", asr_section);
-    streaming_provider_combo_ = new QComboBox(asr_section);
-    streaming_provider_combo_->addItem("None", "none");
-    streaming_provider_combo_->addItem("Soniox", "soniox");
-    streaming_provider_combo_->addItem("Bailian", "bailian");
-    configure_combo_popup(streaming_provider_combo_);
-    streaming_language_edit_ = new QLineEdit(asr_section);
-    streaming_language_edit_->setPlaceholderText("Optional language hint, e.g. en");
-    asr_form->addRow("Streaming", streaming_enabled_check_);
-    asr_form->addRow("Provider", streaming_provider_combo_);
-    asr_form->addRow("Language", streaming_language_edit_);
-    insert_section_before_stretch(asr_layout,
-                                  make_info_card("Speech Recognition",
-                                                 "Manage transcription backends and capture heuristics.",
-                                                 "This page is reserved for workflow-level ASR choices. Provider "
-                                                 "credentials and endpoint details now live under Providers.",
-                                                 this));
-    insert_section_before_stretch(asr_layout, asr_section);
-
     QFormLayout* refine_form = nullptr;
     auto* refine_section = make_section("Text Transform", this, &refine_form);
     refine_enabled_check_ = new QCheckBox("Run second-pass text refine", refine_section);
@@ -642,7 +625,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     vad_form->addRow("Enabled", vad_enabled_check_);
     vad_form->addRow("Threshold", vad_threshold_spin_);
     vad_form->addRow("Min Speech (ms)", vad_min_duration_spin_);
-    insert_section_before_stretch(audio_layout, vad_section);
+    insert_section_before_stretch(general_layout, vad_section);
 
     QFormLayout* observability_form = nullptr;
     auto* observability_section = make_section("Observability", this, &observability_form);
@@ -669,12 +652,35 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     insert_section_before_stretch(general_layout, hud_section);
 
     insert_section_before_stretch(providers_layout,
-                                  make_info_card("Provider Profiles",
-                                                 "Provider-specific settings live here.",
-                                                 "Common workflow settings stay on the other pages. Endpoint URLs, "
-                                                 "API keys, and provider-specific knobs belong here so Soniox, "
-                                                 "Bailian, and offline backends can expand without reshaping the whole UI.",
+                                  make_info_card("Provider Control",
+                                                 "Choose current providers first, then configure them.",
+                                                 "This page is the home for active provider selection, endpoint URLs, "
+                                                 "API keys, and provider-specific details. Workflow intent stays in "
+                                                 "Profiles and global workflow knobs stay in General/Transform.",
                                                  this));
+
+    QFormLayout* provider_selection_form = nullptr;
+    auto* provider_selection_section = make_section("Current Providers", this, &provider_selection_form);
+    asr_provider_combo_ = new QComboBox(provider_selection_section);
+    asr_provider_combo_->addItem("OpenAI-Compatible", "openai");
+    streaming_enabled_check_ = new QCheckBox("Enable real-time streaming ASR", provider_selection_section);
+    streaming_provider_combo_ = new QComboBox(provider_selection_section);
+    streaming_provider_combo_->addItem("None", "none");
+    streaming_provider_combo_->addItem("Soniox", "soniox");
+    streaming_provider_combo_->addItem("Bailian", "bailian");
+    streaming_language_edit_ = new QLineEdit(provider_selection_section);
+    streaming_language_edit_->setPlaceholderText("Optional language hint, e.g. en");
+    refine_provider_combo_ = new QComboBox(provider_selection_section);
+    refine_provider_combo_->addItem("OpenAI-Compatible", "openai");
+    configure_combo_popup(asr_provider_combo_);
+    configure_combo_popup(streaming_provider_combo_);
+    configure_combo_popup(refine_provider_combo_);
+    provider_selection_form->addRow("Batch Transcription", asr_provider_combo_);
+    provider_selection_form->addRow("Streaming Enabled", streaming_enabled_check_);
+    provider_selection_form->addRow("Streaming Provider", streaming_provider_combo_);
+    provider_selection_form->addRow("Streaming Language", streaming_language_edit_);
+    provider_selection_form->addRow("Text Transform", refine_provider_combo_);
+    insert_section_before_stretch(providers_layout, provider_selection_section);
 
     QFormLayout* openai_asr_form = nullptr;
     auto* openai_asr_section = make_section("OpenAI-Compatible Batch ASR", this, &openai_asr_form);
@@ -756,6 +762,15 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     connect(audio_capture_mode_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
         refresh_capability_dependent_controls();
     });
+    connect(audio_capture_mode_combo_, &QComboBox::activated, this, [this](int) {
+        emit audio_capture_mode_changed(audio_capture_mode());
+    });
+    connect(profile_input_source_combo_, &QComboBox::activated, this, [this](int) {
+        emit profile_audio_capture_mode_changed(profile_input_source_combo_->currentData().toString());
+    });
+    connect(streaming_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
+        refresh_capability_dependent_controls();
+    });
     connect(hold_key_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hold_key_requested);
     connect(hands_free_chord_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hands_free_chord_requested);
     connect(paste_to_focused_window_check_, &QCheckBox::toggled, this, [this](bool) {
@@ -785,6 +800,37 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
         load_profile_into_editor(row);
     });
+    const auto duplicate_profile_at = [this](int row) {
+        if (row < 0 || row >= static_cast<int>(profiles_.size())) {
+            return;
+        }
+        if (profile_editor_index_ >= 0) {
+            store_editor_into_profile(profile_editor_index_);
+        }
+        ProfileConfig copy = profiles_[static_cast<std::size_t>(row)];
+        copy.id = next_profile_id(QString::fromStdString(copy.id)).toStdString();
+        copy.name += " Copy";
+        profiles_.push_back(copy);
+        refresh_profile_list();
+        profiles_list_->setCurrentRow(static_cast<int>(profiles_.size()) - 1);
+    };
+
+    const auto delete_profile_at = [this](int row) {
+        if (profiles_.size() <= 1U) {
+            return;
+        }
+        if (row < 0 || row >= static_cast<int>(profiles_.size())) {
+            return;
+        }
+        const QString removed_id = QString::fromStdString(profiles_[static_cast<std::size_t>(row)].id);
+        profiles_.erase(profiles_.begin() + row);
+        if (active_profile_id_ == removed_id && !profiles_.empty()) {
+            active_profile_id_ = QString::fromStdString(profiles_.front().id);
+        }
+        refresh_profile_list();
+        profiles_list_->setCurrentRow(std::min(row, static_cast<int>(profiles_.size()) - 1));
+    };
+
     connect(profile_new_button_, &QPushButton::clicked, this, [this]() {
         if (profile_editor_index_ >= 0) {
             store_editor_into_profile(profile_editor_index_);
@@ -798,36 +844,36 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         refresh_profile_list();
         profiles_list_->setCurrentRow(static_cast<int>(profiles_.size()) - 1);
     });
-    connect(profile_duplicate_button_, &QPushButton::clicked, this, [this]() {
-        const int row = profiles_list_->currentRow();
+    connect(profiles_list_, &QListWidget::customContextMenuRequested, this, [this, duplicate_profile_at, delete_profile_at](const QPoint& pos) {
+        const int row = profiles_list_->indexAt(pos).row();
         if (row < 0 || row >= static_cast<int>(profiles_.size())) {
             return;
         }
-        if (profile_editor_index_ >= 0) {
-            store_editor_into_profile(profile_editor_index_);
+        profiles_list_->setCurrentRow(row);
+
+        QMenu menu(this);
+        QAction* edit_action = menu.addAction("Edit");
+        QAction* duplicate_action = menu.addAction("Duplicate");
+        QAction* delete_action = menu.addAction("Delete");
+        delete_action->setEnabled(profiles_.size() > 1U);
+
+        QAction* chosen = menu.exec(profiles_list_->viewport()->mapToGlobal(pos));
+        if (chosen == edit_action) {
+            profile_name_edit_->setFocus(Qt::OtherFocusReason);
+            profile_name_edit_->selectAll();
+        } else if (chosen == duplicate_action) {
+            duplicate_profile_at(row);
+        } else if (chosen == delete_action) {
+            delete_profile_at(row);
         }
-        ProfileConfig copy = profiles_[static_cast<std::size_t>(row)];
-        copy.id = next_profile_id(QString::fromStdString(copy.id)).toStdString();
-        copy.name += " Copy";
-        profiles_.push_back(copy);
-        refresh_profile_list();
-        profiles_list_->setCurrentRow(static_cast<int>(profiles_.size()) - 1);
     });
-    connect(profile_delete_button_, &QPushButton::clicked, this, [this]() {
-        if (profiles_.size() <= 1U) {
+    connect(profile_input_source_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        if (syncing_profiles_ || profile_editor_index_ < 0 || profile_editor_index_ >= static_cast<int>(profiles_.size())) {
             return;
         }
-        const int row = profiles_list_->currentRow();
-        if (row < 0 || row >= static_cast<int>(profiles_.size())) {
-            return;
-        }
-        const QString removed_id = QString::fromStdString(profiles_[static_cast<std::size_t>(row)].id);
-        profiles_.erase(profiles_.begin() + row);
-        if (active_profile_id_ == removed_id && !profiles_.empty()) {
-            active_profile_id_ = QString::fromStdString(profiles_.front().id);
-        }
-        refresh_profile_list();
-        profiles_list_->setCurrentRow(std::min(row, static_cast<int>(profiles_.size()) - 1));
+        const QString profile_id = QString::fromStdString(profiles_[static_cast<std::size_t>(profile_editor_index_)].id);
+        active_profile_hint_label_->setText(
+            profile_hint_text(profile_id, profile_input_source_combo_->currentData().toString()));
     });
     connect(navigation_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
     refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), QString());
@@ -860,8 +906,8 @@ std::vector<ProfileConfig> SettingsWindow::profiles() const {
     if (profile_editor_index_ >= 0 && profile_editor_index_ < static_cast<int>(snapshot.size())) {
         ProfileConfig& profile = snapshot[static_cast<std::size_t>(profile_editor_index_)];
         profile.name = profile_name_edit_->text().trimmed().toStdString();
-        profile.kind = profile_kind_combo_->currentData().toString().toStdString();
-        profile.enabled = profile_enabled_check_->isChecked();
+        profile.capture.input_source = profile_input_source_combo_->currentData().toString().toStdString();
+        profile.capture.input_device_id = profile_input_device_combo_->currentData().toString().toStdString();
         profile.capture.prefer_streaming = profile_prefer_streaming_check_->isChecked();
         profile.capture.preferred_streaming_provider = profile_streaming_provider_combo_->currentData().toString().toStdString();
         profile.capture.language_hint = profile_language_hint_edit_->text().trimmed().toStdString();
@@ -936,6 +982,10 @@ QString SettingsWindow::proxy_password() const {
     return proxy_password_edit_->text();
 }
 
+QString SettingsWindow::asr_provider() const {
+    return asr_provider_combo_->currentData().toString();
+}
+
 QString SettingsWindow::asr_base_url() const {
     return asr_base_url_edit_->text().trimmed();
 }
@@ -962,6 +1012,10 @@ QString SettingsWindow::streaming_language() const {
 
 bool SettingsWindow::refine_enabled() const {
     return refine_enabled_check_->isChecked();
+}
+
+QString SettingsWindow::refine_provider() const {
+    return refine_provider_combo_->currentData().toString();
 }
 
 QString SettingsWindow::refine_base_url() const {
@@ -1074,17 +1128,20 @@ void SettingsWindow::set_audio_capture_mode(const QString& text) {
 }
 
 void SettingsWindow::set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
-    input_device_combo_->clear();
-    for (const auto& device : devices) {
-        input_device_combo_->addItem(device.second, device.first);
+    set_device_combo_items(input_device_combo_, devices, selected_device_id);
+    if (profile_input_source_combo_ != nullptr && profile_input_source_combo_->currentData().toString() == "microphone") {
+        set_device_combo_items(profile_input_device_combo_, devices, selected_device_id);
     }
+    refresh_capability_dependent_controls();
+}
 
-    const int index = input_device_combo_->findData(selected_device_id);
-    if (index >= 0) {
-        input_device_combo_->setCurrentIndex(index);
-    } else if (input_device_combo_->count() > 0) {
-        input_device_combo_->setCurrentIndex(0);
-    }
+void SettingsWindow::set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
+    set_device_combo_items(profile_input_device_combo_, devices, selected_device_id);
+    const bool uses_microphone = profile_input_source_combo_ != nullptr &&
+                                 profile_input_source_combo_->currentData().toString() != "system";
+    profile_input_device_combo_->setEnabled(uses_microphone);
+    profile_input_device_combo_->setToolTip(
+        uses_microphone ? QString() : QString("System Audio uses the default playback output instead of a microphone input device."));
 }
 
 void SettingsWindow::set_save_recordings_enabled(bool enabled) {
@@ -1146,6 +1203,10 @@ void SettingsWindow::set_proxy_password(const QString& text) {
     proxy_password_edit_->setText(text);
 }
 
+void SettingsWindow::set_asr_provider(const QString& text) {
+    set_combo_by_value(asr_provider_combo_, text);
+}
+
 void SettingsWindow::set_asr_base_url(const QString& text) {
     asr_base_url_edit_->setText(text);
 }
@@ -1172,6 +1233,10 @@ void SettingsWindow::set_streaming_language(const QString& text) {
 
 void SettingsWindow::set_refine_enabled(bool enabled) {
     refine_enabled_check_->setChecked(enabled);
+}
+
+void SettingsWindow::set_refine_provider(const QString& text) {
+    set_combo_by_value(refine_provider_combo_, text);
 }
 
 void SettingsWindow::set_refine_base_url(const QString& text) {
@@ -1356,6 +1421,8 @@ void SettingsWindow::apply_recorded_hands_free_chord(const QString& key_name) {
 void SettingsWindow::refresh_capability_dependent_controls() {
     const bool uses_microphone = audio_capture_mode_combo_->currentData().toString() != "system";
     input_device_combo_->setEnabled(uses_microphone);
+    input_device_combo_->setToolTip(
+        uses_microphone ? QString() : QString("System Audio uses the default playback output instead of a microphone input device."));
     if (!system_audio_available_) {
         audio_capture_mode_combo_->setToolTip(system_audio_reason_);
     } else {
@@ -1366,16 +1433,38 @@ void SettingsWindow::refresh_capability_dependent_controls() {
     paste_to_focused_window_check_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
     paste_keys_combo_->setEnabled(auto_paste_available_ && paste_to_focused_window_check_->isChecked());
     paste_keys_combo_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
+
+    const bool streaming_controls_enabled = streaming_enabled_check_ != nullptr && streaming_enabled_check_->isChecked();
+    if (streaming_provider_combo_ != nullptr) {
+        streaming_provider_combo_->setEnabled(streaming_controls_enabled);
+    }
+    if (streaming_language_edit_ != nullptr) {
+        streaming_language_edit_->setEnabled(streaming_controls_enabled);
+    }
 }
 
 void SettingsWindow::refresh_profile_list() {
     syncing_profiles_ = true;
     profiles_list_->clear();
     for (const auto& profile : profiles_) {
-        profiles_list_->addItem(profile_label(profile, active_profile_id_));
+        profiles_list_->addItem(profile_list_label(profile));
     }
-    profile_delete_button_->setEnabled(profiles_.size() > 1U);
     syncing_profiles_ = false;
+}
+
+QString SettingsWindow::profile_list_label(const ProfileConfig& profile) const {
+    QString label = QString::fromStdString(profile.name).trimmed();
+    if (label.isEmpty()) {
+        label = "Untitled Profile";
+    }
+    if (profile.id == active_profile_id_) {
+        label = "* " + label;
+    }
+    constexpr int kMaxProfileLabelLength = 24;
+    if (label.size() > kMaxProfileLabelLength) {
+        label = label.left(kMaxProfileLabelLength - 1) + QStringLiteral("…");
+    }
+    return label;
 }
 
 void SettingsWindow::load_profile_into_editor(int index) {
@@ -1389,14 +1478,9 @@ void SettingsWindow::load_profile_into_editor(int index) {
     const ProfileConfig& profile = profiles_[static_cast<std::size_t>(index)];
     active_profile_id_ = QString::fromStdString(profile.id);
     active_profile_hint_label_->setText(
-        QString("Selected profile ID: %1. %2")
-            .arg(QString::fromStdString(profile.id),
-                 profile.enabled
-                     ? QString("This profile can be activated and drives streaming, transform, and output preferences.")
-                     : QString("This profile is disabled and cannot be activated until it is re-enabled.")));
+        profile_hint_text(QString::fromStdString(profile.id), QString::fromStdString(profile.capture.input_source)));
     profile_name_edit_->setText(QString::fromStdString(profile.name));
-    set_combo_by_value(profile_kind_combo_, QString::fromStdString(profile.kind));
-    profile_enabled_check_->setChecked(profile.enabled);
+    set_combo_by_value(profile_input_source_combo_, QString::fromStdString(profile.capture.input_source));
     profile_prefer_streaming_check_->setChecked(profile.capture.prefer_streaming);
     set_combo_by_value(profile_streaming_provider_combo_, QString::fromStdString(profile.capture.preferred_streaming_provider));
     profile_language_hint_edit_->setText(QString::fromStdString(profile.capture.language_hint));
@@ -1418,8 +1502,8 @@ void SettingsWindow::store_editor_into_profile(int index) {
 
     ProfileConfig& profile = profiles_[static_cast<std::size_t>(index)];
     profile.name = profile_name_edit_->text().trimmed().toStdString();
-    profile.kind = profile_kind_combo_->currentData().toString().toStdString();
-    profile.enabled = profile_enabled_check_->isChecked();
+    profile.capture.input_source = profile_input_source_combo_->currentData().toString().toStdString();
+    profile.capture.input_device_id = profile_input_device_combo_->currentData().toString().toStdString();
     profile.capture.prefer_streaming = profile_prefer_streaming_check_->isChecked();
     profile.capture.preferred_streaming_provider = profile_streaming_provider_combo_->currentData().toString().toStdString();
     profile.capture.language_hint = profile_language_hint_edit_->text().trimmed().toStdString();

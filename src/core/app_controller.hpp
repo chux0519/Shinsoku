@@ -108,9 +108,12 @@ private:
                                             std::vector<float> samples,
                                             std::optional<std::filesystem::path> audio_path,
                                             nlohmann::json streaming_meta = nlohmann::json::object());
+    void preview_audio_devices_for_mode(const QString& capture_mode);
+    void preview_profile_audio_devices_for_mode(const QString& capture_mode);
     bool uses_double_press_selection_command() const;
     bool uses_system_audio_capture() const;
-    bool active_profile_is_meeting() const;
+    bool active_profile_is_live_caption() const;
+    bool should_use_live_caption_window() const;
     QString active_profile_name() const;
     void enforce_platform_capabilities(QString* notice = nullptr);
     void sync_platform_capability_ui();

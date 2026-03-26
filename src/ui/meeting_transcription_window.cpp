@@ -33,7 +33,7 @@ QString state_text(SessionState state) {
 }  // namespace
 
 MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidget(parent) {
-    setWindowTitle("Meeting Transcription");
+    setWindowTitle("Live Caption");
     resize(920, 760);
     setMinimumSize(760, 620);
 
@@ -47,13 +47,13 @@ MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidge
     header_layout->setContentsMargins(24, 22, 24, 22);
     header_layout->setSpacing(8);
 
-    auto* eyebrow = new QLabel("Meeting Transcript", header);
+    auto* eyebrow = new QLabel("Live Caption", header);
     eyebrow->setObjectName("historyEyebrow");
     auto* title = new QLabel("Watch live transcription in a dedicated workspace.", header);
     title->setObjectName("historyTitle");
     title->setWordWrap(true);
     auto* body = new QLabel(
-        "This window is intended for meeting and system-audio workflows. Live text stays here in a single lightweight transcript view.",
+        "This window is intended for live caption and system-audio workflows. Live text stays here in a single lightweight transcript view.",
         header);
     body->setObjectName("historyBody");
     body->setWordWrap(true);
@@ -67,7 +67,7 @@ MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidge
     auto* status_layout = new QVBoxLayout(status_card);
     status_layout->setContentsMargins(20, 18, 20, 18);
     status_layout->setSpacing(8);
-    profile_label_ = new QLabel("Profile: Meeting Transcription", status_card);
+    profile_label_ = new QLabel("Profile: Live Caption", status_card);
     profile_label_->setObjectName("summaryLabel");
     state_label_ = new QLabel("State: Idle", status_card);
     state_label_->setObjectName("statusText");
@@ -80,7 +80,7 @@ MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidge
     auto* live_layout = new QVBoxLayout(live_card);
     live_layout->setContentsMargins(20, 18, 20, 18);
     live_layout->setSpacing(10);
-    auto* live_label = new QLabel("Live Transcript", live_card);
+    auto* live_label = new QLabel("Live Caption", live_card);
     live_label->setObjectName("summaryLabel");
     live_view_ = new QPlainTextEdit(live_card);
     live_view_->setReadOnly(true);

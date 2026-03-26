@@ -51,6 +51,7 @@ private:
     bool eventFilter(QObject* watched, QEvent* event) override;
     static int qt_key_from_evdev_name(const QString& key_name);
     bool should_consume_hotkey_event(QKeyEvent* event) const;
+    void present_main_window();
     void setup_tray();
     void refresh_tray_state(SessionState state);
 

@@ -323,6 +323,16 @@ bool MainWindow::should_consume_hotkey_event(QKeyEvent* event) const {
     return event->key() == hold_qt_key_;
 }
 
+void MainWindow::present_main_window() {
+    if (isMinimized()) {
+        showNormal();
+    } else {
+        show();
+    }
+    raise();
+    activateWindow();
+}
+
 void MainWindow::setup_tray() {
     if (!QSystemTrayIcon::isSystemTrayAvailable()) {
         return;
@@ -336,6 +346,7 @@ void MainWindow::setup_tray() {
     tray_state_action_->setEnabled(false);
 
     menu->addSeparator();
+    menu->addAction("Show Main Window", this, [this]() { present_main_window(); });
     menu->addAction("Show History", this, [this]() { emit show_history_requested(); });
     menu->addAction("Settings", this, [this]() { emit show_settings_requested(); });
     menu->addSeparator();
@@ -347,7 +358,7 @@ void MainWindow::setup_tray() {
 
     connect(tray_icon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
-            emit show_history_requested();
+            present_main_window();
         }
     });
 }

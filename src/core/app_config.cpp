@@ -206,17 +206,6 @@ int parse_int(const std::string& value, int fallback) {
     }
 }
 
-std::string normalize_profile_kind(std::string value) {
-    value = trim(std::move(value));
-    for (char& ch : value) {
-        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-    }
-    if (value == "dictation" || value == "selection_command" || value == "meeting") {
-        return value;
-    }
-    return "dictation";
-}
-
 std::string normalize_prompt_mode(std::string value) {
     value = trim(std::move(value));
     for (char& ch : value) {
@@ -232,8 +221,8 @@ ProfileConfig make_default_profile(const AppConfig& config) {
     ProfileConfig profile;
     profile.id = "default";
     profile.name = "Default Dictation";
-    profile.kind = "dictation";
-    profile.enabled = true;
+    profile.capture.input_source = config.audio.capture_mode;
+    profile.capture.input_device_id = config.audio.input_device_id;
     profile.capture.prefer_streaming = config.pipeline.streaming.enabled;
     profile.capture.preferred_streaming_provider = config.pipeline.streaming.provider;
     profile.capture.language_hint = config.pipeline.streaming.language;
@@ -250,8 +239,7 @@ ProfileConfig make_chinese_to_english_profile() {
     ProfileConfig profile;
     profile.id = "zh-to-en";
     profile.name = "Chinese To English Conversation";
-    profile.kind = "dictation";
-    profile.enabled = true;
+    profile.capture.input_source = "microphone";
     profile.capture.prefer_streaming = true;
     profile.capture.preferred_streaming_provider = "soniox";
     profile.transform.enabled = true;
@@ -269,19 +257,18 @@ ProfileConfig make_chinese_to_english_profile() {
     return profile;
 }
 
-ProfileConfig make_meeting_transcription_profile() {
+ProfileConfig make_live_caption_profile() {
     ProfileConfig profile;
-    profile.id = "meeting-transcription";
-    profile.name = "Meeting Transcription";
-    profile.kind = "meeting";
-    profile.enabled = true;
+    profile.id = "live-caption";
+    profile.name = "Live Caption";
+    profile.capture.input_source = "system";
     profile.capture.prefer_streaming = true;
     profile.capture.preferred_streaming_provider = "bailian";
     profile.transform.enabled = false;
     profile.output.copy_to_clipboard = false;
     profile.output.paste_to_focused_window = false;
     profile.output.paste_keys = "ctrl+v";
-    profile.notes = "Designed for system-audio or meeting capture. Results stay in history instead of auto-paste.";
+    profile.notes = "Designed for system-audio live caption workflows. Results stay in the live caption window instead of auto-paste.";
     return profile;
 }
 
@@ -289,7 +276,7 @@ void ensure_profiles(AppConfig& config) {
     if (config.profiles.items.empty()) {
         config.profiles.items.push_back(make_default_profile(config));
         config.profiles.items.push_back(make_chinese_to_english_profile());
-        config.profiles.items.push_back(make_meeting_transcription_profile());
+        config.profiles.items.push_back(make_live_caption_profile());
     }
     if (config.profiles.active_profile_id.empty()) {
         config.profiles.active_profile_id = config.profiles.items.front().id;
@@ -305,7 +292,12 @@ void ensure_profiles(AppConfig& config) {
         if (profile.name.empty()) {
             profile.name = profile.id;
         }
-        profile.kind = normalize_profile_kind(profile.kind);
+        if (profile.id == "live-caption") {
+            profile.capture.input_source = "system";
+        }
+        if (profile.capture.input_source.empty()) {
+            profile.capture.input_source = profile.id == "live-caption" ? "system" : "microphone";
+        }
         if (profile.capture.preferred_streaming_provider.empty()) {
             profile.capture.preferred_streaming_provider = "none";
         }
@@ -553,18 +545,18 @@ AppConfig load_config() {
         if (const auto value = get_value(sections, base_section, "name")) {
             profile.name = unquote(*value);
         }
-        if (const auto value = get_value(sections, base_section, "kind")) {
-            profile.kind = normalize_profile_kind(unquote(*value));
-        }
-        if (const auto value = get_value(sections, base_section, "enabled")) {
-            profile.enabled = parse_bool(*value, profile.enabled);
-        }
         if (const auto value = get_value(sections, base_section, "notes")) {
             profile.notes = unquote(*value);
         }
 
         if (const auto value = get_value(sections, base_section + ".capture", "prefer_streaming")) {
             profile.capture.prefer_streaming = parse_bool(*value, profile.capture.prefer_streaming);
+        }
+        if (const auto value = get_value(sections, base_section + ".capture", "input_source")) {
+            profile.capture.input_source = normalize_capture_mode(unquote(*value));
+        }
+        if (const auto value = get_value(sections, base_section + ".capture", "input_device_id")) {
+            profile.capture.input_device_id = unquote(*value);
         }
         if (const auto value = get_value(sections, base_section + ".capture", "preferred_streaming_provider")) {
             profile.capture.preferred_streaming_provider = unquote(*value);
@@ -718,11 +710,11 @@ void save_config(const AppConfig& config) {
     for (const auto& profile : config.profiles.items) {
         output << "[profile." << profile.id << "]\n";
         output << "name = \"" << escape_toml_string(profile.name) << "\"\n";
-        output << "kind = \"" << escape_toml_string(normalize_profile_kind(profile.kind)) << "\"\n";
-        output << "enabled = " << (profile.enabled ? "true" : "false") << "\n";
         output << "notes = \"" << escape_toml_string(profile.notes) << "\"\n\n";
 
         output << "[profile." << profile.id << ".capture]\n";
+        output << "input_source = \"" << escape_toml_string(normalize_capture_mode(profile.capture.input_source)) << "\"\n";
+        output << "input_device_id = \"" << escape_toml_string(profile.capture.input_device_id) << "\"\n";
         output << "prefer_streaming = " << (profile.capture.prefer_streaming ? "true" : "false") << "\n";
         output << "preferred_streaming_provider = \""
                << escape_toml_string(profile.capture.preferred_streaming_provider) << "\"\n";

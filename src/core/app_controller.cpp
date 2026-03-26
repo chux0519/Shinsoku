@@ -196,6 +196,10 @@ void AppController::apply_active_profile_overrides() {
     }
 
     const ProfileConfig& profile = *profile_it;
+    config_.audio.capture_mode = profile.capture.input_source.empty() ? "microphone" : profile.capture.input_source;
+    if (config_.audio.capture_mode != "system" && !profile.capture.input_device_id.empty()) {
+        config_.audio.input_device_id = profile.capture.input_device_id;
+    }
     config_.pipeline.streaming.enabled = profile.capture.prefer_streaming;
     config_.pipeline.streaming.provider = profile.capture.preferred_streaming_provider.empty()
                                               ? std::string("none")
@@ -262,6 +266,7 @@ void AppController::initialize() {
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
     window_->settings_window()->set_selection_command_trigger(QString::fromStdString(config_.hotkey.selection_command_trigger));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+    preview_profile_audio_devices_for_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
@@ -277,6 +282,7 @@ void AppController::initialize() {
     window_->settings_window()->set_proxy_port(config_.network.proxy.port);
     window_->settings_window()->set_proxy_username(QString::fromStdString(config_.network.proxy.username));
     window_->settings_window()->set_proxy_password(QString::fromStdString(config_.network.proxy.password));
+    window_->settings_window()->set_asr_provider(QString::fromStdString(config_.pipeline.asr.provider));
     window_->settings_window()->set_asr_base_url(QString::fromStdString(config_.pipeline.asr.base_url));
     window_->settings_window()->set_asr_api_key(QString::fromStdString(config_.pipeline.asr.api_key));
     window_->settings_window()->set_asr_model(QString::fromStdString(config_.pipeline.asr.model));
@@ -284,6 +290,7 @@ void AppController::initialize() {
     window_->settings_window()->set_streaming_provider(QString::fromStdString(config_.pipeline.streaming.provider));
     window_->settings_window()->set_streaming_language(QString::fromStdString(config_.pipeline.streaming.language));
     window_->settings_window()->set_refine_enabled(config_.pipeline.refine.enabled);
+    window_->settings_window()->set_refine_provider(QString::fromStdString(config_.pipeline.refine.endpoint.provider));
     window_->settings_window()->set_refine_base_url(QString::fromStdString(config_.pipeline.refine.endpoint.base_url));
     window_->settings_window()->set_refine_api_key(QString::fromStdString(config_.pipeline.refine.endpoint.api_key));
     window_->settings_window()->set_refine_model(QString::fromStdString(config_.pipeline.refine.endpoint.model));
@@ -322,6 +329,9 @@ void AppController::initialize() {
     connect(window_, &MainWindow::show_settings_requested, this, &AppController::show_settings);
     connect(window_, &MainWindow::quit_requested, this, &AppController::quit_application);
     connect(window_->settings_window(), &SettingsWindow::apply_clicked, this, &AppController::apply_settings);
+    connect(window_->settings_window(), &SettingsWindow::audio_capture_mode_changed, this, &AppController::preview_audio_devices_for_mode);
+    connect(window_->settings_window(), &SettingsWindow::profile_audio_capture_mode_changed, this,
+            &AppController::preview_profile_audio_devices_for_mode);
     connect(window_->settings_window(), &SettingsWindow::record_hold_key_requested, this, &AppController::on_record_hold_key_requested);
     connect(window_->settings_window(),
             &SettingsWindow::record_hands_free_chord_requested,
@@ -418,6 +428,7 @@ void AppController::apply_settings() {
     config_.network.proxy.port = window_->settings_window()->proxy_port();
     config_.network.proxy.username = window_->settings_window()->proxy_username().toStdString();
     config_.network.proxy.password = window_->settings_window()->proxy_password().toStdString();
+    config_.pipeline.asr.provider = window_->settings_window()->asr_provider().toStdString();
     config_.pipeline.asr.base_url = window_->settings_window()->asr_base_url().toStdString();
     config_.pipeline.asr.api_key = window_->settings_window()->asr_api_key().toStdString();
     config_.pipeline.asr.model = window_->settings_window()->asr_model().toStdString();
@@ -425,6 +436,7 @@ void AppController::apply_settings() {
     config_.pipeline.streaming.provider = window_->settings_window()->streaming_provider().toStdString();
     config_.pipeline.streaming.language = window_->settings_window()->streaming_language().toStdString();
     config_.pipeline.refine.enabled = window_->settings_window()->refine_enabled();
+    config_.pipeline.refine.endpoint.provider = window_->settings_window()->refine_provider().toStdString();
     config_.pipeline.refine.endpoint.base_url = window_->settings_window()->refine_base_url().toStdString();
     config_.pipeline.refine.endpoint.api_key = window_->settings_window()->refine_api_key().toStdString();
     config_.pipeline.refine.endpoint.model = window_->settings_window()->refine_model().toStdString();
@@ -506,6 +518,7 @@ void AppController::apply_settings() {
     save_config(config_);
     window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+    preview_profile_audio_devices_for_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->set_hotkey_passthrough_keys(hotkey_->hold_key_name(), hotkey_->chord_key_name());
 
     if (!hotkey_->supports_global_hotkeys()) {
@@ -562,15 +575,6 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
     if (profile_it == config_.profiles.items.end()) {
         return;
     }
-    if (!profile_it->enabled) {
-        const QString status = QString("Profile '%1' is disabled. Re-enable it in Settings before activating it.")
-                                   .arg(QString::fromStdString(profile_it->name));
-        window_->set_status_text(status);
-        window_->settings_window()->set_status_text(status);
-        window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
-        window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
-        return;
-    }
 
     config_.profiles.active_profile_id = profile_id.toStdString();
     apply_active_profile_overrides();
@@ -582,6 +586,10 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
     refine_backend_ = make_refine_backend(config_);
     save_config(config_);
     window_->settings_window()->set_profiles(config_.profiles.items, profile_id);
+    refresh_audio_devices();
+    window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
+    window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
+    preview_profile_audio_devices_for_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     refresh_capture_mode_ui();
     const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
@@ -591,7 +599,8 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
                                                 });
     const QString profile_name = active_profile_it != config_.profiles.items.end() ? QString::fromStdString(active_profile_it->name)
                                                                                     : profile_id;
-    const QString status = QString("Active profile: %1").arg(profile_name);
+    const QString input_source = config_.audio.capture_mode == "system" ? "System Audio (Loopback)" : "Microphone";
+    const QString status = QString("Active profile: %1\nInput Source: %2").arg(profile_name, input_source);
     window_->set_status_text(capability_notice.isEmpty() ? status : QString("%1\n%2").arg(status, capability_notice));
     window_->meeting_window()->set_profile_name(profile_name);
 }
@@ -891,7 +900,7 @@ void AppController::start_recording(SessionState mode) {
                                    : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
         set_state(mode, status);
         hud_->show_recording(active_capture_mode_ == CaptureMode::SelectionCommand);
-        if (active_profile_is_meeting()) {
+        if (should_use_live_caption_window()) {
             window_->meeting_window()->show();
             window_->meeting_window()->raise();
             window_->meeting_window()->activateWindow();
@@ -918,7 +927,7 @@ void AppController::stop_recording() {
 
     set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
     hud_->show_transcribing();
-    if (active_profile_is_meeting()) {
+    if (should_use_live_caption_window()) {
         window_->meeting_window()->set_session_state(SessionState::Transcribing);
     }
 
@@ -1016,13 +1025,17 @@ bool AppController::uses_system_audio_capture() const {
     return config_.audio.capture_mode == "system";
 }
 
-bool AppController::active_profile_is_meeting() const {
+bool AppController::active_profile_is_live_caption() const {
     const auto profile_it = std::find_if(config_.profiles.items.begin(),
                                          config_.profiles.items.end(),
                                          [&](const ProfileConfig& profile) {
                                              return profile.id == config_.profiles.active_profile_id;
                                          });
-    return profile_it != config_.profiles.items.end() && profile_it->kind == "meeting";
+    return profile_it != config_.profiles.items.end() && profile_it->capture.input_source == "system";
+}
+
+bool AppController::should_use_live_caption_window() const {
+    return uses_system_audio_capture() || active_profile_is_live_caption();
 }
 
 QString AppController::active_profile_name() const {
@@ -1075,14 +1088,14 @@ void AppController::sync_platform_capability_ui() {
 void AppController::refresh_capture_mode_ui() {
     const bool selection_backend_ready = selection_ != nullptr && selection_->supports_automatic_detection() &&
                                          selection_->supports_replacement();
-    const bool selection_available = selection_backend_ready && !uses_system_audio_capture() && !active_profile_is_meeting();
+    const bool selection_available = selection_backend_ready && !uses_system_audio_capture() && !active_profile_is_live_caption();
     QString reason;
     if (!selection_backend_ready) {
         reason = "Selection command is not available on this platform yet.";
     } else if (uses_system_audio_capture()) {
-        reason = "Selection command requires microphone capture. System audio mode is intended for meeting transcription.";
-    } else if (active_profile_is_meeting()) {
-        reason = "Meeting transcription profiles use the dedicated transcript window instead of selection-command workflows.";
+        reason = "Selection command requires microphone capture. System audio mode is intended for live caption workflows.";
+    } else if (active_profile_is_live_caption()) {
+        reason = "Live caption profiles use the dedicated live caption window instead of selection-command workflows.";
     }
     window_->set_selection_command_available(selection_available, reason);
     window_->meeting_window()->set_profile_name(active_profile_name());
@@ -1123,7 +1136,7 @@ void AppController::start_streaming_dictation() {
         streaming_session_ready_ = false;
     }
     streaming_active_ = true;
-    const bool meeting_profile_active = active_profile_is_meeting();
+    const bool live_caption_active = should_use_live_caption_window();
 
     StreamingAsrCallbacks callbacks;
     callbacks.on_session_started = [this]() {
@@ -1134,7 +1147,7 @@ void AppController::start_streaming_dictation() {
         streaming_ready_at_ = std::chrono::steady_clock::now();
         streaming_condition_.notify_all();
     };
-    callbacks.on_partial_text = [this, meeting_profile_active](std::string text) {
+    callbacks.on_partial_text = [this, live_caption_active](std::string text) {
         const QString partial = QString::fromStdString(std::move(text));
         {
             std::lock_guard lock(streaming_mutex_);
@@ -1147,7 +1160,7 @@ void AppController::start_streaming_dictation() {
                 window->set_status_text(partial.isEmpty() ? "Streaming dictation..." : partial);
             },
             Qt::QueuedConnection);
-        if (meeting_profile_active) {
+        if (live_caption_active) {
             QMetaObject::invokeMethod(
                 window_->meeting_window(),
                 [meeting_window = window_->meeting_window(), partial]() {
@@ -1373,7 +1386,9 @@ void AppController::transcribe_streaming_result_async(QString transcript,
     const auto cancel_flag = transcription_cancel_flag_;
 
     transcription_watcher_->setFuture(QtConcurrent::run(
-        [config_snapshot,
+        [window = window_,
+         hud = hud_,
+         config_snapshot,
          transcript = std::move(transcript),
          audio_path = std::move(audio_path),
          streaming_meta = std::move(streaming_meta),
@@ -1398,6 +1413,13 @@ void AppController::transcribe_streaming_result_async(QString transcript,
 
                 std::string text = transcript.toStdString();
                 if (config_snapshot.pipeline.refine.enabled) {
+                    QMetaObject::invokeMethod(
+                        window,
+                        [window, hud]() {
+                            window->set_status_text("Thinking...");
+                            hud->show_thinking();
+                        },
+                        Qt::QueuedConnection);
                     const auto refine_start = std::chrono::steady_clock::now();
                     text = refine_backend->transform(TextTransformRequest{
                         .input_text = text,
@@ -1483,6 +1505,84 @@ void AppController::load_history() {
     window_->history_window()->set_load_older_visible(history_.size() == static_cast<qsizetype>(kHistoryPageSize));
 }
 
+void AppController::preview_audio_devices_for_mode(const QString& capture_mode) {
+    if (window_ == nullptr || window_->settings_window() == nullptr || audio_capture_ == nullptr) {
+        return;
+    }
+
+    QList<QPair<QString, QString>> devices;
+    QString selected_device_id;
+
+    if (capture_mode == "system") {
+        devices.append(qMakePair(QString(), QString("Default system output")));
+    } else {
+        const auto devices_raw = audio_capture_->list_input_devices();
+        for (const auto& device : devices_raw) {
+            QString label = QString::fromStdString(device.name);
+            if (device.is_default) {
+                label += " [default]";
+            }
+            devices.append({QString::fromStdString(device.id), label});
+        }
+
+        const QString configured_id = QString::fromStdString(config_.audio.input_device_id);
+        const QString current_ui_id = window_->settings_window()->selected_input_device_id();
+        const QString preferred_id = !current_ui_id.isEmpty() ? current_ui_id : configured_id;
+        const bool found = std::any_of(devices.cbegin(), devices.cend(), [&preferred_id](const auto& device) {
+            return device.first == preferred_id;
+        });
+        if (found) {
+            selected_device_id = preferred_id;
+        } else if (!devices.isEmpty()) {
+            selected_device_id = devices.front().first;
+        }
+    }
+
+    window_->settings_window()->set_audio_devices(devices, selected_device_id);
+}
+
+void AppController::preview_profile_audio_devices_for_mode(const QString& capture_mode) {
+    if (window_ == nullptr || window_->settings_window() == nullptr || audio_capture_ == nullptr) {
+        return;
+    }
+
+    QList<QPair<QString, QString>> devices;
+    QString selected_device_id;
+
+    if (capture_mode == "system") {
+        devices.append(qMakePair(QString(), QString("Default system output")));
+    } else {
+        const auto devices_raw = audio_capture_->list_input_devices();
+        for (const auto& device : devices_raw) {
+            QString label = QString::fromStdString(device.name);
+            if (device.is_default) {
+                label += " [default]";
+            }
+            devices.append({QString::fromStdString(device.id), label});
+        }
+
+        const auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                             config_.profiles.items.end(),
+                                             [&](const ProfileConfig& profile) {
+                                                 return profile.id == config_.profiles.active_profile_id;
+                                             });
+        if (profile_it != config_.profiles.items.end()) {
+            const QString preferred_id = QString::fromStdString(profile_it->capture.input_device_id);
+            const bool found = std::any_of(devices.cbegin(), devices.cend(), [&preferred_id](const auto& device) {
+                return device.first == preferred_id;
+            });
+            if (found) {
+                selected_device_id = preferred_id;
+            }
+        }
+        if (selected_device_id.isEmpty() && !devices.isEmpty()) {
+            selected_device_id = devices.front().first;
+        }
+    }
+
+    window_->settings_window()->set_profile_audio_devices(devices, selected_device_id);
+}
+
 void AppController::refresh_audio_devices() {
     audio_devices_.clear();
     if (config_.audio.capture_mode == "system") {
@@ -1559,7 +1659,7 @@ void AppController::discard_active_recording_for_shutdown() {
     active_capture_mode_ = CaptureMode::Dictation;
     hud_->hide();
     set_state(SessionState::Idle, "Shutting down...");
-    if (active_profile_is_meeting()) {
+    if (should_use_live_caption_window()) {
         window_->meeting_window()->set_session_state(SessionState::Idle);
         window_->meeting_window()->clear_live_text();
     }
@@ -1587,7 +1687,7 @@ void AppController::on_transcription_finished() {
 
         set_state(SessionState::Idle, "Transcription cancelled.");
         hud_->hide();
-        if (active_profile_is_meeting()) {
+        if (should_use_live_caption_window()) {
             window_->meeting_window()->set_session_state(SessionState::Idle);
             window_->meeting_window()->clear_live_text();
         }
@@ -1624,7 +1724,7 @@ void AppController::on_transcription_finished() {
         load_history();
 
         set_state(SessionState::Idle, "Ready.");
-        if (active_profile_is_meeting()) {
+        if (should_use_live_caption_window()) {
             window_->meeting_window()->set_session_state(SessionState::Idle);
             window_->meeting_window()->append_transcript_segment(
                 QDateTime::currentDateTime().toString("HH:mm:ss"),
@@ -1812,7 +1912,9 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
     const auto cancel_flag = transcription_cancel_flag_;
 
     transcription_watcher_->setFuture(QtConcurrent::run(
-        [config_snapshot,
+        [window = window_,
+         hud = hud_,
+         config_snapshot,
          selection_debug_info,
          selection_backend_name,
          samples = std::move(samples),
@@ -1843,6 +1945,13 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                 diagnostics.update(capture_context_meta(config_snapshot));
 
                 if (config_snapshot.pipeline.refine.enabled) {
+                    QMetaObject::invokeMethod(
+                        window,
+                        [window, hud]() {
+                            window->set_status_text("Thinking...");
+                            hud->show_thinking();
+                        },
+                        Qt::QueuedConnection);
                     const auto refine_start = std::chrono::steady_clock::now();
                     text = refine_backend->transform(TextTransformRequest{
                         .input_text = text,

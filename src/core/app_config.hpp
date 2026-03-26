@@ -101,6 +101,8 @@ struct OutputConfig {
 };
 
 struct ProfileCaptureConfig {
+    std::string input_source = "microphone";
+    std::string input_device_id;
     bool prefer_streaming = false;
     std::string preferred_streaming_provider = "none";
     std::string language_hint;
@@ -121,8 +123,6 @@ struct ProfileOutputConfig {
 struct ProfileConfig {
     std::string id = "default";
     std::string name = "Default Dictation";
-    std::string kind = "dictation";
-    bool enabled = true;
     ProfileCaptureConfig capture;
     ProfileTransformConfig transform;
     ProfileOutputConfig output;

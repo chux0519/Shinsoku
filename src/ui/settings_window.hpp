@@ -47,6 +47,7 @@ public:
     int proxy_port() const;
     QString proxy_username() const;
     QString proxy_password() const;
+    QString asr_provider() const;
     QString asr_base_url() const;
     QString asr_api_key() const;
     QString asr_model() const;
@@ -54,6 +55,7 @@ public:
     QString streaming_provider() const;
     QString streaming_language() const;
     bool refine_enabled() const;
+    QString refine_provider() const;
     QString refine_base_url() const;
     QString refine_api_key() const;
     QString refine_model() const;
@@ -77,6 +79,7 @@ public:
     void set_hands_free_chord_key(const QString& text);
     void set_selection_command_trigger(const QString& text);
     void set_profiles(const std::vector<ProfileConfig>& profiles, const QString& active_profile_id);
+    void set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
     void set_audio_capture_mode(const QString& text);
     void set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
     void set_save_recordings_enabled(bool enabled);
@@ -92,6 +95,7 @@ public:
     void set_proxy_port(int value);
     void set_proxy_username(const QString& text);
     void set_proxy_password(const QString& text);
+    void set_asr_provider(const QString& text);
     void set_asr_base_url(const QString& text);
     void set_asr_api_key(const QString& text);
     void set_asr_model(const QString& text);
@@ -99,6 +103,7 @@ public:
     void set_streaming_provider(const QString& text);
     void set_streaming_language(const QString& text);
     void set_refine_enabled(bool enabled);
+    void set_refine_provider(const QString& text);
     void set_refine_base_url(const QString& text);
     void set_refine_api_key(const QString& text);
     void set_refine_model(const QString& text);
@@ -124,12 +129,15 @@ public:
 
 signals:
     void apply_clicked();
+    void audio_capture_mode_changed(const QString& mode);
+    void profile_audio_capture_mode_changed(const QString& mode);
     void record_hold_key_requested();
     void record_hands_free_chord_requested();
 
 private:
     void refresh_capability_dependent_controls();
     void refresh_profile_list();
+    QString profile_list_label(const ProfileConfig& profile) const;
     void load_profile_into_editor(int index);
     void store_editor_into_profile(int index);
     QString next_profile_id(const QString& seed) const;
@@ -144,12 +152,10 @@ private:
     QComboBox* selection_command_trigger_combo_ = nullptr;
     QListWidget* profiles_list_ = nullptr;
     QPushButton* profile_new_button_ = nullptr;
-    QPushButton* profile_duplicate_button_ = nullptr;
-    QPushButton* profile_delete_button_ = nullptr;
     QLabel* active_profile_hint_label_ = nullptr;
     QLineEdit* profile_name_edit_ = nullptr;
-    QComboBox* profile_kind_combo_ = nullptr;
-    QCheckBox* profile_enabled_check_ = nullptr;
+    QComboBox* profile_input_source_combo_ = nullptr;
+    QComboBox* profile_input_device_combo_ = nullptr;
     QCheckBox* profile_prefer_streaming_check_ = nullptr;
     QComboBox* profile_streaming_provider_combo_ = nullptr;
     QLineEdit* profile_language_hint_edit_ = nullptr;
@@ -176,6 +182,7 @@ private:
     QSpinBox* proxy_port_spin_ = nullptr;
     QLineEdit* proxy_username_edit_ = nullptr;
     QLineEdit* proxy_password_edit_ = nullptr;
+    QComboBox* asr_provider_combo_ = nullptr;
     QLineEdit* asr_base_url_edit_ = nullptr;
     QLineEdit* asr_api_key_edit_ = nullptr;
     QLineEdit* asr_model_edit_ = nullptr;
@@ -183,6 +190,7 @@ private:
     QComboBox* streaming_provider_combo_ = nullptr;
     QLineEdit* streaming_language_edit_ = nullptr;
     QCheckBox* refine_enabled_check_ = nullptr;
+    QComboBox* refine_provider_combo_ = nullptr;
     QLineEdit* refine_base_url_edit_ = nullptr;
     QLineEdit* refine_api_key_edit_ = nullptr;
     QLineEdit* refine_model_edit_ = nullptr;
