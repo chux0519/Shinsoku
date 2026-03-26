@@ -116,12 +116,16 @@ public:
     void set_record_timing_enabled(bool enabled);
     void set_hud_enabled(bool enabled);
     void set_hud_bottom_margin(int value);
+    void set_global_hotkeys_available(bool available, const QString& reason = {});
+    void set_auto_paste_available(bool available, const QString& reason = {});
+    void set_system_audio_available(bool available, const QString& reason = {});
     void set_status_text(const QString& text);
 
 signals:
     void apply_clicked();
 
 private:
+    void refresh_capability_dependent_controls();
     void refresh_profile_list();
     void load_profile_into_editor(int index);
     void store_editor_into_profile(int index);
@@ -198,6 +202,12 @@ private:
     QString active_profile_id_;
     int profile_editor_index_ = -1;
     bool syncing_profiles_ = false;
+    bool global_hotkeys_available_ = true;
+    bool auto_paste_available_ = true;
+    bool system_audio_available_ = true;
+    QString global_hotkeys_reason_;
+    QString auto_paste_reason_;
+    QString system_audio_reason_;
 };
 
 }  // namespace ohmytypeless

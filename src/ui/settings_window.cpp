@@ -20,6 +20,7 @@
 #include <QScrollArea>
 #include <QSizePolicy>
 #include <QStackedWidget>
+#include <QStandardItemModel>
 #include <QSpinBox>
 #include <QToolButton>
 #include <QUrl>
@@ -207,6 +208,27 @@ void set_combo_text_if_present(QComboBox* combo, const QString& value) {
     const int index = combo->findText(value);
     if (index >= 0) {
         combo->setCurrentIndex(index);
+    }
+}
+
+void set_combo_item_enabled(QComboBox* combo, const QString& value, bool enabled, const QString& tooltip = {}) {
+    if (combo == nullptr) {
+        return;
+    }
+
+    const int index = combo->findData(value);
+    if (index < 0) {
+        return;
+    }
+
+    auto* model = qobject_cast<QStandardItemModel*>(combo->model());
+    if (model == nullptr) {
+        return;
+    }
+
+    if (QStandardItem* item = model->item(index); item != nullptr) {
+        item->setEnabled(enabled);
+        item->setToolTip(tooltip);
     }
 }
 
@@ -678,8 +700,10 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
     });
     connect(audio_capture_mode_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        const bool uses_microphone = audio_capture_mode_combo_->currentData().toString() != "system";
-        input_device_combo_->setEnabled(uses_microphone);
+        refresh_capability_dependent_controls();
+    });
+    connect(paste_to_focused_window_check_, &QCheckBox::toggled, this, [this](bool) {
+        refresh_capability_dependent_controls();
     });
     connect(soniox_help_button_, &QToolButton::clicked, this, []() {
         QDesktopServices::openUrl(QUrl("https://docs.soniox.com"));
@@ -753,6 +777,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), QString());
     bailian_url_edit_->setText("wss://dashscope.aliyuncs.com/api-ws/v1/inference/");
     navigation_list_->setCurrentRow(0);
+    refresh_capability_dependent_controls();
 }
 
 QString SettingsWindow::hold_key() const {
@@ -989,8 +1014,7 @@ void SettingsWindow::set_profiles(const std::vector<ProfileConfig>& profiles, co
 
 void SettingsWindow::set_audio_capture_mode(const QString& text) {
     set_combo_by_value(audio_capture_mode_combo_, text);
-    const bool uses_microphone = audio_capture_mode_combo_->currentData().toString() != "system";
-    input_device_combo_->setEnabled(uses_microphone);
+    refresh_capability_dependent_controls();
 }
 
 void SettingsWindow::set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
@@ -1032,6 +1056,7 @@ void SettingsWindow::set_copy_to_clipboard_enabled(bool enabled) {
 
 void SettingsWindow::set_paste_to_focused_window_enabled(bool enabled) {
     paste_to_focused_window_check_->setChecked(enabled);
+    refresh_capability_dependent_controls();
 }
 
 void SettingsWindow::set_paste_keys(const QString& keys) {
@@ -1166,9 +1191,52 @@ void SettingsWindow::set_hud_bottom_margin(int value) {
     hud_bottom_margin_spin_->setValue(value);
 }
 
+void SettingsWindow::set_global_hotkeys_available(bool available, const QString& reason) {
+    global_hotkeys_available_ = available;
+    global_hotkeys_reason_ = reason;
+    hold_key_combo_->setEnabled(available);
+    hands_free_chord_combo_->setEnabled(available);
+    selection_command_trigger_combo_->setEnabled(available);
+    hold_key_combo_->setToolTip(reason);
+    hands_free_chord_combo_->setToolTip(reason);
+    selection_command_trigger_combo_->setToolTip(reason);
+}
+
+void SettingsWindow::set_auto_paste_available(bool available, const QString& reason) {
+    auto_paste_available_ = available;
+    auto_paste_reason_ = reason;
+    refresh_capability_dependent_controls();
+}
+
+void SettingsWindow::set_system_audio_available(bool available, const QString& reason) {
+    system_audio_available_ = available;
+    system_audio_reason_ = reason;
+    set_combo_item_enabled(audio_capture_mode_combo_, "system", available, reason);
+    if (!available && audio_capture_mode_combo_->currentData().toString() == "system") {
+        set_combo_by_value(audio_capture_mode_combo_, "microphone");
+    }
+    audio_capture_mode_combo_->setToolTip(reason);
+    refresh_capability_dependent_controls();
+}
+
 void SettingsWindow::set_status_text(const QString& text) {
     status_label_->setText(text);
     status_label_->setVisible(!text.trimmed().isEmpty());
+}
+
+void SettingsWindow::refresh_capability_dependent_controls() {
+    const bool uses_microphone = audio_capture_mode_combo_->currentData().toString() != "system";
+    input_device_combo_->setEnabled(uses_microphone);
+    if (!system_audio_available_) {
+        audio_capture_mode_combo_->setToolTip(system_audio_reason_);
+    } else {
+        audio_capture_mode_combo_->setToolTip({});
+    }
+
+    paste_to_focused_window_check_->setEnabled(auto_paste_available_);
+    paste_to_focused_window_check_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
+    paste_keys_combo_->setEnabled(auto_paste_available_ && paste_to_focused_window_check_->isChecked());
+    paste_keys_combo_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
 }
 
 void SettingsWindow::refresh_profile_list() {

@@ -7,15 +7,21 @@
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
+#include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QPushButton>
 #include <QStyle>
 #include <QSystemTrayIcon>
 #include <QVBoxLayout>
 #include <QWidget>
+
+#if defined(Q_OS_LINUX)
+#include <xcb/xcb.h>
+#endif
 
 namespace ohmytypeless {
 
@@ -102,6 +108,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     layout->addStretch();
 
     setCentralWidget(central);
+    qApp->installEventFilter(this);
 
     settings_window_ = new SettingsWindow();
     history_window_ = new HistoryWindow();
@@ -218,6 +225,95 @@ HistoryWindow* MainWindow::history_window() const {
 
 MeetingTranscriptionWindow* MainWindow::meeting_window() const {
     return meeting_window_;
+}
+
+void MainWindow::set_hotkey_passthrough_keys(const QString& hold_key_name, const QString& chord_key_name) {
+    hold_qt_key_ = qt_key_from_evdev_name(hold_key_name);
+    chord_qt_key_ = qt_key_from_evdev_name(chord_key_name);
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
+    Q_UNUSED(watched);
+    if (event == nullptr || (hold_qt_key_ == 0 && chord_qt_key_ == 0)) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+    if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease && event->type() != QEvent::ShortcutOverride) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+    auto* key_event = static_cast<QKeyEvent*>(event);
+    auto* focus = QApplication::focusWidget();
+    if (focus == nullptr || !this->isAncestorOf(focus)) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+    if (should_consume_hotkey_event(key_event)) {
+        if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
+            for (QComboBox* combo : this->findChildren<QComboBox*>()) {
+                combo->hidePopup();
+            }
+        }
+        key_event->accept();
+        return true;
+    }
+
+    return QMainWindow::eventFilter(watched, event);
+}
+
+bool MainWindow::nativeEvent(const QByteArray& event_type, void* message, qintptr* result) {
+    Q_UNUSED(result);
+#if defined(Q_OS_LINUX)
+    if (event_type == "xcb_generic_event_t" && message != nullptr && (hold_qt_key_ != 0 || chord_qt_key_ != 0)) {
+        auto* event = static_cast<xcb_generic_event_t*>(message);
+        const uint8_t response_type = event->response_type & 0x7f;
+        if (response_type == XCB_KEY_PRESS || response_type == XCB_KEY_RELEASE) {
+            for (QComboBox* combo : this->findChildren<QComboBox*>()) {
+                combo->hidePopup();
+            }
+        }
+    }
+#endif
+    return QMainWindow::nativeEvent(event_type, message, result);
+}
+
+int MainWindow::qt_key_from_evdev_name(const QString& key_name) {
+    const QString normalized = key_name.trimmed().toUpper();
+    if (normalized == "KEY_RIGHTALT" || normalized == "KEY_LEFTALT") {
+        return Qt::Key_Alt;
+    }
+    if (normalized == "KEY_SPACE") {
+        return Qt::Key_Space;
+    }
+    if (normalized == "KEY_RIGHTCTRL" || normalized == "KEY_LEFTCTRL") {
+        return Qt::Key_Control;
+    }
+    if (normalized == "KEY_RIGHTSHIFT" || normalized == "KEY_LEFTSHIFT") {
+        return Qt::Key_Shift;
+    }
+    return 0;
+}
+
+bool MainWindow::should_consume_hotkey_event(QKeyEvent* event) const {
+    if (event == nullptr) {
+        return false;
+    }
+
+    if (event->key() == chord_qt_key_) {
+        return chord_qt_key_ != 0;
+    }
+
+    if (hold_qt_key_ == Qt::Key_Alt) {
+        return event->key() == Qt::Key_Alt || (event->modifiers() & Qt::AltModifier) != 0;
+    }
+    if (hold_qt_key_ == Qt::Key_Control) {
+        return event->key() == Qt::Key_Control || (event->modifiers() & Qt::ControlModifier) != 0;
+    }
+    if (hold_qt_key_ == Qt::Key_Shift) {
+        return event->key() == Qt::Key_Shift || (event->modifiers() & Qt::ShiftModifier) != 0;
+    }
+
+    return event->key() == hold_qt_key_;
 }
 
 void MainWindow::setup_tray() {

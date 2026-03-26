@@ -12,8 +12,14 @@ WindowsGlobalHotkey::~WindowsGlobalHotkey() {
     unregister_hotkey();
 }
 
+bool WindowsGlobalHotkey::supports_global_hotkeys() const {
+    return true;
+}
+
 bool WindowsGlobalHotkey::register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) {
     unregister_hotkey();
+    hold_key_name_ = hold_key_name;
+    chord_key_name_ = chord_key_name;
 
     QString error;
     if (!parse_key_name(hold_key_name, hold_vk_, error)) {
@@ -60,6 +66,14 @@ void WindowsGlobalHotkey::unregister_hotkey() {
 
 QString WindowsGlobalHotkey::backend_name() const {
     return "windows/LowLevelKeyboardHook";
+}
+
+QString WindowsGlobalHotkey::hold_key_name() const {
+    return hold_key_name_;
+}
+
+QString WindowsGlobalHotkey::chord_key_name() const {
+    return chord_key_name_;
 }
 
 LRESULT CALLBACK WindowsGlobalHotkey::keyboard_proc(int code, WPARAM w_param, LPARAM l_param) {

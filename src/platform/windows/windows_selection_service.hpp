@@ -12,6 +12,7 @@ public:
 
     QString backend_name() const override;
     bool supports_automatic_detection() const override;
+    bool supports_replacement() const override;
     SelectionCaptureResult capture_selection(bool allow_clipboard_fallback = true) override;
     bool replace_selection(const QString& text) override;
     QString last_debug_info() const override;

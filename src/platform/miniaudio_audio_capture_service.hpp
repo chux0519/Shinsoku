@@ -18,6 +18,7 @@ public:
     MiniaudioAudioCaptureService(const MiniaudioAudioCaptureService&) = delete;
     MiniaudioAudioCaptureService& operator=(const MiniaudioAudioCaptureService&) = delete;
 
+    bool supports_capture_mode(AudioCaptureMode capture_mode) const override;
     void start(std::uint32_t sample_rate,
                std::uint32_t channels,
                const std::string& device_id,

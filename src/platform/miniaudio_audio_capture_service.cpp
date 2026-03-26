@@ -94,6 +94,18 @@ MiniaudioAudioCaptureService::~MiniaudioAudioCaptureService() {
     shutdown_audio_unlocked(device, context);
 }
 
+bool MiniaudioAudioCaptureService::supports_capture_mode(AudioCaptureMode capture_mode) const {
+    if (capture_mode == AudioCaptureMode::Microphone) {
+        return true;
+    }
+
+#if defined(_WIN32)
+    return true;
+#else
+    return false;
+#endif
+}
+
 void MiniaudioAudioCaptureService::start(std::uint32_t sample_rate,
                                          std::uint32_t channels,
                                          const std::string& device_id,

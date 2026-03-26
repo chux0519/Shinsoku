@@ -7,6 +7,7 @@ namespace ohmytypeless {
 class ClipboardService {
 public:
     virtual ~ClipboardService() = default;
+    virtual bool supports_auto_paste() const = 0;
     virtual void begin_paste_session() = 0;
     virtual void clear_paste_session() = 0;
     virtual void copy_text(const QString& text) = 0;

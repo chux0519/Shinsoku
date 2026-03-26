@@ -9,9 +9,12 @@ class QtGlobalHotkey final : public GlobalHotkey {
 public:
     explicit QtGlobalHotkey(QObject* parent = nullptr);
 
+    bool supports_global_hotkeys() const override;
     bool register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) override;
     void unregister_hotkey() override;
     QString backend_name() const override;
+    QString hold_key_name() const override;
+    QString chord_key_name() const override;
 };
 
 }  // namespace ohmytypeless

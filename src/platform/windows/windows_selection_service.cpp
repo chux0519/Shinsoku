@@ -550,6 +550,10 @@ bool WindowsSelectionService::supports_automatic_detection() const {
     return true;
 }
 
+bool WindowsSelectionService::supports_replacement() const {
+    return true;
+}
+
 SelectionCaptureResult WindowsSelectionService::capture_selection(bool allow_clipboard_fallback) {
     const std::lock_guard<std::mutex> guard(g_copy_paste_mutex);
     QStringList lines;

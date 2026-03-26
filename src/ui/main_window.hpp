@@ -2,6 +2,8 @@
 
 #include "core/app_state.hpp"
 
+#include <QEvent>
+#include <QKeyEvent>
 #include <QMainWindow>
 #include <vector>
 
@@ -33,6 +35,8 @@ public:
     SettingsWindow* settings_window() const;
     HistoryWindow* history_window() const;
     MeetingTranscriptionWindow* meeting_window() const;
+    void set_hotkey_passthrough_keys(const QString& hold_key_name, const QString& chord_key_name);
+    bool nativeEvent(const QByteArray& event_type, void* message, qintptr* result) override;
 
 signals:
     void toggle_recording_requested();
@@ -44,6 +48,9 @@ signals:
     void quit_requested();
 
 private:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+    static int qt_key_from_evdev_name(const QString& key_name);
+    bool should_consume_hotkey_event(QKeyEvent* event) const;
     void setup_tray();
     void refresh_tray_state(SessionState state);
 
@@ -58,6 +65,8 @@ private:
     SettingsWindow* settings_window_ = nullptr;
     HistoryWindow* history_window_ = nullptr;
     MeetingTranscriptionWindow* meeting_window_ = nullptr;
+    int hold_qt_key_ = 0;
+    int chord_qt_key_ = 0;
 };
 
 }  // namespace ohmytypeless

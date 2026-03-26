@@ -13,9 +13,12 @@ public:
     explicit WindowsGlobalHotkey(QObject* parent = nullptr);
     ~WindowsGlobalHotkey() override;
 
+    bool supports_global_hotkeys() const override;
     bool register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) override;
     void unregister_hotkey() override;
     QString backend_name() const override;
+    QString hold_key_name() const override;
+    QString chord_key_name() const override;
 
 private:
     static LRESULT CALLBACK keyboard_proc(int code, WPARAM w_param, LPARAM l_param);
@@ -29,6 +32,8 @@ private:
     HHOOK hook_ = nullptr;
     DWORD hold_vk_ = 0;
     DWORD chord_vk_ = 0;
+    QString hold_key_name_;
+    QString chord_key_name_;
     bool hold_down_ = false;
     bool chord_down_ = false;
     bool hands_free_mode_ = false;

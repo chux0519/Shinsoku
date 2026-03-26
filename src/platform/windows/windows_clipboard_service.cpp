@@ -208,6 +208,10 @@ bool activate_target_window(HWND hwnd, HWND focus) {
 
 WindowsClipboardService::WindowsClipboardService(QClipboard* clipboard) : clipboard_(clipboard) {}
 
+bool WindowsClipboardService::supports_auto_paste() const {
+    return true;
+}
+
 void WindowsClipboardService::begin_paste_session() {
     const WindowTarget target = capture_foreground_target();
     if (is_current_process_window(target.window)) {

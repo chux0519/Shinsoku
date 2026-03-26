@@ -14,6 +14,10 @@ bool QtSelectionService::supports_automatic_detection() const {
     return false;
 }
 
+bool QtSelectionService::supports_replacement() const {
+    return false;
+}
+
 SelectionCaptureResult QtSelectionService::capture_selection(bool allow_clipboard_fallback) {
     Q_UNUSED(clipboard_);
     Q_UNUSED(allow_clipboard_fallback);

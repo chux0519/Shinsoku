@@ -99,6 +99,8 @@ private:
     bool uses_system_audio_capture() const;
     bool active_profile_is_meeting() const;
     QString active_profile_name() const;
+    void enforce_platform_capabilities(QString* notice = nullptr);
+    void sync_platform_capability_ui();
     void refresh_capture_mode_ui();
     void apply_active_profile_overrides();
 

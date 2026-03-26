@@ -11,6 +11,7 @@ public:
     virtual ~HudPresenter() = default;
 
     virtual void apply_config(const HudConfig& config) = 0;
+    virtual bool supports_overlay_hud() const { return true; }
     virtual void show_recording(bool command_mode = false) = 0;
     virtual void show_transcribing() = 0;
     virtual void show_thinking() = 0;

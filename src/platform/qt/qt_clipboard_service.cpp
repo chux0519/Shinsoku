@@ -6,6 +6,10 @@ namespace ohmytypeless {
 
 QtClipboardService::QtClipboardService(QClipboard* clipboard) : clipboard_(clipboard) {}
 
+bool QtClipboardService::supports_auto_paste() const {
+    return false;
+}
+
 void QtClipboardService::begin_paste_session() {}
 
 void QtClipboardService::clear_paste_session() {}

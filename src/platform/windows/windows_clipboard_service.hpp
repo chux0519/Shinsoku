@@ -10,6 +10,7 @@ class WindowsClipboardService final : public ClipboardService {
 public:
     explicit WindowsClipboardService(QClipboard* clipboard);
 
+    bool supports_auto_paste() const override;
     void begin_paste_session() override;
     void clear_paste_session() override;
     void copy_text(const QString& text) override;

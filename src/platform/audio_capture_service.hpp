@@ -21,6 +21,7 @@ class AudioCaptureService {
 public:
     virtual ~AudioCaptureService() = default;
 
+    virtual bool supports_capture_mode(AudioCaptureMode capture_mode) const = 0;
     virtual void start(std::uint32_t sample_rate,
                        std::uint32_t channels,
                        const std::string& device_id,

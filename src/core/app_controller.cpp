@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstring>
 #include <exception>
+#include <QStringList>
 #include <thread>
 
 namespace ohmytypeless {
@@ -150,6 +151,22 @@ nlohmann::json capture_context_meta(const AppConfig& config) {
     };
 }
 
+QString global_hotkey_unavailable_reason() {
+    return "Global hotkeys are not available on this platform yet. Use the main window controls instead.";
+}
+
+QString wayland_hotkey_permission_reason() {
+    return "Wayland hotkeys need read access to /dev/input/event*. Add your user to the input group or grant equivalent permissions, then restart the app.";
+}
+
+QString auto_paste_unavailable_reason() {
+    return "Auto paste to the focused app is not available on this platform yet.";
+}
+
+QString system_audio_unavailable_reason() {
+    return "System audio capture is not available on this platform yet.";
+}
+
 std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
     std::vector<std::byte> bytes(samples.size() * sizeof(std::int16_t));
     auto* out = reinterpret_cast<std::int16_t*>(bytes.data());
@@ -226,6 +243,9 @@ AppController::AppController(MainWindow* window,
 
 void AppController::initialize() {
     QString startup_warning;
+    apply_active_profile_overrides();
+    QString capability_notice;
+    enforce_platform_capabilities(&capability_notice);
     try {
         refresh_audio_devices();
     } catch (const std::exception& exception) {
@@ -234,7 +254,7 @@ void AppController::initialize() {
         hud_->show_error("Audio device enumeration failed");
     }
     load_history();
-    apply_active_profile_overrides();
+    sync_platform_capability_ui();
 
     window_->settings_window()->set_hold_key(QString::fromStdString(config_.hotkey.hold_key));
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
@@ -314,8 +334,17 @@ void AppController::initialize() {
 
     apply_settings();
 
+    QStringList notices;
     if (!startup_warning.isEmpty()) {
-        window_->set_status_text(startup_warning);
+        notices << startup_warning;
+    }
+    if (!capability_notice.isEmpty()) {
+        notices << capability_notice;
+    }
+    if (!notices.isEmpty()) {
+        const QString joined = notices.join('\n');
+        window_->set_status_text(joined);
+        window_->settings_window()->set_status_text(joined);
     }
 }
 
@@ -329,6 +358,13 @@ void AppController::toggle_recording() {
 
 void AppController::arm_selection_command() {
     if (state_ != SessionState::Idle && state_ != SessionState::Error) {
+        return;
+    }
+    if (selection_ == nullptr || !selection_->supports_automatic_detection() || !selection_->supports_replacement()) {
+        const QString status = "Selection command is not available on this platform yet.";
+        window_->set_status_text(status);
+        window_->settings_window()->set_status_text(status);
+        hud_->show_error("Selection command unavailable");
         return;
     }
     if (uses_system_audio_capture()) {
@@ -430,10 +466,14 @@ void AppController::apply_settings() {
     }
 
     apply_active_profile_overrides();
+    QString capability_notice;
+    enforce_platform_capabilities(&capability_notice);
+    sync_platform_capability_ui();
 
     refresh_audio_devices();
     window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
+    window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     refresh_capture_mode_ui();
 
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
@@ -444,12 +484,24 @@ void AppController::apply_settings() {
     save_config(config_);
     window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+    window_->set_hotkey_passthrough_keys(hotkey_->hold_key_name(), hotkey_->chord_key_name());
+
+    if (!hotkey_->supports_global_hotkeys()) {
+        const QString status = capability_notice.isEmpty() ? global_hotkey_unavailable_reason() : capability_notice;
+        window_->set_status_text(status);
+        window_->settings_window()->set_status_text(status);
+        hud_->show_notice("Settings applied");
+        return;
+    }
 
     if (hotkey_->register_hotkeys(QString::fromStdString(config_.hotkey.hold_key),
                                   QString::fromStdString(config_.hotkey.hands_free_chord_key))) {
         const QString status = QString("Settings applied. Hold: %1, chord: %2")
                                    .arg(QString::fromStdString(config_.hotkey.hold_key),
                                         QString::fromStdString(config_.hotkey.hands_free_chord_key));
+        if (!capability_notice.isEmpty()) {
+            window_->settings_window()->set_status_text(capability_notice);
+        }
         window_->set_status_text(status);
         hud_->show_notice(status);
     }
@@ -474,11 +526,15 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
 
     config_.profiles.active_profile_id = profile_id.toStdString();
     apply_active_profile_overrides();
+    QString capability_notice;
+    enforce_platform_capabilities(&capability_notice);
+    sync_platform_capability_ui();
     asr_backend_ = make_asr_backend(config_);
     streaming_asr_backend_ = make_streaming_asr_backend(config_);
     refine_backend_ = make_refine_backend(config_);
     save_config(config_);
     window_->settings_window()->set_profiles(config_.profiles.items, profile_id);
+    window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     refresh_capture_mode_ui();
     const auto profile_it = std::find_if(config_.profiles.items.begin(),
                                          config_.profiles.items.end(),
@@ -488,7 +544,7 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
     const QString profile_name = profile_it != config_.profiles.items.end() ? QString::fromStdString(profile_it->name)
                                                                              : profile_id;
     const QString status = QString("Active profile: %1").arg(profile_name);
-    window_->set_status_text(status);
+    window_->set_status_text(capability_notice.isEmpty() ? status : QString("%1\n%2").arg(status, capability_notice));
     window_->meeting_window()->set_profile_name(profile_name);
 }
 
@@ -666,6 +722,14 @@ void AppController::start_recording(SessionState mode) {
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
         const bool forced_selection_command = active_capture_mode_ == CaptureMode::SelectionCommand;
+        if (forced_selection_command &&
+            (selection_ == nullptr || !selection_->supports_automatic_detection() || !selection_->supports_replacement())) {
+            clipboard_->clear_paste_session();
+            active_capture_mode_ = CaptureMode::Dictation;
+            pending_capture_mode_ = CaptureMode::Dictation;
+            on_hotkey_failed("Selection command is not available on this platform yet.");
+            return;
+        }
         if (forced_selection_command) {
             const SelectionCaptureResult selection = selection_->capture_selection(true);
             pending_selection_debug_info_ = selection.debug_info;
@@ -816,7 +880,8 @@ void AppController::set_state(SessionState state, const QString& status) {
 }
 
 bool AppController::uses_double_press_selection_command() const {
-    return config_.hotkey.selection_command_trigger == "double_press_hold";
+    return config_.hotkey.selection_command_trigger == "double_press_hold" && selection_ != nullptr &&
+           selection_->supports_automatic_detection() && selection_->supports_replacement();
 }
 
 bool AppController::uses_system_audio_capture() const {
@@ -841,13 +906,56 @@ QString AppController::active_profile_name() const {
     return profile_it != config_.profiles.items.end() ? QString::fromStdString(profile_it->name) : QString();
 }
 
+void AppController::enforce_platform_capabilities(QString* notice) {
+    QStringList notes;
+
+    if (config_.audio.capture_mode == "system" &&
+        (audio_capture_ == nullptr || !audio_capture_->supports_capture_mode(AudioCaptureMode::SystemLoopback))) {
+        config_.audio.capture_mode = "microphone";
+        notes << system_audio_unavailable_reason() + " Switched back to microphone capture.";
+    }
+
+    if (config_.output.paste_to_focused_window && (clipboard_ == nullptr || !clipboard_->supports_auto_paste())) {
+        config_.output.paste_to_focused_window = false;
+        notes << auto_paste_unavailable_reason();
+    }
+
+    if (notice != nullptr) {
+        *notice = notes.join('\n');
+    }
+}
+
+void AppController::sync_platform_capability_ui() {
+    QString hotkey_reason;
+    const bool hotkeys_available = hotkey_ != nullptr && hotkey_->supports_global_hotkeys();
+    if (hotkey_ != nullptr && !hotkeys_available) {
+        const QString backend_name = hotkey_->backend_name();
+        hotkey_reason = backend_name.contains("wayland", Qt::CaseInsensitive) ? wayland_hotkey_permission_reason()
+                                                                               : global_hotkey_unavailable_reason();
+    }
+    window_->settings_window()->set_global_hotkeys_available(hotkeys_available, hotkey_reason);
+    window_->settings_window()->set_auto_paste_available(
+        clipboard_ != nullptr && clipboard_->supports_auto_paste(),
+        clipboard_ != nullptr && !clipboard_->supports_auto_paste() ? auto_paste_unavailable_reason() : QString());
+    window_->settings_window()->set_system_audio_available(
+        audio_capture_ != nullptr && audio_capture_->supports_capture_mode(AudioCaptureMode::SystemLoopback),
+        audio_capture_ != nullptr && !audio_capture_->supports_capture_mode(AudioCaptureMode::SystemLoopback)
+            ? system_audio_unavailable_reason()
+            : QString());
+}
+
 void AppController::refresh_capture_mode_ui() {
-    const bool selection_available = !uses_system_audio_capture() && !active_profile_is_meeting();
-    const QString reason = selection_available ? QString()
-                                              : (uses_system_audio_capture()
-                                                     ? QString("Selection command requires microphone capture. "
-                                                               "System audio mode is intended for meeting transcription.")
-                                                     : QString("Meeting transcription profiles use the dedicated transcript window instead of selection-command workflows."));
+    const bool selection_backend_ready = selection_ != nullptr && selection_->supports_automatic_detection() &&
+                                         selection_->supports_replacement();
+    const bool selection_available = selection_backend_ready && !uses_system_audio_capture() && !active_profile_is_meeting();
+    QString reason;
+    if (!selection_backend_ready) {
+        reason = "Selection command is not available on this platform yet.";
+    } else if (uses_system_audio_capture()) {
+        reason = "Selection command requires microphone capture. System audio mode is intended for meeting transcription.";
+    } else if (active_profile_is_meeting()) {
+        reason = "Meeting transcription profiles use the dedicated transcript window instead of selection-command workflows.";
+    }
     window_->set_selection_command_available(selection_available, reason);
     window_->meeting_window()->set_profile_name(active_profile_name());
 }
@@ -1166,6 +1274,7 @@ void AppController::transcribe_streaming_result_async(QString transcript,
                     text = refine_backend->transform(TextTransformRequest{
                         .input_text = text,
                         .instruction = "refine",
+                        .context = std::nullopt,
                     }, cancel_flag.get());
                     timing["refine_ms"] =
                         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - refine_start).count();
@@ -1610,6 +1719,7 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                     text = refine_backend->transform(TextTransformRequest{
                         .input_text = text,
                         .instruction = "refine",
+                        .context = std::nullopt,
                     }, cancel_flag.get());
                     timing["refine_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(
                                               std::chrono::steady_clock::now() - refine_start)
