@@ -23,6 +23,8 @@ Active execution status and next steps belong in `Roadmap.md`.
   into shared workflow code.
 - Prefer extending existing abstractions over adding one-off branches in
   `AppController`.
+- Keep profile behavior driven by `input -> transform -> output` fields rather
+  than reviving legacy type/enable flags.
 - Keep UI styling centralized in `resources/themes/` and `src/ui/app_theme.cpp`.
 - Avoid ad-hoc stylesheet strings in individual widgets unless the exception is
   temporary and clearly justified.
@@ -86,6 +88,8 @@ Expected direction:
 - keep current low-level hotkey backend
 - add key capture through `GlobalHotkey::capture_next_key(...)`
 - map captured Windows events into canonical hotkey names
+- reuse the existing Settings and `AppController` recording flow instead of
+  adding a Windows-only UI path
 
 ### Linux Wayland
 
@@ -131,6 +135,10 @@ Expected future direction:
 - Windows main workflow
 - Windows selection workflow
 - Windows system audio MVP
+- shared Settings IA has been simplified around `General / Providers /
+  Transform / Network / Profiles / Advanced`
+- shared Profiles now represent workflow presets through input, transform, and
+  output fields
 - Wayland HUD overlay
 - Wayland multi-monitor HUD targeting
 - Wayland key recording in Settings

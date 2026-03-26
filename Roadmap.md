@@ -17,6 +17,14 @@ Update it when major work lands or priorities change.
 - Wayland selection replace now reuses configured paste keys.
 - Hotkey config was normalized to canonical internal key names.
 - Wayland Settings gained a record-key flow for hold key and hands-free chord.
+- Settings navigation was reorganized into `General / Providers / Transform /
+  Network / Profiles / Advanced`.
+- Profiles were simplified into `input / transform / output` presets with
+  per-profile input source and input device.
+- Legacy profile type and enabled-state fields were removed.
+- System-audio workflows now use the `Live Caption` naming and window model.
+- Tray behavior now matches desktop expectations: left click opens the main
+  window and the context menu exposes history, settings, and quit.
 
 ### Current platform summary
 
@@ -25,6 +33,7 @@ Update it when major work lands or priorities change.
 - strongest platform overall
 - hotkeys, selection, HUD, and streaming workflows are in good shape
 - system audio MVP exists
+- Settings and Profiles UI is already ready for shared key-recording flow
 - missing: record-next-key implementation in the Windows hotkey backend
 
 #### Linux Wayland
@@ -64,6 +73,8 @@ If work continues immediately, do this next:
    Windows-only UI path.
 3. Return canonical hotkey names from the Windows backend so config/UI stay
    cross-platform.
+4. Verify the recorded key updates existing hold-key and hands-free-chord
+   settings correctly on Windows.
 
 ## Guardrails
 
