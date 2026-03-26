@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 #include <thread>
@@ -26,23 +25,6 @@ struct ServerInfoResult {
     std::string monitor_source_name;
     std::string error;
 };
-
-void debug_log(const char* message) {
-    std::fprintf(stderr, "[linux-pulse] %s\n", message);
-    std::fflush(stderr);
-}
-
-void debug_logf(const char* format, const std::string& value) {
-    std::fprintf(stderr, format, value.c_str());
-    std::fputc('\n', stderr);
-    std::fflush(stderr);
-}
-
-void debug_logf(const char* format, const char* value) {
-    std::fprintf(stderr, format, value);
-    std::fputc('\n', stderr);
-    std::fflush(stderr);
-}
 
 void on_server_info(pa_context*, const pa_server_info* info, void* userdata) {
     auto* result = static_cast<ServerInfoResult*>(userdata);
@@ -215,7 +197,6 @@ void LinuxPulseaudioAudioCaptureService::start(std::uint32_t sample_rate,
         recording_.store(true);
     }
 
-    debug_log("start requested");
     capture_thread_ = std::thread(&LinuxPulseaudioAudioCaptureService::run_simple_capture, this, sample_rate, channels, device_id);
 }
 
@@ -239,7 +220,6 @@ std::vector<float> LinuxPulseaudioAudioCaptureService::stop() {
         return {};
     }
 
-    debug_log("stop requested");
     stop_requested_.store(true);
     stop_simple_capture();
     active_mode_ = AudioCaptureMode::Microphone;
@@ -296,10 +276,8 @@ void LinuxPulseaudioAudioCaptureService::run_simple_capture(std::uint32_t sample
     try {
         std::string source_name = std::move(device_id);
         if (source_name.empty()) {
-            debug_log("resolving default monitor source");
             source_name = query_default_monitor_source();
         }
-        debug_logf("[linux-pulse] monitor source: %s", source_name);
 
         pa_sample_spec sample_spec{};
         sample_spec.format = PA_SAMPLE_FLOAT32LE;
@@ -330,28 +308,19 @@ void LinuxPulseaudioAudioCaptureService::run_simple_capture(std::uint32_t sample
             throw std::runtime_error(std::string("failed to open PulseAudio simple record stream: ") + pa_strerror(error_code));
         }
 
-        debug_log("capture stream opened");
-
         constexpr std::size_t kFramesPerChunk = 960;
         std::vector<float> buffer(kFramesPerChunk * channels);
         const std::size_t bytes_per_chunk = sizeof(float) * channels * kFramesPerChunk;
-        bool first_chunk_logged = false;
 
         while (!stop_requested_.load()) {
             if (pa_simple_read(simple, buffer.data(), bytes_per_chunk, &error_code) < 0) {
                 throw std::runtime_error(std::string("PulseAudio simple read failed: ") + pa_strerror(error_code));
             }
-            if (!first_chunk_logged) {
-                debug_log("first chunk received");
-                first_chunk_logged = true;
-            }
             append_samples_from_bytes(buffer.data(), bytes_per_chunk);
         }
 
-        debug_log("capture thread exiting normally");
         pa_simple_free(simple);
     } catch (const std::exception& exception) {
-        debug_logf("[linux-pulse] capture thread error: %s", exception.what());
         std::scoped_lock lock(mutex_);
         capture_error_ = exception.what();
         recording_.store(false);
