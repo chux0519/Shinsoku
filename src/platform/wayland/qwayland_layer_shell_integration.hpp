@@ -5,6 +5,8 @@
 #include "qwayland-wlr-layer-shell-unstable-v1.h"
 
 #include <QMargins>
+#include <QPointer>
+#include <QScreen>
 #include <QSize>
 #include <QString>
 
@@ -30,7 +32,8 @@ public:
                                            int exclusive_zone,
                                            QWaylandLayerSurface::KeyboardInteractivity keyboard_interactivity,
                                            QString scope,
-                                           QSize desired_size);
+                                           QSize desired_size,
+                                           QScreen* target_screen);
 
 private:
     struct PendingSurfaceConfiguration;

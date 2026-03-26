@@ -6,6 +6,18 @@
 #include <QtWaylandClient/private/qwaylandsurface_p.h>
 #include <QtWaylandClient/private/qwaylandwindow_p.h>
 
+namespace {
+
+wl_output* output_for_screen(QScreen* screen) {
+    if (screen == nullptr) {
+        return nullptr;
+    }
+    auto* wayland_screen = dynamic_cast<QtWaylandClient::QWaylandScreen*>(screen->handle());
+    return wayland_screen != nullptr ? wayland_screen->output() : nullptr;
+}
+
+}
+
 namespace ohmytypeless {
 
 QWaylandLayerSurface::QWaylandLayerSurface(QWaylandLayerShellIntegration* shell,
@@ -16,18 +28,16 @@ QWaylandLayerSurface::QWaylandLayerSurface(QWaylandLayerShellIntegration* shell,
                                            int exclusive_zone,
                                            KeyboardInteractivity keyboard_interactivity,
                                            QString scope,
-                                           QSize desired_size)
+                                           QSize desired_size,
+                                           QScreen* target_screen)
     : QtWaylandClient::QWaylandShellSurface(window),
       shell_(shell),
       window_(window),
       margins_(margins),
       desired_size_(std::move(desired_size)) {
-    wl_output* output = nullptr;
-    if (QScreen* desired_screen = window->window()->screen(); desired_screen != nullptr) {
-        if (auto* wayland_screen = dynamic_cast<QtWaylandClient::QWaylandScreen*>(desired_screen->handle());
-            wayland_screen != nullptr) {
-            output = wayland_screen->output();
-        }
+    wl_output* output = output_for_screen(target_screen);
+    if (output == nullptr) {
+        output = output_for_screen(window->window()->screen());
     }
 
     init(shell->get_layer_surface(window->waylandSurface()->object(), output, layer, scope));

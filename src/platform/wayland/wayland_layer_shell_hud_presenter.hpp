@@ -39,6 +39,8 @@ private:
     void configure_layer_shell();
     void show_text(const QString& text, const QString& accent, int duration_ms, bool command_mode = false);
     void apply_style(const QString& accent, bool command_mode, bool error = false);
+    void reset_window();
+    void sync_surface_geometry(const QSize& size, int attempts_remaining = 4);
 
     HudConfig config_;
     QPointer<QWidget> host_window_;
@@ -53,6 +55,10 @@ private:
     std::unique_ptr<QtHudPresenter> fallback_;
     QWaylandLayerShellIntegration* integration_ = nullptr;
     bool layer_shell_ready_ = false;
+    QString active_text_;
+    QString active_accent_;
+    int active_duration_ms_ = 0;
+    bool active_command_mode_ = false;
 };
 
 }  // namespace ohmytypeless

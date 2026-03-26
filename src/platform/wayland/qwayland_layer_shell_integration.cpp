@@ -15,6 +15,7 @@ struct QWaylandLayerShellIntegration::PendingSurfaceConfiguration {
     QWaylandLayerSurface::KeyboardInteractivity keyboard_interactivity = QWaylandLayerSurface::KeyboardInteractivityNone;
     QString scope = QStringLiteral("ohmytypeless-hud");
     QSize desired_size;
+    QPointer<QScreen> target_screen;
 };
 
 QWaylandLayerShellIntegration::QWaylandLayerShellIntegration()
@@ -37,7 +38,8 @@ QtWaylandClient::QWaylandShellSurface* QWaylandLayerShellIntegration::createShel
                                     pending_surface_configuration_->exclusive_zone,
                                     pending_surface_configuration_->keyboard_interactivity,
                                     pending_surface_configuration_->scope,
-                                    pending_surface_configuration_->desired_size);
+                                    pending_surface_configuration_->desired_size,
+                                    pending_surface_configuration_->target_screen);
 }
 
 void QWaylandLayerShellIntegration::set_pending_surface_configuration(
@@ -47,7 +49,8 @@ void QWaylandLayerShellIntegration::set_pending_surface_configuration(
     int exclusive_zone,
     QWaylandLayerSurface::KeyboardInteractivity keyboard_interactivity,
     QString scope,
-    QSize desired_size) {
+    QSize desired_size,
+    QScreen* target_screen) {
     pending_surface_configuration_->layer = layer;
     pending_surface_configuration_->anchors = anchors;
     pending_surface_configuration_->margins = margins;
@@ -55,6 +58,7 @@ void QWaylandLayerShellIntegration::set_pending_surface_configuration(
     pending_surface_configuration_->keyboard_interactivity = keyboard_interactivity;
     pending_surface_configuration_->scope = std::move(scope);
     pending_surface_configuration_->desired_size = std::move(desired_size);
+    pending_surface_configuration_->target_screen = target_screen;
 }
 
 }  // namespace ohmytypeless

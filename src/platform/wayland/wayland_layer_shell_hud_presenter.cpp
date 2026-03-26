@@ -31,6 +31,9 @@ namespace {
 constexpr int kRecordingMinWidth = 212;
 constexpr int kRecordingMinHeight = 56;
 constexpr int kHudOuterPadding = 18;
+constexpr int kIndicatorWidth = 20;
+constexpr int kIndicatorSpacing = 10;
+constexpr int kPanelHorizontalPadding = 44;
 constexpr qreal kTau = 6.28318530717958647692;
 
 class HudWaveformWidget final : public QWidget {
@@ -108,6 +111,44 @@ bool uses_waveform_indicator(const QString& text) {
     return text == "Recording" || text == "Listening";
 }
 
+bool uses_processing_indicator(const QString& text) {
+    return text == "Transcribing" || text == "Thinking";
+}
+
+int persistent_label_width(const QFont& font) {
+    const QFontMetrics metrics(font);
+    int width = 0;
+    for (const QString& candidate : {QString("Recording"), QString("Listening"), QString("Transcribing"), QString("Thinking")}) {
+        width = std::max(width, metrics.horizontalAdvance(candidate));
+    }
+    return width;
+}
+
+int stable_panel_width(QLabel* label, const QString& text) {
+    if (label == nullptr) {
+        return kRecordingMinWidth;
+    }
+
+    if (uses_waveform_indicator(text) || uses_processing_indicator(text)) {
+        return std::max(kRecordingMinWidth,
+                        persistent_label_width(label->font()) + kIndicatorWidth + kIndicatorSpacing + kPanelHorizontalPadding);
+    }
+
+    const QFontMetrics metrics(label->font());
+    return std::max(kRecordingMinWidth,
+                    metrics.horizontalAdvance(text) + kIndicatorWidth + kIndicatorSpacing + kPanelHorizontalPadding);
+}
+
+QScreen* target_screen_for_host(QWidget* host_window) {
+    if (host_window != nullptr && host_window->windowHandle() != nullptr && host_window->windowHandle()->screen() != nullptr) {
+        return host_window->windowHandle()->screen();
+    }
+    if (host_window != nullptr && host_window->screen() != nullptr) {
+        return host_window->screen();
+    }
+    return QGuiApplication::primaryScreen();
+}
+
 }  // namespace
 
 WaylandLayerShellHudPresenter::WaylandLayerShellHudPresenter(QWidget* host_window, QObject* parent)
@@ -162,6 +203,10 @@ void WaylandLayerShellHudPresenter::show_error(const QString& text, int duration
 }
 
 void WaylandLayerShellHudPresenter::hide() {
+    active_text_.clear();
+    active_accent_.clear();
+    active_duration_ms_ = 0;
+    active_command_mode_ = false;
     if (hide_timer_ != nullptr) {
         hide_timer_->stop();
     }
@@ -178,6 +223,41 @@ void WaylandLayerShellHudPresenter::hide() {
     if (fallback_ != nullptr) {
         fallback_->hide();
     }
+}
+
+void WaylandLayerShellHudPresenter::reset_window() {
+    if (hud_widget_ != nullptr) {
+        hud_widget_->hide();
+        delete hud_widget_;
+    }
+    hud_window_ = nullptr;
+    hud_widget_ = nullptr;
+    panel_widget_ = nullptr;
+    waveform_widget_ = nullptr;
+    label_ = nullptr;
+    label_opacity_ = nullptr;
+    hide_timer_ = nullptr;
+    motion_animation_ = nullptr;
+    layer_shell_ready_ = false;
+}
+
+void WaylandLayerShellHudPresenter::sync_surface_geometry(const QSize& size, int attempts_remaining) {
+    if (hud_widget_ == nullptr || hud_window_ == nullptr) {
+        return;
+    }
+
+    if (QWaylandLayerSurface* layer_surface = active_layer_surface(hud_window_); layer_surface != nullptr) {
+        layer_surface->set_desired_geometry(QMargins(), size);
+        return;
+    }
+
+    if (attempts_remaining <= 0) {
+        return;
+    }
+
+    QTimer::singleShot(16, hud_widget_, [this, size, attempts_remaining]() {
+        sync_surface_geometry(size, attempts_remaining - 1);
+    });
 }
 
 void WaylandLayerShellHudPresenter::ensure_window() {
@@ -209,6 +289,11 @@ void WaylandLayerShellHudPresenter::ensure_window() {
     waveform_widget_->hide();
     panel_layout->addWidget(waveform_widget_);
 
+    auto* processing_placeholder = new QWidget(panel_widget_);
+    processing_placeholder->setFixedSize(kIndicatorWidth, 18);
+    processing_placeholder->hide();
+    panel_layout->addWidget(processing_placeholder);
+
     label_ = new QLabel(panel_widget_);
     label_->setAlignment(Qt::AlignCenter);
     label_opacity_ = new QGraphicsOpacityEffect(label_);
@@ -226,6 +311,9 @@ void WaylandLayerShellHudPresenter::ensure_window() {
     motion_animation_->setLoopCount(-1);
 
     hud_widget_->resize(260, 92);
+    if (QScreen* target_screen = target_screen_for_host(host_window_); target_screen != nullptr) {
+        hud_widget_->setScreen(target_screen);
+    }
     hud_widget_->createWinId();
     hud_window_ = hud_widget_->windowHandle();
     configure_layer_shell();
@@ -261,7 +349,8 @@ void WaylandLayerShellHudPresenter::configure_layer_shell() {
         QWaylandLayerSurface::KeyboardInteractivityNone,
         QStringLiteral("ohmytypeless-hud"),
         QSize(desired_size.width() + (kHudOuterPadding * 2),
-              desired_size.height() + (kHudOuterPadding * 2) + std::max(0, config_.bottom_margin)));
+              desired_size.height() + (kHudOuterPadding * 2) + std::max(0, config_.bottom_margin)),
+        target_screen_for_host(host_window_));
     wayland_window->setShellIntegration(integration_);
     layer_shell_ready_ = true;
 }
@@ -271,8 +360,21 @@ void WaylandLayerShellHudPresenter::show_text(const QString& text, const QString
         return;
     }
 
+    active_text_ = text;
+    active_accent_ = accent;
+    active_duration_ms_ = duration_ms;
+    active_command_mode_ = command_mode;
+
+    if (hud_widget_ != nullptr) {
+        if (QScreen* target_screen = target_screen_for_host(host_window_); target_screen != nullptr &&
+            hud_widget_->screen() != target_screen) {
+            reset_window();
+        }
+    }
+
     ensure_window();
     if (!layer_shell_ready_) {
+        reset_window();
         if (fallback_ != nullptr) {
             if (text == "Recording" || text == "Listening") {
                 fallback_->show_recording(command_mode);
@@ -293,20 +395,24 @@ void WaylandLayerShellHudPresenter::show_text(const QString& text, const QString
         return;
     }
 
+    const bool waveform_mode = uses_waveform_indicator(text);
+    const bool error_mode = accent == "#991b1b" || accent == "#fca5a5";
+
     label_->setText(text);
-    apply_style(accent, command_mode, accent == "#991b1b" || accent == "#fca5a5");
+    label_->setVisible(true);
+    apply_style(accent, command_mode, error_mode);
 
     if (waveform_widget_ != nullptr) {
         auto* waveform = static_cast<HudWaveformWidget*>(waveform_widget_.data());
         waveform->set_accent(QColor(accent));
         waveform->set_command_mode(command_mode);
-        waveform->setVisible(uses_waveform_indicator(text));
+        waveform->setVisible(waveform_mode);
     }
 
     if (motion_animation_ != nullptr) {
         motion_animation_->stop();
         QObject::disconnect(motion_animation_, nullptr, nullptr, nullptr);
-        if (uses_waveform_indicator(text)) {
+        if (waveform_mode) {
             motion_animation_->setDuration(760);
             motion_animation_->setStartValue(0.0);
             motion_animation_->setEndValue(1.0);
@@ -320,6 +426,11 @@ void WaylandLayerShellHudPresenter::show_text(const QString& text, const QString
         }
     }
 
+    if (uses_waveform_indicator(text) || uses_processing_indicator(text)) {
+        label_->setFixedWidth(persistent_label_width(label_->font()));
+    } else {
+        label_->setFixedWidth(label_->sizeHint().width());
+    }
     label_->adjustSize();
     if (auto* root_layout = qobject_cast<QVBoxLayout*>(hud_widget_->layout()); root_layout != nullptr) {
         root_layout->setContentsMargins(kHudOuterPadding, kHudOuterPadding, kHudOuterPadding,
@@ -329,16 +440,15 @@ void WaylandLayerShellHudPresenter::show_text(const QString& text, const QString
     }
     panel_widget_->adjustSize();
     hud_widget_->adjustSize();
-    const QSize panel_size = panel_widget_->sizeHint().expandedTo(QSize(kRecordingMinWidth, kRecordingMinHeight));
+    const int panel_width = waveform_mode ? kRecordingMinWidth : std::max(stable_panel_width(label_, text), kRecordingMinWidth);
+    const QSize panel_size(panel_width, kRecordingMinHeight);
+    panel_widget_->setFixedWidth(panel_size.width());
     panel_widget_->resize(panel_size);
-    hud_widget_->resize(panel_size.width() + (kHudOuterPadding * 2),
-                        panel_size.height() + (kHudOuterPadding * 2) + std::max(0, config_.bottom_margin));
-    if (QWaylandLayerSurface* layer_surface = active_layer_surface(hud_window_); layer_surface != nullptr) {
-        layer_surface->set_desired_geometry(QMargins(),
-                                            QSize(panel_size.width() + (kHudOuterPadding * 2),
-                                                  panel_size.height() + (kHudOuterPadding * 2) + std::max(0, config_.bottom_margin)));
-    }
+    const QSize surface_size(panel_size.width() + (kHudOuterPadding * 2),
+                             panel_size.height() + (kHudOuterPadding * 2) + std::max(0, config_.bottom_margin));
+    hud_widget_->resize(surface_size);
     hud_widget_->show();
+    sync_surface_geometry(surface_size);
 
     if (hide_timer_ != nullptr) {
         hide_timer_->stop();

@@ -5,6 +5,7 @@
 #include "qwayland-wlr-layer-shell-unstable-v1.h"
 
 #include <QMargins>
+#include <QScreen>
 #include <QString>
 
 namespace QtWaylandClient {
@@ -47,7 +48,8 @@ public:
                          int exclusive_zone,
                          KeyboardInteractivity keyboard_interactivity,
                          QString scope,
-                         QSize desired_size);
+                         QSize desired_size,
+                         QScreen* target_screen);
     ~QWaylandLayerSurface() override;
 
     bool isExposed() const override;
