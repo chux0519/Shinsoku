@@ -107,8 +107,9 @@ macOS likely path:
 
 Linux likely path:
 
-- X11-specific backend first
-- Wayland degraded or capability-gated path later
+- X11-specific backend where needed
+- Wayland backend can start from an `evdev`-style monitor similar to the local
+  `potatype` project, with explicit setup requirements and capability gating
 
 ### Step 3: Batch ASR only
 
@@ -159,8 +160,11 @@ Files to understand:
 
 Policy:
 
-- do not force this to parity if the platform does not allow it cleanly
+- do not force semantic parity if the platform does not allow it cleanly
 - capability-gate it instead
+- on Wayland, an MVP clipboard-preserve plus synthetic `Ctrl+C` / paste flow is
+  acceptable as a platform backend, as long as `core` only sees capability
+  contracts
 
 ### Step 6: System audio
 
@@ -208,23 +212,30 @@ Expected blockers:
 
 Treat X11 and Wayland separately.
 
-Start with X11 first if practical:
+For Wayland specifically, recommended order is:
 
-1. shell
-2. hotkeys
+1. shell / HUD
+2. hotkeys via a dedicated platform backend
 3. batch microphone capture
 4. streaming
+5. clipboard-driven selection capture / replace fallback
+6. system audio
 
-Gate or defer on Wayland:
+Wayland-specific implementation notes:
 
-- selection command
-- auto paste to focused app
-- any workflow that assumes global input injection
+- global hotkeys can start from `libevdev` device monitoring, similar to
+  `potatype`
+- auto paste can start from helper-tool orchestration such as `wl-copy` plus
+  `wtype`
+- selection capture can start from clipboard-preserve plus synthetic copy,
+  similar in spirit to the `get-selected-text` fallback approach
+- these are still degraded capabilities and should remain surfaced as such in UI
 
 Expected blockers:
 
 - compositor differences
-- portal limitations
+- helper binary availability
+- input-device permissions for `evdev`
 - system audio source discovery
 
 ## What To Tell The Next AI First
@@ -256,3 +267,5 @@ implementation:
 3. Ship degraded behavior explicitly instead of pretending parity exists.
 4. Keep settings and UI capability-aware.
 5. Update these docs whenever a platform assumption changes.
+6. For Wayland, prefer backend-local helper orchestration over teaching `core`
+   about `wl-copy`, `wtype`, `libevdev`, portals, or compositor names.

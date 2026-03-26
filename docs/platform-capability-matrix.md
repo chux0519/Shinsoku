@@ -27,11 +27,11 @@ It is intentionally practical:
 
 | Capability | Windows | macOS | Linux X11 | Linux Wayland | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Global hold-to-record hotkey | full | planned | planned | partial | Wayland likely needs portal-based or compositor-specific degradation |
-| Hands-free chord behavior | full | planned | planned | partial | Depends on global input support |
-| Selection capture | partial | planned | planned | partial | Windows uses UIA plus clipboard fallback; Wayland may need to degrade to explicit/manual workflows |
-| Selection replace | partial | planned | planned | partial | Clipboard and focused-input semantics differ by platform |
-| Auto paste to focused window | partial | planned | partial | unsupported/partial | Wayland should be treated conservatively |
+| Global hold-to-record hotkey | full | planned | planned | partial | Wayland MVP can use `libevdev` device reads with user input-device permissions; not a universal compositor API |
+| Hands-free chord behavior | full | planned | planned | partial | Depends on the same global input path as the hold hotkey |
+| Selection capture | partial | planned | planned | partial | Windows uses UIA plus clipboard fallback; Wayland can use clipboard-preserve plus synthetic `Ctrl+C` fallback when key injection works |
+| Selection replace | partial | planned | planned | partial | Wayland path is expected to be clipboard-preserve plus synthetic paste, not semantic focused-text editing |
+| Auto paste to focused window | partial | planned | partial | partial | Wayland can often use `wl-copy` plus `wtype`, but compositor support and focus semantics still vary |
 | Tray integration | partial | planned | partial | partial | Desktop environment differences matter |
 | HUD overlay | full | planned | planned | planned | Pure Qt path is portable; visual polish should remain backend-agnostic |
 | Batch HTTP ASR | full | full | full | full | Provider/backend dependent, not platform dependent |
@@ -165,16 +165,33 @@ Risk:
 Likely implementation path:
 
 - hotkeys:
-  - portal/compositor-dependent degraded behavior
-- selection / replace / focused paste:
-  - should be considered optional or unsupported by default
+  - `libevdev`-backed global input monitor, similar to the approach used in
+    the local `potatype` reference project
+  - requires readable `/dev/input/event*` devices, so this is a capability with
+    setup requirements rather than a compositor-guaranteed API
+- selection capture:
+  - clipboard-preserve plus synthetic `Ctrl+C` fallback, similar in spirit to
+    the Windows clipboard fallback and the approach used by
+    `get-selected-text`
+- selection replace / focused paste:
+  - clipboard-preserve plus synthetic paste such as `Ctrl+V`
+  - helper tools like `wl-copy` and `wtype` are a reasonable MVP path
 - system audio:
   - PipeWire/portal-specific capture path
 
 Risk:
 
-- many Windows-style automation assumptions are not valid
-- selection command and focused paste may need feature gating or explicit degradation
+- many Windows-style automation assumptions are still not valid
+- helper-tool and compositor support can vary
+- these workflows should stay capability-gated even when implemented
+
+Immediate product policy:
+
+- treat Wayland selection capture, selection replace, and focused paste as
+  `partial`, not `full`
+- do not describe the Wayland path as semantic focused-text access
+- keep `core` unaware of whether the backend uses UIA, clipboard fallback,
+  `wtype`, or any future portal/compositor path
 
 Immediate recommendation:
 
@@ -190,7 +207,8 @@ Immediate recommendation:
    - hotkeys
    - batch ASR
    - streaming ASR
-   - then selection / paste / system audio
+   - then clipboard-driven selection / paste
+   - then system audio
 5. treat selection command and auto paste as capability-gated, not guaranteed
 
 ## Current Recommendation For The Next Machine

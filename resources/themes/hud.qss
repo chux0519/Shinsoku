@@ -1,5 +1,6 @@
 QWidget {
     background: transparent;
+    border: none;
 }
 
 #hudPanel {
@@ -18,7 +19,7 @@ QWidget {
 QLabel {
     background: transparent;
     color: {{text_color}};
-    font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    font-family: "Noto Sans", "DejaVu Sans", sans-serif;
     font-size: 14px;
     font-weight: 700;
     padding: 0;

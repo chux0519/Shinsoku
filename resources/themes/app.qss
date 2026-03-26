@@ -2,6 +2,7 @@ QMainWindow, QDialog, QWidget {
     background: {{bg}};
     color: {{text}};
     font-size: 14px;
+    font-family: "Noto Sans", "DejaVu Sans", sans-serif;
 }
 
 QScrollArea {

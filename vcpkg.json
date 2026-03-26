@@ -4,9 +4,11 @@
   "dependencies": [
     "curl",
     "ixwebsocket",
+    "mbedtls",
     "miniaudio",
     "nlohmann-json",
     "qtbase",
+    "qtwayland",
     "qtsvg",
     "sqlite3"
   ]

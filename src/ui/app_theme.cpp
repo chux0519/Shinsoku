@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QFont>
 
 namespace ohmytypeless {
 
@@ -44,6 +45,14 @@ void apply_app_theme(QApplication& app, Qt::ColorScheme scheme) {
     palette.setColor(QPalette::ToolTipBase, dark ? QColor("#20242a") : QColor("#ffffff"));
     palette.setColor(QPalette::ToolTipText, dark ? QColor("#f3f4f6") : QColor("#16181b"));
     app.setPalette(palette);
+
+    QFont font(QStringLiteral("Noto Sans"));
+    if (!font.exactMatch()) {
+        font = QFont(QStringLiteral("DejaVu Sans"));
+    }
+    font.setStyleHint(QFont::SansSerif);
+    font.setPointSize(11);
+    app.setFont(font);
 
     const QString bg = dark ? "#16181b" : "#f3f4f6";
     const QString panel = dark ? "#1d2126" : "#ffffff";
