@@ -4,6 +4,7 @@
 
 #include <QList>
 #include <QPair>
+#include <QPointer>
 #include <QWidget>
 
 class QCheckBox;
@@ -123,6 +124,8 @@ public:
 
 signals:
     void apply_clicked();
+    void record_hold_key_requested();
+    void record_hands_free_chord_requested();
 
 private:
     void refresh_capability_dependent_controls();
@@ -130,11 +133,14 @@ private:
     void load_profile_into_editor(int index);
     void store_editor_into_profile(int index);
     QString next_profile_id(const QString& seed) const;
+    void set_record_button_state(QPushButton* button, bool active);
 
     QListWidget* navigation_list_ = nullptr;
     QStackedWidget* page_stack_ = nullptr;
     QComboBox* hold_key_combo_ = nullptr;
+    QPushButton* hold_key_record_button_ = nullptr;
     QComboBox* hands_free_chord_combo_ = nullptr;
+    QPushButton* hands_free_chord_record_button_ = nullptr;
     QComboBox* selection_command_trigger_combo_ = nullptr;
     QListWidget* profiles_list_ = nullptr;
     QPushButton* profile_new_button_ = nullptr;
@@ -208,6 +214,12 @@ private:
     QString global_hotkeys_reason_;
     QString auto_paste_reason_;
     QString system_audio_reason_;
+
+public:
+    void set_recording_hold_key(bool active);
+    void set_recording_hands_free_chord(bool active);
+    void apply_recorded_hold_key(const QString& key_name);
+    void apply_recorded_hands_free_chord(const QString& key_name);
 };
 
 }  // namespace ohmytypeless

@@ -1,4 +1,5 @@
 #include "ui/settings_window.hpp"
+#include "platform/hotkey_names.hpp"
 
 #include <algorithm>
 
@@ -192,21 +193,50 @@ void configure_combo_popup(QComboBox* combo, int max_visible_items = 10) {
 
 QComboBox* make_key_combo(QWidget* parent) {
     auto* combo = new QComboBox(parent);
-    combo->addItem("Right Alt", "KEY_RIGHTALT");
-    combo->addItem("Left Alt", "KEY_LEFTALT");
-    combo->addItem("Space", "KEY_SPACE");
-    combo->addItem("Right Ctrl", "KEY_RIGHTCTRL");
-    combo->addItem("Left Ctrl", "KEY_LEFTCTRL");
-    combo->addItem("Right Shift", "KEY_RIGHTSHIFT");
-    combo->addItem("Left Shift", "KEY_LEFTSHIFT");
-    combo->setItemData(combo->findData("KEY_RIGHTALT"),
+    combo->addItem("Right Alt", "right_alt");
+    combo->addItem("Left Alt", "left_alt");
+    combo->addItem("Space", "space");
+    combo->addItem("Right Ctrl", "right_ctrl");
+    combo->addItem("Left Ctrl", "left_ctrl");
+    combo->addItem("Right Shift", "right_shift");
+    combo->addItem("Left Shift", "left_shift");
+    combo->addItem("Menu", "menu");
+    combo->addItem("Compose", "compose");
+    combo->addItem("Right Meta", "right_meta");
+    combo->addItem("Left Meta", "left_meta");
+    combo->setItemData(combo->findData("right_alt"),
                        QString("Right Alt may still trigger menus in some Linux/Wayland apps. Prefer a Ctrl key when possible."),
                        Qt::ToolTipRole);
-    combo->setItemData(combo->findData("KEY_LEFTALT"),
+    combo->setItemData(combo->findData("left_alt"),
                        QString("Left Alt usually conflicts with application menus on Linux/Wayland. Prefer a Ctrl key instead."),
                        Qt::ToolTipRole);
     configure_combo_popup(combo);
     return combo;
+}
+
+QWidget* make_combo_with_button(QComboBox** combo_out,
+                                QPushButton** button_out,
+                                const QString& button_text,
+                                QWidget* parent) {
+    auto* row = new QWidget(parent);
+    row->setObjectName("inlineFieldRow");
+    auto* layout = new QHBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(8);
+
+    auto* combo = make_key_combo(row);
+    auto* button = new QPushButton(button_text, row);
+    button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    layout->addWidget(combo, 1);
+    layout->addWidget(button);
+
+    if (combo_out != nullptr) {
+        *combo_out = combo;
+    }
+    if (button_out != nullptr) {
+        *button_out = button;
+    }
+    return row;
 }
 
 void set_combo_by_value(QComboBox* combo, const QString& value) {
@@ -214,6 +244,17 @@ void set_combo_by_value(QComboBox* combo, const QString& value) {
     if (index >= 0) {
         combo->setCurrentIndex(index);
     }
+}
+
+void ensure_key_combo_value(QComboBox* combo, const QString& value) {
+    if (combo == nullptr || value.trimmed().isEmpty()) {
+        return;
+    }
+    const QString canonical = canonical_hotkey_name(value);
+    if (combo->findData(canonical) < 0) {
+        combo->addItem(display_hotkey_name(canonical), canonical);
+    }
+    set_combo_by_value(combo, canonical);
 }
 
 void set_combo_text_if_present(QComboBox* combo, const QString& value) {
@@ -454,14 +495,15 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     QFormLayout* hotkey_form = nullptr;
     auto* hotkey_section = make_section("Hotkey", this, &hotkey_form);
-    hold_key_combo_ = make_key_combo(hotkey_section);
-    hands_free_chord_combo_ = make_key_combo(hotkey_section);
+    auto* hold_key_row = make_combo_with_button(&hold_key_combo_, &hold_key_record_button_, "Record...", hotkey_section);
+    auto* chord_key_row =
+        make_combo_with_button(&hands_free_chord_combo_, &hands_free_chord_record_button_, "Record...", hotkey_section);
     selection_command_trigger_combo_ = new QComboBox(hotkey_section);
     selection_command_trigger_combo_->addItem("Button Only", "button_only");
     selection_command_trigger_combo_->addItem("Double-Press Hold Key", "double_press_hold");
     configure_combo_popup(selection_command_trigger_combo_);
-    hotkey_form->addRow("Hold Key", hold_key_combo_);
-    hotkey_form->addRow("Hands-free Chord", hands_free_chord_combo_);
+    hotkey_form->addRow("Hold Key", hold_key_row);
+    hotkey_form->addRow("Hands-free Chord", chord_key_row);
     hotkey_form->addRow("Command Trigger", selection_command_trigger_combo_);
     insert_section_before_stretch(general_layout, hotkey_section);
 
@@ -714,6 +756,8 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     connect(audio_capture_mode_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
         refresh_capability_dependent_controls();
     });
+    connect(hold_key_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hold_key_requested);
+    connect(hands_free_chord_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hands_free_chord_requested);
     connect(paste_to_focused_window_check_, &QCheckBox::toggled, this, [this](bool) {
         refresh_capability_dependent_controls();
     });
@@ -993,11 +1037,11 @@ int SettingsWindow::hud_bottom_margin() const {
 }
 
 void SettingsWindow::set_hold_key(const QString& text) {
-    set_combo_by_value(hold_key_combo_, text);
+    ensure_key_combo_value(hold_key_combo_, text);
 }
 
 void SettingsWindow::set_hands_free_chord_key(const QString& text) {
-    set_combo_by_value(hands_free_chord_combo_, text);
+    ensure_key_combo_value(hands_free_chord_combo_, text);
 }
 
 void SettingsWindow::set_selection_command_trigger(const QString& text) {
@@ -1208,6 +1252,14 @@ void SettingsWindow::set_global_hotkeys_available(bool available, const QString&
     global_hotkeys_reason_ = reason;
     hold_key_combo_->setEnabled(available);
     hands_free_chord_combo_->setEnabled(available);
+    if (hold_key_record_button_ != nullptr) {
+        hold_key_record_button_->setEnabled(available);
+        hold_key_record_button_->setToolTip(reason);
+    }
+    if (hands_free_chord_record_button_ != nullptr) {
+        hands_free_chord_record_button_->setEnabled(available);
+        hands_free_chord_record_button_->setToolTip(reason);
+    }
     selection_command_trigger_combo_->setEnabled(available);
     hold_key_combo_->setToolTip(reason);
     hands_free_chord_combo_->setToolTip(reason);
@@ -1234,6 +1286,71 @@ void SettingsWindow::set_system_audio_available(bool available, const QString& r
 void SettingsWindow::set_status_text(const QString& text) {
     status_label_->setText(text);
     status_label_->setVisible(!text.trimmed().isEmpty());
+}
+
+void SettingsWindow::set_record_button_state(QPushButton* button, bool active) {
+    if (button == nullptr) {
+        return;
+    }
+    button->setText(active ? "Press Key..." : "Record...");
+}
+
+void SettingsWindow::set_recording_hold_key(bool active) {
+    hold_key_combo_->setEnabled(!active && global_hotkeys_available_);
+    hands_free_chord_combo_->setEnabled(!active && global_hotkeys_available_);
+    if (hold_key_record_button_ != nullptr) {
+        hold_key_record_button_->setEnabled(global_hotkeys_available_);
+    }
+    if (hands_free_chord_record_button_ != nullptr) {
+        hands_free_chord_record_button_->setEnabled(!active);
+    }
+    set_record_button_state(hold_key_record_button_, active);
+    if (active) {
+        hold_key_record_button_->setFocus(Qt::OtherFocusReason);
+        set_status_text("Recording Hold Key. Press the key you want to use. Existing hotkeys are temporarily suspended for 5 seconds.");
+    }
+}
+
+void SettingsWindow::set_recording_hands_free_chord(bool active) {
+    hold_key_combo_->setEnabled(!active && global_hotkeys_available_);
+    hands_free_chord_combo_->setEnabled(!active && global_hotkeys_available_);
+    if (hold_key_record_button_ != nullptr) {
+        hold_key_record_button_->setEnabled(!active);
+    }
+    if (hands_free_chord_record_button_ != nullptr) {
+        hands_free_chord_record_button_->setEnabled(global_hotkeys_available_);
+    }
+    set_record_button_state(hands_free_chord_record_button_, active);
+    if (active) {
+        hands_free_chord_record_button_->setFocus(Qt::OtherFocusReason);
+        set_status_text("Recording Hands-free Chord. Press the key you want to use. Existing hotkeys are temporarily suspended for 5 seconds.");
+    }
+}
+
+void SettingsWindow::apply_recorded_hold_key(const QString& key_name) {
+    ensure_key_combo_value(hold_key_combo_, key_name);
+    set_record_button_state(hold_key_record_button_, false);
+    hold_key_combo_->setEnabled(global_hotkeys_available_);
+    hands_free_chord_combo_->setEnabled(global_hotkeys_available_);
+    if (hands_free_chord_record_button_ != nullptr) {
+        hands_free_chord_record_button_->setEnabled(true);
+    }
+    if (hold_key_record_button_ != nullptr) {
+        hold_key_record_button_->setEnabled(true);
+    }
+}
+
+void SettingsWindow::apply_recorded_hands_free_chord(const QString& key_name) {
+    ensure_key_combo_value(hands_free_chord_combo_, key_name);
+    set_record_button_state(hands_free_chord_record_button_, false);
+    hold_key_combo_->setEnabled(global_hotkeys_available_);
+    hands_free_chord_combo_->setEnabled(global_hotkeys_available_);
+    if (hold_key_record_button_ != nullptr) {
+        hold_key_record_button_->setEnabled(true);
+    }
+    if (hands_free_chord_record_button_ != nullptr) {
+        hands_free_chord_record_button_->setEnabled(true);
+    }
 }
 
 void SettingsWindow::refresh_capability_dependent_controls() {
@@ -1331,5 +1448,4 @@ QString SettingsWindow::next_profile_id(const QString& seed) const {
     }
     return candidate;
 }
-
 }  // namespace ohmytypeless

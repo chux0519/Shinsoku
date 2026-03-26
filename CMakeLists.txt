@@ -67,6 +67,8 @@ qt_add_executable(ohmytypeless
     src/platform/clipboard_service.hpp
     src/platform/audio_capture_service.hpp
     src/platform/global_hotkey.hpp
+    src/platform/hotkey_names.hpp
+    src/platform/hotkey_names.cpp
     src/platform/hud_presenter.hpp
     src/platform/miniaudio_audio_capture_service.hpp
     src/platform/miniaudio_audio_capture_service.cpp

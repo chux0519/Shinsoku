@@ -1,4 +1,5 @@
 #include "ui/main_window.hpp"
+#include "platform/hotkey_names.hpp"
 
 #include "ui/history_window.hpp"
 #include "ui/meeting_transcription_window.hpp"
@@ -278,18 +279,24 @@ bool MainWindow::nativeEvent(const QByteArray& event_type, void* message, qintpt
 }
 
 int MainWindow::qt_key_from_evdev_name(const QString& key_name) {
-    const QString normalized = key_name.trimmed().toUpper();
-    if (normalized == "KEY_RIGHTALT" || normalized == "KEY_LEFTALT") {
+    const QString normalized = canonical_hotkey_name(key_name);
+    if (normalized == "right_alt" || normalized == "left_alt") {
         return Qt::Key_Alt;
     }
-    if (normalized == "KEY_SPACE") {
+    if (normalized == "space") {
         return Qt::Key_Space;
     }
-    if (normalized == "KEY_RIGHTCTRL" || normalized == "KEY_LEFTCTRL") {
+    if (normalized == "right_ctrl" || normalized == "left_ctrl") {
         return Qt::Key_Control;
     }
-    if (normalized == "KEY_RIGHTSHIFT" || normalized == "KEY_LEFTSHIFT") {
+    if (normalized == "right_shift" || normalized == "left_shift") {
         return Qt::Key_Shift;
+    }
+    if (normalized == "left_meta" || normalized == "right_meta") {
+        return Qt::Key_Meta;
+    }
+    if (normalized == "menu") {
+        return Qt::Key_Menu;
     }
     return 0;
 }
@@ -372,5 +379,4 @@ void MainWindow::refresh_tray_state(SessionState state) {
     tray_icon_->setIcon(icon);
     tray_icon_->setToolTip(title);
 }
-
 }  // namespace ohmytypeless

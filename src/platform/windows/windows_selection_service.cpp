@@ -637,12 +637,13 @@ SelectionCaptureResult WindowsSelectionService::capture_selection(bool allow_cli
     };
 }
 
-bool WindowsSelectionService::replace_selection(const QString& text) {
+bool WindowsSelectionService::replace_selection(const QString& text, const QString& paste_keys) {
     const std::lock_guard<std::mutex> guard(g_copy_paste_mutex);
     if (clipboard_ == nullptr) {
         set_debug_info("replace failed: clipboard backend is null");
         return false;
     }
+    Q_UNUSED(paste_keys);
 
     const ClipboardSnapshot snapshot = snapshot_clipboard_native();
     const std::optional<QString> snapshot_text = read_clipboard_text_native();

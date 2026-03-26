@@ -1,4 +1,5 @@
 #include "core/app_config.hpp"
+#include "platform/hotkey_names.hpp"
 
 #include <QDir>
 #include <QStandardPaths>
@@ -393,10 +394,10 @@ AppConfig load_config() {
     const SectionMap sections = parse_toml_like_file(config.config_path);
 
     if (const auto value = get_value(sections, "hotkey", "hold_key")) {
-        config.hotkey.hold_key = unquote(*value);
+        config.hotkey.hold_key = canonical_hotkey_name(QString::fromStdString(unquote(*value))).toStdString();
     }
     if (const auto value = get_value(sections, "hotkey", "hands_free_chord_key")) {
-        config.hotkey.hands_free_chord_key = unquote(*value);
+        config.hotkey.hands_free_chord_key = canonical_hotkey_name(QString::fromStdString(unquote(*value))).toStdString();
     }
     if (const auto value = get_value(sections, "hotkey", "selection_command_trigger")) {
         config.hotkey.selection_command_trigger = unquote(*value);
@@ -670,8 +671,8 @@ void save_config(const AppConfig& config) {
     }
 
     output << "[hotkey]\n";
-    output << "hold_key = \"" << escape_toml_string(config.hotkey.hold_key) << "\"\n";
-    output << "hands_free_chord_key = \"" << escape_toml_string(config.hotkey.hands_free_chord_key) << "\"\n";
+    output << "hold_key = \"" << escape_toml_string(canonical_hotkey_name(QString::fromStdString(config.hotkey.hold_key)).toStdString()) << "\"\n";
+    output << "hands_free_chord_key = \"" << escape_toml_string(canonical_hotkey_name(QString::fromStdString(config.hotkey.hands_free_chord_key)).toStdString()) << "\"\n";
     output << "selection_command_trigger = \"" << escape_toml_string(config.hotkey.selection_command_trigger) << "\"\n\n";
 
     output << "[pipeline.asr]\n";

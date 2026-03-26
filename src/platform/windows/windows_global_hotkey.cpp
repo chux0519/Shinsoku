@@ -1,4 +1,5 @@
 #include "platform/windows/windows_global_hotkey.hpp"
+#include "platform/hotkey_names.hpp"
 
 #include <QString>
 
@@ -139,33 +140,41 @@ bool WindowsGlobalHotkey::handle_keyboard_event(WPARAM w_param, const KBDLLHOOKS
 }
 
 bool WindowsGlobalHotkey::parse_key_name(const QString& key_name, DWORD& vk, QString& error) const {
-    const QString normalized = key_name.trimmed().toUpper();
-    if (normalized == "KEY_RIGHTALT") {
+    const QString normalized = canonical_hotkey_name(key_name);
+    if (normalized == "right_alt") {
         vk = VK_RMENU;
         return true;
     }
-    if (normalized == "KEY_LEFTALT") {
+    if (normalized == "left_alt") {
         vk = VK_LMENU;
         return true;
     }
-    if (normalized == "KEY_SPACE") {
+    if (normalized == "space") {
         vk = VK_SPACE;
         return true;
     }
-    if (normalized == "KEY_RIGHTCTRL") {
+    if (normalized == "right_ctrl") {
         vk = VK_RCONTROL;
         return true;
     }
-    if (normalized == "KEY_LEFTCTRL") {
+    if (normalized == "left_ctrl") {
         vk = VK_LCONTROL;
         return true;
     }
-    if (normalized == "KEY_RIGHTSHIFT") {
+    if (normalized == "right_shift") {
         vk = VK_RSHIFT;
         return true;
     }
-    if (normalized == "KEY_LEFTSHIFT") {
+    if (normalized == "left_shift") {
         vk = VK_LSHIFT;
+        return true;
+    }
+    if (normalized == "left_meta" || normalized == "right_meta") {
+        vk = VK_LWIN;
+        return true;
+    }
+    if (normalized == "menu") {
+        vk = VK_APPS;
         return true;
     }
 

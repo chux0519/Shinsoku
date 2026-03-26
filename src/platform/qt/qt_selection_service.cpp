@@ -28,8 +28,9 @@ SelectionCaptureResult QtSelectionService::capture_selection(bool allow_clipboar
     };
 }
 
-bool QtSelectionService::replace_selection(const QString& text) {
+bool QtSelectionService::replace_selection(const QString& text, const QString& paste_keys) {
     Q_UNUSED(text);
+    Q_UNUSED(paste_keys);
     return false;
 }
 

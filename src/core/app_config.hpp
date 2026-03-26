@@ -12,8 +12,8 @@ inline constexpr std::uint32_t kFixedSampleRate = 16000;
 inline constexpr std::uint32_t kFixedChannelCount = 1;
 
 struct HotkeyConfig {
-    std::string hold_key = "KEY_RIGHTALT";
-    std::string hands_free_chord_key = "KEY_SPACE";
+    std::string hold_key = "right_alt";
+    std::string hands_free_chord_key = "space";
     std::string selection_command_trigger = "double_press_hold";
 };
 

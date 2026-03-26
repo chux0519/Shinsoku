@@ -43,6 +43,17 @@ struct TranscriptionResult {
     std::optional<std::filesystem::path> audio_path;
 };
 
+struct RecordedKeyResult {
+    enum class Target {
+        HoldKey,
+        HandsFreeChord,
+    };
+
+    Target target = Target::HoldKey;
+    QString key_name;
+    QString error_text;
+};
+
 class AppController final : public QObject {
     Q_OBJECT
 public:
@@ -69,6 +80,8 @@ private slots:
     void on_hands_free_enabled();
     void on_hands_free_disabled();
     void on_hotkey_failed(const QString& reason);
+    void on_record_hold_key_requested();
+    void on_record_hands_free_chord_requested();
     void copy_history_entry(qint64 id);
     void show_history_entry_details(qint64 id);
     void delete_history_entry(qint64 id, bool delete_audio_if_present);
@@ -103,6 +116,8 @@ private:
     void sync_platform_capability_ui();
     void refresh_capture_mode_ui();
     void apply_active_profile_overrides();
+    void capture_hotkey_async(RecordedKeyResult::Target target);
+    void finish_hotkey_capture(const RecordedKeyResult& result);
 
     MainWindow* window_ = nullptr;
     ClipboardService* clipboard_ = nullptr;
@@ -117,6 +132,7 @@ private:
     std::unique_ptr<StreamingAsrBackend> streaming_asr_backend_;
     std::unique_ptr<TextTransformBackend> refine_backend_;
     std::unique_ptr<QFutureWatcher<TranscriptionResult>> transcription_watcher_;
+    std::unique_ptr<QFutureWatcher<RecordedKeyResult>> recorded_key_watcher_;
     std::shared_ptr<std::atomic_bool> transcription_cancel_flag_;
     QList<QPair<QString, QString>> audio_devices_;
     SessionState state_ = SessionState::Idle;
@@ -149,6 +165,7 @@ private:
     std::size_t streaming_final_update_count_ = 0;
     std::chrono::steady_clock::time_point streaming_started_at_{};
     std::optional<std::chrono::steady_clock::time_point> streaming_ready_at_;
+    bool hotkeys_temporarily_suspended_ = false;
 };
 
 }  // namespace ohmytypeless

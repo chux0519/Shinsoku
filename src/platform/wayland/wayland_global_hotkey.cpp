@@ -1,4 +1,5 @@
 #include "platform/wayland/wayland_global_hotkey.hpp"
+#include "platform/hotkey_names.hpp"
 
 #include <libevdev/libevdev.h>
 
@@ -32,7 +33,7 @@ struct DeviceHandle {
 };
 
 int key_code_from_name(const QString& key_name) {
-    const QByteArray utf8 = key_name.trimmed().toUtf8();
+    const QByteArray utf8 = evdev_hotkey_name(key_name).toUtf8();
     const int code = libevdev_event_code_from_name(EV_KEY, utf8.constData());
     if (code < 0) {
         throw std::runtime_error("unknown key name: " + key_name.toStdString());
@@ -93,6 +94,58 @@ std::vector<DeviceHandle> open_keyboard_devices(int hold_key, int chord_key) {
     return devices;
 }
 
+std::vector<DeviceHandle> open_capture_devices() {
+    std::vector<DeviceHandle> devices;
+    std::vector<std::string> errors;
+
+    for (const auto& entry : std::filesystem::directory_iterator("/dev/input")) {
+        const std::string filename = entry.path().filename().string();
+        if (!filename.starts_with("event")) {
+            continue;
+        }
+
+        const int fd = ::open(entry.path().c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            errors.push_back(entry.path().string() + ": open failed: " + std::strerror(errno));
+            continue;
+        }
+
+        libevdev* raw = nullptr;
+        if (libevdev_new_from_fd(fd, &raw) < 0) {
+            errors.push_back(entry.path().string() + ": libevdev_new_from_fd failed");
+            ::close(fd);
+            continue;
+        }
+
+        const bool looks_like_keyboard = libevdev_has_event_type(raw, EV_KEY) != 0 &&
+                                         libevdev_has_event_code(raw, EV_KEY, KEY_SPACE) != 0;
+        if (!looks_like_keyboard) {
+            libevdev_free(raw);
+            ::close(fd);
+            continue;
+        }
+
+        devices.push_back(DeviceHandle{fd, std::unique_ptr<libevdev, DeviceCloser>(raw)});
+    }
+
+    if (devices.empty()) {
+        std::string message = "no readable keyboard input devices found under /dev/input";
+        if (!errors.empty()) {
+            message += " (";
+            for (std::size_t i = 0; i < errors.size(); ++i) {
+                if (i > 0) {
+                    message += "; ";
+                }
+                message += errors[i];
+            }
+            message += ")";
+        }
+        throw std::runtime_error(message);
+    }
+
+    return devices;
+}
+
 }  // namespace
 
 WaylandGlobalHotkey::WaylandGlobalHotkey(QObject* parent) : GlobalHotkey(parent) {}
@@ -103,6 +156,50 @@ WaylandGlobalHotkey::~WaylandGlobalHotkey() {
 
 bool WaylandGlobalHotkey::supports_global_hotkeys() const {
     return const_cast<WaylandGlobalHotkey*>(this)->can_access_input_devices();
+}
+
+bool WaylandGlobalHotkey::supports_key_capture() const {
+    return const_cast<WaylandGlobalHotkey*>(this)->can_access_input_devices();
+}
+
+QString WaylandGlobalHotkey::capture_next_key(int timeout_ms, QString* error_message) {
+    try {
+        auto devices = open_capture_devices();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+
+        while (std::chrono::steady_clock::now() < deadline) {
+            for (auto& handle : devices) {
+                if (handle.dev == nullptr) {
+                    continue;
+                }
+
+                input_event event{};
+                while (libevdev_next_event(handle.dev.get(), LIBEVDEV_READ_FLAG_NORMAL, &event) == 0) {
+                    if (event.type != EV_KEY || event.value != 1) {
+                        continue;
+                    }
+
+                    const char* key_name = libevdev_event_code_get_name(EV_KEY, event.code);
+                    if (key_name == nullptr) {
+                        continue;
+                    }
+                    return canonical_hotkey_name(QString::fromUtf8(key_name));
+                }
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(8));
+        }
+
+        if (error_message != nullptr) {
+            *error_message = "Timed out waiting for a key press.";
+        }
+        return {};
+    } catch (const std::exception& exception) {
+        if (error_message != nullptr) {
+            *error_message = QString::fromUtf8(exception.what());
+        }
+        return {};
+    }
 }
 
 bool WaylandGlobalHotkey::register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) {

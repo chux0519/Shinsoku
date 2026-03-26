@@ -12,6 +12,14 @@ public:
     ~GlobalHotkey() override = default;
 
     virtual bool supports_global_hotkeys() const = 0;
+    virtual bool supports_key_capture() const { return false; }
+    virtual QString capture_next_key(int timeout_ms, QString* error_message) {
+        Q_UNUSED(timeout_ms);
+        if (error_message != nullptr) {
+            *error_message = "Key capture is not implemented for this backend.";
+        }
+        return {};
+    }
     virtual bool register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) = 0;
     virtual void unregister_hotkey() = 0;
     virtual QString backend_name() const = 0;

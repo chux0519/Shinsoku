@@ -92,12 +92,33 @@ bool build_wtype_command(const QString& key_combo, WtypeCommand* command) {
     return true;
 }
 
+bool write_wl_copy_text(const QString& text) {
+    const QString program = QStandardPaths::findExecutable("wl-copy");
+    if (program.isEmpty()) {
+        return false;
+    }
+
+    QProcess process;
+    process.start(program, {});
+    if (!process.waitForStarted(1000)) {
+        return false;
+    }
+    process.write(text.toUtf8());
+    process.closeWriteChannel();
+    if (!process.waitForFinished(1500)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return false;
+    }
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+}
+
 }  // namespace
 
 WaylandClipboardService::WaylandClipboardService(QClipboard* clipboard) : clipboard_(clipboard) {}
 
 bool WaylandClipboardService::supports_auto_paste() const {
-    return clipboard_ != nullptr && !QStandardPaths::findExecutable("wtype").isEmpty();
+    return clipboard_ != nullptr && has_required_tools();
 }
 
 void WaylandClipboardService::begin_paste_session() {
@@ -128,12 +149,16 @@ bool WaylandClipboardService::paste_text_to_last_target(const QString& text, con
         return false;
     }
 
-    clipboard_->setText(text, QClipboard::Clipboard);
+    const bool copied = write_wl_copy_text(text);
+    if (!copied) {
+        clipboard_->setText(text, QClipboard::Clipboard);
+    }
     QCoreApplication::processEvents();
     std::this_thread::sleep_for(std::chrono::milliseconds(80));
 
     const bool sent = run_wtype_key_combo(paste_keys);
-    set_debug_info(QString("paste path=wtype result=%1 text_length=%2 keys=%3")
+    set_debug_info(QString("paste path=%1 result=%2 text_length=%3 keys=%4")
+                       .arg(copied ? "wl-copy+wtype" : "qt-clipboard+wtype")
                        .arg(sent ? "true" : "false")
                        .arg(text.size())
                        .arg(paste_keys));
@@ -145,7 +170,7 @@ QString WaylandClipboardService::last_debug_info() const {
 }
 
 bool WaylandClipboardService::has_required_tools() const {
-    return !QStandardPaths::findExecutable("wtype").isEmpty();
+    return !QStandardPaths::findExecutable("wtype").isEmpty() && !QStandardPaths::findExecutable("wl-copy").isEmpty();
 }
 
 bool WaylandClipboardService::run_wtype_key_combo(const QString& key_combo) const {

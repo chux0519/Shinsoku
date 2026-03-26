@@ -4,6 +4,7 @@
 #include "core/task_types.hpp"
 #include "platform/clipboard_service.hpp"
 #include "platform/global_hotkey.hpp"
+#include "platform/hotkey_names.hpp"
 #include "platform/hud_presenter.hpp"
 #include "platform/selection_service.hpp"
 #include "ui/history_details_dialog.hpp"
@@ -231,7 +232,8 @@ AppController::AppController(MainWindow* window,
       asr_backend_(make_asr_backend(config_)),
       streaming_asr_backend_(make_streaming_asr_backend(config_)),
       refine_backend_(make_refine_backend(config_)),
-      transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()) {
+      transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()),
+      recorded_key_watcher_(std::make_unique<QFutureWatcher<RecordedKeyResult>>()) {
     selection_command_upgrade_timer_ = new QTimer(this);
     selection_command_upgrade_timer_->setSingleShot(true);
     connect(selection_command_upgrade_timer_, &QTimer::timeout, this, [this]() {
@@ -320,6 +322,11 @@ void AppController::initialize() {
     connect(window_, &MainWindow::show_settings_requested, this, &AppController::show_settings);
     connect(window_, &MainWindow::quit_requested, this, &AppController::quit_application);
     connect(window_->settings_window(), &SettingsWindow::apply_clicked, this, &AppController::apply_settings);
+    connect(window_->settings_window(), &SettingsWindow::record_hold_key_requested, this, &AppController::on_record_hold_key_requested);
+    connect(window_->settings_window(),
+            &SettingsWindow::record_hands_free_chord_requested,
+            this,
+            &AppController::on_record_hands_free_chord_requested);
     connect(window_->history_window(), &HistoryWindow::copy_entry_requested, this, &AppController::copy_history_entry);
     connect(window_->history_window(), &HistoryWindow::show_details_requested, this, &AppController::show_history_entry_details);
     connect(window_->history_window(), &HistoryWindow::delete_entry_requested, this, &AppController::delete_history_entry);
@@ -331,6 +338,9 @@ void AppController::initialize() {
     connect(hotkey_, &GlobalHotkey::registration_failed, this, &AppController::on_hotkey_failed);
     connect(transcription_watcher_.get(), &QFutureWatcher<TranscriptionResult>::finished, this,
             &AppController::on_transcription_finished);
+    connect(recorded_key_watcher_.get(), &QFutureWatcher<RecordedKeyResult>::finished, this, [this]() {
+        finish_hotkey_capture(recorded_key_watcher_->result());
+    });
 
     apply_settings();
 
@@ -531,6 +541,14 @@ void AppController::show_settings() {
     window_->settings_window()->activateWindow();
 }
 
+void AppController::on_record_hold_key_requested() {
+    capture_hotkey_async(RecordedKeyResult::Target::HoldKey);
+}
+
+void AppController::on_record_hands_free_chord_requested() {
+    capture_hotkey_async(RecordedKeyResult::Target::HandsFreeChord);
+}
+
 void AppController::on_active_profile_changed(const QString& profile_id) {
     if (profile_id.trimmed().isEmpty()) {
         return;
@@ -612,6 +630,9 @@ void AppController::quit_application() {
 }
 
 void AppController::on_hold_started() {
+    if (hotkeys_temporarily_suspended_) {
+        return;
+    }
     if (!uses_system_audio_capture() && uses_double_press_selection_command() && state_ == SessionState::Recording &&
         active_capture_mode_ == CaptureMode::Dictation &&
         selection_command_upgrade_timer_ != nullptr && selection_command_upgrade_timer_->isActive()) {
@@ -634,6 +655,9 @@ void AppController::on_hold_started() {
 }
 
 void AppController::on_hold_stopped() {
+    if (hotkeys_temporarily_suspended_) {
+        return;
+    }
     if (state_ == SessionState::Recording) {
         if (!uses_system_audio_capture() && uses_double_press_selection_command() && active_capture_mode_ == CaptureMode::Dictation &&
             selection_command_upgrade_timer_ != nullptr) {
@@ -649,6 +673,9 @@ void AppController::on_hold_stopped() {
 }
 
 void AppController::on_hands_free_enabled() {
+    if (hotkeys_temporarily_suspended_) {
+        return;
+    }
     if (state_ == SessionState::Recording) {
         set_state(SessionState::HandsFree, "Hands-free recording.");
         hud_->show_recording();
@@ -656,6 +683,9 @@ void AppController::on_hands_free_enabled() {
 }
 
 void AppController::on_hands_free_disabled() {
+    if (hotkeys_temporarily_suspended_) {
+        return;
+    }
     if (state_ == SessionState::HandsFree) {
         stop_recording();
     }
@@ -665,6 +695,74 @@ void AppController::on_hotkey_failed(const QString& reason) {
     window_->settings_window()->set_status_text(reason);
     set_state(SessionState::Error, reason);
     hud_->show_error(reason);
+}
+
+void AppController::capture_hotkey_async(RecordedKeyResult::Target target) {
+    if (recorded_key_watcher_ != nullptr && recorded_key_watcher_->isRunning()) {
+        window_->settings_window()->set_status_text("A key capture is already in progress.");
+        return;
+    }
+    if (hotkey_ == nullptr || !hotkey_->supports_key_capture()) {
+        window_->settings_window()->set_status_text("Key capture is not available on this platform/backend.");
+        return;
+    }
+    if (state_ == SessionState::Recording || state_ == SessionState::HandsFree || state_ == SessionState::Transcribing) {
+        window_->settings_window()->set_status_text("Stop the current recording before capturing a new hotkey.");
+        return;
+    }
+
+    hotkeys_temporarily_suspended_ = true;
+    hotkey_->unregister_hotkey();
+    if (target == RecordedKeyResult::Target::HoldKey) {
+        window_->settings_window()->set_recording_hold_key(true);
+    } else {
+        window_->settings_window()->set_recording_hands_free_chord(true);
+    }
+
+    recorded_key_watcher_->setFuture(QtConcurrent::run([this, target]() {
+        RecordedKeyResult result;
+        result.target = target;
+        if (hotkey_ == nullptr) {
+            result.error_text = "Hotkey backend is unavailable.";
+            return result;
+        }
+
+        QString error_message;
+        result.key_name = hotkey_->capture_next_key(5000, &error_message);
+        result.error_text = error_message;
+        return result;
+    }));
+}
+
+void AppController::finish_hotkey_capture(const RecordedKeyResult& result) {
+    if (result.target == RecordedKeyResult::Target::HoldKey) {
+        window_->settings_window()->set_recording_hold_key(false);
+    } else {
+        window_->settings_window()->set_recording_hands_free_chord(false);
+    }
+
+    if (!result.key_name.isEmpty()) {
+        const QString display_name = display_hotkey_name(result.key_name);
+        if (result.target == RecordedKeyResult::Target::HoldKey) {
+            window_->settings_window()->apply_recorded_hold_key(result.key_name);
+            window_->settings_window()->set_status_text(
+                QString("Captured Hold Key: %1 (%2). Click Apply to save it.").arg(display_name, result.key_name));
+        } else {
+            window_->settings_window()->apply_recorded_hands_free_chord(result.key_name);
+            window_->settings_window()->set_status_text(
+                QString("Captured Hands-free Chord: %1 (%2). Click Apply to save it.").arg(display_name, result.key_name));
+        }
+    } else if (!result.error_text.isEmpty()) {
+        window_->settings_window()->set_status_text(QString("Key capture failed: %1").arg(result.error_text));
+    } else {
+        window_->settings_window()->set_status_text("Key capture failed.");
+    }
+
+    hotkeys_temporarily_suspended_ = false;
+    if (hotkey_ != nullptr && hotkey_->supports_global_hotkeys()) {
+        hotkey_->register_hotkeys(QString::fromStdString(config_.hotkey.hold_key),
+                                  QString::fromStdString(config_.hotkey.hands_free_chord_key));
+    }
 }
 
 void AppController::copy_history_entry(qint64 id) {
@@ -1510,7 +1608,7 @@ void AppController::on_transcription_finished() {
         bool replaced_selection = false;
         QString replace_debug;
         if (active_capture_mode_ == CaptureMode::SelectionCommand) {
-            replaced_selection = selection_->replace_selection(result.text);
+            replaced_selection = selection_->replace_selection(result.text, QString::fromStdString(config_.output.paste_keys));
             replace_debug = selection_->last_debug_info();
         } else if (config_.output.copy_to_clipboard) {
             clipboard_->copy_text(result.text);
