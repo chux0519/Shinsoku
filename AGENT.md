@@ -1,26 +1,161 @@
 # AGENT.md
 
-This file records repository-level implementation conventions for coding agents.
+This file is the repository-level handoff note for coding agents.
 
-## UI styling
+It should stay short, current, and useful for day-to-day collaboration.
 
-- Keep application styling centralized in shared theme resources under
-  `resources/themes/`.
-- Keep `src/ui/app_theme.cpp` limited to theme loading and token substitution.
-- Do not add ad-hoc stylesheet strings to individual `*.cpp` or `*.hpp` files
-  unless there is a temporary, clearly documented exception.
-- Prefer exposing stable widget `objectName`s from UI code and styling those
-  names from the shared QSS instead of embedding local visual rules next to the
-  widget construction code.
+## Purpose
 
-## Platform boundaries
+Use this file for:
 
-- Keep platform-specific behavior behind platform or capability abstractions;
-  do not let Windows-only APIs or assumptions spread into `src/core/`.
-- When adding new OS-dependent features such as global input, clipboard /
-  selection, system-audio capture, tray integration, or focused-window paste,
-  prefer an interface that can support Windows, macOS, and Linux backends later.
-- For input and capture features, model product-level intent in `core`
-  and keep concrete backend details such as WASAPI loopback, X11/Wayland,
-  macOS accessibility, or Windows foreground-window handling out of shared
-  workflow code.
+- repository-wide engineering rules
+- platform boundaries and implementation direction
+- the current capability snapshot that affects feature work
+
+Do not use this file as a changelog.
+Active execution status and next steps belong in `Roadmap.md`.
+
+## Working Rules
+
+- Keep product intent in `src/core/`.
+- Keep OS-specific behavior behind platform abstractions in `src/platform/`.
+- Do not let Windows-only, Wayland-only, or backend-specific assumptions leak
+  into shared workflow code.
+- Prefer extending existing abstractions over adding one-off branches in
+  `AppController`.
+- Keep UI styling centralized in `resources/themes/` and `src/ui/app_theme.cpp`.
+- Avoid ad-hoc stylesheet strings in individual widgets unless the exception is
+  temporary and clearly justified.
+
+## Core Platform Abstractions
+
+These are the main extension points for cross-platform work:
+
+- `GlobalHotkey`
+- `ClipboardService`
+- `SelectionService`
+- `AudioCaptureService`
+- `HudPresenter`
+
+Related shared backend boundaries live under `src/core/backend/`.
+
+## Hotkey Model
+
+Hotkey config now uses canonical internal key names instead of Linux-only
+`KEY_*` names.
+
+Examples:
+
+- `right_alt`
+- `space`
+- `right_ctrl`
+- `menu`
+- `left_meta`
+
+Rules:
+
+- New UI/config work should use canonical names, not backend-native names.
+- Backend-native mappings should stay inside platform backends.
+- Old `KEY_*` config values must remain load-compatible.
+
+Relevant files:
+
+- `src/platform/hotkey_names.hpp`
+- `src/platform/hotkey_names.cpp`
+- `src/platform/global_hotkey.hpp`
+
+## Platform Direction
+
+### Windows
+
+Current strength:
+
+- strongest overall platform today
+- stable hotkey backend
+- stable clipboard and selection service
+- stable HUD and shell
+- streaming ASR path already validated
+- system audio MVP exists
+
+Current gap:
+
+- hotkey key recording is not implemented yet
+
+Expected direction:
+
+- keep current low-level hotkey backend
+- add key capture through `GlobalHotkey::capture_next_key(...)`
+- map captured Windows events into canonical hotkey names
+
+### Linux Wayland
+
+Current direction:
+
+- global hotkeys use passive `libevdev` monitoring
+- key recording in Settings is implemented through the same input path
+- selection capture prefers `wl-paste --primary`
+- selection replace and auto-paste use `wl-copy` plus `wtype`
+- system audio MVP uses PulseAudio compatibility APIs:
+  - `libpulse` for default sink / monitor discovery
+  - `libpulse-simple` for sample capture
+- HUD uses the Wayland layer-shell presenter
+
+Constraints:
+
+- passive `libevdev` listening can detect keys, but it cannot safely consume
+  keys globally
+- do not reintroduce device-grab approaches such as `libevdev_grab`
+- Wayland selection and paste flows are app-dependent and should remain
+  capability-gated
+
+### Linux X11
+
+Not implemented yet.
+
+If work starts here, treat it as a separate backend from Wayland.
+
+### macOS
+
+Not implemented yet.
+
+Expected future direction:
+
+- global input via accessibility/event tap style APIs
+- focused text workflows via accessibility-backed paths where possible
+- system audio via a separate native strategy
+
+## Current Capability Snapshot
+
+### Working well enough today
+
+- Windows main workflow
+- Windows selection workflow
+- Windows system audio MVP
+- Wayland HUD overlay
+- Wayland multi-monitor HUD targeting
+- Wayland key recording in Settings
+- Wayland selection capture in real browser/editor targets
+- Linux system audio MVP on mainstream PulseAudio-compatible desktops
+
+### Intentionally partial or app-dependent
+
+- Wayland selection replace / auto-paste
+- Wayland Alt-based hotkeys
+- focused-window paste behavior across arbitrary apps
+
+### Still pending
+
+- Windows hotkey key recording
+- macOS backend work
+- Linux X11 backend work
+- broader Linux system-audio runtime validation
+
+## Documentation Policy
+
+Keep collaboration docs minimal:
+
+- `AGENT.md` for stable repo rules and platform guidance
+- `Roadmap.md` for current status, next steps, and active priorities
+
+If information does not help another agent make a better implementation
+decision soon, do not add a new doc for it.
