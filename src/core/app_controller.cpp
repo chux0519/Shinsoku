@@ -434,6 +434,18 @@ void AppController::apply_settings() {
     config_.hud.enabled = window_->settings_window()->hud_enabled();
     config_.hud.bottom_margin = window_->settings_window()->hud_bottom_margin();
 
+    const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
+                                                config_.profiles.items.end(),
+                                                [&](const ProfileConfig& profile) {
+                                                    return profile.id == config_.profiles.active_profile_id;
+                                                });
+    if (active_profile_it != config_.profiles.items.end()) {
+        ProfileConfig& active_profile = *active_profile_it;
+        active_profile.output.copy_to_clipboard = config_.output.copy_to_clipboard;
+        active_profile.output.paste_to_focused_window = config_.output.paste_to_focused_window;
+        active_profile.output.paste_keys = config_.output.paste_keys;
+    }
+
     if (config_.pipeline.asr.base_url.empty()) {
         config_.pipeline.asr.base_url = defaults.pipeline.asr.base_url;
     }
@@ -524,6 +536,24 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
         return;
     }
 
+    const auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                         config_.profiles.items.end(),
+                                         [&](const ProfileConfig& profile) {
+                                             return profile.id == profile_id.toStdString();
+                                         });
+    if (profile_it == config_.profiles.items.end()) {
+        return;
+    }
+    if (!profile_it->enabled) {
+        const QString status = QString("Profile '%1' is disabled. Re-enable it in Settings before activating it.")
+                                   .arg(QString::fromStdString(profile_it->name));
+        window_->set_status_text(status);
+        window_->settings_window()->set_status_text(status);
+        window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
+        window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+        return;
+    }
+
     config_.profiles.active_profile_id = profile_id.toStdString();
     apply_active_profile_overrides();
     QString capability_notice;
@@ -536,13 +566,13 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
     window_->settings_window()->set_profiles(config_.profiles.items, profile_id);
     window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     refresh_capture_mode_ui();
-    const auto profile_it = std::find_if(config_.profiles.items.begin(),
-                                         config_.profiles.items.end(),
-                                         [&](const ProfileConfig& profile) {
-                                             return profile.id == config_.profiles.active_profile_id;
-                                         });
-    const QString profile_name = profile_it != config_.profiles.items.end() ? QString::fromStdString(profile_it->name)
-                                                                             : profile_id;
+    const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
+                                                config_.profiles.items.end(),
+                                                [&](const ProfileConfig& profile) {
+                                                    return profile.id == config_.profiles.active_profile_id;
+                                                });
+    const QString profile_name = active_profile_it != config_.profiles.items.end() ? QString::fromStdString(active_profile_it->name)
+                                                                                    : profile_id;
     const QString status = QString("Active profile: %1").arg(profile_name);
     window_->set_status_text(capability_notice.isEmpty() ? status : QString("%1\n%2").arg(status, capability_notice));
     window_->meeting_window()->set_profile_name(profile_name);

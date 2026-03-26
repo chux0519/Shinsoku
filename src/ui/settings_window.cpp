@@ -57,8 +57,14 @@ const QStringList kBailianIntlModels = {
 };
 
 QString profile_label(const ProfileConfig& profile, const QString& active_profile_id) {
-    return profile.id == active_profile_id ? QString("%1  Current").arg(QString::fromStdString(profile.name))
-                                           : QString::fromStdString(profile.name);
+    QString label = QString::fromStdString(profile.name);
+    if (!profile.enabled) {
+        label += "  Disabled";
+    }
+    if (profile.id == active_profile_id) {
+        label += "  Current";
+    }
+    return label;
 }
 
 QString slugify_profile_id(QString text) {
@@ -193,6 +199,12 @@ QComboBox* make_key_combo(QWidget* parent) {
     combo->addItem("Left Ctrl", "KEY_LEFTCTRL");
     combo->addItem("Right Shift", "KEY_RIGHTSHIFT");
     combo->addItem("Left Shift", "KEY_LEFTSHIFT");
+    combo->setItemData(combo->findData("KEY_RIGHTALT"),
+                       QString("Right Alt may still trigger menus in some Linux/Wayland apps. Prefer a Ctrl key when possible."),
+                       Qt::ToolTipRole);
+    combo->setItemData(combo->findData("KEY_LEFTALT"),
+                       QString("Left Alt usually conflicts with application menus on Linux/Wayland. Prefer a Ctrl key instead."),
+                       Qt::ToolTipRole);
     configure_combo_popup(combo);
     return combo;
 }
@@ -1260,8 +1272,11 @@ void SettingsWindow::load_profile_into_editor(int index) {
     const ProfileConfig& profile = profiles_[static_cast<std::size_t>(index)];
     active_profile_id_ = QString::fromStdString(profile.id);
     active_profile_hint_label_->setText(
-        QString("Selected profile ID: %1. This profile is currently active and drives streaming, transform, and output preferences.")
-            .arg(QString::fromStdString(profile.id)));
+        QString("Selected profile ID: %1. %2")
+            .arg(QString::fromStdString(profile.id),
+                 profile.enabled
+                     ? QString("This profile can be activated and drives streaming, transform, and output preferences.")
+                     : QString("This profile is disabled and cannot be activated until it is re-enabled.")));
     profile_name_edit_->setText(QString::fromStdString(profile.name));
     set_combo_by_value(profile_kind_combo_, QString::fromStdString(profile.kind));
     profile_enabled_check_->setChecked(profile.enabled);

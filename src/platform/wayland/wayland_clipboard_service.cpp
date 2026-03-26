@@ -97,7 +97,7 @@ bool build_wtype_command(const QString& key_combo, WtypeCommand* command) {
 WaylandClipboardService::WaylandClipboardService(QClipboard* clipboard) : clipboard_(clipboard) {}
 
 bool WaylandClipboardService::supports_auto_paste() const {
-    return clipboard_ != nullptr && has_required_tools();
+    return clipboard_ != nullptr && !QStandardPaths::findExecutable("wtype").isEmpty();
 }
 
 void WaylandClipboardService::begin_paste_session() {
@@ -145,7 +145,7 @@ QString WaylandClipboardService::last_debug_info() const {
 }
 
 bool WaylandClipboardService::has_required_tools() const {
-    return !QStandardPaths::findExecutable("wl-copy").isEmpty() && !QStandardPaths::findExecutable("wtype").isEmpty();
+    return !QStandardPaths::findExecutable("wtype").isEmpty();
 }
 
 bool WaylandClipboardService::run_wtype_key_combo(const QString& key_combo) const {
