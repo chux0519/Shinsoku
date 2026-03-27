@@ -217,6 +217,28 @@ std::string normalize_prompt_mode(std::string value) {
     return "inherit_global";
 }
 
+std::string normalize_app_theme(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "system" || value == "light" || value == "dark") {
+        return value;
+    }
+    return "system";
+}
+
+std::string normalize_tray_icon_theme(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "auto" || value == "light" || value == "dark") {
+        return value;
+    }
+    return "auto";
+}
+
 ProfileConfig make_default_profile(const AppConfig& config) {
     ProfileConfig profile;
     profile.id = "default";
@@ -523,6 +545,12 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "hud", "bottom_margin")) {
         config.hud.bottom_margin = parse_int(*value, config.hud.bottom_margin);
     }
+    if (const auto value = get_value(sections, "appearance", "app_theme")) {
+        config.appearance.app_theme = normalize_app_theme(unquote(*value));
+    }
+    if (const auto value = get_value(sections, "appearance", "tray_icon_theme")) {
+        config.appearance.tray_icon_theme = normalize_tray_icon_theme(unquote(*value));
+    }
 
     std::set<std::string> profile_ids;
     for (const auto& [section_name, _] : sections) {
@@ -647,6 +675,8 @@ AppConfig load_config() {
     if (config.network.proxy.port <= 0) {
         config.network.proxy.port = defaults.network.proxy.port;
     }
+    config.appearance.app_theme = normalize_app_theme(config.appearance.app_theme);
+    config.appearance.tray_icon_theme = normalize_tray_icon_theme(config.appearance.tray_icon_theme);
 
     ensure_profiles(config);
 
@@ -762,6 +792,11 @@ void save_config(const AppConfig& config) {
     output << "[hud]\n";
     output << "enabled = " << (config.hud.enabled ? "true" : "false") << "\n";
     output << "bottom_margin = " << config.hud.bottom_margin << "\n";
+    output << "\n";
+
+    output << "[appearance]\n";
+    output << "app_theme = \"" << escape_toml_string(normalize_app_theme(config.appearance.app_theme)) << "\"\n";
+    output << "tray_icon_theme = \"" << escape_toml_string(normalize_tray_icon_theme(config.appearance.tray_icon_theme)) << "\"\n";
 }
 
 }  // namespace ohmytypeless

@@ -7,6 +7,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QColor>
 #include <QComboBox>
 #include <QEvent>
 #include <QFrame>
@@ -18,6 +19,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QStyleHints>
 #include <QSvgRenderer>
 #include <QStyle>
 #include <QSystemTrayIcon>
@@ -44,6 +46,39 @@ QIcon icon_from_svg(const QString& path, int size) {
     QPainter painter(&pixmap);
     renderer.render(&painter);
     return QIcon(pixmap);
+}
+
+bool current_app_theme_is_dark() {
+    const QColor window = qApp->palette().color(QPalette::Window);
+    return window.lightness() < 128;
+}
+
+QString tray_icon_path_for(SessionState state, const QString& theme) {
+    const bool use_light_icons = theme == "light" || (theme == "auto" && current_app_theme_is_dark());
+    if (use_light_icons) {
+        switch (state) {
+        case SessionState::Idle:
+            return ":/icons/square-bolt-light.svg";
+        case SessionState::Recording:
+        case SessionState::HandsFree:
+        case SessionState::Transcribing:
+            return ":/icons/square-bolt-tray-active-light.svg";
+        case SessionState::Error:
+            return ":/icons/square-bolt-tray-error-light.svg";
+        }
+    }
+
+    switch (state) {
+    case SessionState::Idle:
+        return ":/icons/square-bolt.svg";
+    case SessionState::Recording:
+    case SessionState::HandsFree:
+    case SessionState::Transcribing:
+        return ":/icons/square-bolt-tray-active.svg";
+    case SessionState::Error:
+        return ":/icons/square-bolt-tray-error.svg";
+    }
+    return ":/icons/square-bolt.svg";
 }
 
 }  // namespace
@@ -170,6 +205,14 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     settings_window_ = new SettingsWindow();
     history_window_ = new HistoryWindow();
     meeting_window_ = new MeetingTranscriptionWindow();
+
+    if (qApp != nullptr && qApp->styleHints() != nullptr) {
+        connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this](Qt::ColorScheme) {
+            if (tray_icon_theme_ == "auto") {
+                refresh_tray_state(tray_state_);
+            }
+        });
+    }
 
     setup_tray();
 
@@ -298,6 +341,20 @@ void MainWindow::set_selection_command_available(bool available, const QString& 
     selection_command_button_->setToolTip(reason);
 }
 
+void MainWindow::set_tray_icon_theme(const QString& theme) {
+    const QString normalized = theme.trimmed().toLower();
+    if (normalized == "light" || normalized == "dark") {
+        tray_icon_theme_ = normalized;
+    } else {
+        tray_icon_theme_ = "auto";
+    }
+    refresh_tray_state(tray_state_);
+}
+
+void MainWindow::refresh_tray_icon() {
+    refresh_tray_state(tray_state_);
+}
+
 SettingsWindow* MainWindow::settings_window() const {
     return settings_window_;
 }
@@ -421,7 +478,7 @@ void MainWindow::setup_tray() {
     }
 
     tray_icon_ = new QSystemTrayIcon(this);
-    tray_icon_->setIcon(icon_from_svg(":/icons/square-bolt.svg", 32));
+    tray_icon_->setIcon(icon_from_svg(tray_icon_path_for(SessionState::Idle, tray_icon_theme_), 32));
 
     auto* menu = new QMenu(this);
     menu->setWindowFlag(Qt::FramelessWindowHint, true);
@@ -454,21 +511,21 @@ void MainWindow::refresh_tray_state(SessionState state) {
     }
 
     QString title = "Shinsoku";
-    QIcon icon = icon_from_svg(":/icons/square-bolt.svg", 32);
+    QIcon icon = icon_from_svg(tray_icon_path_for(state, tray_icon_theme_), 32);
     switch (state) {
     case SessionState::Idle:
         title = "Shinsoku";
-        icon = icon_from_svg(":/icons/square-bolt.svg", 32);
+        icon = icon_from_svg(tray_icon_path_for(state, tray_icon_theme_), 32);
         break;
     case SessionState::Recording:
     case SessionState::HandsFree:
     case SessionState::Transcribing:
         title = "Shinsoku Active";
-        icon = icon_from_svg(":/icons/square-bolt-tray-active.svg", 32);
+        icon = icon_from_svg(tray_icon_path_for(state, tray_icon_theme_), 32);
         break;
     case SessionState::Error:
         title = "Shinsoku Error";
-        icon = icon_from_svg(":/icons/square-bolt-tray-error.svg", 32);
+        icon = icon_from_svg(tray_icon_path_for(state, tray_icon_theme_), 32);
         break;
     }
 

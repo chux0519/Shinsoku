@@ -163,6 +163,11 @@ struct HudConfig {
     int bottom_margin = 104;
 };
 
+struct AppearanceConfig {
+    std::string app_theme = "system";
+    std::string tray_icon_theme = "auto";
+};
+
 struct AppConfig {
     HotkeyConfig hotkey;
     PipelineConfig pipeline;
@@ -174,6 +179,7 @@ struct AppConfig {
     VadConfig vad;
     ObservabilityConfig observability;
     HudConfig hud;
+    AppearanceConfig appearance;
     std::filesystem::path history_db_path;
     std::filesystem::path config_path;
 };

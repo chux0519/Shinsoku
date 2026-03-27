@@ -6,8 +6,11 @@
         <file>icons/command.svg</file>
         <file>icons/mic.svg</file>
         <file>icons/square-bolt.svg</file>
+        <file>icons/square-bolt-light.svg</file>
         <file>icons/square-bolt-tray-active.svg</file>
+        <file>icons/square-bolt-tray-active-light.svg</file>
         <file>icons/square-bolt-tray-error.svg</file>
+        <file>icons/square-bolt-tray-error-light.svg</file>
         <file>icons/sparkles.svg</file>
         <file>icons/triangle-alert.svg</file>
         <file>icons/chevron-down-dark.xpm</file>

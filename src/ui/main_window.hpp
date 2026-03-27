@@ -31,6 +31,8 @@ public:
     void update_history(const QList<HistoryEntry>& entries);
     void set_profiles(const std::vector<std::pair<QString, QString>>& profiles, const QString& active_profile_id);
     void set_selection_command_available(bool available, const QString& reason = {});
+    void set_tray_icon_theme(const QString& theme);
+    void refresh_tray_icon();
 
     SettingsWindow* settings_window() const;
     HistoryWindow* history_window() const;
@@ -63,6 +65,7 @@ private:
     QSystemTrayIcon* tray_icon_ = nullptr;
     QAction* tray_state_action_ = nullptr;
     SessionState tray_state_ = SessionState::Idle;
+    QString tray_icon_theme_ = "auto";
     QString last_tray_error_message_;
     SettingsWindow* settings_window_ = nullptr;
     HistoryWindow* history_window_ = nullptr;

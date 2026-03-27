@@ -7,6 +7,7 @@
 #include "platform/hotkey_names.hpp"
 #include "platform/hud_presenter.hpp"
 #include "platform/selection_service.hpp"
+#include "ui/app_theme.hpp"
 #include "ui/history_details_dialog.hpp"
 #include "ui/history_window.hpp"
 #include "ui/main_window.hpp"
@@ -276,6 +277,8 @@ void AppController::initialize() {
     window_->settings_window()->set_copy_to_clipboard_enabled(config_.output.copy_to_clipboard);
     window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     window_->settings_window()->set_paste_keys(QString::fromStdString(config_.output.paste_keys));
+    window_->settings_window()->set_app_theme(QString::fromStdString(config_.appearance.app_theme));
+    window_->settings_window()->set_tray_icon_theme(QString::fromStdString(config_.appearance.tray_icon_theme));
     window_->settings_window()->set_proxy_enabled(config_.network.proxy.enabled);
     window_->settings_window()->set_proxy_type(QString::fromStdString(config_.network.proxy.type));
     window_->settings_window()->set_proxy_host(QString::fromStdString(config_.network.proxy.host));
@@ -310,6 +313,8 @@ void AppController::initialize() {
     window_->settings_window()->set_hud_enabled(config_.hud.enabled);
     window_->settings_window()->set_hud_bottom_margin(config_.hud.bottom_margin);
     window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
+    set_app_theme_preference(*qApp, QString::fromStdString(config_.appearance.app_theme));
+    window_->set_tray_icon_theme(QString::fromStdString(config_.appearance.tray_icon_theme));
 
     hud_->apply_config(config_.hud);
     window_->set_session_state(state_);
@@ -422,6 +427,8 @@ void AppController::apply_settings() {
     config_.output.copy_to_clipboard = window_->settings_window()->copy_to_clipboard_enabled();
     config_.output.paste_to_focused_window = window_->settings_window()->paste_to_focused_window_enabled();
     config_.output.paste_keys = window_->settings_window()->paste_keys().toStdString();
+    config_.appearance.app_theme = window_->settings_window()->app_theme().toStdString();
+    config_.appearance.tray_icon_theme = window_->settings_window()->tray_icon_theme().toStdString();
     config_.network.proxy.enabled = window_->settings_window()->proxy_enabled();
     config_.network.proxy.type = window_->settings_window()->proxy_type().toStdString();
     config_.network.proxy.host = window_->settings_window()->proxy_host().toStdString();
@@ -505,6 +512,8 @@ void AppController::apply_settings() {
     sync_platform_capability_ui();
 
     refresh_audio_devices();
+    set_app_theme_preference(*qApp, QString::fromStdString(config_.appearance.app_theme));
+    window_->set_tray_icon_theme(QString::fromStdString(config_.appearance.tray_icon_theme));
     window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
     window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);

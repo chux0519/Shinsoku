@@ -569,6 +569,22 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     output_form->addRow("Paste Keys", paste_keys_combo_);
     insert_section_before_stretch(general_layout, output_section);
 
+    QFormLayout* appearance_form = nullptr;
+    auto* appearance_section = make_section("Appearance", this, &appearance_form);
+    app_theme_combo_ = new QComboBox(appearance_section);
+    app_theme_combo_->addItem("Follow System", "system");
+    app_theme_combo_->addItem("Light", "light");
+    app_theme_combo_->addItem("Dark", "dark");
+    configure_combo_popup(app_theme_combo_);
+    tray_icon_theme_combo_ = new QComboBox(appearance_section);
+    tray_icon_theme_combo_->addItem("Auto", "auto");
+    tray_icon_theme_combo_->addItem("Light Icon", "light");
+    tray_icon_theme_combo_->addItem("Dark Icon", "dark");
+    configure_combo_popup(tray_icon_theme_combo_);
+    appearance_form->addRow("App Theme", app_theme_combo_);
+    appearance_form->addRow("Tray Icon Theme", tray_icon_theme_combo_);
+    insert_section_before_stretch(general_layout, appearance_section);
+
     QFormLayout* network_form = nullptr;
     auto* network_section = make_section("Proxy", this, &network_form);
     proxy_enabled_check_ = new QCheckBox("Route HTTP requests through a proxy", network_section);
@@ -958,6 +974,14 @@ QString SettingsWindow::paste_keys() const {
     return paste_keys_combo_->currentText();
 }
 
+QString SettingsWindow::app_theme() const {
+    return app_theme_combo_->currentData().toString();
+}
+
+QString SettingsWindow::tray_icon_theme() const {
+    return tray_icon_theme_combo_->currentData().toString();
+}
+
 bool SettingsWindow::proxy_enabled() const {
     return proxy_enabled_check_->isChecked();
 }
@@ -1177,6 +1201,14 @@ void SettingsWindow::set_paste_keys(const QString& keys) {
     if (index >= 0) {
         paste_keys_combo_->setCurrentIndex(index);
     }
+}
+
+void SettingsWindow::set_app_theme(const QString& theme) {
+    set_combo_by_value(app_theme_combo_, theme);
+}
+
+void SettingsWindow::set_tray_icon_theme(const QString& theme) {
+    set_combo_by_value(tray_icon_theme_combo_, theme);
 }
 
 void SettingsWindow::set_proxy_enabled(bool enabled) {

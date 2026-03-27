@@ -13,6 +13,19 @@ namespace ohmytypeless {
 
 namespace {
 
+QString normalized_theme_preference(QString value) {
+    value = value.trimmed().toLower();
+    if (value == "light" || value == "dark") {
+        return value;
+    }
+    return "system";
+}
+
+QString& app_theme_preference_storage() {
+    static QString preference = "system";
+    return preference;
+}
+
 QString load_theme_template() {
     QFile file(":/themes/app.qss");
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -26,6 +39,17 @@ QString render_theme_template(QString style, const QHash<QString, QString>& valu
         style.replace(QString("{{%1}}").arg(it.key()), it.value());
     }
     return style;
+}
+
+Qt::ColorScheme effective_scheme(QApplication& app) {
+    const QString preference = app_theme_preference_storage();
+    if (preference == "light") {
+        return Qt::ColorScheme::Light;
+    }
+    if (preference == "dark") {
+        return Qt::ColorScheme::Dark;
+    }
+    return app.styleHints()->colorScheme();
 }
 
 void apply_app_theme(QApplication& app, Qt::ColorScheme scheme) {
@@ -132,9 +156,14 @@ void apply_app_theme(QApplication& app, Qt::ColorScheme scheme) {
 
 void install_app_theme(QApplication& app) {
     app.setStyle(QStyleFactory::create("Fusion"));
-    apply_app_theme(app, app.styleHints()->colorScheme());
+    apply_app_theme(app, effective_scheme(app));
     QObject::connect(app.styleHints(), &QStyleHints::colorSchemeChanged, &app,
-                     [&app](Qt::ColorScheme scheme) { apply_app_theme(app, scheme); });
+                     [&app](Qt::ColorScheme) { apply_app_theme(app, effective_scheme(app)); });
+}
+
+void set_app_theme_preference(QApplication& app, const QString& preference) {
+    app_theme_preference_storage() = normalized_theme_preference(preference);
+    apply_app_theme(app, effective_scheme(app));
 }
 
 }  // namespace ohmytypeless
