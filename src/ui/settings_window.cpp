@@ -776,7 +776,11 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
     });
     connect(audio_capture_mode_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_global_workflow_settings_edited();
         refresh_capability_dependent_controls();
+    });
+    connect(input_device_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_global_workflow_settings_edited();
     });
     connect(audio_capture_mode_combo_, &QComboBox::activated, this, [this](int) {
         emit audio_capture_mode_changed(audio_capture_mode());
@@ -785,12 +789,29 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         emit profile_audio_capture_mode_changed(profile_input_source_combo_->currentData().toString());
     });
     connect(streaming_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_global_workflow_settings_edited();
         refresh_capability_dependent_controls();
+    });
+    connect(streaming_provider_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_global_workflow_settings_edited();
+    });
+    connect(streaming_language_edit_, &QLineEdit::textChanged, this, [this](const QString&) {
+        mark_global_workflow_settings_edited();
+    });
+    connect(refine_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_global_workflow_settings_edited();
     });
     connect(hold_key_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hold_key_requested);
     connect(hands_free_chord_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hands_free_chord_requested);
     connect(paste_to_focused_window_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_global_workflow_settings_edited();
         refresh_capability_dependent_controls();
+    });
+    connect(copy_to_clipboard_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_global_workflow_settings_edited();
+    });
+    connect(paste_keys_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_global_workflow_settings_edited();
     });
     connect(soniox_help_button_, &QToolButton::clicked, this, []() {
         QDesktopServices::openUrl(QUrl("https://docs.soniox.com"));
@@ -884,12 +905,37 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
     });
     connect(profile_input_source_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_profile_workflow_settings_edited();
         if (syncing_profiles_ || profile_editor_index_ < 0 || profile_editor_index_ >= static_cast<int>(profiles_.size())) {
             return;
         }
         const QString profile_id = QString::fromStdString(profiles_[static_cast<std::size_t>(profile_editor_index_)].id);
         active_profile_hint_label_->setText(
             profile_hint_text(profile_id, profile_input_source_combo_->currentData().toString()));
+    });
+    connect(profile_input_device_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_prefer_streaming_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_streaming_provider_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_language_hint_edit_, &QLineEdit::textChanged, this, [this](const QString&) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_transform_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_copy_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_paste_check_, &QCheckBox::toggled, this, [this](bool) {
+        mark_profile_workflow_settings_edited();
+    });
+    connect(profile_paste_keys_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        mark_profile_workflow_settings_edited();
     });
     connect(navigation_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
     refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), QString());
@@ -1034,6 +1080,10 @@ QString SettingsWindow::streaming_language() const {
     return streaming_language_edit_->text().trimmed();
 }
 
+SettingsWindow::WorkflowEditSource SettingsWindow::workflow_edit_source() const {
+    return workflow_edit_source_;
+}
+
 bool SettingsWindow::refine_enabled() const {
     return refine_enabled_check_->isChecked();
 }
@@ -1147,15 +1197,19 @@ void SettingsWindow::set_profiles(const std::vector<ProfileConfig>& profiles, co
 }
 
 void SettingsWindow::set_audio_capture_mode(const QString& text) {
+    suppress_workflow_edit_tracking_ = true;
     set_combo_by_value(audio_capture_mode_combo_, text);
+    suppress_workflow_edit_tracking_ = false;
     refresh_capability_dependent_controls();
 }
 
 void SettingsWindow::set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
+    suppress_workflow_edit_tracking_ = true;
     set_device_combo_items(input_device_combo_, devices, selected_device_id);
     if (profile_input_source_combo_ != nullptr && profile_input_source_combo_->currentData().toString() == "microphone") {
         set_device_combo_items(profile_input_device_combo_, devices, selected_device_id);
     }
+    suppress_workflow_edit_tracking_ = false;
     refresh_capability_dependent_controls();
 }
 
@@ -1188,19 +1242,25 @@ void SettingsWindow::set_max_files(int value) {
 }
 
 void SettingsWindow::set_copy_to_clipboard_enabled(bool enabled) {
+    suppress_workflow_edit_tracking_ = true;
     copy_to_clipboard_check_->setChecked(enabled);
+    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_paste_to_focused_window_enabled(bool enabled) {
+    suppress_workflow_edit_tracking_ = true;
     paste_to_focused_window_check_->setChecked(enabled);
+    suppress_workflow_edit_tracking_ = false;
     refresh_capability_dependent_controls();
 }
 
 void SettingsWindow::set_paste_keys(const QString& keys) {
+    suppress_workflow_edit_tracking_ = true;
     const int index = paste_keys_combo_->findText(keys);
     if (index >= 0) {
         paste_keys_combo_->setCurrentIndex(index);
     }
+    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_app_theme(const QString& theme) {
@@ -1252,19 +1312,27 @@ void SettingsWindow::set_asr_model(const QString& text) {
 }
 
 void SettingsWindow::set_streaming_enabled(bool enabled) {
+    suppress_workflow_edit_tracking_ = true;
     streaming_enabled_check_->setChecked(enabled);
+    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_streaming_provider(const QString& text) {
+    suppress_workflow_edit_tracking_ = true;
     set_combo_by_value(streaming_provider_combo_, text);
+    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_streaming_language(const QString& text) {
+    suppress_workflow_edit_tracking_ = true;
     streaming_language_edit_->setText(text);
+    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_refine_enabled(bool enabled) {
+    suppress_workflow_edit_tracking_ = true;
     refine_enabled_check_->setChecked(enabled);
+    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_refine_provider(const QString& text) {
@@ -1383,6 +1451,20 @@ void SettingsWindow::set_system_audio_available(bool available, const QString& r
 void SettingsWindow::set_status_text(const QString& text) {
     status_label_->setText(text);
     status_label_->setVisible(!text.trimmed().isEmpty());
+}
+
+void SettingsWindow::mark_global_workflow_settings_edited() {
+    if (suppress_workflow_edit_tracking_) {
+        return;
+    }
+    workflow_edit_source_ = WorkflowEditSource::Global;
+}
+
+void SettingsWindow::mark_profile_workflow_settings_edited() {
+    if (suppress_workflow_edit_tracking_ || syncing_profiles_) {
+        return;
+    }
+    workflow_edit_source_ = WorkflowEditSource::Profile;
 }
 
 void SettingsWindow::set_record_button_state(QPushButton* button, bool active) {

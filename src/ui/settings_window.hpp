@@ -25,6 +25,12 @@ namespace ohmytypeless {
 class SettingsWindow final : public QWidget {
     Q_OBJECT
 public:
+    enum class WorkflowEditSource {
+        None,
+        Global,
+        Profile,
+    };
+
     explicit SettingsWindow(QWidget* parent = nullptr);
 
     QString hold_key() const;
@@ -56,6 +62,7 @@ public:
     bool streaming_enabled() const;
     QString streaming_provider() const;
     QString streaming_language() const;
+    WorkflowEditSource workflow_edit_source() const;
     bool refine_enabled() const;
     QString refine_provider() const;
     QString refine_base_url() const;
@@ -139,6 +146,8 @@ signals:
     void record_hands_free_chord_requested();
 
 private:
+    void mark_global_workflow_settings_edited();
+    void mark_profile_workflow_settings_edited();
     void refresh_capability_dependent_controls();
     void refresh_profile_list();
     QString profile_list_label(const ProfileConfig& profile) const;
@@ -222,6 +231,8 @@ private:
     QString active_profile_id_;
     int profile_editor_index_ = -1;
     bool syncing_profiles_ = false;
+    bool suppress_workflow_edit_tracking_ = false;
+    WorkflowEditSource workflow_edit_source_ = WorkflowEditSource::None;
     bool global_hotkeys_available_ = true;
     bool auto_paste_available_ = true;
     bool system_audio_available_ = true;

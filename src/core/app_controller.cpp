@@ -463,18 +463,6 @@ void AppController::apply_settings() {
     config_.hud.enabled = window_->settings_window()->hud_enabled();
     config_.hud.bottom_margin = window_->settings_window()->hud_bottom_margin();
 
-    const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
-                                                config_.profiles.items.end(),
-                                                [&](const ProfileConfig& profile) {
-                                                    return profile.id == config_.profiles.active_profile_id;
-                                                });
-    if (active_profile_it != config_.profiles.items.end()) {
-        ProfileConfig& active_profile = *active_profile_it;
-        active_profile.output.copy_to_clipboard = config_.output.copy_to_clipboard;
-        active_profile.output.paste_to_focused_window = config_.output.paste_to_focused_window;
-        active_profile.output.paste_keys = config_.output.paste_keys;
-    }
-
     if (config_.pipeline.asr.base_url.empty()) {
         config_.pipeline.asr.base_url = defaults.pipeline.asr.base_url;
     }
@@ -506,6 +494,25 @@ void AppController::apply_settings() {
         config_.providers.bailian.model = defaults.providers.bailian.model;
     }
 
+    const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
+                                                config_.profiles.items.end(),
+                                                [&](const ProfileConfig& profile) {
+                                                    return profile.id == config_.profiles.active_profile_id;
+                                                });
+    if (active_profile_it != config_.profiles.items.end() &&
+        window_->settings_window()->workflow_edit_source() == SettingsWindow::WorkflowEditSource::Global) {
+        ProfileConfig& active_profile = *active_profile_it;
+        active_profile.capture.input_source = config_.audio.capture_mode;
+        active_profile.capture.input_device_id = config_.audio.capture_mode == "system" ? std::string{} : config_.audio.input_device_id;
+        active_profile.capture.prefer_streaming = config_.pipeline.streaming.enabled;
+        active_profile.capture.preferred_streaming_provider = config_.pipeline.streaming.provider;
+        active_profile.capture.language_hint = config_.pipeline.streaming.language;
+        active_profile.transform.enabled = config_.pipeline.refine.enabled;
+        active_profile.output.copy_to_clipboard = config_.output.copy_to_clipboard;
+        active_profile.output.paste_to_focused_window = config_.output.paste_to_focused_window;
+        active_profile.output.paste_keys = config_.output.paste_keys;
+    }
+
     apply_active_profile_overrides();
     QString capability_notice;
     enforce_platform_capabilities(&capability_notice);
@@ -516,6 +523,10 @@ void AppController::apply_settings() {
     window_->set_tray_icon_theme(QString::fromStdString(config_.appearance.tray_icon_theme));
     window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
     window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
+    window_->settings_window()->set_streaming_enabled(config_.pipeline.streaming.enabled);
+    window_->settings_window()->set_streaming_provider(QString::fromStdString(config_.pipeline.streaming.provider));
+    window_->settings_window()->set_streaming_language(QString::fromStdString(config_.pipeline.streaming.language));
+    window_->settings_window()->set_refine_enabled(config_.pipeline.refine.enabled);
     window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
     refresh_capture_mode_ui();
 
