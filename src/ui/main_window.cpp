@@ -13,8 +13,12 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QIcon>
 #include <QMenu>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
+#include <QSvgRenderer>
 #include <QStyle>
 #include <QSystemTrayIcon>
 #include <QVBoxLayout>
@@ -26,8 +30,27 @@
 
 namespace ohmytypeless {
 
+namespace {
+
+QIcon icon_from_svg(const QString& path, int size) {
+    QSvgRenderer renderer(path);
+    if (!renderer.isValid()) {
+        return {};
+    }
+
+    QPixmap pixmap(size, size);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    renderer.render(&painter);
+    return QIcon(pixmap);
+}
+
+}  // namespace
+
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-    setWindowTitle("OhMyTypeless");
+    setWindowTitle("Shinsoku");
+    setWindowIcon(icon_from_svg(":/icons/square-bolt.svg", 256));
     resize(940, 620);
     setMinimumSize(820, 560);
 
@@ -106,6 +129,39 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     actions->addWidget(history_button);
     actions->addWidget(settings_button);
     layout->addWidget(action_card);
+
+#if defined(SHINSOKU_ENABLE_TRAY_DEBUG)
+    auto* debug_card = new QFrame(central);
+    debug_card->setObjectName("statusCard");
+    auto* debug_layout = new QVBoxLayout(debug_card);
+    debug_layout->setContentsMargins(24, 18, 24, 18);
+    debug_layout->setSpacing(10);
+
+    auto* debug_title = new QLabel("Tray Debug", debug_card);
+    debug_title->setObjectName("eyebrow");
+    debug_layout->addWidget(debug_title);
+
+    auto* debug_help = new QLabel(
+        "Temporary controls for validating tray icon states and warning notifications without running the full recording flow.",
+        debug_card);
+    debug_help->setWordWrap(true);
+    debug_help->setObjectName("statusText");
+    debug_layout->addWidget(debug_help);
+
+    auto* debug_actions = new QHBoxLayout();
+    debug_actions->setSpacing(12);
+    auto* tray_idle_button = new QPushButton("Tray Idle", debug_card);
+    auto* tray_active_button = new QPushButton("Tray Active", debug_card);
+    auto* tray_error_button = new QPushButton("Tray Error", debug_card);
+    auto* tray_warning_button = new QPushButton("Warn Once", debug_card);
+    debug_actions->addWidget(tray_idle_button);
+    debug_actions->addWidget(tray_active_button);
+    debug_actions->addWidget(tray_error_button);
+    debug_actions->addWidget(tray_warning_button);
+    debug_actions->addStretch();
+    debug_layout->addLayout(debug_actions);
+    layout->addWidget(debug_card);
+#endif
     layout->addStretch();
 
     setCentralWidget(central);
@@ -122,6 +178,24 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(hotkey_button, &QPushButton::clicked, this, &MainWindow::register_hotkey_requested);
     connect(history_button, &QPushButton::clicked, this, &MainWindow::show_history_requested);
     connect(settings_button, &QPushButton::clicked, this, &MainWindow::show_settings_requested);
+#if defined(SHINSOKU_ENABLE_TRAY_DEBUG)
+    connect(tray_idle_button, &QPushButton::clicked, this, [this]() {
+        set_session_state(SessionState::Idle);
+        set_status_text("Tray debug: idle state.");
+    });
+    connect(tray_active_button, &QPushButton::clicked, this, [this]() {
+        set_session_state(SessionState::Transcribing);
+        set_status_text("Tray debug: active state.");
+    });
+    connect(tray_error_button, &QPushButton::clicked, this, [this]() {
+        set_session_state(SessionState::Error);
+        set_status_text("Tray debug: simulated warning state.");
+    });
+    connect(tray_warning_button, &QPushButton::clicked, this, [this]() {
+        set_session_state(SessionState::Error);
+        set_status_text("Tray debug warning notification.");
+    });
+#endif
     connect(profile_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
         emit active_profile_changed_requested(profile_combo_->currentData().toString());
     });
@@ -135,6 +209,9 @@ MainWindow::~MainWindow() {
 
 void MainWindow::set_session_state(SessionState state) {
     tray_state_ = state;
+    if (state != SessionState::Error) {
+        last_tray_error_message_.clear();
+    }
     QString text = "State: ";
     switch (state) {
     case SessionState::Idle:
@@ -172,6 +249,11 @@ void MainWindow::set_session_state(SessionState state) {
 
 void MainWindow::set_status_text(const QString& text) {
     status_label_->setText(text);
+    if (tray_icon_ != nullptr && tray_state_ == SessionState::Error && tray_icon_->isVisible() &&
+        text != last_tray_error_message_) {
+        last_tray_error_message_ = text;
+        tray_icon_->showMessage("Shinsoku Warning", text, QSystemTrayIcon::Warning, 6000);
+    }
 }
 
 void MainWindow::set_tray_available(bool available) {
@@ -339,9 +421,12 @@ void MainWindow::setup_tray() {
     }
 
     tray_icon_ = new QSystemTrayIcon(this);
-    tray_icon_->setIcon(style()->standardIcon(QStyle::SP_MediaVolume));
+    tray_icon_->setIcon(icon_from_svg(":/icons/square-bolt.svg", 32));
 
     auto* menu = new QMenu(this);
+    menu->setWindowFlag(Qt::FramelessWindowHint, true);
+    menu->setAttribute(Qt::WA_TranslucentBackground, true);
+    menu->setAttribute(Qt::WA_NoSystemBackground, true);
     tray_state_action_ = menu->addAction("State: Idle");
     tray_state_action_->setEnabled(false);
 
@@ -368,22 +453,22 @@ void MainWindow::refresh_tray_state(SessionState state) {
         return;
     }
 
-    QString title = "OhMyTypeless";
-    QIcon icon = style()->standardIcon(QStyle::SP_MediaVolume);
+    QString title = "Shinsoku";
+    QIcon icon = icon_from_svg(":/icons/square-bolt.svg", 32);
     switch (state) {
     case SessionState::Idle:
-        title = "OhMyTypeless";
-        icon = style()->standardIcon(QStyle::SP_MediaVolume);
+        title = "Shinsoku";
+        icon = icon_from_svg(":/icons/square-bolt.svg", 32);
         break;
     case SessionState::Recording:
     case SessionState::HandsFree:
     case SessionState::Transcribing:
-        title = "OhMyTypeless Active";
-        icon = style()->standardIcon(QStyle::SP_MediaPlay);
+        title = "Shinsoku Active";
+        icon = icon_from_svg(":/icons/square-bolt-tray-active.svg", 32);
         break;
     case SessionState::Error:
-        title = "OhMyTypeless Error";
-        icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
+        title = "Shinsoku Error";
+        icon = icon_from_svg(":/icons/square-bolt-tray-error.svg", 32);
         break;
     }
 

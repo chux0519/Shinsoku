@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(OhMyTypeless VERSION 0.1.0 LANGUAGES C CXX)
+project(Shinsoku VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,10 +27,11 @@ if(UNIX AND NOT APPLE)
 endif()
 
 option(OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD "Enable Wayland HUD via in-tree layer-shell backend" ON)
+option(SHINSOKU_ENABLE_TRAY_DEBUG "Enable temporary tray debug controls in the main window" OFF)
 
 qt_standard_project_setup()
 
-qt_add_executable(ohmytypeless
+qt_add_executable(shinsoku
     resources/app_theme.qrc
     src/main.cpp
     src/core/app_config.hpp
@@ -96,7 +97,7 @@ qt_add_executable(ohmytypeless
 )
 
 if(WIN32)
-    target_sources(ohmytypeless PRIVATE
+    target_sources(shinsoku PRIVATE
         src/platform/windows/windows_clipboard_service.hpp
         src/platform/windows/windows_clipboard_service.cpp
         src/platform/windows/windows_global_hotkey.hpp
@@ -107,7 +108,7 @@ if(WIN32)
 endif()
 
 if(UNIX AND NOT APPLE)
-    target_sources(ohmytypeless PRIVATE
+    target_sources(shinsoku PRIVATE
         src/platform/linux/linux_pulseaudio_audio_capture_service.hpp
         src/platform/linux/linux_pulseaudio_audio_capture_service.cpp
         src/platform/wayland/wayland_clipboard_service.hpp
@@ -126,9 +127,13 @@ if(UNIX AND NOT APPLE)
     )
 endif()
 
-target_include_directories(ohmytypeless PRIVATE src ${MINIAUDIO_INCLUDE_DIRS})
+target_include_directories(shinsoku PRIVATE src ${MINIAUDIO_INCLUDE_DIRS})
 
-target_link_libraries(ohmytypeless PRIVATE
+if(SHINSOKU_ENABLE_TRAY_DEBUG)
+    target_compile_definitions(shinsoku PRIVATE SHINSOKU_ENABLE_TRAY_DEBUG=1)
+endif()
+
+target_link_libraries(shinsoku PRIVATE
     CURL::libcurl
     Qt6::Concurrent
     Qt6::Core
@@ -159,7 +164,7 @@ if(UNIX AND NOT APPLE)
     endforeach()
 
     if(OHMYTYPELESS_QT_STATIC_PLUGINS)
-        qt_import_plugins(ohmytypeless INCLUDE ${OHMYTYPELESS_QT_STATIC_PLUGINS})
+        qt_import_plugins(shinsoku INCLUDE ${OHMYTYPELESS_QT_STATIC_PLUGINS})
     endif()
 endif()
 
@@ -170,35 +175,35 @@ get_filename_component(QT_HOST_PREFIX "${QT_HOST_PREFIX}" DIRECTORY)
 get_filename_component(QT_VCPKG_PREFIX "${QT_HOST_PREFIX}" DIRECTORY)
 
 if(WIN32)
-    add_custom_command(TARGET ohmytypeless POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:ohmytypeless>/platforms"
+    add_custom_command(TARGET shinsoku POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:shinsoku>/platforms"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<$<CONFIG:Debug>:${QT_VCPKG_PREFIX}/debug/Qt6/plugins/platforms/qwindowsd.dll>$<$<NOT:$<CONFIG:Debug>>:${QT_VCPKG_PREFIX}/Qt6/plugins/platforms/qwindows.dll>"
-            "$<TARGET_FILE_DIR:ohmytypeless>/platforms/"
+            "$<TARGET_FILE_DIR:shinsoku>/platforms/"
         COMMENT "Copying Qt Windows platform plugin"
     )
 endif()
 
 if(WIN32)
-    target_link_libraries(ohmytypeless PRIVATE bcrypt ole32 uiautomationcore user32)
+    target_link_libraries(shinsoku PRIVATE bcrypt ole32 uiautomationcore user32)
 endif()
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(ohmytypeless PRIVATE PkgConfig::LIBEVDEV PkgConfig::LIBPULSE PkgConfig::LIBPULSE_SIMPLE)
+    target_link_libraries(shinsoku PRIVATE PkgConfig::LIBEVDEV PkgConfig::LIBPULSE PkgConfig::LIBPULSE_SIMPLE)
 endif()
 
 if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
     find_package(Qt6WaylandClientPrivate CONFIG REQUIRED)
-    target_link_libraries(ohmytypeless PRIVATE Qt6::WaylandClientPrivate)
-    qt6_generate_wayland_protocol_client_sources(ohmytypeless
+    target_link_libraries(shinsoku PRIVATE Qt6::WaylandClientPrivate)
+    qt6_generate_wayland_protocol_client_sources(shinsoku
         PRIVATE_CODE
         FILES
             ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wayland/wlr-layer-shell-unstable-v1.xml
     )
-    target_compile_definitions(ohmytypeless PRIVATE OHMYTYPELESS_HAS_WAYLAND_LAYER_SHELL=1)
+    target_compile_definitions(shinsoku PRIVATE OHMYTYPELESS_HAS_WAYLAND_LAYER_SHELL=1)
 endif()
 
-target_compile_options(ohmytypeless PRIVATE
+target_compile_options(shinsoku PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive->
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
 )

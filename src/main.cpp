@@ -14,7 +14,11 @@
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QIcon>
+#include <QPainter>
+#include <QPixmap>
 #include <QString>
+#include <QSvgRenderer>
 
 #include <memory>
 
@@ -24,12 +28,31 @@
 #include "platform/windows/windows_selection_service.hpp"
 #endif
 
+namespace {
+
+QIcon icon_from_svg(const QString& path, int size) {
+    QSvgRenderer renderer(path);
+    if (!renderer.isValid()) {
+        return {};
+    }
+
+    QPixmap pixmap(size, size);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    renderer.render(&painter);
+    return QIcon(pixmap);
+}
+
+}  // namespace
+
 int main(int argc, char* argv[]) {
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
-    app.setApplicationName("OhMyTypeless");
-    app.setOrganizationName("ohmytypeless");
+    app.setApplicationName("Shinsoku");
+    app.setOrganizationName("Shinsoku");
+    app.setWindowIcon(icon_from_svg(":/icons/square-bolt.svg", 256));
     app.setQuitOnLastWindowClosed(false);
     ohmytypeless::install_app_theme(app);
 

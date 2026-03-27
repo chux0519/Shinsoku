@@ -63,6 +63,7 @@ private:
     QSystemTrayIcon* tray_icon_ = nullptr;
     QAction* tray_state_action_ = nullptr;
     SessionState tray_state_ = SessionState::Idle;
+    QString last_tray_error_message_;
     SettingsWindow* settings_window_ = nullptr;
     HistoryWindow* history_window_ = nullptr;
     MeetingTranscriptionWindow* meeting_window_ = nullptr;
