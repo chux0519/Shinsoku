@@ -8,7 +8,10 @@
     "miniaudio",
     "nlohmann-json",
     "qtbase",
-    "qtwayland",
+    {
+      "name": "qtwayland",
+      "platform": "linux"
+    },
     "qtsvg",
     "sqlite3"
   ]

@@ -19,9 +19,7 @@
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
-#include <QMainWindow>
 #include <QFontMetrics>
-#include <QWindow>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -29,17 +27,6 @@
 namespace ohmytypeless {
 
 namespace {
-
-QWidget* hud_host_surface(QWidget* host_window) {
-    if (host_window == nullptr) {
-        return nullptr;
-    }
-    if (auto* main_window = qobject_cast<QMainWindow*>(host_window); main_window != nullptr &&
-        main_window->centralWidget() != nullptr) {
-        return main_window->centralWidget();
-    }
-    return host_window;
-}
 
 class HudWaveformWidget final : public QWidget {
 public:
@@ -226,9 +213,6 @@ QByteArray load_tinted_svg(const QString& icon_path, const QString& color) {
 QtHudPresenter::QtHudPresenter(QWidget* host_window, QObject* parent) : QObject(parent), host_window_(host_window) {
     if (host_window_ != nullptr) {
         host_window_->installEventFilter(this);
-        if (QWidget* surface = hud_host_surface(host_window_); surface != nullptr && surface != host_window_) {
-            surface->installEventFilter(this);
-        }
     }
 }
 
@@ -240,12 +224,11 @@ void QtHudPresenter::apply_config(const HudConfig& config) {
 }
 
 bool QtHudPresenter::supports_overlay_hud() const {
-    return host_window_ != nullptr;
+    return true;
 }
 
 bool QtHudPresenter::eventFilter(QObject* watched, QEvent* event) {
-    const bool watches_host = watched == host_window_ || (host_window_ != nullptr && watched == hud_host_surface(host_window_));
-    if (watches_host && event != nullptr) {
+    if (watched == host_window_ && event != nullptr) {
         switch (event->type()) {
         case QEvent::Move:
         case QEvent::Resize:
@@ -375,15 +358,6 @@ void QtHudPresenter::rebuild_overlays() {
     hide();
     overlays_.clear();
 
-    if (host_window_ == nullptr) {
-        return;
-    }
-
-    QWidget* host_surface = hud_host_surface(host_window_);
-    if (host_surface == nullptr) {
-        return;
-    }
-
     const QList<QScreen*> screens = QGuiApplication::screens();
     overlays_.reserve(static_cast<std::size_t>(screens.size()));
     for (QScreen* screen : screens) {
@@ -391,12 +365,14 @@ void QtHudPresenter::rebuild_overlays() {
             continue;
         }
 
-        auto* widget = new QWidget(host_surface);
+        auto* widget = new QWidget();
+        widget->setWindowFlag(Qt::FramelessWindowHint, true);
+        widget->setWindowFlag(Qt::Tool, true);
+        widget->setWindowFlag(Qt::WindowStaysOnTopHint, true);
         widget->setAttribute(Qt::WA_ShowWithoutActivating, true);
         widget->setAttribute(Qt::WA_TransparentForMouseEvents, true);
         widget->setAttribute(Qt::WA_TranslucentBackground, true);
         widget->setFocusPolicy(Qt::NoFocus);
-        widget->raise();
 
         auto* layout = new QHBoxLayout(widget);
         layout->setContentsMargins(18, 18, 18, 18);
@@ -469,10 +445,6 @@ void QtHudPresenter::rebuild_overlays() {
 }
 
 void QtHudPresenter::ensure_overlays() {
-    if (host_window_ == nullptr) {
-        overlays_.clear();
-        return;
-    }
     const QList<QScreen*> screens = QGuiApplication::screens();
     const bool matches_screen_count = overlays_.size() == static_cast<std::size_t>(screens.size());
     if (matches_screen_count) {
@@ -492,32 +464,29 @@ void QtHudPresenter::ensure_overlays() {
 }
 
 void QtHudPresenter::reposition_overlay(HudOverlay& overlay, const QSize& size, bool persistent_state) {
-    if (host_window_ == nullptr || overlay.widget == nullptr) {
+    if (overlay.widget == nullptr || overlay.screen == nullptr) {
         return;
     }
 
-    QWidget* host_surface = hud_host_surface(host_window_);
-    if (host_surface == nullptr) {
-        return;
-    }
-
-    const QRect host_rect = host_surface->rect();
+    const QRect available = overlay.screen->availableGeometry();
     if (persistent_state) {
         if (!overlay.anchor_locked) {
-            overlay.anchor_center = QPoint(host_rect.width() / 2,
-                                           host_rect.height() - config_.bottom_margin - (size.height() / 2));
+            overlay.anchor_center = QPoint(available.x() + available.width() / 2,
+                                           available.bottom() - config_.bottom_margin - (size.height() / 2));
             overlay.anchor_locked = true;
         }
     } else {
-        overlay.anchor_center = QPoint(host_rect.width() / 2,
-                                       host_rect.height() - config_.bottom_margin - (size.height() / 2));
+        overlay.anchor_center = QPoint(available.x() + available.width() / 2,
+                                       available.bottom() - config_.bottom_margin - (size.height() / 2));
         overlay.anchor_locked = false;
     }
 
     const int x = overlay.anchor_center.x() - (size.width() / 2);
     const int y = overlay.anchor_center.y() - (size.height() / 2);
-    overlay.widget->move(x, y);
-    overlay.widget->raise();
+    const bool should_move = !persistent_state || !overlay.widget->isVisible() || !overlay.anchor_locked;
+    if (should_move) {
+        overlay.widget->move(x, y);
+    }
 }
 
 void QtHudPresenter::show_text(const QString& text, const QString& accent, int duration_ms, bool command_mode) {
@@ -600,6 +569,7 @@ void QtHudPresenter::show_text(const QString& text, const QString& accent, int d
 
         reposition_overlay(overlay, size, is_persistent_hud_state(text));
         overlay.widget->show();
+        overlay.widget->raise();
 
         if (overlay.hide_timer != nullptr) {
             overlay.hide_timer->stop();
