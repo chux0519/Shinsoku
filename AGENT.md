@@ -74,19 +74,16 @@ Current strength:
 
 - strongest overall platform today
 - stable hotkey backend
+- Settings key recording is implemented through the shared `GlobalHotkey`
+  capture flow
 - stable clipboard and selection service
 - stable HUD and shell
 - streaming ASR path already validated
 - system audio MVP exists
 
-Current gap:
-
-- hotkey key recording is not implemented yet
-
 Expected direction:
 
 - keep current low-level hotkey backend
-- add key capture through `GlobalHotkey::capture_next_key(...)`
 - map captured Windows events into canonical hotkey names
 - reuse the existing Settings and `AppController` recording flow instead of
   adding a Windows-only UI path
@@ -153,7 +150,6 @@ Expected future direction:
 
 ### Still pending
 
-- Windows hotkey key recording
 - macOS backend work
 - Linux X11 backend work
 - broader Linux system-audio runtime validation

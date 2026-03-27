@@ -1,9 +1,92 @@
 #include "platform/windows/windows_global_hotkey.hpp"
 #include "platform/hotkey_names.hpp"
 
+#include <QDeadlineTimer>
 #include <QString>
 
 namespace ohmytypeless {
+
+namespace {
+
+struct CaptureState {
+    HHOOK hook = nullptr;
+    DWORD thread_id = 0;
+    QString captured_key_name;
+};
+
+CaptureState* active_capture_state = nullptr;
+
+QString canonical_key_name_from_event(const KBDLLHOOKSTRUCT& key_info) {
+    switch (key_info.vkCode) {
+    case VK_SPACE:
+        return "space";
+    case VK_LMENU:
+        return "left_alt";
+    case VK_RMENU:
+        return "right_alt";
+    case VK_LCONTROL:
+        return "left_ctrl";
+    case VK_RCONTROL:
+        return "right_ctrl";
+    case VK_LSHIFT:
+        return "left_shift";
+    case VK_RSHIFT:
+        return "right_shift";
+    case VK_LWIN:
+        return "left_meta";
+    case VK_RWIN:
+        return "right_meta";
+    case VK_APPS:
+        return "menu";
+    case VK_MENU:
+        return (key_info.flags & LLKHF_EXTENDED) != 0 ? "right_alt" : "left_alt";
+    case VK_CONTROL:
+        return (key_info.flags & LLKHF_EXTENDED) != 0 ? "right_ctrl" : "left_ctrl";
+    case VK_SHIFT: {
+        const UINT mapped = ::MapVirtualKeyW(key_info.scanCode, MAPVK_VSC_TO_VK_EX);
+        if (mapped == VK_RSHIFT) {
+            return "right_shift";
+        }
+        return "left_shift";
+    }
+    default:
+        break;
+    }
+
+    return {};
+}
+
+LRESULT CALLBACK capture_keyboard_proc(int code, WPARAM w_param, LPARAM l_param) {
+    if (code < 0 || l_param == 0) {
+        return ::CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    if (active_capture_state == nullptr) {
+        return ::CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    if (w_param != WM_KEYDOWN && w_param != WM_SYSKEYDOWN) {
+        return ::CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    const auto* key_info = reinterpret_cast<const KBDLLHOOKSTRUCT*>(l_param);
+    if ((key_info->flags & LLKHF_INJECTED) != 0) {
+        return ::CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    const QString key_name = canonical_key_name_from_event(*key_info);
+    if (key_name.isEmpty()) {
+        return ::CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    active_capture_state->captured_key_name = canonical_hotkey_name(key_name);
+    if (active_capture_state->thread_id != 0) {
+        ::PostThreadMessageW(active_capture_state->thread_id, WM_APP + 1, 0, 0);
+    }
+    return 1;
+}
+
+}  // namespace
 
 WindowsGlobalHotkey* WindowsGlobalHotkey::active_instance_ = nullptr;
 
@@ -15,6 +98,50 @@ WindowsGlobalHotkey::~WindowsGlobalHotkey() {
 
 bool WindowsGlobalHotkey::supports_global_hotkeys() const {
     return true;
+}
+
+bool WindowsGlobalHotkey::supports_key_capture() const {
+    return true;
+}
+
+QString WindowsGlobalHotkey::capture_next_key(int timeout_ms, QString* error_message) {
+    MSG ignored{};
+    ::PeekMessageW(&ignored, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+
+    CaptureState capture_state;
+    capture_state.thread_id = ::GetCurrentThreadId();
+    active_capture_state = &capture_state;
+
+    capture_state.hook = ::SetWindowsHookExW(WH_KEYBOARD_LL, &capture_keyboard_proc, ::GetModuleHandleW(nullptr), 0);
+    if (capture_state.hook == nullptr) {
+        active_capture_state = nullptr;
+        if (error_message != nullptr) {
+            *error_message = "SetWindowsHookEx failed for key capture.";
+        }
+        return {};
+    }
+
+    const QDeadlineTimer deadline(timeout_ms);
+    MSG msg{};
+    while (!deadline.hasExpired()) {
+        while (::PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_APP + 1 && !capture_state.captured_key_name.isEmpty()) {
+                ::UnhookWindowsHookEx(capture_state.hook);
+                active_capture_state = nullptr;
+                return capture_state.captured_key_name;
+            }
+            ::TranslateMessage(&msg);
+            ::DispatchMessageW(&msg);
+        }
+        ::MsgWaitForMultipleObjects(0, nullptr, FALSE, 25, QS_ALLINPUT);
+    }
+
+    ::UnhookWindowsHookEx(capture_state.hook);
+    active_capture_state = nullptr;
+    if (error_message != nullptr) {
+        *error_message = "Timed out waiting for a key press.";
+    }
+    return {};
 }
 
 bool WindowsGlobalHotkey::register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) {

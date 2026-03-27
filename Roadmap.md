@@ -25,6 +25,8 @@ Update it when major work lands or priorities change.
 - System-audio workflows now use the `Live Caption` naming and window model.
 - Tray behavior now matches desktop expectations: left click opens the main
   window and the context menu exposes history, settings, and quit.
+- Windows hotkey backend now supports record-next-key in Settings through the
+  shared `GlobalHotkey` capture flow.
 
 ### Current platform summary
 
@@ -33,8 +35,7 @@ Update it when major work lands or priorities change.
 - strongest platform overall
 - hotkeys, selection, HUD, and streaming workflows are in good shape
 - system audio MVP exists
-- Settings and Profiles UI is already ready for shared key-recording flow
-- missing: record-next-key implementation in the Windows hotkey backend
+- shared key recording now works in Settings for hold key and hands-free chord
 
 #### Linux Wayland
 
@@ -55,26 +56,21 @@ Update it when major work lands or priorities change.
 
 ## Active Priorities
 
-1. Implement Windows hotkey key capture on top of the shared `GlobalHotkey`
-   abstraction.
-2. Validate Linux system audio on more real desktop/device combinations.
-3. Continue classifying Wayland selection failures by app behavior instead of
+1. Validate Linux system audio on more real desktop/device combinations.
+2. Continue classifying Wayland selection failures by app behavior instead of
    treating them as one generic bug.
-4. Keep Wayland Alt-key conflicts in the UX/documentation bucket, not as a
+3. Keep Wayland Alt-key conflicts in the UX/documentation bucket, not as a
    low-level input-grab project.
 
 ## Next Suggested Task
 
 If work continues immediately, do this next:
 
-1. Implement `supports_key_capture()` and `capture_next_key(...)` in
-   `src/platform/windows/windows_global_hotkey.*`.
-2. Reuse the existing Settings and `AppController` flow without adding a
-   Windows-only UI path.
-3. Return canonical hotkey names from the Windows backend so config/UI stay
-   cross-platform.
-4. Verify the recorded key updates existing hold-key and hands-free-chord
-   settings correctly on Windows.
+1. Validate the Windows key-recording flow on real hardware, especially
+   left/right modifier distinction and uncommon keyboard layouts.
+2. Validate Linux system audio on more real desktop/device combinations.
+3. Continue reducing Wayland selection ambiguity by classifying app behavior
+   instead of treating failures as one generic path.
 
 ## Guardrails
 

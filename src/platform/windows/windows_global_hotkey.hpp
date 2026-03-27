@@ -14,6 +14,8 @@ public:
     ~WindowsGlobalHotkey() override;
 
     bool supports_global_hotkeys() const override;
+    bool supports_key_capture() const override;
+    QString capture_next_key(int timeout_ms, QString* error_message) override;
     bool register_hotkeys(const QString& hold_key_name, const QString& chord_key_name) override;
     void unregister_hotkey() override;
     QString backend_name() const override;
