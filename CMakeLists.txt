@@ -97,6 +97,10 @@ qt_add_executable(shinsoku
 )
 
 if(WIN32)
+    set_target_properties(shinsoku PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
+if(WIN32)
     target_sources(shinsoku PRIVATE
         src/platform/windows/windows_clipboard_service.hpp
         src/platform/windows/windows_clipboard_service.cpp
@@ -181,6 +185,28 @@ if(WIN32)
             "$<$<CONFIG:Debug>:${QT_VCPKG_PREFIX}/debug/Qt6/plugins/platforms/qwindowsd.dll>$<$<NOT:$<CONFIG:Debug>>:${QT_VCPKG_PREFIX}/Qt6/plugins/platforms/qwindows.dll>"
             "$<TARGET_FILE_DIR:shinsoku>/platforms/"
         COMMENT "Copying Qt Windows platform plugin"
+    )
+endif()
+
+if(WIN32)
+    find_program(SHINSOKU_POWERSHELL_EXECUTABLE NAMES pwsh powershell REQUIRED)
+    set(SHINSOKU_WINDEPLOYQT "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/tools/Qt6/bin/windeployqt.exe")
+    set(SHINSOKU_VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+    set(SHINSOKU_PACKAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/packages")
+
+    add_custom_target(package_windows_portable
+        COMMAND ${SHINSOKU_POWERSHELL_EXECUTABLE} -NoProfile -ExecutionPolicy Bypass
+            -File "${CMAKE_SOURCE_DIR}/packaging/windows/package-portable.ps1"
+            -AppName "Shinsoku"
+            -Version "${PROJECT_VERSION}"
+            -Config "$<CONFIG>"
+            -ExecutablePath "$<TARGET_FILE:shinsoku>"
+            -WindeployQtPath "${SHINSOKU_WINDEPLOYQT}"
+            -VcpkgInstalledDir "${SHINSOKU_VCPKG_INSTALLED_DIR}"
+            -OutputDir "${SHINSOKU_PACKAGE_OUTPUT_DIR}"
+        DEPENDS shinsoku
+        COMMENT "Packaging Windows portable zip"
+        VERBATIM
     )
 endif()
 

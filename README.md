@@ -187,6 +187,17 @@ On Linux, the project is currently aimed at Wayland desktops.
 
 On Linux, run the generated binary from your build directory.
 
+## Windows packaging
+
+For a local Windows portable package, configure and build the project, then run:
+
+```powershell
+cmake -S . -B build-win-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-win-release --target package_windows_portable
+```
+
+The resulting zip is written to `build-win-release/packages/` and is intended to be uploaded directly as a portable release artifact.
+
 ## Repository structure
 
 - `src/core`: app state, configuration, providers, persistence, and orchestration
