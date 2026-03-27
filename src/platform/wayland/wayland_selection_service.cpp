@@ -133,20 +133,16 @@ SelectionCaptureResult WaylandSelectionService::capture_selection(bool allow_cli
 
     const ProcessResult primary_selection = read_wl_paste(true);
     const QString primary_text = primary_selection.std_out.trimmed();
-    if (primary_selection.success && !primary_text.isEmpty()) {
-        set_debug_info(QString("capture path=primary_selection success=true text_length=%1").arg(primary_text.size()));
-        return SelectionCaptureResult{true, primary_text, last_debug_info_};
-    }
-
-    if (!allow_clipboard_fallback) {
-        set_debug_info(QString("capture path=primary_selection success=false fallback=false primary_exit=%1 stderr=%2")
+    const bool primary_success = primary_selection.success && !primary_text.isEmpty();
+    if (!has_replace_tools()) {
+        if (primary_success) {
+            set_debug_info(QString("capture path=primary_selection success=true clipboard_probe=unavailable text_length=%1")
+                               .arg(primary_text.size()));
+            return SelectionCaptureResult{true, primary_text, last_debug_info_};
+        }
+        set_debug_info(QString("capture path=primary_selection success=false clipboard_probe=unavailable primary_exit=%1 stderr=%2")
                            .arg(primary_selection.exit_code)
                            .arg(primary_selection.std_err.trimmed()));
-        return SelectionCaptureResult{false, {}, last_debug_info_};
-    }
-    if (!has_replace_tools()) {
-        set_debug_info(QString("capture path=primary_selection success=false fallback=clipboard_copy unavailable_tools=true primary_exit=%1")
-                           .arg(primary_selection.exit_code));
         return SelectionCaptureResult{false, {}, last_debug_info_};
     }
 
@@ -164,17 +160,45 @@ SelectionCaptureResult WaylandSelectionService::capture_selection(bool allow_cli
     const QString copied_text = clipboard_read.success ? clipboard_read.std_out : clipboard_->text(QClipboard::Clipboard);
     restore_clipboard(std::move(snapshot));
 
-    const QString trimmed_text = copied_text.trimmed();
-    const bool success = copy_sent && clipboard_read.success && copied_text != placeholder && !trimmed_text.isEmpty();
-    set_debug_info(QString("capture path=clipboard_copy_fallback primary_ok=%1 probe_written=%2 copy_sent=%3 clipboard_read=%4 clipboard_exit=%5 copied_text_length=%6 success=%7")
-                       .arg(primary_selection.success ? "true" : "false")
+    const QString clipboard_text = copied_text.trimmed();
+    const bool clipboard_success = copy_sent && clipboard_read.success && copied_text != placeholder && !clipboard_text.isEmpty();
+
+    if (clipboard_success) {
+        if (primary_success && primary_text != clipboard_text) {
+            set_debug_info(QString("capture path=clipboard_copy_preferred primary_mismatch=true primary_length=%1 copied_length=%2")
+                               .arg(primary_text.size())
+                               .arg(clipboard_text.size()));
+        } else {
+            set_debug_info(QString("capture path=%1 primary_ok=%2 probe_written=%3 copy_sent=%4 clipboard_read=%5 clipboard_exit=%6 copied_text_length=%7")
+                               .arg(primary_success ? "clipboard_copy_confirmed" : "clipboard_copy_fallback")
+                               .arg(primary_success ? "true" : "false")
+                               .arg(probe_written ? "true" : "false")
+                               .arg(copy_sent ? "true" : "false")
+                               .arg(clipboard_read.success ? "true" : "false")
+                               .arg(clipboard_read.exit_code)
+                               .arg(copied_text.size()));
+        }
+        return SelectionCaptureResult{true, clipboard_text, last_debug_info_};
+    }
+
+    if (primary_success && allow_clipboard_fallback) {
+        set_debug_info(QString("capture path=primary_selection clipboard_probe_success=false probe_written=%1 copy_sent=%2 clipboard_read=%3 clipboard_exit=%4 text_length=%5")
+                           .arg(probe_written ? "true" : "false")
+                           .arg(copy_sent ? "true" : "false")
+                           .arg(clipboard_read.success ? "true" : "false")
+                           .arg(clipboard_read.exit_code)
+                           .arg(primary_text.size()));
+        return SelectionCaptureResult{true, primary_text, last_debug_info_};
+    }
+
+    set_debug_info(QString("capture failed primary_ok=%1 probe_written=%2 copy_sent=%3 clipboard_read=%4 clipboard_exit=%5 fallback=%6")
+                       .arg(primary_success ? "true" : "false")
                        .arg(probe_written ? "true" : "false")
                        .arg(copy_sent ? "true" : "false")
                        .arg(clipboard_read.success ? "true" : "false")
                        .arg(clipboard_read.exit_code)
-                       .arg(copied_text.size())
-                       .arg(success ? "true" : "false"));
-    return SelectionCaptureResult{success, success ? trimmed_text : QString(), last_debug_info_};
+                       .arg(allow_clipboard_fallback ? "true" : "false"));
+    return SelectionCaptureResult{false, {}, last_debug_info_};
 }
 
 bool WaylandSelectionService::replace_selection(const QString& text, const QString& paste_keys) {

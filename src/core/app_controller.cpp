@@ -655,7 +655,10 @@ void AppController::on_hold_started() {
         active_capture_mode_ == CaptureMode::Dictation &&
         selection_command_upgrade_timer_ != nullptr && selection_command_upgrade_timer_->isActive()) {
         selection_command_upgrade_timer_->stop();
-        const SelectionCaptureResult selection = selection_->capture_selection(true);
+        // Double-press upgrade should only succeed when a real selection exists.
+        // Clipboard-copy fallback can produce false positives on Wayland even
+        // when the target app has no active selection.
+        const SelectionCaptureResult selection = selection_->capture_selection(false);
         pending_selection_debug_info_ = selection.debug_info;
         if (selection.success && !selection.selected_text.trimmed().isEmpty()) {
             active_capture_mode_ = CaptureMode::SelectionCommand;
