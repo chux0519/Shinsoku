@@ -13,7 +13,7 @@ struct QWaylandLayerShellIntegration::PendingSurfaceConfiguration {
     QMargins margins;
     int exclusive_zone = -1;
     QWaylandLayerSurface::KeyboardInteractivity keyboard_interactivity = QWaylandLayerSurface::KeyboardInteractivityNone;
-    QString scope = QStringLiteral("ohmytypeless-hud");
+    QString scope = QStringLiteral("shinsoku-hud");
     QSize desired_size;
     QPointer<QScreen> target_screen;
 };

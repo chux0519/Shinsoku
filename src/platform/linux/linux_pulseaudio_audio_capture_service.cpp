@@ -67,7 +67,7 @@ std::string query_default_monitor_source() {
     }
 
     pa_threaded_mainloop_lock(mainloop);
-    pa_context* context = pa_context_new(pa_threaded_mainloop_get_api(mainloop), "OhMyTypeless System Audio");
+    pa_context* context = pa_context_new(pa_threaded_mainloop_get_api(mainloop), "Shinsoku System Audio");
     if (context == nullptr) {
         pa_threaded_mainloop_unlock(mainloop);
         pa_threaded_mainloop_stop(mainloop);
@@ -296,7 +296,7 @@ void LinuxPulseaudioAudioCaptureService::run_simple_capture(std::uint32_t sample
 
         int error_code = 0;
         pa_simple* simple = pa_simple_new(nullptr,
-                                          "OhMyTypeless",
+                                          "Shinsoku",
                                           PA_STREAM_RECORD,
                                           source_name.c_str(),
                                           "System Audio Loopback",

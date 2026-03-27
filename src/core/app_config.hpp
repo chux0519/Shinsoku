@@ -96,7 +96,7 @@ struct AudioConfig {
 
 struct OutputConfig {
     bool copy_to_clipboard = true;
-    bool paste_to_focused_window = false;
+    bool paste_to_focused_window = true;
     std::string paste_keys = "ctrl+shift+v";
 };
 
@@ -116,7 +116,7 @@ struct ProfileTransformConfig {
 
 struct ProfileOutputConfig {
     bool copy_to_clipboard = true;
-    bool paste_to_focused_window = false;
+    bool paste_to_focused_window = true;
     std::string paste_keys = "ctrl+shift+v";
 };
 

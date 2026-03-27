@@ -151,7 +151,7 @@ SelectionCaptureResult WaylandSelectionService::capture_selection(bool allow_cli
     }
 
     auto snapshot = snapshot_clipboard();
-    const QString placeholder = "__ohmytypeless_selection_probe__";
+    const QString placeholder = "__shinsoku_selection_probe__";
     const bool probe_written = write_wl_copy_text(placeholder);
     QCoreApplication::processEvents();
     std::this_thread::sleep_for(std::chrono::milliseconds(60));

@@ -35,7 +35,7 @@ std::filesystem::path app_data_root() {
         path = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     }
     if (path.isEmpty()) {
-        return std::filesystem::temp_directory_path() / "ohmytypeless";
+        return std::filesystem::temp_directory_path() / "shinsoku";
     }
     return path_from_qstring(path);
 }
@@ -46,7 +46,7 @@ std::filesystem::path config_root() {
         path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     }
     if (path.isEmpty()) {
-        return std::filesystem::temp_directory_path() / "ohmytypeless";
+        return std::filesystem::temp_directory_path() / "shinsoku";
     }
     return path_from_qstring(path);
 }

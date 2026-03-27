@@ -309,7 +309,7 @@ bool IxProxySocket::establish_socks5_tunnel(const std::string& host,
 }
 
 bool IxProxySocket::initialize_tls(const std::string& host, std::string& errMsg) {
-    const char* pers = "OhMyTypelessIxProxySocket";
+    const char* pers = "ShinsokuIxProxySocket";
     if (mbedtls_ctr_drbg_seed(&ctr_drbg_,
                               mbedtls_entropy_func,
                               &entropy_,

@@ -347,7 +347,7 @@ void WaylandLayerShellHudPresenter::configure_layer_shell() {
         QMargins(),
         -1,
         QWaylandLayerSurface::KeyboardInteractivityNone,
-        QStringLiteral("ohmytypeless-hud"),
+        QStringLiteral("shinsoku-hud"),
         QSize(desired_size.width() + (kHudOuterPadding * 2),
               desired_size.height() + (kHudOuterPadding * 2) + std::max(0, config_.bottom_margin)),
         target_screen_for_host(host_window_));
