@@ -19,6 +19,7 @@ public:
     std::string refine(const std::string& text, const std::atomic_bool* cancel_flag = nullptr) const;
 
 private:
+    std::string build_refine_system_prompt() const;
     std::string build_user_prompt(const TextTransformRequest& request) const;
     std::string request_completion(const std::string& user_content,
                                    const std::string& system_prompt,

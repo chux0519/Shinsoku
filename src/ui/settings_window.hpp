@@ -25,12 +25,6 @@ namespace ohmytypeless {
 class SettingsWindow final : public QWidget {
     Q_OBJECT
 public:
-    enum class WorkflowEditSource {
-        None,
-        Global,
-        Profile,
-    };
-
     explicit SettingsWindow(QWidget* parent = nullptr);
 
     QString hold_key() const;
@@ -38,15 +32,10 @@ public:
     QString selection_command_trigger() const;
     QString active_profile_id() const;
     std::vector<ProfileConfig> profiles() const;
-    QString audio_capture_mode() const;
-    QString selected_input_device_id() const;
     bool save_recordings_enabled() const;
     QString recordings_dir() const;
     QString rotation_mode() const;
     int max_files() const;
-    bool copy_to_clipboard_enabled() const;
-    bool paste_to_focused_window_enabled() const;
-    QString paste_keys() const;
     QString app_theme() const;
     QString tray_icon_theme() const;
     bool proxy_enabled() const;
@@ -59,16 +48,10 @@ public:
     QString asr_base_url() const;
     QString asr_api_key() const;
     QString asr_model() const;
-    bool streaming_enabled() const;
-    QString streaming_provider() const;
-    QString streaming_language() const;
-    WorkflowEditSource workflow_edit_source() const;
-    bool refine_enabled() const;
     QString refine_provider() const;
     QString refine_base_url() const;
     QString refine_api_key() const;
     QString refine_model() const;
-    QString refine_system_prompt() const;
     QString soniox_url() const;
     QString soniox_api_key() const;
     QString soniox_model() const;
@@ -89,15 +72,10 @@ public:
     void set_selection_command_trigger(const QString& text);
     void set_profiles(const std::vector<ProfileConfig>& profiles, const QString& active_profile_id);
     void set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
-    void set_audio_capture_mode(const QString& text);
-    void set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
     void set_save_recordings_enabled(bool enabled);
     void set_recordings_dir(const QString& path);
     void set_rotation_mode(const QString& mode);
     void set_max_files(int value);
-    void set_copy_to_clipboard_enabled(bool enabled);
-    void set_paste_to_focused_window_enabled(bool enabled);
-    void set_paste_keys(const QString& keys);
     void set_app_theme(const QString& theme);
     void set_tray_icon_theme(const QString& theme);
     void set_proxy_enabled(bool enabled);
@@ -110,15 +88,10 @@ public:
     void set_asr_base_url(const QString& text);
     void set_asr_api_key(const QString& text);
     void set_asr_model(const QString& text);
-    void set_streaming_enabled(bool enabled);
-    void set_streaming_provider(const QString& text);
-    void set_streaming_language(const QString& text);
-    void set_refine_enabled(bool enabled);
     void set_refine_provider(const QString& text);
     void set_refine_base_url(const QString& text);
     void set_refine_api_key(const QString& text);
     void set_refine_model(const QString& text);
-    void set_refine_system_prompt(const QString& text);
     void set_soniox_url(const QString& text);
     void set_soniox_api_key(const QString& text);
     void set_soniox_model(const QString& text);
@@ -140,14 +113,13 @@ public:
 
 signals:
     void apply_clicked();
-    void audio_capture_mode_changed(const QString& mode);
     void profile_audio_capture_mode_changed(const QString& mode);
     void record_hold_key_requested();
     void record_hands_free_chord_requested();
 
 private:
-    void mark_global_workflow_settings_edited();
-    void mark_profile_workflow_settings_edited();
+    QString build_profile_transform_prompt_preview() const;
+    void refresh_profile_transform_ui();
     void refresh_capability_dependent_controls();
     void refresh_profile_list();
     QString profile_list_label(const ProfileConfig& profile) const;
@@ -173,22 +145,32 @@ private:
     QComboBox* profile_streaming_provider_combo_ = nullptr;
     QLineEdit* profile_language_hint_edit_ = nullptr;
     QCheckBox* profile_transform_enabled_check_ = nullptr;
-    QComboBox* profile_prompt_mode_combo_ = nullptr;
+    QComboBox* profile_transform_mode_combo_ = nullptr;
+    QLabel* profile_transform_request_format_label_ = nullptr;
+    QComboBox* profile_transform_request_format_combo_ = nullptr;
+    QLabel* profile_translation_source_language_label_ = nullptr;
+    QComboBox* profile_translation_source_language_combo_ = nullptr;
+    QLabel* profile_translation_source_code_label_ = nullptr;
+    QLineEdit* profile_translation_source_code_edit_ = nullptr;
+    QLabel* profile_translation_target_language_label_ = nullptr;
+    QComboBox* profile_translation_target_language_combo_ = nullptr;
+    QLabel* profile_translation_target_code_label_ = nullptr;
+    QLineEdit* profile_translation_target_code_edit_ = nullptr;
+    QLabel* profile_translation_extra_instructions_label_ = nullptr;
+    QPlainTextEdit* profile_translation_extra_instructions_edit_ = nullptr;
+    QLabel* profile_transform_prompt_label_ = nullptr;
+    QPlainTextEdit* profile_transform_prompt_preview_edit_ = nullptr;
+    QLabel* profile_custom_prompt_label_ = nullptr;
     QPlainTextEdit* profile_custom_prompt_edit_ = nullptr;
     QCheckBox* profile_copy_check_ = nullptr;
     QCheckBox* profile_paste_check_ = nullptr;
     QComboBox* profile_paste_keys_combo_ = nullptr;
     QPlainTextEdit* profile_notes_edit_ = nullptr;
-    QComboBox* audio_capture_mode_combo_ = nullptr;
-    QComboBox* input_device_combo_ = nullptr;
     QCheckBox* save_recordings_check_ = nullptr;
     QLineEdit* recordings_dir_edit_ = nullptr;
     QPushButton* recordings_dir_button_ = nullptr;
     QComboBox* rotation_mode_combo_ = nullptr;
     QSpinBox* max_files_spin_ = nullptr;
-    QCheckBox* copy_to_clipboard_check_ = nullptr;
-    QCheckBox* paste_to_focused_window_check_ = nullptr;
-    QComboBox* paste_keys_combo_ = nullptr;
     QComboBox* app_theme_combo_ = nullptr;
     QComboBox* tray_icon_theme_combo_ = nullptr;
     QCheckBox* proxy_enabled_check_ = nullptr;
@@ -201,15 +183,10 @@ private:
     QLineEdit* asr_base_url_edit_ = nullptr;
     QLineEdit* asr_api_key_edit_ = nullptr;
     QLineEdit* asr_model_edit_ = nullptr;
-    QCheckBox* streaming_enabled_check_ = nullptr;
-    QComboBox* streaming_provider_combo_ = nullptr;
-    QLineEdit* streaming_language_edit_ = nullptr;
-    QCheckBox* refine_enabled_check_ = nullptr;
     QComboBox* refine_provider_combo_ = nullptr;
     QLineEdit* refine_base_url_edit_ = nullptr;
     QLineEdit* refine_api_key_edit_ = nullptr;
     QLineEdit* refine_model_edit_ = nullptr;
-    QPlainTextEdit* refine_system_prompt_edit_ = nullptr;
     QLineEdit* soniox_url_edit_ = nullptr;
     QLineEdit* soniox_api_key_edit_ = nullptr;
     QComboBox* soniox_model_combo_ = nullptr;
@@ -231,8 +208,6 @@ private:
     QString active_profile_id_;
     int profile_editor_index_ = -1;
     bool syncing_profiles_ = false;
-    bool suppress_workflow_edit_tracking_ = false;
-    WorkflowEditSource workflow_edit_source_ = WorkflowEditSource::None;
     bool global_hotkeys_available_ = true;
     bool auto_paste_available_ = true;
     bool system_audio_available_ = true;

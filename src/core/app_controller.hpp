@@ -108,7 +108,6 @@ private:
                                             std::vector<float> samples,
                                             std::optional<std::filesystem::path> audio_path,
                                             nlohmann::json streaming_meta = nlohmann::json::object());
-    void preview_audio_devices_for_mode(const QString& capture_mode);
     void preview_profile_audio_devices_for_mode(const QString& capture_mode);
     bool uses_double_press_selection_command() const;
     bool uses_system_audio_capture() const;
@@ -118,7 +117,7 @@ private:
     void enforce_platform_capabilities(QString* notice = nullptr);
     void sync_platform_capability_ui();
     void refresh_capture_mode_ui();
-    void apply_active_profile_overrides();
+    void rebuild_runtime_config();
     void capture_hotkey_async(RecordedKeyResult::Target target);
     void finish_hotkey_capture(const RecordedKeyResult& result);
 
@@ -129,6 +128,7 @@ private:
     GlobalHotkey* hotkey_ = nullptr;
     HudPresenter* hud_ = nullptr;
     AppConfig config_;
+    AppConfig runtime_config_;
     std::unique_ptr<HistoryStore> history_store_;
     std::unique_ptr<RecordingStore> recording_store_;
     std::unique_ptr<AsrBackend> asr_backend_;
@@ -137,7 +137,6 @@ private:
     std::unique_ptr<QFutureWatcher<TranscriptionResult>> transcription_watcher_;
     std::unique_ptr<QFutureWatcher<RecordedKeyResult>> recorded_key_watcher_;
     std::shared_ptr<std::atomic_bool> transcription_cancel_flag_;
-    QList<QPair<QString, QString>> audio_devices_;
     SessionState state_ = SessionState::Idle;
     QList<HistoryEntry> history_;
     std::optional<qint64> oldest_loaded_history_id_;

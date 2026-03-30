@@ -181,39 +181,63 @@ std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
 
 }  // namespace
 
-void AppController::apply_active_profile_overrides() {
-    if (config_.profiles.items.empty()) {
+void AppController::rebuild_runtime_config() {
+    runtime_config_ = config_;
+    if (runtime_config_.profiles.items.empty()) {
         return;
     }
 
-    auto profile_it = std::find_if(config_.profiles.items.begin(),
-                                   config_.profiles.items.end(),
+    auto profile_it = std::find_if(runtime_config_.profiles.items.begin(),
+                                   runtime_config_.profiles.items.end(),
                                    [&](const ProfileConfig& profile) {
-                                       return profile.id == config_.profiles.active_profile_id;
+                                       return profile.id == runtime_config_.profiles.active_profile_id;
                                    });
-    if (profile_it == config_.profiles.items.end()) {
-        profile_it = config_.profiles.items.begin();
-        config_.profiles.active_profile_id = profile_it->id;
+    if (profile_it == runtime_config_.profiles.items.end()) {
+        profile_it = runtime_config_.profiles.items.begin();
+        runtime_config_.profiles.active_profile_id = profile_it->id;
     }
 
     const ProfileConfig& profile = *profile_it;
-    config_.audio.capture_mode = profile.capture.input_source.empty() ? "microphone" : profile.capture.input_source;
-    if (config_.audio.capture_mode != "system" && !profile.capture.input_device_id.empty()) {
-        config_.audio.input_device_id = profile.capture.input_device_id;
+    runtime_config_.audio.capture_mode = profile.capture.input_source.empty() ? "microphone" : profile.capture.input_source;
+    if (runtime_config_.audio.capture_mode == "system") {
+        runtime_config_.audio.input_device_id.clear();
+    } else if (!profile.capture.input_device_id.empty()) {
+        runtime_config_.audio.input_device_id = profile.capture.input_device_id;
+    } else {
+        runtime_config_.audio.input_device_id.clear();
     }
-    config_.pipeline.streaming.enabled = profile.capture.prefer_streaming;
-    config_.pipeline.streaming.provider = profile.capture.preferred_streaming_provider.empty()
-                                              ? std::string("none")
-                                              : profile.capture.preferred_streaming_provider;
-    config_.pipeline.streaming.language = profile.capture.language_hint;
-    config_.pipeline.refine.enabled = profile.transform.enabled;
-    if (profile.transform.prompt_mode == "custom" && !profile.transform.custom_prompt.empty()) {
-        config_.pipeline.refine.system_prompt = profile.transform.custom_prompt;
+    runtime_config_.pipeline.streaming.enabled = profile.capture.prefer_streaming;
+    runtime_config_.pipeline.streaming.provider = profile.capture.preferred_streaming_provider.empty()
+                                                      ? std::string("none")
+                                                      : profile.capture.preferred_streaming_provider;
+    runtime_config_.pipeline.streaming.language = profile.capture.language_hint;
+    runtime_config_.pipeline.refine.enabled = profile.transform.enabled;
+    runtime_config_.pipeline.refine.request_format = profile.transform.request_format.empty()
+                                                 ? AppConfig{}.pipeline.refine.request_format
+                                                 : profile.transform.request_format;
+    runtime_config_.pipeline.refine.translation_source_language = profile.transform.translation_source_language;
+    runtime_config_.pipeline.refine.translation_source_code = profile.transform.translation_source_code;
+    runtime_config_.pipeline.refine.translation_target_language = profile.transform.translation_target_language;
+    runtime_config_.pipeline.refine.translation_target_code = profile.transform.translation_target_code;
+    runtime_config_.pipeline.refine.translation_extra_instructions = profile.transform.translation_extra_instructions;
+    if (!profile.transform.enabled) {
+        runtime_config_.pipeline.refine.prompt_mode = "generic";
+        runtime_config_.pipeline.refine.system_prompt = AppConfig{}.pipeline.refine.system_prompt;
+    } else if (profile.transform.mode == "translation") {
+        runtime_config_.pipeline.refine.prompt_mode = "structured_translation";
+        runtime_config_.pipeline.refine.system_prompt.clear();
+    } else if (profile.transform.mode == "custom_prompt") {
+        runtime_config_.pipeline.refine.prompt_mode = "generic";
+        runtime_config_.pipeline.refine.system_prompt =
+            profile.transform.custom_prompt.empty() ? AppConfig{}.pipeline.refine.system_prompt : profile.transform.custom_prompt;
+    } else {
+        runtime_config_.pipeline.refine.prompt_mode = "generic";
+        runtime_config_.pipeline.refine.system_prompt = AppConfig{}.pipeline.refine.system_prompt;
     }
-    config_.output.copy_to_clipboard = profile.output.copy_to_clipboard;
-    config_.output.paste_to_focused_window = profile.output.paste_to_focused_window;
+    runtime_config_.output.copy_to_clipboard = profile.output.copy_to_clipboard;
+    runtime_config_.output.paste_to_focused_window = profile.output.paste_to_focused_window;
     if (!profile.output.paste_keys.empty()) {
-        config_.output.paste_keys = profile.output.paste_keys;
+        runtime_config_.output.paste_keys = profile.output.paste_keys;
     }
 }
 
@@ -232,11 +256,12 @@ AppController::AppController(MainWindow* window,
       hotkey_(hotkey),
       hud_(hud),
       config_(load_config()),
+      runtime_config_(config_),
       history_store_(std::make_unique<HistoryStore>(config_.history_db_path)),
       recording_store_(std::make_unique<RecordingStore>(config_.audio)),
-      asr_backend_(make_asr_backend(config_)),
-      streaming_asr_backend_(make_streaming_asr_backend(config_)),
-      refine_backend_(make_refine_backend(config_)),
+      asr_backend_(make_asr_backend(runtime_config_)),
+      streaming_asr_backend_(make_streaming_asr_backend(runtime_config_)),
+      refine_backend_(make_refine_backend(runtime_config_)),
       transcription_watcher_(std::make_unique<QFutureWatcher<TranscriptionResult>>()),
       recorded_key_watcher_(std::make_unique<QFutureWatcher<RecordedKeyResult>>()) {
     selection_command_upgrade_timer_ = new QTimer(this);
@@ -250,7 +275,7 @@ AppController::AppController(MainWindow* window,
 
 void AppController::initialize() {
     QString startup_warning;
-    apply_active_profile_overrides();
+    rebuild_runtime_config();
     QString capability_notice;
     enforce_platform_capabilities(&capability_notice);
     try {
@@ -267,16 +292,11 @@ void AppController::initialize() {
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
     window_->settings_window()->set_selection_command_trigger(QString::fromStdString(config_.hotkey.selection_command_trigger));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
-    preview_profile_audio_devices_for_mode(QString::fromStdString(config_.audio.capture_mode));
-    window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
-    window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
+    preview_profile_audio_devices_for_mode(QString::fromStdString(runtime_config_.audio.capture_mode));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
     window_->settings_window()->set_recordings_dir(display_path(config_.audio.recordings_dir));
     window_->settings_window()->set_rotation_mode(QString::fromStdString(config_.audio.rotation.mode));
     window_->settings_window()->set_max_files(static_cast<int>(config_.audio.rotation.max_files.value_or(50U)));
-    window_->settings_window()->set_copy_to_clipboard_enabled(config_.output.copy_to_clipboard);
-    window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
-    window_->settings_window()->set_paste_keys(QString::fromStdString(config_.output.paste_keys));
     window_->settings_window()->set_app_theme(QString::fromStdString(config_.appearance.app_theme));
     window_->settings_window()->set_tray_icon_theme(QString::fromStdString(config_.appearance.tray_icon_theme));
     window_->settings_window()->set_proxy_enabled(config_.network.proxy.enabled);
@@ -289,15 +309,10 @@ void AppController::initialize() {
     window_->settings_window()->set_asr_base_url(QString::fromStdString(config_.pipeline.asr.base_url));
     window_->settings_window()->set_asr_api_key(QString::fromStdString(config_.pipeline.asr.api_key));
     window_->settings_window()->set_asr_model(QString::fromStdString(config_.pipeline.asr.model));
-    window_->settings_window()->set_streaming_enabled(config_.pipeline.streaming.enabled);
-    window_->settings_window()->set_streaming_provider(QString::fromStdString(config_.pipeline.streaming.provider));
-    window_->settings_window()->set_streaming_language(QString::fromStdString(config_.pipeline.streaming.language));
-    window_->settings_window()->set_refine_enabled(config_.pipeline.refine.enabled);
     window_->settings_window()->set_refine_provider(QString::fromStdString(config_.pipeline.refine.endpoint.provider));
     window_->settings_window()->set_refine_base_url(QString::fromStdString(config_.pipeline.refine.endpoint.base_url));
     window_->settings_window()->set_refine_api_key(QString::fromStdString(config_.pipeline.refine.endpoint.api_key));
     window_->settings_window()->set_refine_model(QString::fromStdString(config_.pipeline.refine.endpoint.model));
-    window_->settings_window()->set_refine_system_prompt(QString::fromStdString(config_.pipeline.refine.system_prompt));
     window_->settings_window()->set_soniox_url(QString::fromStdString(config_.providers.soniox.url));
     window_->settings_window()->set_soniox_api_key(QString::fromStdString(config_.providers.soniox.api_key));
     window_->settings_window()->set_soniox_model(QString::fromStdString(config_.providers.soniox.model));
@@ -334,7 +349,6 @@ void AppController::initialize() {
     connect(window_, &MainWindow::show_settings_requested, this, &AppController::show_settings);
     connect(window_, &MainWindow::quit_requested, this, &AppController::quit_application);
     connect(window_->settings_window(), &SettingsWindow::apply_clicked, this, &AppController::apply_settings);
-    connect(window_->settings_window(), &SettingsWindow::audio_capture_mode_changed, this, &AppController::preview_audio_devices_for_mode);
     connect(window_->settings_window(), &SettingsWindow::profile_audio_capture_mode_changed, this,
             &AppController::preview_profile_audio_devices_for_mode);
     connect(window_->settings_window(), &SettingsWindow::record_hold_key_requested, this, &AppController::on_record_hold_key_requested);
@@ -416,17 +430,12 @@ void AppController::apply_settings() {
     config_.hotkey.selection_command_trigger = window_->settings_window()->selection_command_trigger().toStdString();
     config_.profiles.active_profile_id = window_->settings_window()->active_profile_id().toStdString();
     config_.profiles.items = window_->settings_window()->profiles();
-    config_.audio.capture_mode = window_->settings_window()->audio_capture_mode().toStdString();
-    config_.audio.input_device_id = window_->settings_window()->selected_input_device_id().toStdString();
     config_.audio.save_recordings = window_->settings_window()->save_recordings_enabled();
     if (!window_->settings_window()->recordings_dir().isEmpty()) {
         config_.audio.recordings_dir = std::filesystem::path(window_->settings_window()->recordings_dir().toStdWString());
     }
     config_.audio.rotation.mode = window_->settings_window()->rotation_mode().toStdString();
     config_.audio.rotation.max_files = static_cast<std::size_t>(window_->settings_window()->max_files());
-    config_.output.copy_to_clipboard = window_->settings_window()->copy_to_clipboard_enabled();
-    config_.output.paste_to_focused_window = window_->settings_window()->paste_to_focused_window_enabled();
-    config_.output.paste_keys = window_->settings_window()->paste_keys().toStdString();
     config_.appearance.app_theme = window_->settings_window()->app_theme().toStdString();
     config_.appearance.tray_icon_theme = window_->settings_window()->tray_icon_theme().toStdString();
     config_.network.proxy.enabled = window_->settings_window()->proxy_enabled();
@@ -439,15 +448,10 @@ void AppController::apply_settings() {
     config_.pipeline.asr.base_url = window_->settings_window()->asr_base_url().toStdString();
     config_.pipeline.asr.api_key = window_->settings_window()->asr_api_key().toStdString();
     config_.pipeline.asr.model = window_->settings_window()->asr_model().toStdString();
-    config_.pipeline.streaming.enabled = window_->settings_window()->streaming_enabled();
-    config_.pipeline.streaming.provider = window_->settings_window()->streaming_provider().toStdString();
-    config_.pipeline.streaming.language = window_->settings_window()->streaming_language().toStdString();
-    config_.pipeline.refine.enabled = window_->settings_window()->refine_enabled();
     config_.pipeline.refine.endpoint.provider = window_->settings_window()->refine_provider().toStdString();
     config_.pipeline.refine.endpoint.base_url = window_->settings_window()->refine_base_url().toStdString();
     config_.pipeline.refine.endpoint.api_key = window_->settings_window()->refine_api_key().toStdString();
     config_.pipeline.refine.endpoint.model = window_->settings_window()->refine_model().toStdString();
-    config_.pipeline.refine.system_prompt = window_->settings_window()->refine_system_prompt().toStdString();
     config_.providers.soniox.url = window_->settings_window()->soniox_url().toStdString();
     config_.providers.soniox.api_key = window_->settings_window()->soniox_api_key().toStdString();
     config_.providers.soniox.model = window_->settings_window()->soniox_model().toStdString();
@@ -472,12 +476,6 @@ void AppController::apply_settings() {
     if (config_.pipeline.refine.endpoint.model.empty()) {
         config_.pipeline.refine.endpoint.model = defaults.pipeline.refine.endpoint.model;
     }
-    if (config_.pipeline.refine.system_prompt.empty()) {
-        config_.pipeline.refine.system_prompt = defaults.pipeline.refine.system_prompt;
-    }
-    if (config_.pipeline.streaming.provider.empty()) {
-        config_.pipeline.streaming.provider = defaults.pipeline.streaming.provider;
-    }
     if (config_.providers.soniox.url.empty()) {
         config_.providers.soniox.url = defaults.providers.soniox.url;
     }
@@ -494,26 +492,7 @@ void AppController::apply_settings() {
         config_.providers.bailian.model = defaults.providers.bailian.model;
     }
 
-    const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
-                                                config_.profiles.items.end(),
-                                                [&](const ProfileConfig& profile) {
-                                                    return profile.id == config_.profiles.active_profile_id;
-                                                });
-    if (active_profile_it != config_.profiles.items.end() &&
-        window_->settings_window()->workflow_edit_source() == SettingsWindow::WorkflowEditSource::Global) {
-        ProfileConfig& active_profile = *active_profile_it;
-        active_profile.capture.input_source = config_.audio.capture_mode;
-        active_profile.capture.input_device_id = config_.audio.capture_mode == "system" ? std::string{} : config_.audio.input_device_id;
-        active_profile.capture.prefer_streaming = config_.pipeline.streaming.enabled;
-        active_profile.capture.preferred_streaming_provider = config_.pipeline.streaming.provider;
-        active_profile.capture.language_hint = config_.pipeline.streaming.language;
-        active_profile.transform.enabled = config_.pipeline.refine.enabled;
-        active_profile.output.copy_to_clipboard = config_.output.copy_to_clipboard;
-        active_profile.output.paste_to_focused_window = config_.output.paste_to_focused_window;
-        active_profile.output.paste_keys = config_.output.paste_keys;
-    }
-
-    apply_active_profile_overrides();
+    rebuild_runtime_config();
     QString capability_notice;
     enforce_platform_capabilities(&capability_notice);
     sync_platform_capability_ui();
@@ -521,24 +500,18 @@ void AppController::apply_settings() {
     refresh_audio_devices();
     set_app_theme_preference(*qApp, QString::fromStdString(config_.appearance.app_theme));
     window_->set_tray_icon_theme(QString::fromStdString(config_.appearance.tray_icon_theme));
-    window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
-    window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
-    window_->settings_window()->set_streaming_enabled(config_.pipeline.streaming.enabled);
-    window_->settings_window()->set_streaming_provider(QString::fromStdString(config_.pipeline.streaming.provider));
-    window_->settings_window()->set_streaming_language(QString::fromStdString(config_.pipeline.streaming.language));
-    window_->settings_window()->set_refine_enabled(config_.pipeline.refine.enabled);
-    window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
+    preview_profile_audio_devices_for_mode(QString::fromStdString(runtime_config_.audio.capture_mode));
     refresh_capture_mode_ui();
 
     recording_store_ = std::make_unique<RecordingStore>(config_.audio);
-    asr_backend_ = make_asr_backend(config_);
-    streaming_asr_backend_ = make_streaming_asr_backend(config_);
-    refine_backend_ = make_refine_backend(config_);
+    asr_backend_ = make_asr_backend(runtime_config_);
+    streaming_asr_backend_ = make_streaming_asr_backend(runtime_config_);
+    refine_backend_ = make_refine_backend(runtime_config_);
     hud_->apply_config(config_.hud);
     save_config(config_);
     window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
-    preview_profile_audio_devices_for_mode(QString::fromStdString(config_.audio.capture_mode));
+    preview_profile_audio_devices_for_mode(QString::fromStdString(runtime_config_.audio.capture_mode));
     window_->set_hotkey_passthrough_keys(hotkey_->hold_key_name(), hotkey_->chord_key_name());
 
     if (!hotkey_->supports_global_hotkeys()) {
@@ -597,20 +570,17 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
     }
 
     config_.profiles.active_profile_id = profile_id.toStdString();
-    apply_active_profile_overrides();
+    rebuild_runtime_config();
     QString capability_notice;
     enforce_platform_capabilities(&capability_notice);
     sync_platform_capability_ui();
-    asr_backend_ = make_asr_backend(config_);
-    streaming_asr_backend_ = make_streaming_asr_backend(config_);
-    refine_backend_ = make_refine_backend(config_);
+    asr_backend_ = make_asr_backend(runtime_config_);
+    streaming_asr_backend_ = make_streaming_asr_backend(runtime_config_);
+    refine_backend_ = make_refine_backend(runtime_config_);
     save_config(config_);
     window_->settings_window()->set_profiles(config_.profiles.items, profile_id);
     refresh_audio_devices();
-    window_->settings_window()->set_audio_capture_mode(QString::fromStdString(config_.audio.capture_mode));
-    window_->settings_window()->set_audio_devices(audio_devices_, QString::fromStdString(config_.audio.input_device_id));
-    preview_profile_audio_devices_for_mode(QString::fromStdString(config_.audio.capture_mode));
-    window_->settings_window()->set_paste_to_focused_window_enabled(config_.output.paste_to_focused_window);
+    preview_profile_audio_devices_for_mode(QString::fromStdString(runtime_config_.audio.capture_mode));
     refresh_capture_mode_ui();
     const auto active_profile_it = std::find_if(config_.profiles.items.begin(),
                                                 config_.profiles.items.end(),
@@ -619,7 +589,7 @@ void AppController::on_active_profile_changed(const QString& profile_id) {
                                                 });
     const QString profile_name = active_profile_it != config_.profiles.items.end() ? QString::fromStdString(active_profile_it->name)
                                                                                     : profile_id;
-    const QString input_source = config_.audio.capture_mode == "system" ? "System Audio (Loopback)" : "Microphone";
+    const QString input_source = runtime_config_.audio.capture_mode == "system" ? "System Audio (Loopback)" : "Microphone";
     const QString status = QString("Active profile: %1\nInput Source: %2").arg(profile_name, input_source);
     window_->set_status_text(capability_notice.isEmpty() ? status : QString("%1\n%2").arg(status, capability_notice));
     window_->meeting_window()->set_profile_name(profile_name);
@@ -910,11 +880,12 @@ void AppController::start_recording(SessionState mode) {
             hud_->show_error("No selected text captured");
             return;
         }
-        const std::string device_id = config_.audio.capture_mode == "system" ? std::string{} : config_.audio.input_device_id;
-        audio_capture_->start(config_.audio.sample_rate,
-                              config_.audio.channels,
+        const std::string device_id =
+            runtime_config_.audio.capture_mode == "system" ? std::string{} : runtime_config_.audio.input_device_id;
+        audio_capture_->start(runtime_config_.audio.sample_rate,
+                              runtime_config_.audio.channels,
                               device_id,
-                              audio_capture_mode_from_config(config_));
+                              audio_capture_mode_from_config(runtime_config_));
         if (should_use_streaming_dictation()) {
             start_streaming_dictation();
         }
@@ -1045,7 +1016,7 @@ bool AppController::uses_double_press_selection_command() const {
 }
 
 bool AppController::uses_system_audio_capture() const {
-    return config_.audio.capture_mode == "system";
+    return runtime_config_.audio.capture_mode == "system";
 }
 
 bool AppController::active_profile_is_live_caption() const {
@@ -1072,17 +1043,27 @@ QString AppController::active_profile_name() const {
 
 void AppController::enforce_platform_capabilities(QString* notice) {
     QStringList notes;
+    auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                   config_.profiles.items.end(),
+                                   [&](const ProfileConfig& profile) {
+                                       return profile.id == config_.profiles.active_profile_id;
+                                   });
 
-    if (config_.audio.capture_mode == "system" &&
+    if (runtime_config_.audio.capture_mode == "system" &&
+        profile_it != config_.profiles.items.end() &&
         (audio_capture_ == nullptr || !audio_capture_->supports_capture_mode(AudioCaptureMode::SystemLoopback))) {
-        config_.audio.capture_mode = "microphone";
+        profile_it->capture.input_source = "microphone";
         notes << system_audio_unavailable_reason() + " Switched back to microphone capture.";
     }
 
-    if (config_.output.paste_to_focused_window && (clipboard_ == nullptr || !clipboard_->supports_auto_paste())) {
-        config_.output.paste_to_focused_window = false;
+    if (runtime_config_.output.paste_to_focused_window &&
+        profile_it != config_.profiles.items.end() &&
+        (clipboard_ == nullptr || !clipboard_->supports_auto_paste())) {
+        profile_it->output.paste_to_focused_window = false;
         notes << auto_paste_unavailable_reason();
     }
+
+    rebuild_runtime_config();
 
     if (notice != nullptr) {
         *notice = notes.join('\n');
@@ -1125,7 +1106,7 @@ void AppController::refresh_capture_mode_ui() {
 }
 
 bool AppController::should_use_streaming_dictation() const {
-    if (!config_.pipeline.streaming.enabled || streaming_asr_backend_ == nullptr) {
+    if (!runtime_config_.pipeline.streaming.enabled || streaming_asr_backend_ == nullptr) {
         return false;
     }
 
@@ -1215,12 +1196,12 @@ void AppController::start_streaming_dictation() {
     const StreamingAsrStartOptions start_options{
         .audio_format = StreamingAudioFormat{
             .encoding = StreamingAudioEncoding::Pcm16Le,
-            .sample_rate_hz = config_.audio.sample_rate,
-            .channel_count = static_cast<std::uint16_t>(config_.audio.channels),
+            .sample_rate_hz = runtime_config_.audio.sample_rate,
+            .channel_count = static_cast<std::uint16_t>(runtime_config_.audio.channels),
         },
-        .language = config_.pipeline.streaming.language.empty()
+        .language = runtime_config_.pipeline.streaming.language.empty()
                         ? std::nullopt
-                        : std::optional<std::string>(config_.pipeline.streaming.language),
+                        : std::optional<std::string>(runtime_config_.pipeline.streaming.language),
         .emit_partial_results = true,
     };
 
@@ -1312,12 +1293,12 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
     const auto stop_wait_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(stop_finished_at - stop_started_at).count();
     const auto total_audio_ms =
-        static_cast<std::int64_t>((1000.0 * static_cast<double>(samples.size())) / static_cast<double>(config_.audio.sample_rate));
+        static_cast<std::int64_t>((1000.0 * static_cast<double>(samples.size())) / static_cast<double>(runtime_config_.audio.sample_rate));
     {
         std::lock_guard lock(streaming_mutex_);
         streaming_meta["streaming"] = {
             {"backend", streaming_asr_backend_ != nullptr ? streaming_asr_backend_->name() : std::string()},
-            {"provider", config_.pipeline.streaming.provider},
+            {"provider", runtime_config_.pipeline.streaming.provider},
             {"session_ready", session_ready},
             {"connect_ms", connect_ms},
             {"stop_wait_ms", stop_wait_ms},
@@ -1402,7 +1383,7 @@ void AppController::transcribe_streaming_result_async(QString transcript,
         return;
     }
 
-    const AppConfig config_snapshot = config_;
+    const AppConfig config_snapshot = runtime_config_;
     const quint64 job_id = next_transcription_job_id_++;
     active_transcription_job_id_ = job_id;
     transcription_cancel_flag_ = std::make_shared<std::atomic_bool>(false);
@@ -1528,42 +1509,6 @@ void AppController::load_history() {
     window_->history_window()->set_load_older_visible(history_.size() == static_cast<qsizetype>(kHistoryPageSize));
 }
 
-void AppController::preview_audio_devices_for_mode(const QString& capture_mode) {
-    if (window_ == nullptr || window_->settings_window() == nullptr || audio_capture_ == nullptr) {
-        return;
-    }
-
-    QList<QPair<QString, QString>> devices;
-    QString selected_device_id;
-
-    if (capture_mode == "system") {
-        devices.append(qMakePair(QString(), QString("Default system output")));
-    } else {
-        const auto devices_raw = audio_capture_->list_input_devices();
-        for (const auto& device : devices_raw) {
-            QString label = QString::fromStdString(device.name);
-            if (device.is_default) {
-                label += " [default]";
-            }
-            devices.append({QString::fromStdString(device.id), label});
-        }
-
-        const QString configured_id = QString::fromStdString(config_.audio.input_device_id);
-        const QString current_ui_id = window_->settings_window()->selected_input_device_id();
-        const QString preferred_id = !current_ui_id.isEmpty() ? current_ui_id : configured_id;
-        const bool found = std::any_of(devices.cbegin(), devices.cend(), [&preferred_id](const auto& device) {
-            return device.first == preferred_id;
-        });
-        if (found) {
-            selected_device_id = preferred_id;
-        } else if (!devices.isEmpty()) {
-            selected_device_id = devices.front().first;
-        }
-    }
-
-    window_->settings_window()->set_audio_devices(devices, selected_device_id);
-}
-
 void AppController::preview_profile_audio_devices_for_mode(const QString& capture_mode) {
     if (window_ == nullptr || window_->settings_window() == nullptr || audio_capture_ == nullptr) {
         return;
@@ -1607,32 +1552,29 @@ void AppController::preview_profile_audio_devices_for_mode(const QString& captur
 }
 
 void AppController::refresh_audio_devices() {
-    audio_devices_.clear();
-    if (config_.audio.capture_mode == "system") {
-        audio_devices_.append(qMakePair(QString(), QString("Default system output")));
+    auto profile_it = std::find_if(config_.profiles.items.begin(),
+                                   config_.profiles.items.end(),
+                                   [&](const ProfileConfig& profile) {
+                                       return profile.id == config_.profiles.active_profile_id;
+                                   });
+    if (runtime_config_.audio.capture_mode == "system" || profile_it == config_.profiles.items.end()) {
         return;
     }
     const auto devices = audio_capture_->list_input_devices();
-    for (const auto& device : devices) {
-        QString label = QString::fromStdString(device.name);
-        if (device.is_default) {
-            label += " [default]";
-        }
-        audio_devices_.append({QString::fromStdString(device.id), label});
-    }
-
-    if (audio_devices_.isEmpty()) {
-        config_.audio.input_device_id.clear();
+    if (devices.empty()) {
+        profile_it->capture.input_device_id.clear();
+        rebuild_runtime_config();
         return;
     }
 
-    const QString configured_id = QString::fromStdString(config_.audio.input_device_id);
-    const bool found = std::any_of(audio_devices_.cbegin(), audio_devices_.cend(), [&configured_id](const auto& device) {
-        return device.first == configured_id;
+    const QString configured_id = QString::fromStdString(profile_it->capture.input_device_id);
+    const bool found = std::any_of(devices.cbegin(), devices.cend(), [&configured_id](const auto& device) {
+        return QString::fromStdString(device.id) == configured_id;
     });
 
     if (!found) {
-        config_.audio.input_device_id = audio_devices_.front().first.toStdString();
+        profile_it->capture.input_device_id = devices.front().id;
+        rebuild_runtime_config();
     }
 }
 
@@ -1731,15 +1673,15 @@ void AppController::on_transcription_finished() {
         bool replaced_selection = false;
         QString replace_debug;
         if (active_capture_mode_ == CaptureMode::SelectionCommand) {
-            replaced_selection = selection_->replace_selection(result.text, QString::fromStdString(config_.output.paste_keys));
+            replaced_selection = selection_->replace_selection(result.text, QString::fromStdString(runtime_config_.output.paste_keys));
             replace_debug = selection_->last_debug_info();
-        } else if (config_.output.copy_to_clipboard) {
+        } else if (runtime_config_.output.copy_to_clipboard) {
             clipboard_->copy_text(result.text);
         }
         bool auto_paste_ok = true;
         QString auto_paste_debug;
-        if (active_capture_mode_ == CaptureMode::Dictation && config_.output.paste_to_focused_window) {
-            auto_paste_ok = clipboard_->paste_text_to_last_target(result.text, QString::fromStdString(config_.output.paste_keys));
+        if (active_capture_mode_ == CaptureMode::Dictation && runtime_config_.output.paste_to_focused_window) {
+            auto_paste_ok = clipboard_->paste_text_to_last_target(result.text, QString::fromStdString(runtime_config_.output.paste_keys));
             auto_paste_debug = clipboard_->last_debug_info();
         }
 
@@ -1761,7 +1703,7 @@ void AppController::on_transcription_finished() {
             window_->set_status_text(status);
             window_->settings_window()->set_status_text(status);
             hud_->show_error("Selection replace failed");
-        } else if (config_.output.paste_to_focused_window && !auto_paste_ok) {
+        } else if (runtime_config_.output.paste_to_focused_window && !auto_paste_ok) {
             const QString status = auto_paste_debug.isEmpty() ? "Auto paste failed." : QString("Auto paste failed.\n%1").arg(auto_paste_debug);
             window_->set_status_text(status);
             window_->settings_window()->set_status_text(status);
@@ -1792,7 +1734,7 @@ void AppController::transcribe_selection_command_async(TextTask task,
     set_state(SessionState::Transcribing, "Thinking.");
     hud_->show_thinking();
 
-    const AppConfig config_snapshot = config_;
+    const AppConfig config_snapshot = runtime_config_;
     const std::string selection_backend_name = selection_->backend_name().toStdString();
     const QString selection_debug_info = pending_selection_debug_info_;
     const quint64 job_id = next_transcription_job_id_++;
@@ -1926,7 +1868,7 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
         return;
     }
 
-    const AppConfig config_snapshot = config_;
+    const AppConfig config_snapshot = runtime_config_;
     const QString selection_debug_info = pending_selection_debug_info_;
     const std::string selection_backend_name = selection_->backend_name().toStdString();
     const quint64 job_id = next_transcription_job_id_++;

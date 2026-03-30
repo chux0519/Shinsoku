@@ -26,6 +26,13 @@ struct EndpointConfig {
 
 struct RefineStageConfig {
     bool enabled = false;
+    std::string prompt_mode = "generic";
+    std::string request_format = "system_and_user";
+    std::string translation_source_language = "Chinese";
+    std::string translation_source_code = "zh";
+    std::string translation_target_language = "English";
+    std::string translation_target_code = "en";
+    std::string translation_extra_instructions;
     EndpointConfig endpoint{
         .provider = "openai",
         .base_url = "",
@@ -110,8 +117,14 @@ struct ProfileCaptureConfig {
 
 struct ProfileTransformConfig {
     bool enabled = false;
-    std::string prompt_mode = "inherit_global";
+    std::string mode = "cleanup";
+    std::string request_format = "system_and_user";
     std::string custom_prompt;
+    std::string translation_source_language = "Chinese";
+    std::string translation_source_code = "zh";
+    std::string translation_target_language = "English";
+    std::string translation_target_code = "en";
+    std::string translation_extra_instructions;
 };
 
 struct ProfileOutputConfig {

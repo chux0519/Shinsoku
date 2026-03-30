@@ -206,15 +206,26 @@ int parse_int(const std::string& value, int fallback) {
     }
 }
 
-std::string normalize_prompt_mode(std::string value) {
+std::string normalize_profile_transform_mode(std::string value) {
     value = trim(std::move(value));
     for (char& ch : value) {
         ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
     }
-    if (value == "inherit_global" || value == "custom") {
+    if (value == "cleanup" || value == "translation" || value == "custom_prompt") {
         return value;
     }
-    return "inherit_global";
+    return "cleanup";
+}
+
+std::string normalize_refine_request_format(std::string value) {
+    value = trim(std::move(value));
+    for (char& ch : value) {
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+    if (value == "system_and_user" || value == "single_user_message") {
+        return value;
+    }
+    return "system_and_user";
 }
 
 std::string normalize_app_theme(std::string value) {
@@ -239,21 +250,19 @@ std::string normalize_tray_icon_theme(std::string value) {
     return "auto";
 }
 
-ProfileConfig make_default_profile(const AppConfig& config) {
+ProfileConfig make_default_profile() {
     ProfileConfig profile;
     profile.id = "default";
     profile.name = "Default Dictation";
-    profile.capture.input_source = config.audio.capture_mode;
-    profile.capture.input_device_id = config.audio.input_device_id;
-    profile.capture.prefer_streaming = config.pipeline.streaming.enabled;
-    profile.capture.preferred_streaming_provider = config.pipeline.streaming.provider;
-    profile.capture.language_hint = config.pipeline.streaming.language;
-    profile.transform.enabled = config.pipeline.refine.enabled;
-    profile.transform.prompt_mode = "inherit_global";
-    profile.output.copy_to_clipboard = config.output.copy_to_clipboard;
-    profile.output.paste_to_focused_window = config.output.paste_to_focused_window;
-    profile.output.paste_keys = config.output.paste_keys;
-    profile.notes = "Migrated from the original single-profile configuration.";
+    profile.capture.input_source = "microphone";
+    profile.capture.preferred_streaming_provider = "none";
+    profile.transform.enabled = false;
+    profile.transform.mode = "cleanup";
+    profile.transform.request_format = "system_and_user";
+    profile.output.copy_to_clipboard = true;
+    profile.output.paste_to_focused_window = true;
+    profile.output.paste_keys = "ctrl+shift+v";
+    profile.notes = "Default dictation workflow.";
     return profile;
 }
 
@@ -265,13 +274,12 @@ ProfileConfig make_chinese_to_english_profile() {
     profile.capture.prefer_streaming = true;
     profile.capture.preferred_streaming_provider = "soniox";
     profile.transform.enabled = true;
-    profile.transform.prompt_mode = "custom";
-    profile.transform.custom_prompt =
-        "You are a bilingual conversation assistant.\n\n"
-        "Convert the user's spoken Chinese into natural, concise, native-sounding English.\n"
-        "Preserve the intended meaning.\n"
-        "Do not explain what you changed.\n"
-        "Return only the final English text.";
+    profile.transform.mode = "translation";
+    profile.transform.request_format = "single_user_message";
+    profile.transform.translation_source_language = "Chinese";
+    profile.transform.translation_source_code = "zh";
+    profile.transform.translation_target_language = "English";
+    profile.transform.translation_target_code = "en";
     profile.output.copy_to_clipboard = true;
     profile.output.paste_to_focused_window = true;
     profile.output.paste_keys = "ctrl+v";
@@ -296,7 +304,7 @@ ProfileConfig make_live_caption_profile() {
 
 void ensure_profiles(AppConfig& config) {
     if (config.profiles.items.empty()) {
-        config.profiles.items.push_back(make_default_profile(config));
+        config.profiles.items.push_back(make_default_profile());
         config.profiles.items.push_back(make_chinese_to_english_profile());
         config.profiles.items.push_back(make_live_caption_profile());
     }
@@ -323,7 +331,8 @@ void ensure_profiles(AppConfig& config) {
         if (profile.capture.preferred_streaming_provider.empty()) {
             profile.capture.preferred_streaming_provider = "none";
         }
-        profile.transform.prompt_mode = normalize_prompt_mode(profile.transform.prompt_mode);
+        profile.transform.mode = normalize_profile_transform_mode(profile.transform.mode);
+        profile.transform.request_format = normalize_refine_request_format(profile.transform.request_format);
         if (profile.output.paste_keys.empty()) {
             profile.output.paste_keys = "ctrl+shift+v";
         }
@@ -428,9 +437,6 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "pipeline.asr", "model")) {
         config.pipeline.asr.model = unquote(*value);
     }
-    if (const auto value = get_value(sections, "pipeline.refine", "enabled")) {
-        config.pipeline.refine.enabled = parse_bool(*value, config.pipeline.refine.enabled);
-    }
     if (const auto value = get_value(sections, "pipeline.refine", "provider")) {
         config.pipeline.refine.endpoint.provider = unquote(*value);
     }
@@ -443,24 +449,6 @@ AppConfig load_config() {
     if (const auto value = get_value(sections, "pipeline.refine", "model")) {
         config.pipeline.refine.endpoint.model = unquote(*value);
     }
-    if (const auto value = get_value(sections, "pipeline.refine", "system_prompt")) {
-        config.pipeline.refine.system_prompt = unquote(*value);
-    }
-    if (const auto value = get_value(sections, "pipeline.streaming", "enabled")) {
-        config.pipeline.streaming.enabled = parse_bool(*value, config.pipeline.streaming.enabled);
-    }
-    if (const auto value = get_value(sections, "pipeline.streaming", "provider")) {
-        config.pipeline.streaming.provider = unquote(*value);
-    }
-    if (const auto value = get_value(sections, "pipeline.streaming", "language")) {
-        config.pipeline.streaming.language = unquote(*value);
-    }
-    if (const auto value = get_value(sections, "audio", "input_device_id")) {
-        config.audio.input_device_id = unquote(*value);
-    }
-    if (const auto value = get_value(sections, "audio", "capture_mode")) {
-        config.audio.capture_mode = normalize_capture_mode(unquote(*value));
-    }
     if (const auto value = get_value(sections, "audio", "save_recordings")) {
         config.audio.save_recordings = parse_bool(*value, config.audio.save_recordings);
     }
@@ -472,15 +460,6 @@ AppConfig load_config() {
     }
     if (const auto value = get_value(sections, "audio.rotation", "max_files")) {
         config.audio.rotation.max_files = parse_size(*value, 50U);
-    }
-    if (const auto value = get_value(sections, "output", "copy_to_clipboard")) {
-        config.output.copy_to_clipboard = parse_bool(*value, config.output.copy_to_clipboard);
-    }
-    if (const auto value = get_value(sections, "output", "paste_to_focused_window")) {
-        config.output.paste_to_focused_window = parse_bool(*value, config.output.paste_to_focused_window);
-    }
-    if (const auto value = get_value(sections, "output", "paste_keys")) {
-        config.output.paste_keys = unquote(*value);
     }
     if (const auto value = get_value(sections, "profiles", "active_profile_id")) {
         config.profiles.active_profile_id = unquote(*value);
@@ -596,11 +575,29 @@ AppConfig load_config() {
         if (const auto value = get_value(sections, base_section + ".transform", "enabled")) {
             profile.transform.enabled = parse_bool(*value, profile.transform.enabled);
         }
-        if (const auto value = get_value(sections, base_section + ".transform", "prompt_mode")) {
-            profile.transform.prompt_mode = normalize_prompt_mode(unquote(*value));
+        if (const auto value = get_value(sections, base_section + ".transform", "mode")) {
+            profile.transform.mode = normalize_profile_transform_mode(unquote(*value));
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "request_format")) {
+            profile.transform.request_format = normalize_refine_request_format(unquote(*value));
         }
         if (const auto value = get_value(sections, base_section + ".transform", "custom_prompt")) {
             profile.transform.custom_prompt = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "translation_source_language")) {
+            profile.transform.translation_source_language = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "translation_source_code")) {
+            profile.transform.translation_source_code = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "translation_target_language")) {
+            profile.transform.translation_target_language = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "translation_target_code")) {
+            profile.transform.translation_target_code = unquote(*value);
+        }
+        if (const auto value = get_value(sections, base_section + ".transform", "translation_extra_instructions")) {
+            profile.transform.translation_extra_instructions = unquote(*value);
         }
 
         if (const auto value = get_value(sections, base_section + ".output", "copy_to_clipboard")) {
@@ -637,14 +634,8 @@ AppConfig load_config() {
     if (config.pipeline.refine.endpoint.provider.empty()) {
         config.pipeline.refine.endpoint.provider = defaults.pipeline.refine.endpoint.provider;
     }
-    if (config.pipeline.streaming.provider.empty()) {
-        config.pipeline.streaming.provider = defaults.pipeline.streaming.provider;
-    }
     if (config.pipeline.refine.endpoint.model.empty()) {
         config.pipeline.refine.endpoint.model = defaults.pipeline.refine.endpoint.model;
-    }
-    if (config.pipeline.refine.system_prompt.empty()) {
-        config.pipeline.refine.system_prompt = defaults.pipeline.refine.system_prompt;
     }
     if (config.providers.soniox.url.empty()) {
         config.providers.soniox.url = defaults.providers.soniox.url;
@@ -661,13 +652,6 @@ AppConfig load_config() {
     if (config.providers.bailian.model.empty()) {
         config.providers.bailian.model = defaults.providers.bailian.model;
     }
-    if (config.output.paste_keys.empty()) {
-        config.output.paste_keys = defaults.output.paste_keys;
-    }
-    if (config.audio.capture_mode.empty()) {
-        config.audio.capture_mode = defaults.audio.capture_mode;
-    }
-    config.audio.capture_mode = normalize_capture_mode(config.audio.capture_mode);
     if (config.network.proxy.type.empty()) {
         config.network.proxy.type = defaults.network.proxy.type;
     }
@@ -704,21 +688,12 @@ void save_config(const AppConfig& config) {
     output << "model = \"" << escape_toml_string(config.pipeline.asr.model) << "\"\n\n";
 
     output << "[pipeline.refine]\n";
-    output << "enabled = " << (config.pipeline.refine.enabled ? "true" : "false") << "\n";
     output << "provider = \"" << escape_toml_string(config.pipeline.refine.endpoint.provider) << "\"\n";
     output << "base_url = \"" << escape_toml_string(config.pipeline.refine.endpoint.base_url) << "\"\n";
     output << "api_key = \"" << escape_toml_string(config.pipeline.refine.endpoint.api_key) << "\"\n";
-    output << "model = \"" << escape_toml_string(config.pipeline.refine.endpoint.model) << "\"\n";
-    output << "system_prompt = \"" << escape_toml_string(config.pipeline.refine.system_prompt) << "\"\n\n";
-
-    output << "[pipeline.streaming]\n";
-    output << "enabled = " << (config.pipeline.streaming.enabled ? "true" : "false") << "\n";
-    output << "provider = \"" << escape_toml_string(config.pipeline.streaming.provider) << "\"\n";
-    output << "language = \"" << escape_toml_string(config.pipeline.streaming.language) << "\"\n\n";
+    output << "model = \"" << escape_toml_string(config.pipeline.refine.endpoint.model) << "\"\n\n";
 
     output << "[audio]\n";
-    output << "capture_mode = \"" << escape_toml_string(normalize_capture_mode(config.audio.capture_mode)) << "\"\n";
-    output << "input_device_id = \"" << escape_toml_string(config.audio.input_device_id) << "\"\n";
     output << "save_recordings = " << (config.audio.save_recordings ? "true" : "false") << "\n";
     output << "recordings_dir = \"" << escape_toml_string(path_to_portable_string(config.audio.recordings_dir)) << "\"\n\n";
 
@@ -728,11 +703,6 @@ void save_config(const AppConfig& config) {
         output << "max_files = " << *config.audio.rotation.max_files << "\n";
     }
     output << "\n";
-
-    output << "[output]\n";
-    output << "copy_to_clipboard = " << (config.output.copy_to_clipboard ? "true" : "false") << "\n";
-    output << "paste_to_focused_window = " << (config.output.paste_to_focused_window ? "true" : "false") << "\n";
-    output << "paste_keys = \"" << escape_toml_string(config.output.paste_keys) << "\"\n\n";
 
     output << "[profiles]\n";
     output << "active_profile_id = \"" << escape_toml_string(config.profiles.active_profile_id) << "\"\n\n";
@@ -752,8 +722,14 @@ void save_config(const AppConfig& config) {
 
         output << "[profile." << profile.id << ".transform]\n";
         output << "enabled = " << (profile.transform.enabled ? "true" : "false") << "\n";
-        output << "prompt_mode = \"" << escape_toml_string(normalize_prompt_mode(profile.transform.prompt_mode)) << "\"\n";
-        output << "custom_prompt = \"" << escape_toml_string(profile.transform.custom_prompt) << "\"\n\n";
+        output << "mode = \"" << escape_toml_string(normalize_profile_transform_mode(profile.transform.mode)) << "\"\n";
+        output << "request_format = \"" << escape_toml_string(profile.transform.request_format) << "\"\n";
+        output << "custom_prompt = \"" << escape_toml_string(profile.transform.custom_prompt) << "\"\n";
+        output << "translation_source_language = \"" << escape_toml_string(profile.transform.translation_source_language) << "\"\n";
+        output << "translation_source_code = \"" << escape_toml_string(profile.transform.translation_source_code) << "\"\n";
+        output << "translation_target_language = \"" << escape_toml_string(profile.transform.translation_target_language) << "\"\n";
+        output << "translation_target_code = \"" << escape_toml_string(profile.transform.translation_target_code) << "\"\n";
+        output << "translation_extra_instructions = \"" << escape_toml_string(profile.transform.translation_extra_instructions) << "\"\n\n";
 
         output << "[profile." << profile.id << ".output]\n";
         output << "copy_to_clipboard = " << (profile.output.copy_to_clipboard ? "true" : "false") << "\n";

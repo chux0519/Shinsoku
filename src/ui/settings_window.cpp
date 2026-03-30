@@ -38,6 +38,18 @@ const QStringList kSonioxModels = {
     "stt-rt-preview",
 };
 
+const QList<QPair<QString, QString>> kTranslationLanguages = {
+    {"Auto Detect", "auto"},
+    {"Chinese", "zh"},
+    {"English", "en"},
+    {"Japanese", "ja"},
+    {"Korean", "ko"},
+    {"French", "fr"},
+    {"German", "de"},
+    {"Spanish", "es"},
+    {"Russian", "ru"},
+};
+
 const QStringList kBailianChinaModels = {
     "fun-asr-realtime",
     "fun-asr-realtime-2026-02-28",
@@ -65,6 +77,21 @@ QString profile_hint_text(const QString& profile_id, const QString& input_source
     }
     return QString("Selected profile ID: %1. It is intended for dictation-style workflows and can enable transform or paste behavior.")
         .arg(profile_id);
+}
+
+QString format_language_label(const QString& language, const QString& code) {
+    const QString trimmed_language = language.trimmed();
+    const QString trimmed_code = code.trimmed();
+    if (trimmed_language.isEmpty() && trimmed_code.isEmpty()) {
+        return "source";
+    }
+    if (trimmed_language.isEmpty()) {
+        return trimmed_code;
+    }
+    if (trimmed_code.isEmpty()) {
+        return trimmed_language;
+    }
+    return QString("%1 (%2)").arg(trimmed_language, trimmed_code);
 }
 
 QString slugify_profile_id(QString text) {
@@ -190,6 +217,16 @@ void configure_combo_popup(QComboBox* combo, int max_visible_items = 10) {
     }
 }
 
+QComboBox* make_language_combo(QWidget* parent) {
+    auto* combo = new QComboBox(parent);
+    combo->setEditable(true);
+    for (const auto& [label, code] : kTranslationLanguages) {
+        combo->addItem(label, code);
+    }
+    configure_combo_popup(combo);
+    return combo;
+}
+
 QComboBox* make_key_combo(QWidget* parent) {
     auto* combo = new QComboBox(parent);
     combo->addItem("Right Alt", "right_alt");
@@ -278,6 +315,18 @@ void set_combo_text_if_present(QComboBox* combo, const QString& value) {
     if (index >= 0) {
         combo->setCurrentIndex(index);
     }
+}
+
+void set_editable_combo_text(QComboBox* combo, const QString& text) {
+    if (combo == nullptr) {
+        return;
+    }
+    const int by_text = combo->findText(text);
+    if (by_text >= 0) {
+        combo->setCurrentIndex(by_text);
+        return;
+    }
+    combo->setEditText(text);
 }
 
 void set_combo_item_enabled(QComboBox* combo, const QString& value, bool enabled, const QString& tooltip = {}) {
@@ -376,7 +425,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     navigation_list_->setSpacing(8);
     navigation_list_->setAlternatingRowColors(false);
     navigation_list_->setUniformItemSizes(true);
-    navigation_list_->addItems({"General", "Providers", "Transform", "Network", "Profiles", "Advanced"});
+    navigation_list_->addItems({"General", "Providers", "Network", "Profiles", "Advanced"});
     sidebar_layout->addWidget(navigation_list_, 1);
     shell_layout->addWidget(sidebar);
 
@@ -386,13 +435,11 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     QVBoxLayout* general_layout = nullptr;
     QVBoxLayout* profiles_layout = nullptr;
-    QVBoxLayout* transform_layout = nullptr;
     QVBoxLayout* network_layout = nullptr;
     QVBoxLayout* providers_layout = nullptr;
     QVBoxLayout* advanced_layout = nullptr;
     page_stack_->addWidget(make_page_shell(page_stack_, &general_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &providers_layout));
-    page_stack_->addWidget(make_page_shell(page_stack_, &transform_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &network_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &profiles_layout));
     page_stack_->addWidget(make_page_shell(page_stack_, &advanced_layout));
@@ -460,9 +507,32 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     profile_language_hint_edit_ = new QLineEdit(profile_editor_card);
     profile_language_hint_edit_->setPlaceholderText("Optional language hint, e.g. en");
     profile_transform_enabled_check_ = new QCheckBox("Enable text transform", profile_editor_card);
-    profile_prompt_mode_combo_ = new QComboBox(profile_editor_card);
-    profile_prompt_mode_combo_->addItem("Inherit global prompt", "inherit_global");
-    profile_prompt_mode_combo_->addItem("Use custom prompt", "custom");
+    profile_transform_mode_combo_ = new QComboBox(profile_editor_card);
+    profile_transform_mode_combo_->addItem("Cleanup", "cleanup");
+    profile_transform_mode_combo_->addItem("Translation", "translation");
+    profile_transform_mode_combo_->addItem("Custom Prompt", "custom_prompt");
+    profile_transform_request_format_label_ = new QLabel("Request Format", profile_editor_card);
+    profile_transform_request_format_combo_ = new QComboBox(profile_editor_card);
+    profile_transform_request_format_combo_->addItem("System + User Messages", "system_and_user");
+    profile_transform_request_format_combo_->addItem("Single User Message", "single_user_message");
+    profile_translation_source_language_label_ = new QLabel("Source Language", profile_editor_card);
+    profile_translation_source_language_combo_ = make_language_combo(profile_editor_card);
+    profile_translation_source_code_label_ = new QLabel("Source Code", profile_editor_card);
+    profile_translation_source_code_edit_ = new QLineEdit(profile_editor_card);
+    profile_translation_source_code_edit_->setPlaceholderText("zh");
+    profile_translation_target_language_label_ = new QLabel("Target Language", profile_editor_card);
+    profile_translation_target_language_combo_ = make_language_combo(profile_editor_card);
+    profile_translation_target_code_label_ = new QLabel("Target Code", profile_editor_card);
+    profile_translation_target_code_edit_ = new QLineEdit(profile_editor_card);
+    profile_translation_target_code_edit_->setPlaceholderText("en");
+    profile_translation_extra_instructions_label_ = new QLabel("Extra Instructions", profile_editor_card);
+    profile_translation_extra_instructions_edit_ = new QPlainTextEdit(profile_editor_card);
+    profile_translation_extra_instructions_edit_->setMinimumHeight(80);
+    profile_transform_prompt_label_ = new QLabel("Prompt Preview", profile_editor_card);
+    profile_transform_prompt_preview_edit_ = new QPlainTextEdit(profile_editor_card);
+    profile_transform_prompt_preview_edit_->setMinimumHeight(120);
+    profile_transform_prompt_preview_edit_->setReadOnly(true);
+    profile_custom_prompt_label_ = new QLabel("Custom Prompt", profile_editor_card);
     profile_custom_prompt_edit_ = new QPlainTextEdit(profile_editor_card);
     profile_custom_prompt_edit_->setMinimumHeight(120);
     profile_copy_check_ = new QCheckBox("Copy result to clipboard", profile_editor_card);
@@ -474,7 +544,8 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     configure_combo_popup(profile_input_source_combo_);
     configure_combo_popup(profile_input_device_combo_, 14);
     configure_combo_popup(profile_streaming_provider_combo_);
-    configure_combo_popup(profile_prompt_mode_combo_);
+    configure_combo_popup(profile_transform_mode_combo_);
+    configure_combo_popup(profile_transform_request_format_combo_);
     configure_combo_popup(profile_paste_keys_combo_);
 
     QFormLayout* profile_identity_form = nullptr;
@@ -495,8 +566,15 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     QFormLayout* profile_transform_form = nullptr;
     auto* profile_transform_section = make_section("Transform", profile_editor_card, &profile_transform_form);
     profile_transform_form->addRow("Enabled", profile_transform_enabled_check_);
-    profile_transform_form->addRow("Prompt Source", profile_prompt_mode_combo_);
-    profile_transform_form->addRow("Custom Prompt", profile_custom_prompt_edit_);
+    profile_transform_form->addRow("Mode", profile_transform_mode_combo_);
+    profile_transform_form->addRow(profile_transform_request_format_label_, profile_transform_request_format_combo_);
+    profile_transform_form->addRow(profile_translation_source_language_label_, profile_translation_source_language_combo_);
+    profile_transform_form->addRow(profile_translation_source_code_label_, profile_translation_source_code_edit_);
+    profile_transform_form->addRow(profile_translation_target_language_label_, profile_translation_target_language_combo_);
+    profile_transform_form->addRow(profile_translation_target_code_label_, profile_translation_target_code_edit_);
+    profile_transform_form->addRow(profile_translation_extra_instructions_label_, profile_translation_extra_instructions_edit_);
+    profile_transform_form->addRow(profile_transform_prompt_label_, profile_transform_prompt_preview_edit_);
+    profile_transform_form->addRow(profile_custom_prompt_label_, profile_custom_prompt_edit_);
     profile_editor_layout->addWidget(profile_transform_section);
 
     QFormLayout* profile_output_form = nullptr;
@@ -525,12 +603,6 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     QFormLayout* audio_form = nullptr;
     auto* audio_section = make_section("Capture", this, &audio_form);
-    audio_capture_mode_combo_ = new QComboBox(audio_section);
-    audio_capture_mode_combo_->addItem("Microphone", "microphone");
-    audio_capture_mode_combo_->addItem("System Audio (Loopback)", "system");
-    input_device_combo_ = new QComboBox(audio_section);
-    configure_combo_popup(audio_capture_mode_combo_);
-    configure_combo_popup(input_device_combo_, 14);
     save_recordings_check_ = new QCheckBox("Save recordings as .wav", audio_section);
     auto* recordings_dir_row = new QWidget(audio_section);
     recordings_dir_row->setObjectName("inlineFieldRow");
@@ -547,27 +619,11 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     max_files_spin_ = new QSpinBox(audio_section);
     max_files_spin_->setRange(1, 100000);
     max_files_spin_->setValue(50);
-    audio_form->addRow("Input Source", audio_capture_mode_combo_);
-    audio_form->addRow("Input Device", input_device_combo_);
     audio_form->addRow("Recording", save_recordings_check_);
     audio_form->addRow("Recordings Dir", recordings_dir_row);
     audio_form->addRow("Rotation Mode", rotation_mode_combo_);
     audio_form->addRow("Max Files", max_files_spin_);
     insert_section_before_stretch(general_layout, audio_section);
-
-    QFormLayout* output_form = nullptr;
-    auto* output_section = make_section("Output", this, &output_form);
-    copy_to_clipboard_check_ = new QCheckBox("Copy text to clipboard", output_section);
-    paste_to_focused_window_check_ = new QCheckBox("Paste into focused window", output_section);
-    paste_keys_combo_ = new QComboBox(output_section);
-    paste_keys_combo_->addItem("ctrl+shift+v");
-    paste_keys_combo_->addItem("ctrl+v");
-    paste_keys_combo_->addItem("shift+insert");
-    configure_combo_popup(paste_keys_combo_);
-    output_form->addRow("Clipboard", copy_to_clipboard_check_);
-    output_form->addRow("Auto Paste", paste_to_focused_window_check_);
-    output_form->addRow("Paste Keys", paste_keys_combo_);
-    insert_section_before_stretch(general_layout, output_section);
 
     QFormLayout* appearance_form = nullptr;
     auto* appearance_section = make_section("Appearance", this, &appearance_form);
@@ -613,21 +669,6 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
                                                  this));
     insert_section_before_stretch(network_layout, network_section);
 
-    QFormLayout* refine_form = nullptr;
-    auto* refine_section = make_section("Text Transform", this, &refine_form);
-    refine_enabled_check_ = new QCheckBox("Run second-pass text refine", refine_section);
-    refine_system_prompt_edit_ = new QPlainTextEdit(refine_section);
-    refine_system_prompt_edit_->setMinimumHeight(140);
-    refine_form->addRow("Enabled", refine_enabled_check_);
-    refine_form->addRow("System Prompt", refine_system_prompt_edit_);
-    insert_section_before_stretch(transform_layout,
-                                  make_info_card("Text Transform",
-                                                 "Configure command-mode and second-pass text processing.",
-                                                 "Workflow-level transform behavior stays here. Provider endpoint and "
-                                                 "credential details now live under Providers.",
-                                                 this));
-    insert_section_before_stretch(transform_layout, refine_section);
-
     QFormLayout* vad_form = nullptr;
     auto* vad_section = make_section("Voice Activity Detection", this, &vad_form);
     vad_enabled_check_ = new QCheckBox("Skip silence-only recordings", vad_section);
@@ -672,29 +713,18 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
                                                  "Choose current providers first, then configure them.",
                                                  "This page is the home for active provider selection, endpoint URLs, "
                                                  "API keys, and provider-specific details. Workflow intent stays in "
-                                                 "Profiles and global workflow knobs stay in General/Transform.",
+                                                 "Profiles.",
                                                  this));
 
     QFormLayout* provider_selection_form = nullptr;
     auto* provider_selection_section = make_section("Current Providers", this, &provider_selection_form);
     asr_provider_combo_ = new QComboBox(provider_selection_section);
     asr_provider_combo_->addItem("OpenAI-Compatible", "openai");
-    streaming_enabled_check_ = new QCheckBox("Enable real-time streaming ASR", provider_selection_section);
-    streaming_provider_combo_ = new QComboBox(provider_selection_section);
-    streaming_provider_combo_->addItem("None", "none");
-    streaming_provider_combo_->addItem("Soniox", "soniox");
-    streaming_provider_combo_->addItem("Bailian", "bailian");
-    streaming_language_edit_ = new QLineEdit(provider_selection_section);
-    streaming_language_edit_->setPlaceholderText("Optional language hint, e.g. en");
     refine_provider_combo_ = new QComboBox(provider_selection_section);
     refine_provider_combo_->addItem("OpenAI-Compatible", "openai");
     configure_combo_popup(asr_provider_combo_);
-    configure_combo_popup(streaming_provider_combo_);
     configure_combo_popup(refine_provider_combo_);
     provider_selection_form->addRow("Batch Transcription", asr_provider_combo_);
-    provider_selection_form->addRow("Streaming Enabled", streaming_enabled_check_);
-    provider_selection_form->addRow("Streaming Provider", streaming_provider_combo_);
-    provider_selection_form->addRow("Streaming Language", streaming_language_edit_);
     provider_selection_form->addRow("Text Transform", refine_provider_combo_);
     insert_section_before_stretch(providers_layout, provider_selection_section);
 
@@ -775,44 +805,11 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
             recordings_dir_edit_->setText(selected);
         }
     });
-    connect(audio_capture_mode_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_global_workflow_settings_edited();
-        refresh_capability_dependent_controls();
-    });
-    connect(input_device_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_global_workflow_settings_edited();
-    });
-    connect(audio_capture_mode_combo_, &QComboBox::activated, this, [this](int) {
-        emit audio_capture_mode_changed(audio_capture_mode());
-    });
     connect(profile_input_source_combo_, &QComboBox::activated, this, [this](int) {
         emit profile_audio_capture_mode_changed(profile_input_source_combo_->currentData().toString());
     });
-    connect(streaming_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_global_workflow_settings_edited();
-        refresh_capability_dependent_controls();
-    });
-    connect(streaming_provider_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_global_workflow_settings_edited();
-    });
-    connect(streaming_language_edit_, &QLineEdit::textChanged, this, [this](const QString&) {
-        mark_global_workflow_settings_edited();
-    });
-    connect(refine_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_global_workflow_settings_edited();
-    });
     connect(hold_key_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hold_key_requested);
     connect(hands_free_chord_record_button_, &QPushButton::clicked, this, &SettingsWindow::record_hands_free_chord_requested);
-    connect(paste_to_focused_window_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_global_workflow_settings_edited();
-        refresh_capability_dependent_controls();
-    });
-    connect(copy_to_clipboard_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_global_workflow_settings_edited();
-    });
-    connect(paste_keys_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_global_workflow_settings_edited();
-    });
     connect(soniox_help_button_, &QToolButton::clicked, this, []() {
         QDesktopServices::openUrl(QUrl("https://docs.soniox.com"));
     });
@@ -905,42 +902,49 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
     });
     connect(profile_input_source_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_profile_workflow_settings_edited();
         if (syncing_profiles_ || profile_editor_index_ < 0 || profile_editor_index_ >= static_cast<int>(profiles_.size())) {
             return;
         }
         const QString profile_id = QString::fromStdString(profiles_[static_cast<std::size_t>(profile_editor_index_)].id);
         active_profile_hint_label_->setText(
             profile_hint_text(profile_id, profile_input_source_combo_->currentData().toString()));
-    });
-    connect(profile_input_device_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_profile_workflow_settings_edited();
+        refresh_capability_dependent_controls();
     });
     connect(profile_prefer_streaming_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_profile_workflow_settings_edited();
-    });
-    connect(profile_streaming_provider_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_profile_workflow_settings_edited();
-    });
-    connect(profile_language_hint_edit_, &QLineEdit::textChanged, this, [this](const QString&) {
-        mark_profile_workflow_settings_edited();
+        refresh_capability_dependent_controls();
     });
     connect(profile_transform_enabled_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_profile_workflow_settings_edited();
+        refresh_profile_transform_ui();
     });
-    connect(profile_copy_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_profile_workflow_settings_edited();
+    connect(profile_transform_mode_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        refresh_profile_transform_ui();
+    });
+    connect(profile_translation_source_language_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        refresh_profile_transform_ui();
+    });
+    connect(profile_translation_source_code_edit_, &QLineEdit::textChanged, this, [this](const QString&) {
+        refresh_profile_transform_ui();
+    });
+    connect(profile_translation_target_language_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        refresh_profile_transform_ui();
+    });
+    connect(profile_translation_target_code_edit_, &QLineEdit::textChanged, this, [this](const QString&) {
+        refresh_profile_transform_ui();
+    });
+    connect(profile_translation_extra_instructions_edit_, &QPlainTextEdit::textChanged, this, [this]() {
+        refresh_profile_transform_ui();
+    });
+    connect(profile_custom_prompt_edit_, &QPlainTextEdit::textChanged, this, [this]() {
+        refresh_profile_transform_ui();
     });
     connect(profile_paste_check_, &QCheckBox::toggled, this, [this](bool) {
-        mark_profile_workflow_settings_edited();
-    });
-    connect(profile_paste_keys_combo_, &QComboBox::currentTextChanged, this, [this](const QString&) {
-        mark_profile_workflow_settings_edited();
+        refresh_capability_dependent_controls();
     });
     connect(navigation_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
     refresh_bailian_model_combo(bailian_model_combo_, bailian_region_combo_->currentData().toString(), QString());
     bailian_url_edit_->setText("wss://dashscope.aliyuncs.com/api-ws/v1/inference/");
     navigation_list_->setCurrentRow(0);
+    refresh_profile_transform_ui();
     refresh_capability_dependent_controls();
 }
 
@@ -974,7 +978,14 @@ std::vector<ProfileConfig> SettingsWindow::profiles() const {
         profile.capture.preferred_streaming_provider = profile_streaming_provider_combo_->currentData().toString().toStdString();
         profile.capture.language_hint = profile_language_hint_edit_->text().trimmed().toStdString();
         profile.transform.enabled = profile_transform_enabled_check_->isChecked();
-        profile.transform.prompt_mode = profile_prompt_mode_combo_->currentData().toString().toStdString();
+        profile.transform.mode = profile_transform_mode_combo_->currentData().toString().toStdString();
+        profile.transform.request_format = profile_transform_request_format_combo_->currentData().toString().toStdString();
+        profile.transform.translation_source_language = profile_translation_source_language_combo_->currentText().trimmed().toStdString();
+        profile.transform.translation_source_code = profile_translation_source_code_edit_->text().trimmed().toStdString();
+        profile.transform.translation_target_language = profile_translation_target_language_combo_->currentText().trimmed().toStdString();
+        profile.transform.translation_target_code = profile_translation_target_code_edit_->text().trimmed().toStdString();
+        profile.transform.translation_extra_instructions =
+            profile_translation_extra_instructions_edit_->toPlainText().trimmed().toStdString();
         profile.transform.custom_prompt = profile_custom_prompt_edit_->toPlainText().trimmed().toStdString();
         profile.output.copy_to_clipboard = profile_copy_check_->isChecked();
         profile.output.paste_to_focused_window = profile_paste_check_->isChecked();
@@ -982,14 +993,6 @@ std::vector<ProfileConfig> SettingsWindow::profiles() const {
         profile.notes = profile_notes_edit_->toPlainText().trimmed().toStdString();
     }
     return snapshot;
-}
-
-QString SettingsWindow::audio_capture_mode() const {
-    return audio_capture_mode_combo_->currentData().toString();
-}
-
-QString SettingsWindow::selected_input_device_id() const {
-    return input_device_combo_->currentData().toString();
 }
 
 bool SettingsWindow::save_recordings_enabled() const {
@@ -1006,18 +1009,6 @@ QString SettingsWindow::rotation_mode() const {
 
 int SettingsWindow::max_files() const {
     return max_files_spin_->value();
-}
-
-bool SettingsWindow::copy_to_clipboard_enabled() const {
-    return copy_to_clipboard_check_->isChecked();
-}
-
-bool SettingsWindow::paste_to_focused_window_enabled() const {
-    return paste_to_focused_window_check_->isChecked();
-}
-
-QString SettingsWindow::paste_keys() const {
-    return paste_keys_combo_->currentText();
 }
 
 QString SettingsWindow::app_theme() const {
@@ -1068,26 +1059,6 @@ QString SettingsWindow::asr_model() const {
     return asr_model_edit_->text().trimmed();
 }
 
-bool SettingsWindow::streaming_enabled() const {
-    return streaming_enabled_check_->isChecked();
-}
-
-QString SettingsWindow::streaming_provider() const {
-    return streaming_provider_combo_->currentData().toString();
-}
-
-QString SettingsWindow::streaming_language() const {
-    return streaming_language_edit_->text().trimmed();
-}
-
-SettingsWindow::WorkflowEditSource SettingsWindow::workflow_edit_source() const {
-    return workflow_edit_source_;
-}
-
-bool SettingsWindow::refine_enabled() const {
-    return refine_enabled_check_->isChecked();
-}
-
 QString SettingsWindow::refine_provider() const {
     return refine_provider_combo_->currentData().toString();
 }
@@ -1102,10 +1073,6 @@ QString SettingsWindow::refine_api_key() const {
 
 QString SettingsWindow::refine_model() const {
     return refine_model_edit_->text().trimmed();
-}
-
-QString SettingsWindow::refine_system_prompt() const {
-    return refine_system_prompt_edit_->toPlainText().trimmed();
 }
 
 QString SettingsWindow::soniox_url() const {
@@ -1196,23 +1163,6 @@ void SettingsWindow::set_profiles(const std::vector<ProfileConfig>& profiles, co
     profiles_list_->setCurrentRow(active_index);
 }
 
-void SettingsWindow::set_audio_capture_mode(const QString& text) {
-    suppress_workflow_edit_tracking_ = true;
-    set_combo_by_value(audio_capture_mode_combo_, text);
-    suppress_workflow_edit_tracking_ = false;
-    refresh_capability_dependent_controls();
-}
-
-void SettingsWindow::set_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
-    suppress_workflow_edit_tracking_ = true;
-    set_device_combo_items(input_device_combo_, devices, selected_device_id);
-    if (profile_input_source_combo_ != nullptr && profile_input_source_combo_->currentData().toString() == "microphone") {
-        set_device_combo_items(profile_input_device_combo_, devices, selected_device_id);
-    }
-    suppress_workflow_edit_tracking_ = false;
-    refresh_capability_dependent_controls();
-}
-
 void SettingsWindow::set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
     set_device_combo_items(profile_input_device_combo_, devices, selected_device_id);
     const bool uses_microphone = profile_input_source_combo_ != nullptr &&
@@ -1239,28 +1189,6 @@ void SettingsWindow::set_rotation_mode(const QString& mode) {
 
 void SettingsWindow::set_max_files(int value) {
     max_files_spin_->setValue(value);
-}
-
-void SettingsWindow::set_copy_to_clipboard_enabled(bool enabled) {
-    suppress_workflow_edit_tracking_ = true;
-    copy_to_clipboard_check_->setChecked(enabled);
-    suppress_workflow_edit_tracking_ = false;
-}
-
-void SettingsWindow::set_paste_to_focused_window_enabled(bool enabled) {
-    suppress_workflow_edit_tracking_ = true;
-    paste_to_focused_window_check_->setChecked(enabled);
-    suppress_workflow_edit_tracking_ = false;
-    refresh_capability_dependent_controls();
-}
-
-void SettingsWindow::set_paste_keys(const QString& keys) {
-    suppress_workflow_edit_tracking_ = true;
-    const int index = paste_keys_combo_->findText(keys);
-    if (index >= 0) {
-        paste_keys_combo_->setCurrentIndex(index);
-    }
-    suppress_workflow_edit_tracking_ = false;
 }
 
 void SettingsWindow::set_app_theme(const QString& theme) {
@@ -1311,30 +1239,6 @@ void SettingsWindow::set_asr_model(const QString& text) {
     asr_model_edit_->setText(text);
 }
 
-void SettingsWindow::set_streaming_enabled(bool enabled) {
-    suppress_workflow_edit_tracking_ = true;
-    streaming_enabled_check_->setChecked(enabled);
-    suppress_workflow_edit_tracking_ = false;
-}
-
-void SettingsWindow::set_streaming_provider(const QString& text) {
-    suppress_workflow_edit_tracking_ = true;
-    set_combo_by_value(streaming_provider_combo_, text);
-    suppress_workflow_edit_tracking_ = false;
-}
-
-void SettingsWindow::set_streaming_language(const QString& text) {
-    suppress_workflow_edit_tracking_ = true;
-    streaming_language_edit_->setText(text);
-    suppress_workflow_edit_tracking_ = false;
-}
-
-void SettingsWindow::set_refine_enabled(bool enabled) {
-    suppress_workflow_edit_tracking_ = true;
-    refine_enabled_check_->setChecked(enabled);
-    suppress_workflow_edit_tracking_ = false;
-}
-
 void SettingsWindow::set_refine_provider(const QString& text) {
     set_combo_by_value(refine_provider_combo_, text);
 }
@@ -1349,10 +1253,6 @@ void SettingsWindow::set_refine_api_key(const QString& text) {
 
 void SettingsWindow::set_refine_model(const QString& text) {
     refine_model_edit_->setText(text);
-}
-
-void SettingsWindow::set_refine_system_prompt(const QString& text) {
-    refine_system_prompt_edit_->setPlainText(text);
 }
 
 void SettingsWindow::set_soniox_url(const QString& text) {
@@ -1440,11 +1340,15 @@ void SettingsWindow::set_auto_paste_available(bool available, const QString& rea
 void SettingsWindow::set_system_audio_available(bool available, const QString& reason) {
     system_audio_available_ = available;
     system_audio_reason_ = reason;
-    set_combo_item_enabled(audio_capture_mode_combo_, "system", available, reason);
-    if (!available && audio_capture_mode_combo_->currentData().toString() == "system") {
-        set_combo_by_value(audio_capture_mode_combo_, "microphone");
+    set_combo_item_enabled(profile_input_source_combo_, "system", available, reason);
+    if (!available && profile_input_source_combo_ != nullptr &&
+        profile_input_source_combo_->currentData().toString() == "system") {
+        set_combo_by_value(profile_input_source_combo_, "microphone");
+        emit profile_audio_capture_mode_changed(profile_input_source_combo_->currentData().toString());
     }
-    audio_capture_mode_combo_->setToolTip(reason);
+    if (profile_input_source_combo_ != nullptr) {
+        profile_input_source_combo_->setToolTip(reason);
+    }
     refresh_capability_dependent_controls();
 }
 
@@ -1453,18 +1357,100 @@ void SettingsWindow::set_status_text(const QString& text) {
     status_label_->setVisible(!text.trimmed().isEmpty());
 }
 
-void SettingsWindow::mark_global_workflow_settings_edited() {
-    if (suppress_workflow_edit_tracking_) {
-        return;
+QString SettingsWindow::build_profile_transform_prompt_preview() const {
+    const QString source_language = profile_translation_source_language_combo_->currentText().trimmed();
+    const QString source_code = profile_translation_source_code_edit_->text().trimmed();
+    const QString target_language = profile_translation_target_language_combo_->currentText().trimmed();
+    const QString target_code = profile_translation_target_code_edit_->text().trimmed();
+    const QString source_label = format_language_label(source_language, source_code);
+    const QString target_label = format_language_label(target_language, target_code);
+    const QString source_noun = source_language.isEmpty() ? source_label : source_language;
+    const QString target_noun = target_language.isEmpty() ? target_label : target_language;
+
+    QString prompt =
+        QString("You are a professional %1 to %2 translator. Your goal is to accurately convey the meaning and nuances "
+                "of the original %3 text while adhering to %4 grammar, vocabulary, and cultural sensitivities.\n"
+                "Produce only the %4 translation, without any additional explanations or commentary. Please translate "
+                "the following %3 text into %4:")
+            .arg(source_label, target_label, source_noun, target_noun);
+
+    const QString extra = profile_translation_extra_instructions_edit_->toPlainText().trimmed();
+    if (!extra.isEmpty()) {
+        prompt += "\n";
+        prompt += extra;
     }
-    workflow_edit_source_ = WorkflowEditSource::Global;
+    return prompt;
 }
 
-void SettingsWindow::mark_profile_workflow_settings_edited() {
-    if (suppress_workflow_edit_tracking_ || syncing_profiles_) {
+void SettingsWindow::refresh_profile_transform_ui() {
+    if (profile_transform_enabled_check_ == nullptr || profile_transform_mode_combo_ == nullptr ||
+        profile_transform_request_format_combo_ == nullptr || profile_translation_source_language_combo_ == nullptr ||
+        profile_translation_source_code_edit_ == nullptr || profile_translation_target_language_combo_ == nullptr ||
+        profile_translation_target_code_edit_ == nullptr || profile_translation_extra_instructions_edit_ == nullptr ||
+        profile_transform_prompt_label_ == nullptr || profile_transform_prompt_preview_edit_ == nullptr ||
+        profile_custom_prompt_edit_ == nullptr) {
         return;
     }
-    workflow_edit_source_ = WorkflowEditSource::Profile;
+
+    const bool enabled = profile_transform_enabled_check_->isChecked();
+    const QString mode = profile_transform_mode_combo_->currentData().toString();
+    const bool translation = enabled && mode == "translation";
+    const bool custom_prompt = enabled && mode == "custom_prompt";
+    const bool cleanup = enabled && mode == "cleanup";
+
+    profile_transform_mode_combo_->setEnabled(enabled);
+    profile_transform_request_format_label_->setVisible(enabled && !cleanup);
+    profile_transform_request_format_combo_->setVisible(enabled && !cleanup);
+    profile_transform_request_format_combo_->setEnabled(enabled && !cleanup);
+    profile_translation_source_language_label_->setVisible(translation);
+    profile_translation_source_language_combo_->setEnabled(translation);
+    profile_translation_source_language_combo_->setVisible(translation);
+    profile_translation_source_code_label_->setVisible(translation);
+    profile_translation_source_code_edit_->setEnabled(translation);
+    profile_translation_source_code_edit_->setVisible(translation);
+    profile_translation_target_language_label_->setVisible(translation);
+    profile_translation_target_language_combo_->setEnabled(translation);
+    profile_translation_target_language_combo_->setVisible(translation);
+    profile_translation_target_code_label_->setVisible(translation);
+    profile_translation_target_code_edit_->setEnabled(translation);
+    profile_translation_target_code_edit_->setVisible(translation);
+    profile_translation_extra_instructions_label_->setVisible(translation);
+    profile_translation_extra_instructions_edit_->setEnabled(translation);
+    profile_translation_extra_instructions_edit_->setVisible(translation);
+    profile_transform_prompt_label_->setEnabled(enabled);
+    profile_transform_prompt_preview_edit_->setEnabled(true);
+    profile_transform_prompt_preview_edit_->setReadOnly(true);
+    profile_transform_prompt_preview_edit_->setVisible(enabled);
+    profile_transform_prompt_label_->setVisible(enabled);
+    profile_custom_prompt_label_->setVisible(custom_prompt);
+    profile_custom_prompt_edit_->setEnabled(custom_prompt);
+    profile_custom_prompt_edit_->setVisible(custom_prompt);
+
+    if (!enabled) {
+        profile_transform_prompt_label_->setText("Prompt Preview");
+        profile_transform_prompt_preview_edit_->setPlainText("Transform is disabled for this profile.");
+        return;
+    }
+
+    if (translation) {
+        profile_transform_prompt_label_->setText("Prompt Preview");
+        profile_transform_prompt_preview_edit_->setPlainText(build_profile_transform_prompt_preview());
+        profile_transform_prompt_preview_edit_->setToolTip(
+            "Preview of the generated translation prompt prefix. The input text is appended at request time after two blank lines.");
+        return;
+    }
+
+    if (custom_prompt) {
+        profile_transform_prompt_label_->setText("Prompt Preview");
+        profile_transform_prompt_preview_edit_->setPlainText(profile_custom_prompt_edit_->toPlainText().trimmed());
+        profile_transform_prompt_preview_edit_->setToolTip("This custom prompt is sent as the system prompt in generic mode.");
+        return;
+    }
+
+    profile_transform_prompt_label_->setText("Prompt Preview");
+    profile_transform_prompt_preview_edit_->setPlainText(
+        "Cleanup mode uses the default text-refine prompt for typo, punctuation, and spacing fixes.");
+    profile_transform_prompt_preview_edit_->setToolTip("Cleanup mode uses the built-in generic refine prompt.");
 }
 
 void SettingsWindow::set_record_button_state(QPushButton* button, bool active) {
@@ -1533,27 +1519,29 @@ void SettingsWindow::apply_recorded_hands_free_chord(const QString& key_name) {
 }
 
 void SettingsWindow::refresh_capability_dependent_controls() {
-    const bool uses_microphone = audio_capture_mode_combo_->currentData().toString() != "system";
-    input_device_combo_->setEnabled(uses_microphone);
-    input_device_combo_->setToolTip(
+    const bool uses_microphone = profile_input_source_combo_ != nullptr &&
+                                 profile_input_source_combo_->currentData().toString() != "system";
+    profile_input_device_combo_->setEnabled(uses_microphone);
+    profile_input_device_combo_->setToolTip(
         uses_microphone ? QString() : QString("System Audio uses the default playback output instead of a microphone input device."));
     if (!system_audio_available_) {
-        audio_capture_mode_combo_->setToolTip(system_audio_reason_);
-    } else {
-        audio_capture_mode_combo_->setToolTip({});
+        profile_input_source_combo_->setToolTip(system_audio_reason_);
+    } else if (profile_input_source_combo_ != nullptr) {
+        profile_input_source_combo_->setToolTip({});
     }
 
-    paste_to_focused_window_check_->setEnabled(auto_paste_available_);
-    paste_to_focused_window_check_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
-    paste_keys_combo_->setEnabled(auto_paste_available_ && paste_to_focused_window_check_->isChecked());
-    paste_keys_combo_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
-
-    const bool streaming_controls_enabled = streaming_enabled_check_ != nullptr && streaming_enabled_check_->isChecked();
-    if (streaming_provider_combo_ != nullptr) {
-        streaming_provider_combo_->setEnabled(streaming_controls_enabled);
+    if (profile_streaming_provider_combo_ != nullptr && profile_prefer_streaming_check_ != nullptr) {
+        profile_streaming_provider_combo_->setEnabled(profile_prefer_streaming_check_->isChecked());
     }
-    if (streaming_language_edit_ != nullptr) {
-        streaming_language_edit_->setEnabled(streaming_controls_enabled);
+
+    if (profile_paste_check_ != nullptr) {
+        profile_paste_check_->setEnabled(auto_paste_available_);
+        profile_paste_check_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
+    }
+    if (profile_paste_keys_combo_ != nullptr && profile_paste_check_ != nullptr) {
+        const bool allow_paste_keys = auto_paste_available_ && profile_paste_check_->isChecked();
+        profile_paste_keys_combo_->setEnabled(allow_paste_keys);
+        profile_paste_keys_combo_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
     }
 }
 
@@ -1599,7 +1587,13 @@ void SettingsWindow::load_profile_into_editor(int index) {
     set_combo_by_value(profile_streaming_provider_combo_, QString::fromStdString(profile.capture.preferred_streaming_provider));
     profile_language_hint_edit_->setText(QString::fromStdString(profile.capture.language_hint));
     profile_transform_enabled_check_->setChecked(profile.transform.enabled);
-    set_combo_by_value(profile_prompt_mode_combo_, QString::fromStdString(profile.transform.prompt_mode));
+    set_combo_by_value(profile_transform_mode_combo_, QString::fromStdString(profile.transform.mode));
+    set_combo_by_value(profile_transform_request_format_combo_, QString::fromStdString(profile.transform.request_format));
+    set_editable_combo_text(profile_translation_source_language_combo_, QString::fromStdString(profile.transform.translation_source_language));
+    profile_translation_source_code_edit_->setText(QString::fromStdString(profile.transform.translation_source_code));
+    set_editable_combo_text(profile_translation_target_language_combo_, QString::fromStdString(profile.transform.translation_target_language));
+    profile_translation_target_code_edit_->setText(QString::fromStdString(profile.transform.translation_target_code));
+    profile_translation_extra_instructions_edit_->setPlainText(QString::fromStdString(profile.transform.translation_extra_instructions));
     profile_custom_prompt_edit_->setPlainText(QString::fromStdString(profile.transform.custom_prompt));
     profile_copy_check_->setChecked(profile.output.copy_to_clipboard);
     profile_paste_check_->setChecked(profile.output.paste_to_focused_window);
@@ -1607,6 +1601,7 @@ void SettingsWindow::load_profile_into_editor(int index) {
     profile_notes_edit_->setPlainText(QString::fromStdString(profile.notes));
     refresh_profile_list();
     syncing_profiles_ = false;
+    refresh_profile_transform_ui();
 }
 
 void SettingsWindow::store_editor_into_profile(int index) {
@@ -1622,7 +1617,14 @@ void SettingsWindow::store_editor_into_profile(int index) {
     profile.capture.preferred_streaming_provider = profile_streaming_provider_combo_->currentData().toString().toStdString();
     profile.capture.language_hint = profile_language_hint_edit_->text().trimmed().toStdString();
     profile.transform.enabled = profile_transform_enabled_check_->isChecked();
-    profile.transform.prompt_mode = profile_prompt_mode_combo_->currentData().toString().toStdString();
+    profile.transform.mode = profile_transform_mode_combo_->currentData().toString().toStdString();
+    profile.transform.request_format = profile_transform_request_format_combo_->currentData().toString().toStdString();
+    profile.transform.translation_source_language = profile_translation_source_language_combo_->currentText().trimmed().toStdString();
+    profile.transform.translation_source_code = profile_translation_source_code_edit_->text().trimmed().toStdString();
+    profile.transform.translation_target_language = profile_translation_target_language_combo_->currentText().trimmed().toStdString();
+    profile.transform.translation_target_code = profile_translation_target_code_edit_->text().trimmed().toStdString();
+    profile.transform.translation_extra_instructions =
+        profile_translation_extra_instructions_edit_->toPlainText().trimmed().toStdString();
     profile.transform.custom_prompt = profile_custom_prompt_edit_->toPlainText().trimmed().toStdString();
     profile.output.copy_to_clipboard = profile_copy_check_->isChecked();
     profile.output.paste_to_focused_window = profile_paste_check_->isChecked();
@@ -1633,6 +1635,7 @@ void SettingsWindow::store_editor_into_profile(int index) {
     }
     active_profile_id_ = QString::fromStdString(profile.id);
     refresh_profile_list();
+    refresh_profile_transform_ui();
 }
 
 QString SettingsWindow::next_profile_id(const QString& seed) const {

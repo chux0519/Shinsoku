@@ -27,8 +27,27 @@ std::string trim(std::string value) {
     return value.substr(begin, end - begin + 1U);
 }
 
+bool uses_single_user_message_format(const RefineStageConfig& config) {
+    return config.request_format == "single_user_message";
+}
+
 std::string stringify_optional(const std::optional<std::string>& value) {
     return value.has_value() ? value.value() : std::string{};
+}
+
+std::string format_language_label(const std::string& language, const std::string& code) {
+    const std::string trimmed_language = trim(language);
+    const std::string trimmed_code = trim(code);
+    if (trimmed_language.empty() && trimmed_code.empty()) {
+        return "source";
+    }
+    if (trimmed_language.empty()) {
+        return trimmed_code;
+    }
+    if (trimmed_code.empty()) {
+        return trimmed_language;
+    }
+    return trimmed_language + " (" + trimmed_code + ")";
 }
 
 std::string selection_command_system_prompt() {
@@ -68,7 +87,47 @@ std::string TextRefiner::transform(const TextTransformRequest& request, const st
 }
 
 std::string TextRefiner::refine(const std::string& text, const std::atomic_bool* cancel_flag) const {
-    return request_completion(text, config_.system_prompt, false, cancel_flag);
+    return request_completion(text, build_refine_system_prompt(), false, cancel_flag);
+}
+
+std::string TextRefiner::build_refine_system_prompt() const {
+    if (config_.prompt_mode != "structured_translation") {
+        return config_.system_prompt;
+    }
+
+    const std::string source_language = trim(config_.translation_source_language);
+    const std::string target_language = trim(config_.translation_target_language);
+    const std::string source_label =
+        format_language_label(source_language, config_.translation_source_code);
+    const std::string target_label =
+        format_language_label(target_language, config_.translation_target_code);
+    const std::string source_noun = source_language.empty() ? source_label : source_language;
+    const std::string target_noun = target_language.empty() ? target_label : target_language;
+
+    std::string prompt;
+    prompt += "You are a professional ";
+    prompt += source_label;
+    prompt += " to ";
+    prompt += target_label;
+    prompt += " translator. Your goal is to accurately convey the meaning and nuances of the original ";
+    prompt += source_noun;
+    prompt += " text while adhering to ";
+    prompt += target_noun;
+    prompt += " grammar, vocabulary, and cultural sensitivities.\n";
+    prompt += "Produce only the ";
+    prompt += target_noun;
+    prompt += " translation, without any additional explanations or commentary. Please translate the following ";
+    prompt += source_noun;
+    prompt += " text into ";
+    prompt += target_noun;
+    prompt += ":";
+
+    const std::string extra_instructions = trim(config_.translation_extra_instructions);
+    if (!extra_instructions.empty()) {
+        prompt += "\n";
+        prompt += extra_instructions;
+    }
+    return prompt;
 }
 
 std::string TextRefiner::request_completion(const std::string& user_content,
@@ -103,12 +162,20 @@ std::string TextRefiner::request_completion(const std::string& user_content,
 
     nlohmann::json body = {
         {"model", model},
-        {"messages",
-         {
-             {{"role", "system"}, {"content", system_prompt}},
-             {{"role", "user"}, {"content", user_content}},
-         }},
     };
+    if (uses_single_user_message_format(config_)) {
+        std::string combined_prompt = trim(system_prompt);
+        if (!combined_prompt.empty()) {
+            combined_prompt += "\n\n";
+        }
+        combined_prompt += user_content;
+        body["messages"] = {{{"role", "user"}, {"content", combined_prompt}}};
+    } else {
+        body["messages"] = {
+            {{"role", "system"}, {"content", system_prompt}},
+            {{"role", "user"}, {"content", user_content}},
+        };
+    }
 
     std::string response_body;
     const std::string body_string = body.dump();
