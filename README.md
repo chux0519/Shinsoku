@@ -143,10 +143,128 @@ If you want a rigid product roadmap with one official way to use the app, this r
 Install dependencies with `vcpkg`, then configure with your Qt-enabled toolchain.
 
 ```powershell
-cmake -S . -B build -G Ninja `
+cmake -S . -B build -G "Ninja Multi-Config" `
   -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
-cmake --build build
+cmake --build build --config Debug --target shinsoku
+cmake --build build --config Release --target shinsoku
 ```
+
+This keeps both `Debug` and `Release` outputs under the same `build/` directory. If you switch from a previous single-config `Ninja` build tree, delete `build/` first or use a new build directory.
+
+### Faster Qt setup options
+
+Installing Qt through `vcpkg` can take a long time because many `vcpkg` ports are built from source. That tradeoff is often acceptable for CI or fully reproducible environments, but it is not the fastest way to get a development machine ready.
+
+If you want a faster local setup, install a prebuilt Qt with the official Qt Online Installer, then point CMake at that installation while still using `vcpkg` for the rest of the dependencies.
+
+#### Option 1: Use a prebuilt Qt installation
+
+After installing Qt, pass either `CMAKE_PREFIX_PATH` or `Qt6_DIR` when configuring.
+
+If you keep `vcpkg` manifest mode enabled, `vcpkg` will still try to install the Qt dependencies declared in `vcpkg.json`. If you want Qt to come only from your preinstalled local copy while still using `vcpkg` for the other libraries, disable manifest mode for this build and install the non-Qt dependencies manually first.
+
+Windows example:
+
+```powershell
+vcpkg install curl ixwebsocket mbedtls miniaudio nlohmann-json sqlite3 --triplet x64-windows
+
+cmake -S . -B build -G "Ninja Multi-Config" `
+  -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+  -DVCPKG_MANIFEST_MODE=OFF `
+  -DCMAKE_PREFIX_PATH=C:\Qt\6.10.2\msvc2022_64
+```
+
+Linux example:
+
+```bash
+vcpkg install curl ixwebsocket mbedtls miniaudio nlohmann-json sqlite3 --triplet x64-linux
+
+cmake -S . -B build -G "Ninja Multi-Config" \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_MANIFEST_MODE=OFF \
+  -DCMAKE_PREFIX_PATH=$HOME/Qt/6.10.2/gcc_64
+```
+
+That keeps the default project behavior unchanged while still allowing an opt-in local setup that avoids building Qt through `vcpkg`.
+
+Windows example:
+
+```powershell
+cmake -S . -B build -G "Ninja Multi-Config" `
+  -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+  -DCMAKE_PREFIX_PATH=C:\Qt\6.10.2\msvc2022_64
+```
+
+Linux example:
+
+```bash
+cmake -S . -B build -G "Ninja Multi-Config" \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DCMAKE_PREFIX_PATH=$HOME/Qt/6.10.2/gcc_64
+```
+
+If you prefer to point directly at the package config directory instead of the Qt prefix, use `Qt6_DIR`:
+
+Windows example:
+
+```powershell
+cmake -S . -B build -G "Ninja Multi-Config" `
+  -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+  -DQt6_DIR=C:\Qt\6.10.2\msvc2022_64\lib\cmake\Qt6
+```
+
+Linux example:
+
+```bash
+cmake -S . -B build -G "Ninja Multi-Config" \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DQt6_DIR=$HOME/Qt/6.10.2/gcc_64/lib/cmake/Qt6
+```
+
+This is usually the best choice if you want to avoid waiting for a local Qt build.
+
+#### Option 2: Stay on `vcpkg`, but lean on binary caching
+
+`vcpkg` already uses a local binary cache by default, so once a given package and ABI have been built on the same machine, later installs and rebuilds are much faster.
+
+Default cache locations:
+
+- Windows: `%LOCALAPPDATA%\vcpkg\archives`
+- Linux: `$XDG_CACHE_HOME/vcpkg/archives` or `$HOME/.cache/vcpkg/archives`
+
+You can also move the cache to a larger or shared location:
+
+Windows example:
+
+```powershell
+$env:VCPKG_DEFAULT_BINARY_CACHE="D:\vcpkg-binary-cache"
+```
+
+Linux example:
+
+```bash
+export VCPKG_DEFAULT_BINARY_CACHE="$HOME/.cache/vcpkg-binary-cache"
+```
+
+Or explicitly configure a filesystem cache source:
+
+Windows example:
+
+```powershell
+$env:VCPKG_BINARY_SOURCES="clear;files,D:\vcpkg-binary-cache,readwrite"
+```
+
+Linux example:
+
+```bash
+export VCPKG_BINARY_SOURCES="clear;files,$HOME/.cache/vcpkg-binary-cache,readwrite"
+```
+
+That does not eliminate the first Qt build, but it avoids paying the same cost repeatedly across rebuilds, fresh build trees, and CI machines that share the same cache.
+
+#### Current packaging note
+
+The Windows `package_windows_portable` target currently assumes Qt comes from the `vcpkg_installed/` tree inside the build directory. Building the app with a prebuilt external Qt works, but the packaging target may need adjustment if Qt is no longer provided by `vcpkg`.
 
 ## Linux requirements
 
@@ -182,21 +300,24 @@ On Linux, the project is currently aimed at Wayland desktops.
 ## Run
 
 ```powershell
-.\build\shinsoku.exe
+.\build\Debug\shinsoku.exe
 ```
 
-On Linux, run the generated binary from your build directory.
+For a release build on Windows, run `.\build\Release\shinsoku.exe`.
+
+On Linux, run the generated binary from the matching configuration directory in your build tree.
 
 ## Windows packaging
 
-For a local Windows portable package, configure and build the project, then run:
+For a local Windows portable package, configure once with `Ninja Multi-Config`, then build the release packaging target:
 
 ```powershell
-cmake -S . -B build-win-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build-win-release --target package_windows_portable
+cmake -S . -B build -G "Ninja Multi-Config" `
+  -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+cmake --build build --config Release --target package_windows_portable
 ```
 
-The resulting zip is written to `build-win-release/packages/` and is intended to be uploaded directly as a portable release artifact.
+The resulting zip is written to `build/packages/` and is intended to be uploaded directly as a portable release artifact.
 
 ## Repository structure
 
