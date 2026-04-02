@@ -8,6 +8,7 @@ CONFIG=""
 EXECUTABLE_PATH=""
 MACDEPLOYQT_PATH=""
 PLIST_PATH=""
+ENTITLEMENTS_PATH=""
 ICON_SVG_PATH=""
 OUTPUT_DIR=""
 CODESIGN_IDENTITY="${SHINSOKU_CODESIGN_IDENTITY:-}"
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --plist)
             PLIST_PATH="$2"
+            shift 2
+            ;;
+        --entitlements)
+            ENTITLEMENTS_PATH="$2"
             shift 2
             ;;
         --icon-svg)
@@ -84,6 +89,11 @@ fi
 
 if [[ ! -f "$PLIST_PATH" ]]; then
     echo "Info.plist template not found: $PLIST_PATH" >&2
+    exit 1
+fi
+
+if [[ -n "$ENTITLEMENTS_PATH" && ! -f "$ENTITLEMENTS_PATH" ]]; then
+    echo "Entitlements file not found: $ENTITLEMENTS_PATH" >&2
     exit 1
 fi
 
@@ -142,6 +152,11 @@ fi
 "$MACDEPLOYQT_PATH" "${deploy_args[@]}"
 
 if [[ -n "$CODESIGN_IDENTITY" ]]; then
+    codesign_args=(--force --options runtime --timestamp --sign "$CODESIGN_IDENTITY")
+    if [[ -n "$ENTITLEMENTS_PATH" ]]; then
+        codesign_args+=(--entitlements "$ENTITLEMENTS_PATH")
+    fi
+    codesign "${codesign_args[@]}" "$APP_BUNDLE_PATH"
     codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH"
 fi
 

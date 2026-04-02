@@ -261,9 +261,15 @@ if(APPLE)
     find_program(SHINSOKU_MACDEPLOYQT NAMES macdeployqt HINTS "${QT_BIN_DIR}" REQUIRED)
     set(SHINSOKU_PACKAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/packages")
     set(SHINSOKU_MACOS_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/packaging/macos/Info.plist")
+    set(SHINSOKU_MACOS_ENTITLEMENTS "${CMAKE_CURRENT_BINARY_DIR}/packaging/macos/Entitlements.plist")
     configure_file(
         "${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist.in"
         "${SHINSOKU_MACOS_INFO_PLIST}"
+        @ONLY
+    )
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/packaging/macos/Entitlements.plist.in"
+        "${SHINSOKU_MACOS_ENTITLEMENTS}"
         @ONLY
     )
 
@@ -275,6 +281,7 @@ if(APPLE)
             --executable "$<TARGET_FILE:shinsoku>"
             --macdeployqt "${SHINSOKU_MACDEPLOYQT}"
             --plist "${SHINSOKU_MACOS_INFO_PLIST}"
+            --entitlements "${SHINSOKU_MACOS_ENTITLEMENTS}"
             --icon-svg "${CMAKE_SOURCE_DIR}/resources/icons/square-bolt.svg"
             --output-dir "${SHINSOKU_PACKAGE_OUTPUT_DIR}"
         DEPENDS shinsoku
