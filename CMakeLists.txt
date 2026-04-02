@@ -331,7 +331,12 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
-    find_package(Qt6WaylandClientPrivate CONFIG REQUIRED)
+    if(NOT TARGET Qt6::WaylandClientPrivate)
+        find_package(Qt6 QUIET COMPONENTS WaylandClientPrivate)
+    endif()
+    if(NOT TARGET Qt6::WaylandClientPrivate)
+        find_package(Qt6WaylandClientPrivate CONFIG REQUIRED)
+    endif()
     target_link_libraries(shinsoku PRIVATE Qt6::WaylandClientPrivate)
     qt6_generate_wayland_protocol_client_sources(shinsoku
         PRIVATE_CODE
