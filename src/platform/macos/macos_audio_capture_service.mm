@@ -1,5 +1,6 @@
 #include "platform/macos/macos_audio_capture_service.hpp"
 
+#import <AVFoundation/AVFoundation.h>
 #import <CoreMedia/CoreMedia.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 
@@ -36,6 +37,47 @@ bool screen_capture_kit_available() {
 
 std::string timed_out_error(const char* operation) {
     return std::string(operation) + " timed out";
+}
+
+bool request_microphone_access(std::string* error_text) {
+    AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+    switch (status) {
+    case AVAuthorizationStatusAuthorized:
+        return true;
+    case AVAuthorizationStatusDenied:
+        if (error_text != nullptr) {
+            *error_text = "Microphone access is denied. Enable Shinsoku in System Settings > Privacy & Security > Microphone.";
+        }
+        return false;
+    case AVAuthorizationStatusRestricted:
+        if (error_text != nullptr) {
+            *error_text = "Microphone access is restricted by macOS and cannot be requested by Shinsoku.";
+        }
+        return false;
+    case AVAuthorizationStatusNotDetermined: {
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+        __block BOOL granted = NO;
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL allowed) {
+            granted = allowed;
+            dispatch_semaphore_signal(semaphore);
+        }];
+        if (dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, 10LL * NSEC_PER_SEC)) != 0) {
+            if (error_text != nullptr) {
+                *error_text = timed_out_error("Requesting microphone access");
+            }
+            return false;
+        }
+        if (!granted && error_text != nullptr) {
+            *error_text = "Microphone access was not granted. Enable Shinsoku in System Settings > Privacy & Security > Microphone.";
+        }
+        return granted;
+    }
+    }
+
+    if (error_text != nullptr) {
+        *error_text = "Unable to determine macOS microphone authorization status.";
+    }
+    return false;
 }
 
 @interface ShinsokuMacOSSystemAudioBridge : NSObject <SCStreamOutput, SCStreamDelegate>
@@ -338,6 +380,10 @@ void MacOSAudioCaptureService::start(std::uint32_t sample_rate,
                                      const std::string& device_id,
                                      AudioCaptureMode capture_mode) {
     if (capture_mode == AudioCaptureMode::Microphone) {
+        std::string error_text;
+        if (!request_microphone_access(&error_text)) {
+            throw std::runtime_error(error_text.empty() ? "Microphone access is required on macOS." : error_text);
+        }
         active_mode_ = AudioCaptureMode::Microphone;
         microphone_delegate_.start(sample_rate, channels, device_id, capture_mode);
         recording_.store(true);

@@ -288,6 +288,7 @@ if(WIN32)
 endif()
 
 if(APPLE)
+    find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
     find_library(APPLICATION_SERVICES_FRAMEWORK ApplicationServices REQUIRED)
     find_library(CARBON_FRAMEWORK Carbon REQUIRED)
@@ -295,6 +296,7 @@ if(APPLE)
     find_library(SCREEN_CAPTURE_KIT_FRAMEWORK ScreenCaptureKit REQUIRED)
     find_library(AUDIO_TOOLBOX_FRAMEWORK AudioToolbox REQUIRED)
     target_link_libraries(shinsoku PRIVATE
+        ${AVFOUNDATION_FRAMEWORK}
         ${APPKIT_FRAMEWORK}
         ${APPLICATION_SERVICES_FRAMEWORK}
         ${AUDIO_TOOLBOX_FRAMEWORK}
