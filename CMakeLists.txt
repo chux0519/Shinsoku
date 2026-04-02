@@ -336,7 +336,8 @@ if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
     endif()
     if(NOT TARGET Qt6::WaylandClientPrivate)
         find_package(Qt6WaylandClient CONFIG REQUIRED)
-
+    endif()
+    if(NOT TARGET Qt6::WaylandClientPrivate)
         file(GLOB SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_CANDIDATES
             "/usr/include/*/qt6/QtWaylandClient/*/QtWaylandClient/private"
             "/usr/include/qt6/QtWaylandClient/*/QtWaylandClient/private"
@@ -356,7 +357,6 @@ if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
     endif()
     target_link_libraries(shinsoku PRIVATE Qt6::WaylandClientPrivate)
     qt6_generate_wayland_protocol_client_sources(shinsoku
-        PRIVATE_CODE
         FILES
             ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wayland/wlr-layer-shell-unstable-v1.xml
     )
