@@ -245,17 +245,6 @@ jobs:
             --vcpkg-root="$RUNNER_TEMP/vcpkg" \
             --x-install-root="$VCPKG_INSTALLED_DIR"
 
-      - name: Diagnose Linux Qt environment
-        run: |
-          set -euxo pipefail
-          command -v qt-cmake-private || true
-          command -v qt-cmake || true
-          command -v qmake6 || true
-          command -v qmake || true
-          dpkg -l | grep -E '^ii\s+qt6|^ii\s+libqt6' || true
-          find /usr/lib /lib -path '*/cmake/Qt6*/*Config.cmake' -print | sort || true
-          find /usr/lib /lib -path '*/Qt6*Wayland*' -print | sort || true
-
       - name: Configure
         run: |
           qt_cmake_bin="$(command -v qt-cmake-private || command -v qt-cmake || command -v cmake)"
