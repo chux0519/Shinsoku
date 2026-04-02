@@ -185,15 +185,6 @@ jobs:
             librsvg2-bin \
             wayland-protocols
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          host: linux
-          target: desktop
-          arch: linux_gcc_64
-          archives: qtbase qtsvg qtwayland
-
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
         with:
@@ -210,7 +201,7 @@ jobs:
       - name: Install non-Qt dependencies
         run: |
           "$RUNNER_TEMP/vcpkg/vcpkg" install \
-            curl ixwebsocket mbedtls miniaudio nlohmann-json sqlite3 \
+            curl ixwebsocket mbedtls miniaudio nlohmann-json qtbase qtsvg qtwayland sqlite3 \
             --classic \
             --triplet "$VCPKG_DEFAULT_TRIPLET" \
             --vcpkg-root="$RUNNER_TEMP/vcpkg" \
@@ -222,8 +213,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_MANIFEST_MODE=OFF \
-            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
-            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR"
 
       - name: Build Linux binary
         run: |
@@ -249,7 +239,7 @@ jobs:
             --linuxdeploy-plugin-qt "$PWD/tools/linuxdeploy/linuxdeploy-plugin-qt-x86_64.AppImage" \
             --desktop-template "$PWD/packaging/linux/shinsoku.desktop.in" \
             --icon-svg "$PWD/resources/icons/square-bolt.svg" \
-            --qmake "$QT_ROOT_DIR/bin/qmake" \
+            --qmake "$VCPKG_INSTALLED_DIR/$VCPKG_DEFAULT_TRIPLET/tools/Qt6/bin/qmake" \
             --triplet "$VCPKG_DEFAULT_TRIPLET" \
             --vcpkg-installed-dir "$VCPKG_INSTALLED_DIR"
 

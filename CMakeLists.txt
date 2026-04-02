@@ -207,7 +207,8 @@ endif()
 
 get_target_property(QT_QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
 get_filename_component(QT_BIN_DIR "${QT_QMAKE_EXECUTABLE}" DIRECTORY)
-get_filename_component(QT_HOST_PREFIX "${QT_BIN_DIR}" DIRECTORY)
+get_filename_component(QT_INSTALL_PREFIX "${QT_BIN_DIR}" DIRECTORY)
+get_filename_component(QT_HOST_PREFIX "${QT_INSTALL_PREFIX}" DIRECTORY)
 get_filename_component(QT_HOST_PREFIX "${QT_HOST_PREFIX}" DIRECTORY)
 get_filename_component(QT_VCPKG_PREFIX "${QT_HOST_PREFIX}" DIRECTORY)
 
@@ -227,10 +228,18 @@ if(WIN32)
 endif()
 
 if(WIN32)
+    find_file(SHINSOKU_QWINDOWS_PLUGIN
+        NAMES qwindows.dll qwindowsd.dll
+        HINTS
+            "${QT_INSTALL_PREFIX}/plugins/platforms"
+            "${QT_HOST_PREFIX}/plugins/platforms"
+            "${QT_VCPKG_PREFIX}/Qt6/plugins/platforms"
+        REQUIRED
+    )
     add_custom_command(TARGET shinsoku POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:shinsoku>/platforms"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<$<CONFIG:Debug>:${QT_VCPKG_PREFIX}/debug/Qt6/plugins/platforms/qwindowsd.dll>$<$<NOT:$<CONFIG:Debug>>:${QT_VCPKG_PREFIX}/Qt6/plugins/platforms/qwindows.dll>"
+            "${SHINSOKU_QWINDOWS_PLUGIN}"
             "$<TARGET_FILE_DIR:shinsoku>/platforms/"
         COMMENT "Copying Qt Windows platform plugin"
     )
