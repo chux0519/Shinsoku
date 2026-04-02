@@ -155,7 +155,7 @@ jobs:
 
   linux_release:
     name: Linux Release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref_name }}
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg-binary-cache,readwrite
