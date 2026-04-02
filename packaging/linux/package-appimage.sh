@@ -133,6 +133,8 @@ export QMAKE="$QT_QMAKE_PATH"
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
 export NO_APPSTREAM=1
+export EXTRA_QT_MODULES="core;gui;widgets;svg"
+export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so;libqxcb.so"
 if [[ -n "$VCPKG_INSTALLED_DIR" ]]; then
     export LD_LIBRARY_PATH="${VCPKG_INSTALLED_DIR}/${TRIPLET}/lib:${LD_LIBRARY_PATH:-}"
 fi

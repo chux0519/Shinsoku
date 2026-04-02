@@ -300,6 +300,8 @@ On Linux, the project is currently aimed at Wayland desktops.
 
 ### Notes
 
+- Wayland global hotkeys and key capture currently read `/dev/input/event*` through `libevdev`.
+- On systems where those devices are not readable by normal users, add your user to the `input` group or grant equivalent access with a `udev` rule, then log out and back in.
 - If `wl-copy`, `wl-paste`, or `wtype` are missing, some Wayland selection and auto-paste workflows will not work.
 - If `wlr-layer-shell` is unavailable, the Wayland-specific HUD path cannot be used.
 - Linux system-audio capture depends on PulseAudio-compatible monitor sources being available on the desktop.
