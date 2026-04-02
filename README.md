@@ -347,7 +347,7 @@ The resulting DMG is written to `build/packages/` and includes a directly usable
 
 ## Linux packaging
 
-GitHub Releases publish Linux builds as `x86_64` AppImages. The CI workflow builds the Linux binary, then packages it with `linuxdeploy` and the Qt plugin.
+GitHub Releases publish Linux builds as `x86_64` AppImages. The CI workflow uses Ubuntu system Qt packages for the Qt toolchain, installs the remaining project dependencies through `vcpkg`, then packages the built binary with `linuxdeploy` and the Qt plugin.
 
 On Ubuntu or Debian, the release packaging path also expects:
 

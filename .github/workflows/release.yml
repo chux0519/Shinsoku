@@ -179,6 +179,7 @@ jobs:
             gperf \
             libevdev-dev \
             libegl1-mesa-dev \
+            libqt6svg6-dev \
             libtool \
             libfuse2 \
             libgl1-mesa-dev \
@@ -211,6 +212,13 @@ jobs:
             ninja-build \
             patchelf \
             pkg-config \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            qt6-base-private-dev \
+            qt6-qpa-plugins \
+            qt6-wayland \
+            qt6-wayland-dev \
+            qt6-wayland-dev-tools \
             librsvg2-bin \
             wayland-protocols
 
@@ -230,7 +238,7 @@ jobs:
       - name: Install non-Qt dependencies
         run: |
           "$RUNNER_TEMP/vcpkg/vcpkg" install \
-            curl ixwebsocket mbedtls miniaudio nlohmann-json qtbase qtsvg qtwayland sqlite3 \
+            curl ixwebsocket mbedtls miniaudio nlohmann-json sqlite3 \
             --classic \
             --triplet "$VCPKG_DEFAULT_TRIPLET" \
             --vcpkg-root="$RUNNER_TEMP/vcpkg" \
@@ -238,11 +246,13 @@ jobs:
 
       - name: Configure
         run: |
+          qt_cmake_dir="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/Qt6"
           cmake -S . -B build-release-linux -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_MANIFEST_MODE=OFF \
-            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR"
+            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
+            -DCMAKE_PREFIX_PATH="$qt_cmake_dir"
 
       - name: Build Linux binary
         run: |
@@ -258,6 +268,8 @@ jobs:
       - name: Build AppImage
         run: |
           version="${RELEASE_REF_NAME#v}"
+          qmake_bin="$(command -v qmake6 || command -v qmake)"
+          [[ -n "${qmake_bin}" ]] || { echo "qmake6 not found"; exit 1; }
           mkdir -p dist
           packaging/linux/package-appimage.sh \
             --app-name Shinsoku \
@@ -268,7 +280,7 @@ jobs:
             --linuxdeploy-plugin-qt "$PWD/tools/linuxdeploy/linuxdeploy-plugin-qt-x86_64.AppImage" \
             --desktop-template "$PWD/packaging/linux/shinsoku.desktop.in" \
             --icon-svg "$PWD/resources/icons/square-bolt.svg" \
-            --qmake "$VCPKG_INSTALLED_DIR/$VCPKG_DEFAULT_TRIPLET/tools/Qt6/bin/qmake" \
+            --qmake "${qmake_bin}" \
             --triplet "$VCPKG_DEFAULT_TRIPLET" \
             --vcpkg-installed-dir "$VCPKG_INSTALLED_DIR"
 
