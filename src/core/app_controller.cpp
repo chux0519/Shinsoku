@@ -29,6 +29,10 @@
 #include <QStringList>
 #include <thread>
 
+#ifdef Q_OS_MACOS
+#include "platform/macos/macos_input_utils.hpp"
+#endif
+
 namespace ohmytypeless {
 
 namespace {
@@ -154,7 +158,11 @@ nlohmann::json capture_context_meta(const AppConfig& config) {
 }
 
 QString global_hotkey_unavailable_reason() {
+#ifdef Q_OS_MACOS
+    return macos_global_hotkey_permission_reason();
+#else
     return "Global hotkeys are not available on this platform yet. Use the main window controls instead.";
+#endif
 }
 
 QString wayland_hotkey_permission_reason() {
@@ -162,11 +170,24 @@ QString wayland_hotkey_permission_reason() {
 }
 
 QString auto_paste_unavailable_reason() {
+#ifdef Q_OS_MACOS
+    return macos_auto_paste_permission_reason();
+#else
     return "Auto paste to the focused app is not available on this platform yet.";
+#endif
 }
 
 QString system_audio_unavailable_reason() {
     return "System audio capture is not available on this platform yet.";
+}
+
+QString selection_command_unavailable_reason(const SelectionService* selection) {
+#ifdef Q_OS_MACOS
+    if (selection != nullptr && selection->backend_name().contains("macos", Qt::CaseInsensitive)) {
+        return macos_accessibility_permission_reason();
+    }
+#endif
+    return "Selection command is not available on this platform yet.";
 }
 
 std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
@@ -775,7 +796,7 @@ void AppController::copy_history_entry(qint64 id) {
 
     clipboard_->copy_text(entry->text);
     window_->set_status_text("Copied history entry.");
-    hud_->show_notice("Copied history entry");
+    hud_->show_notice("Copied");
 }
 
 void AppController::show_history_entry_details(qint64 id) {
@@ -857,7 +878,7 @@ void AppController::start_recording(SessionState mode) {
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
             pending_capture_mode_ = CaptureMode::Dictation;
-            on_hotkey_failed("Selection command is not available on this platform yet.");
+            on_hotkey_failed(selection_command_unavailable_reason(selection_));
             return;
         }
         if (forced_selection_command) {
@@ -1095,7 +1116,7 @@ void AppController::refresh_capture_mode_ui() {
     const bool selection_available = selection_backend_ready && !uses_system_audio_capture() && !active_profile_is_live_caption();
     QString reason;
     if (!selection_backend_ready) {
-        reason = "Selection command is not available on this platform yet.";
+        reason = selection_command_unavailable_reason(selection_);
     } else if (uses_system_audio_capture()) {
         reason = "Selection command requires microphone capture. System audio mode is intended for live caption workflows.";
     } else if (active_profile_is_live_caption()) {

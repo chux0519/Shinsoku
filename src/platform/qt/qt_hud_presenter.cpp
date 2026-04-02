@@ -224,7 +224,11 @@ void QtHudPresenter::apply_config(const HudConfig& config) {
 }
 
 bool QtHudPresenter::supports_overlay_hud() const {
+#ifdef Q_OS_MACOS
+    return QGuiApplication::applicationState() == Qt::ApplicationActive;
+#else
     return true;
+#endif
 }
 
 bool QtHudPresenter::eventFilter(QObject* watched, QEvent* event) {
@@ -369,6 +373,7 @@ void QtHudPresenter::rebuild_overlays() {
         widget->setWindowFlag(Qt::FramelessWindowHint, true);
         widget->setWindowFlag(Qt::Tool, true);
         widget->setWindowFlag(Qt::WindowStaysOnTopHint, true);
+        widget->setWindowFlag(Qt::WindowDoesNotAcceptFocus, true);
         widget->setAttribute(Qt::WA_ShowWithoutActivating, true);
         widget->setAttribute(Qt::WA_TransparentForMouseEvents, true);
         widget->setAttribute(Qt::WA_TranslucentBackground, true);
@@ -507,11 +512,26 @@ void QtHudPresenter::show_text(const QString& text, const QString& accent, int d
     const bool waveform_mode = uses_waveform_indicator(text);
     const bool processing_mode = uses_processing_indicator(text);
     QString icon_path = ":/icons/audio-lines.svg";
-    if (text.contains("error", Qt::CaseInsensitive)) {
+    if (text == "Copied") {
+        icon_path.clear();
+    } else if (text.contains("error", Qt::CaseInsensitive)) {
         icon_path = ":/icons/triangle-alert.svg";
     }
-    if (!waveform_mode && !processing_mode) {
+    if (!waveform_mode && !processing_mode && !icon_path.isEmpty()) {
         set_icon(icon_path, accent, 18);
+    } else if (!waveform_mode && !processing_mode && icon_path.isEmpty()) {
+        for (auto& overlay : overlays_) {
+            if (overlay.icon != nullptr) {
+                overlay.icon->clear();
+                overlay.icon->hide();
+            }
+            if (overlay.waveform != nullptr) {
+                overlay.waveform->hide();
+            }
+            if (overlay.processing != nullptr) {
+                overlay.processing->hide();
+            }
+        }
     }
     start_motion(text);
 

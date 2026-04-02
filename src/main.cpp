@@ -26,6 +26,12 @@
 #include "platform/windows/windows_clipboard_service.hpp"
 #include "platform/windows/windows_global_hotkey.hpp"
 #include "platform/windows/windows_selection_service.hpp"
+#elif defined(Q_OS_MACOS)
+#include "platform/macos/macos_audio_capture_service.hpp"
+#include "platform/macos/macos_clipboard_service.hpp"
+#include "platform/macos/macos_global_hotkey.hpp"
+#include "platform/macos/macos_hud_presenter.hpp"
+#include "platform/macos/macos_selection_service.hpp"
 #endif
 
 namespace {
@@ -82,10 +88,18 @@ int main(int argc, char* argv[]) {
         hud_impl = std::make_unique<ohmytypeless::QtHudPresenter>(&window);
     }
 #else
+#if defined(Q_OS_MACOS)
+    ohmytypeless::MacOSAudioCaptureService audio_capture;
+    ohmytypeless::MacOSClipboardService clipboard(app.clipboard());
+    ohmytypeless::MacOSSelectionService selection(app.clipboard());
+    ohmytypeless::MacOSGlobalHotkey hotkey;
+    ohmytypeless::MacOSHudPresenter hud(&window);
+#else
     ohmytypeless::MiniaudioAudioCaptureService audio_capture;
     ohmytypeless::QtClipboardService clipboard(app.clipboard());
     ohmytypeless::QtSelectionService selection(app.clipboard());
     ohmytypeless::QtGlobalHotkey hotkey;
+#endif
 #endif
 #ifdef Q_OS_LINUX
     ohmytypeless::AppController controller(&window,
@@ -94,6 +108,8 @@ int main(int argc, char* argv[]) {
                                            selection_impl.get(),
                                            hotkey_impl.get(),
                                            hud_impl.get());
+#elif defined(Q_OS_MACOS)
+    ohmytypeless::AppController controller(&window, &clipboard, &audio_capture, &selection, &hotkey, &hud);
 #else
     ohmytypeless::QtHudPresenter hud(&window);
     ohmytypeless::AppController controller(&window, &clipboard, &audio_capture, &selection, &hotkey, &hud);

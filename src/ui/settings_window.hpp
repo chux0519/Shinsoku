@@ -135,8 +135,8 @@ private:
     QComboBox* hands_free_chord_combo_ = nullptr;
     QPushButton* hands_free_chord_record_button_ = nullptr;
     QComboBox* selection_command_trigger_combo_ = nullptr;
-    QListWidget* profiles_list_ = nullptr;
-    QPushButton* profile_new_button_ = nullptr;
+    QComboBox* profile_selector_combo_ = nullptr;
+    QPushButton* profile_actions_button_ = nullptr;
     QLabel* active_profile_hint_label_ = nullptr;
     QLineEdit* profile_name_edit_ = nullptr;
     QComboBox* profile_input_source_combo_ = nullptr;

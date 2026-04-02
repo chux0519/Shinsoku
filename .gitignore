@@ -10,3 +10,4 @@
 *.db
 vcpkg_installed
 scripts/
+.DS_Store

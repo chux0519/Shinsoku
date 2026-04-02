@@ -52,31 +52,59 @@ Update it when major work lands or priorities change.
 
 #### macOS
 
-- not started
+- dedicated macOS backends now exist for:
+  - global hotkeys
+  - key recording in Settings
+  - focused-app auto paste
+  - accessibility-backed selection capture
+  - selection replacement through focused-app paste
+  - system audio capture through a native ScreenCaptureKit path
+- native non-activating HUD is in place and no longer steals foreground focus
+- arm64 `.app` / `.dmg` packaging target exists for release builds
+- macOS and Linux now default to light tray icons to better match dark menu bars
+- app launches and builds with the native macOS backend set
+- main remaining work is real-hardware validation, permission UX polishing, and
+  app-specific behavior classification
 
 ## Active Priorities
 
-1. Validate Linux system audio on more real desktop/device combinations.
-2. Continue classifying Wayland selection failures by app behavior instead of
+1. Validate the macOS backend on real hardware and real apps:
+   - Input Monitoring permission flow for global hotkeys
+   - Accessibility permission flow for selection workflows
+   - Screen Recording / ScreenCaptureKit behavior for system audio
+   - packaged `.app` / `.dmg` behavior on a clean machine
+   - selection capture coverage across browsers, editors, terminals, and chat apps
+2. Tighten macOS capability messaging and app-specific debug output where the
+   native backend is still app-dependent.
+3. Validate Linux system audio on more real desktop/device combinations.
+4. Continue classifying Wayland selection failures by app behavior instead of
    treating them as one generic bug.
-3. Keep Wayland Alt-key conflicts in the UX/documentation bucket, not as a
+5. Keep Wayland Alt-key conflicts in the UX/documentation bucket, not as a
    low-level input-grab project.
 
 ## Next Suggested Task
 
 If work continues immediately, do this next:
 
-1. Validate the Windows key-recording flow on real hardware, especially
-   left/right modifier distinction and uncommon keyboard layouts.
-2. Validate Linux system audio on more real desktop/device combinations.
-3. Continue reducing Wayland selection ambiguity by classifying app behavior
-   instead of treating failures as one generic path.
+1. Validate macOS hold-to-talk and hands-free recording with both modifier keys
+   and non-modifier keys.
+2. Validate macOS selection capture in Safari, Chrome, VS Code, Cursor, and a
+   native Cocoa text field, then classify failures by app behavior.
+3. Validate macOS auto paste and selection replacement in both standard
+   `Cmd+V` targets and `Cmd+Shift+V` targets.
+4. Validate macOS system-audio capture on real devices and confirm whether the
+   current ScreenCaptureKit implementation behaves reliably enough for the
+   `Live Caption` profile.
 
 ## Guardrails
 
 - Do not introduce new platform-specific behavior directly into `src/core/`.
 - Do not fork separate product flows for Windows vs Wayland unless the
   abstraction truly cannot support both.
+- Do not add a macOS-only Settings path for hotkey recording when the shared
+  `GlobalHotkey::capture_next_key()` flow can support it.
+- Do not block the macOS port on system-audio work; finish dictation workflows
+  first.
 - Do not chase "consume Alt globally on Wayland" through device grabs.
 - Do not create new long-lived planning docs unless they replace something in
   `AGENT.md` or `Roadmap.md`.

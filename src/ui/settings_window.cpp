@@ -453,41 +453,38 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
 
     insert_section_before_stretch(profiles_layout,
                                   make_info_card("Workflow Profiles",
-                                                 "Use profiles as workflow presets, not full settings copies.",
-                                                 "Profiles are the right place for workflow intent such as dictation, "
-                                                 "live caption behavior, transform behavior, and output "
-                                                 "preferences.",
+                                                 "Switch the workflow, not the whole app.",
+                                                 "Profiles capture dictation, caption, transform, and output intent.",
                                                  this));
 
     auto* profiles_editor_shell = new QWidget(this);
-    auto* profiles_editor_layout = new QHBoxLayout(profiles_editor_shell);
+    auto* profiles_editor_layout = new QVBoxLayout(profiles_editor_shell);
     profiles_editor_layout->setContentsMargins(0, 0, 0, 0);
     profiles_editor_layout->setSpacing(16);
-
-    auto* profiles_sidebar = new QGroupBox("Profiles", profiles_editor_shell);
-    profiles_sidebar->setObjectName("sectionCard");
-    profiles_sidebar->setFixedWidth(300);
-    auto* profiles_sidebar_layout = new QVBoxLayout(profiles_sidebar);
-    profiles_sidebar_layout->setContentsMargins(18, 22, 18, 18);
-    profiles_sidebar_layout->setSpacing(12);
-    profiles_sidebar_layout->addSpacing(8);
-
-    profile_new_button_ = new QPushButton("New Profile", profiles_sidebar);
-    profiles_sidebar_layout->addWidget(profile_new_button_);
-
-    profiles_list_ = new QListWidget(profiles_sidebar);
-    profiles_list_->setObjectName("settingsNav");
-    profiles_list_->setSpacing(8);
-    profiles_list_->setContextMenuPolicy(Qt::CustomContextMenu);
-    profiles_sidebar_layout->addWidget(profiles_list_, 1);
-
-    profiles_editor_layout->addWidget(profiles_sidebar);
 
     auto* profile_editor_card = new QGroupBox("Selected Profile", profiles_editor_shell);
     profile_editor_card->setObjectName("sectionCard");
     auto* profile_editor_layout = new QVBoxLayout(profile_editor_card);
     profile_editor_layout->setContentsMargins(22, 26, 22, 22);
     profile_editor_layout->setSpacing(14);
+
+    auto* profile_selector_row = new QWidget(profile_editor_card);
+    profile_selector_row->setObjectName("inlineFieldRow");
+    auto* profile_selector_layout = new QHBoxLayout(profile_selector_row);
+    profile_selector_layout->setContentsMargins(0, 0, 0, 0);
+    profile_selector_layout->setSpacing(10);
+    auto* profile_selector_label = new QLabel("Current Profile", profile_selector_row);
+    profile_selector_label->setObjectName("headerEyebrow");
+    profile_selector_combo_ = new QComboBox(profile_selector_row);
+    profile_selector_combo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    configure_combo_popup(profile_selector_combo_, 16);
+    profile_actions_button_ = new QPushButton("Actions", profile_selector_row);
+    profile_actions_button_->setMinimumWidth(92);
+    profile_actions_button_->setToolTip("Create, duplicate, rename, or delete profiles.");
+    profile_selector_layout->addWidget(profile_selector_label);
+    profile_selector_layout->addWidget(profile_selector_combo_, 1);
+    profile_selector_layout->addWidget(profile_actions_button_);
+    profile_editor_layout->addWidget(profile_selector_row);
 
     active_profile_hint_label_ = new QLabel(profile_editor_card);
     active_profile_hint_label_->setObjectName("headerBody");
@@ -538,9 +535,13 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     profile_copy_check_ = new QCheckBox("Copy result to clipboard", profile_editor_card);
     profile_paste_check_ = new QCheckBox("Paste into focused window", profile_editor_card);
     profile_paste_keys_combo_ = new QComboBox(profile_editor_card);
+#ifdef Q_OS_MACOS
+    profile_paste_keys_combo_->addItems({"cmd+shift+v", "cmd+v", "ctrl+shift+v", "ctrl+v", "shift+insert"});
+#else
     profile_paste_keys_combo_->addItems({"ctrl+shift+v", "ctrl+v", "shift+insert"});
+#endif
     profile_notes_edit_ = new QPlainTextEdit(profile_editor_card);
-    profile_notes_edit_->setMinimumHeight(90);
+    profile_notes_edit_->setMinimumHeight(72);
     configure_combo_popup(profile_input_source_combo_);
     configure_combo_popup(profile_input_device_combo_, 14);
     configure_combo_popup(profile_streaming_provider_combo_);
@@ -552,7 +553,6 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     auto* profile_identity_section = make_section("Profile", profile_editor_card, &profile_identity_form);
     profile_identity_form->addRow("Name", profile_name_edit_);
     profile_identity_form->addRow("Notes", profile_notes_edit_);
-    profile_editor_layout->addWidget(profile_identity_section);
 
     QFormLayout* profile_input_form = nullptr;
     auto* profile_input_section = make_section("Input", profile_editor_card, &profile_input_form);
@@ -561,7 +561,6 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     profile_input_form->addRow("Streaming", profile_prefer_streaming_check_);
     profile_input_form->addRow("Streaming Provider", profile_streaming_provider_combo_);
     profile_input_form->addRow("Language Hint", profile_language_hint_edit_);
-    profile_editor_layout->addWidget(profile_input_section);
 
     QFormLayout* profile_transform_form = nullptr;
     auto* profile_transform_section = make_section("Transform", profile_editor_card, &profile_transform_form);
@@ -575,14 +574,20 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     profile_transform_form->addRow(profile_translation_extra_instructions_label_, profile_translation_extra_instructions_edit_);
     profile_transform_form->addRow(profile_transform_prompt_label_, profile_transform_prompt_preview_edit_);
     profile_transform_form->addRow(profile_custom_prompt_label_, profile_custom_prompt_edit_);
-    profile_editor_layout->addWidget(profile_transform_section);
 
     QFormLayout* profile_output_form = nullptr;
     auto* profile_output_section = make_section("Output", profile_editor_card, &profile_output_form);
     profile_output_form->addRow("Clipboard", profile_copy_check_);
     profile_output_form->addRow("Auto Paste", profile_paste_check_);
     profile_output_form->addRow("Paste Keys", profile_paste_keys_combo_);
-    profile_editor_layout->addWidget(profile_output_section);
+
+    auto* profile_top_row = new QHBoxLayout();
+    profile_top_row->setSpacing(16);
+    profile_top_row->addWidget(profile_identity_section, 2);
+    profile_top_row->addWidget(profile_output_section, 1);
+    profile_editor_layout->addLayout(profile_top_row);
+    profile_editor_layout->addWidget(profile_input_section);
+    profile_editor_layout->addWidget(profile_transform_section);
     profiles_editor_layout->addWidget(profile_editor_card, 1);
 
     insert_section_before_stretch(profiles_layout, profiles_editor_shell);
@@ -825,7 +830,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
         refresh_bailian_model_combo(bailian_model_combo_, region, QString());
     });
-    connect(profiles_list_, &QListWidget::currentRowChanged, this, [this](int row) {
+    connect(profile_selector_combo_, &QComboBox::currentIndexChanged, this, [this](int row) {
         if (syncing_profiles_) {
             return;
         }
@@ -846,7 +851,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         copy.name += " Copy";
         profiles_.push_back(copy);
         refresh_profile_list();
-        profiles_list_->setCurrentRow(static_cast<int>(profiles_.size()) - 1);
+        profile_selector_combo_->setCurrentIndex(static_cast<int>(profiles_.size()) - 1);
     };
 
     const auto delete_profile_at = [this](int row) {
@@ -862,37 +867,37 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
             active_profile_id_ = QString::fromStdString(profiles_.front().id);
         }
         refresh_profile_list();
-        profiles_list_->setCurrentRow(std::min(row, static_cast<int>(profiles_.size()) - 1));
+        profile_selector_combo_->setCurrentIndex(std::min(row, static_cast<int>(profiles_.size()) - 1));
     };
 
-    connect(profile_new_button_, &QPushButton::clicked, this, [this]() {
+    const auto create_profile = [this]() {
         if (profile_editor_index_ >= 0) {
             store_editor_into_profile(profile_editor_index_);
         }
         ProfileConfig profile;
         profile.id = next_profile_id("profile").toStdString();
         profile.name = "New Profile";
-        profile.output.paste_keys = "ctrl+shift+v";
         profiles_.push_back(profile);
         active_profile_id_ = QString::fromStdString(profile.id);
         refresh_profile_list();
-        profiles_list_->setCurrentRow(static_cast<int>(profiles_.size()) - 1);
-    });
-    connect(profiles_list_, &QListWidget::customContextMenuRequested, this, [this, duplicate_profile_at, delete_profile_at](const QPoint& pos) {
-        const int row = profiles_list_->indexAt(pos).row();
+        profile_selector_combo_->setCurrentIndex(static_cast<int>(profiles_.size()) - 1);
+    };
+    connect(profile_actions_button_, &QPushButton::clicked, this, [this, create_profile, duplicate_profile_at, delete_profile_at]() {
+        const int row = profile_selector_combo_ != nullptr ? profile_selector_combo_->currentIndex() : -1;
         if (row < 0 || row >= static_cast<int>(profiles_.size())) {
             return;
         }
-        profiles_list_->setCurrentRow(row);
-
         QMenu menu(this);
-        QAction* edit_action = menu.addAction("Edit");
+        QAction* new_action = menu.addAction("New Profile");
+        QAction* rename_action = menu.addAction("Rename");
         QAction* duplicate_action = menu.addAction("Duplicate");
         QAction* delete_action = menu.addAction("Delete");
         delete_action->setEnabled(profiles_.size() > 1U);
 
-        QAction* chosen = menu.exec(profiles_list_->viewport()->mapToGlobal(pos));
-        if (chosen == edit_action) {
+        QAction* chosen = menu.exec(profile_actions_button_->mapToGlobal(QPoint(0, profile_actions_button_->height())));
+        if (chosen == new_action) {
+            create_profile();
+        } else if (chosen == rename_action) {
             profile_name_edit_->setFocus(Qt::OtherFocusReason);
             profile_name_edit_->selectAll();
         } else if (chosen == duplicate_action) {
@@ -1160,7 +1165,8 @@ void SettingsWindow::set_profiles(const std::vector<ProfileConfig>& profiles, co
             break;
         }
     }
-    profiles_list_->setCurrentRow(active_index);
+    profile_selector_combo_->setCurrentIndex(active_index);
+    load_profile_into_editor(active_index);
 }
 
 void SettingsWindow::set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
@@ -1547,9 +1553,16 @@ void SettingsWindow::refresh_capability_dependent_controls() {
 
 void SettingsWindow::refresh_profile_list() {
     syncing_profiles_ = true;
-    profiles_list_->clear();
+    const QString current_id = profile_editor_index_ >= 0 && profile_editor_index_ < static_cast<int>(profiles_.size())
+                                   ? QString::fromStdString(profiles_[static_cast<std::size_t>(profile_editor_index_)].id)
+                                   : active_profile_id_;
+    profile_selector_combo_->clear();
     for (const auto& profile : profiles_) {
-        profiles_list_->addItem(profile_list_label(profile));
+        profile_selector_combo_->addItem(profile_list_label(profile), QString::fromStdString(profile.id));
+    }
+    const int current_index = profile_selector_combo_->findData(current_id);
+    if (current_index >= 0) {
+        profile_selector_combo_->setCurrentIndex(current_index);
     }
     syncing_profiles_ = false;
 }
@@ -1558,13 +1571,6 @@ QString SettingsWindow::profile_list_label(const ProfileConfig& profile) const {
     QString label = QString::fromStdString(profile.name).trimmed();
     if (label.isEmpty()) {
         label = "Untitled Profile";
-    }
-    if (profile.id == active_profile_id_) {
-        label = "* " + label;
-    }
-    constexpr int kMaxProfileLabelLength = 24;
-    if (label.size() > kMaxProfileLabelLength) {
-        label = label.left(kMaxProfileLabelLength - 1) + QStringLiteral("…");
     }
     return label;
 }

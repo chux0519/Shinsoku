@@ -15,6 +15,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <wincrypt.h>
+#elif defined(__APPLE__)
+#include <Security/SecCertificate.h>
+#include <Security/SecTrust.h>
 #endif
 
 namespace ohmytypeless {
@@ -443,6 +446,43 @@ bool IxProxySocket::load_system_certificates(std::string& errMsg) {
 
     errMsg = "Failed to load system certificates from common Linux trust-store paths.";
     return false;
+#elif defined(__APPLE__)
+    CFArrayRef anchors = nullptr;
+    const OSStatus status = SecTrustCopyAnchorCertificates(&anchors);
+    if (status != errSecSuccess || anchors == nullptr) {
+        errMsg = "Failed to load macOS system root certificates.";
+        return false;
+    }
+
+    const CFIndex certificate_total = CFArrayGetCount(anchors);
+    int certificate_count = 0;
+    for (CFIndex i = 0; i < certificate_total; ++i) {
+        auto* certificate = static_cast<SecCertificateRef>(const_cast<void*>(CFArrayGetValueAtIndex(anchors, i)));
+        if (certificate == nullptr) {
+            continue;
+        }
+
+        CFDataRef data = SecCertificateCopyData(certificate);
+        if (data == nullptr) {
+            continue;
+        }
+
+        const auto* bytes = static_cast<const unsigned char*>(CFDataGetBytePtr(data));
+        const auto length = static_cast<size_t>(CFDataGetLength(data));
+        if (bytes != nullptr && length > 0 &&
+            mbedtls_x509_crt_parse(&cacert_, bytes, length) == 0) {
+            ++certificate_count;
+        }
+        CFRelease(data);
+    }
+
+    CFRelease(anchors);
+
+    if (certificate_count == 0) {
+        errMsg = "No macOS system root certificates could be parsed.";
+        return false;
+    }
+    return true;
 #else
     errMsg = "System certificate loading is not implemented on this platform.";
     return false;

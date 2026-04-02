@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.24)
 
 project(Shinsoku VERSION 0.1.0 LANGUAGES C CXX)
 
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -111,6 +117,33 @@ if(WIN32)
     )
 endif()
 
+if(APPLE)
+    target_sources(shinsoku PRIVATE
+        src/platform/macos/macos_audio_capture_service.hpp
+        src/platform/macos/macos_audio_capture_service.mm
+        src/platform/macos/macos_clipboard_service.hpp
+        src/platform/macos/macos_clipboard_service.mm
+        src/platform/macos/macos_global_hotkey.hpp
+        src/platform/macos/macos_global_hotkey.mm
+        src/platform/macos/macos_hud_presenter.hpp
+        src/platform/macos/macos_hud_presenter.mm
+        src/platform/macos/macos_input_utils.hpp
+        src/platform/macos/macos_input_utils.mm
+        src/platform/macos/macos_selection_service.hpp
+        src/platform/macos/macos_selection_service.mm
+    )
+    set_source_files_properties(
+        src/platform/macos/macos_audio_capture_service.mm
+        src/platform/macos/macos_clipboard_service.mm
+        src/platform/macos/macos_global_hotkey.mm
+        src/platform/macos/macos_hud_presenter.mm
+        src/platform/macos/macos_input_utils.mm
+        src/platform/macos/macos_selection_service.mm
+        PROPERTIES
+            COMPILE_OPTIONS "-fobjc-arc"
+    )
+endif()
+
 if(UNIX AND NOT APPLE)
     target_sources(shinsoku PRIVATE
         src/platform/linux/linux_pulseaudio_audio_capture_service.hpp
@@ -210,8 +243,51 @@ if(WIN32)
     )
 endif()
 
+if(APPLE)
+    set(SHINSOKU_MACDEPLOYQT "${QT_VCPKG_PREFIX}/tools/Qt6/bin/macdeployqt")
+    set(SHINSOKU_PACKAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/packages")
+    set(SHINSOKU_MACOS_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/packaging/macos/Info.plist")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist.in"
+        "${SHINSOKU_MACOS_INFO_PLIST}"
+        @ONLY
+    )
+
+    add_custom_target(package_macos_dmg
+        COMMAND "${CMAKE_SOURCE_DIR}/packaging/macos/package-dmg.sh"
+            --app-name "Shinsoku"
+            --version "${PROJECT_VERSION}"
+            --config "$<CONFIG>"
+            --executable "$<TARGET_FILE:shinsoku>"
+            --macdeployqt "${SHINSOKU_MACDEPLOYQT}"
+            --plist "${SHINSOKU_MACOS_INFO_PLIST}"
+            --icon-svg "${CMAKE_SOURCE_DIR}/resources/icons/square-bolt.svg"
+            --output-dir "${SHINSOKU_PACKAGE_OUTPUT_DIR}"
+        DEPENDS shinsoku
+        COMMENT "Packaging macOS app bundle and DMG"
+        VERBATIM
+    )
+endif()
+
 if(WIN32)
     target_link_libraries(shinsoku PRIVATE bcrypt ole32 uiautomationcore user32)
+endif()
+
+if(APPLE)
+    find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+    find_library(APPLICATION_SERVICES_FRAMEWORK ApplicationServices REQUIRED)
+    find_library(CARBON_FRAMEWORK Carbon REQUIRED)
+    find_library(CORE_MEDIA_FRAMEWORK CoreMedia REQUIRED)
+    find_library(SCREEN_CAPTURE_KIT_FRAMEWORK ScreenCaptureKit REQUIRED)
+    find_library(AUDIO_TOOLBOX_FRAMEWORK AudioToolbox REQUIRED)
+    target_link_libraries(shinsoku PRIVATE
+        ${APPKIT_FRAMEWORK}
+        ${APPLICATION_SERVICES_FRAMEWORK}
+        ${AUDIO_TOOLBOX_FRAMEWORK}
+        ${CARBON_FRAMEWORK}
+        ${CORE_MEDIA_FRAMEWORK}
+        ${SCREEN_CAPTURE_KIT_FRAMEWORK}
+    )
 endif()
 
 if(UNIX AND NOT APPLE)

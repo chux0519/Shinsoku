@@ -261,7 +261,7 @@ ProfileConfig make_default_profile() {
     profile.transform.request_format = "system_and_user";
     profile.output.copy_to_clipboard = true;
     profile.output.paste_to_focused_window = true;
-    profile.output.paste_keys = "ctrl+shift+v";
+    profile.output.paste_keys = kDefaultPasteKeys;
     profile.notes = "Default dictation workflow.";
     return profile;
 }
@@ -282,7 +282,7 @@ ProfileConfig make_chinese_to_english_profile() {
     profile.transform.translation_target_code = "en";
     profile.output.copy_to_clipboard = true;
     profile.output.paste_to_focused_window = true;
-    profile.output.paste_keys = "ctrl+v";
+    profile.output.paste_keys = kDirectPasteKeys;
     profile.notes = "Speak Chinese and output polished English directly.";
     return profile;
 }
@@ -297,7 +297,7 @@ ProfileConfig make_live_caption_profile() {
     profile.transform.enabled = false;
     profile.output.copy_to_clipboard = false;
     profile.output.paste_to_focused_window = false;
-    profile.output.paste_keys = "ctrl+v";
+    profile.output.paste_keys = kDirectPasteKeys;
     profile.notes = "Designed for system-audio live caption workflows. Results stay in the live caption window instead of auto-paste.";
     return profile;
 }
@@ -334,7 +334,7 @@ void ensure_profiles(AppConfig& config) {
         profile.transform.mode = normalize_profile_transform_mode(profile.transform.mode);
         profile.transform.request_format = normalize_refine_request_format(profile.transform.request_format);
         if (profile.output.paste_keys.empty()) {
-            profile.output.paste_keys = "ctrl+shift+v";
+            profile.output.paste_keys = kDefaultPasteKeys;
         }
         if (fallback_active_id.empty()) {
             fallback_active_id = profile.id;

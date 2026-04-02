@@ -4,6 +4,7 @@
 
 #include <QEvent>
 #include <QKeyEvent>
+#include <QCloseEvent>
 #include <QMainWindow>
 #include <vector>
 
@@ -50,6 +51,7 @@ signals:
     void quit_requested();
 
 private:
+    void closeEvent(QCloseEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
     static int qt_key_from_evdev_name(const QString& key_name);
     bool should_consume_hotkey_event(QKeyEvent* event) const;

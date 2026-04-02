@@ -8,6 +8,14 @@
 
 namespace ohmytypeless {
 
+#ifdef __APPLE__
+inline constexpr const char* kDefaultPasteKeys = "cmd+v";
+inline constexpr const char* kDirectPasteKeys = "cmd+v";
+#else
+inline constexpr const char* kDefaultPasteKeys = "ctrl+shift+v";
+inline constexpr const char* kDirectPasteKeys = "ctrl+v";
+#endif
+
 inline constexpr std::uint32_t kFixedSampleRate = 16000;
 inline constexpr std::uint32_t kFixedChannelCount = 1;
 
@@ -104,7 +112,7 @@ struct AudioConfig {
 struct OutputConfig {
     bool copy_to_clipboard = true;
     bool paste_to_focused_window = true;
-    std::string paste_keys = "ctrl+shift+v";
+    std::string paste_keys = kDefaultPasteKeys;
 };
 
 struct ProfileCaptureConfig {
@@ -130,7 +138,7 @@ struct ProfileTransformConfig {
 struct ProfileOutputConfig {
     bool copy_to_clipboard = true;
     bool paste_to_focused_window = true;
-    std::string paste_keys = "ctrl+shift+v";
+    std::string paste_keys = kDefaultPasteKeys;
 };
 
 struct ProfileConfig {
@@ -178,7 +186,11 @@ struct HudConfig {
 
 struct AppearanceConfig {
     std::string app_theme = "system";
+#if defined(__APPLE__) || defined(__linux__)
+    std::string tray_icon_theme = "light";
+#else
     std::string tray_icon_theme = "auto";
+#endif
 };
 
 struct AppConfig {

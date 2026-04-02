@@ -48,13 +48,14 @@ QIcon icon_from_svg(const QString& path, int size) {
     return QIcon(pixmap);
 }
 
-bool current_app_theme_is_dark() {
-    const QColor window = qApp->palette().color(QPalette::Window);
-    return window.lightness() < 128;
-}
-
 QString tray_icon_path_for(SessionState state, const QString& theme) {
-    const bool use_light_icons = theme == "light" || (theme == "auto" && current_app_theme_is_dark());
+    const bool auto_prefers_light =
+#if defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
+        true;
+#else
+        qApp->palette().color(QPalette::Window).lightness() < 128;
+#endif
+    const bool use_light_icons = theme == "light" || (theme == "auto" && auto_prefers_light);
     if (use_light_icons) {
         switch (state) {
         case SessionState::Idle:
@@ -248,6 +249,20 @@ MainWindow::~MainWindow() {
     delete settings_window_;
     delete history_window_;
     delete meeting_window_;
+}
+
+void MainWindow::closeEvent(QCloseEvent* event) {
+    if (event == nullptr) {
+        return;
+    }
+
+    if (tray_icon_ != nullptr && tray_icon_->isVisible()) {
+        hide();
+        event->ignore();
+        return;
+    }
+
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::set_session_state(SessionState state) {
