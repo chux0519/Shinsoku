@@ -247,14 +247,13 @@ jobs:
 
       - name: Configure
         run: |
-          qt_arch_dir="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-          qt_prefix_path="${qt_arch_dir}/cmake/Qt6;${qt_arch_dir}/cmake/Qt6Core;${qt_arch_dir}/cmake/Qt6Gui;${qt_arch_dir}/cmake/Qt6Widgets;${qt_arch_dir}/cmake/Qt6Svg;${qt_arch_dir}/cmake/Qt6WaylandClientPrivate;${qt_arch_dir}/cmake/Qt6WaylandCompositor;${qt_arch_dir}/cmake/Qt6WaylandScannerTools"
+          qt_cmake_dir="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/Qt6"
           cmake -S . -B build-release-linux -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_MANIFEST_MODE=OFF \
             -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
-            -DCMAKE_PREFIX_PATH="$qt_prefix_path"
+            -DCMAKE_PREFIX_PATH="$qt_cmake_dir"
 
       - name: Build Linux binary
         run: |
