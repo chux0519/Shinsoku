@@ -276,6 +276,11 @@ On Linux, the project is currently aimed at Wayland desktops.
 - `libevdev`
 - `libpulse`
 - `libpulse-simple`
+- `autoconf`
+- `autoconf-archive`
+- `automake`
+- `gperf`
+- `libtool`
 - Qt Wayland client support
 - the Wayland `wlr-layer-shell` protocol headers generated from the in-repo XML
 
@@ -296,6 +301,7 @@ On Linux, the project is currently aimed at Wayland desktops.
 - If `wlr-layer-shell` is unavailable, the Wayland-specific HUD path cannot be used.
 - Linux system-audio capture depends on PulseAudio-compatible monitor sources being available on the desktop.
 - Linux X11 is not an active maintainer target.
+- Some `vcpkg` ports on Linux also expect autotools utilities from the system package manager. On Ubuntu or Debian, install `autoconf autoconf-archive automake gperf libtool` before configuring the project.
 
 ## Run
 
@@ -336,6 +342,12 @@ The resulting DMG is written to `build/packages/` and includes a directly usable
 ## Linux packaging
 
 GitHub Releases publish Linux builds as `x86_64` AppImages. The CI workflow builds the Linux binary, then packages it with `linuxdeploy` and the Qt plugin.
+
+On Ubuntu or Debian, the release packaging path also expects:
+
+```bash
+sudo apt install autoconf autoconf-archive automake gperf libtool
+```
 
 Project-level release automation notes live in `RELEASE.md`.
 
