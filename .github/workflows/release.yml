@@ -94,7 +94,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          archives: qtsvg
+          archives: qtbase qtsvg
 
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
@@ -190,7 +190,7 @@ jobs:
           host: linux
           target: desktop
           arch: linux_gcc_64
-          archives: qtsvg qtwayland
+          archives: qtbase qtsvg qtwayland
 
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
