@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=@APP_NAME@
+Comment=Cross-platform speech input for everyday work
+Exec=shinsoku
+Icon=shinsoku
+Categories=Utility;AudioVideo;Office;
+Terminal=false
+StartupNotify=true

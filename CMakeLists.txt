@@ -211,6 +211,21 @@ get_filename_component(QT_HOST_PREFIX "${QT_BIN_DIR}" DIRECTORY)
 get_filename_component(QT_HOST_PREFIX "${QT_HOST_PREFIX}" DIRECTORY)
 get_filename_component(QT_VCPKG_PREFIX "${QT_HOST_PREFIX}" DIRECTORY)
 
+if(DEFINED VCPKG_INSTALLED_DIR AND NOT VCPKG_INSTALLED_DIR STREQUAL "")
+    set(SHINSOKU_VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}")
+else()
+    set(SHINSOKU_VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
+endif()
+
+if(WIN32)
+    if(DEFINED VCPKG_TARGET_TRIPLET AND NOT VCPKG_TARGET_TRIPLET STREQUAL "")
+        set(SHINSOKU_WINDOWS_TRIPLET "${VCPKG_TARGET_TRIPLET}")
+    else()
+        set(SHINSOKU_WINDOWS_TRIPLET "x64-windows")
+    endif()
+    set(SHINSOKU_WINDOWS_VCPKG_INSTALLED_DIR "${SHINSOKU_VCPKG_INSTALLED_DIR}/${SHINSOKU_WINDOWS_TRIPLET}")
+endif()
+
 if(WIN32)
     add_custom_command(TARGET shinsoku POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:shinsoku>/platforms"
@@ -223,8 +238,7 @@ endif()
 
 if(WIN32)
     find_program(SHINSOKU_POWERSHELL_EXECUTABLE NAMES pwsh powershell REQUIRED)
-    set(SHINSOKU_WINDEPLOYQT "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/tools/Qt6/bin/windeployqt.exe")
-    set(SHINSOKU_VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+    find_program(SHINSOKU_WINDEPLOYQT NAMES windeployqt windeployqt.exe HINTS "${QT_BIN_DIR}" REQUIRED)
     set(SHINSOKU_PACKAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/packages")
 
     add_custom_target(package_windows_portable
@@ -235,7 +249,7 @@ if(WIN32)
             -Config "$<CONFIG>"
             -ExecutablePath "$<TARGET_FILE:shinsoku>"
             -WindeployQtPath "${SHINSOKU_WINDEPLOYQT}"
-            -VcpkgInstalledDir "${SHINSOKU_VCPKG_INSTALLED_DIR}"
+            -VcpkgInstalledDir "${SHINSOKU_WINDOWS_VCPKG_INSTALLED_DIR}"
             -OutputDir "${SHINSOKU_PACKAGE_OUTPUT_DIR}"
         DEPENDS shinsoku
         COMMENT "Packaging Windows portable zip"
@@ -244,7 +258,7 @@ if(WIN32)
 endif()
 
 if(APPLE)
-    set(SHINSOKU_MACDEPLOYQT "${QT_VCPKG_PREFIX}/tools/Qt6/bin/macdeployqt")
+    find_program(SHINSOKU_MACDEPLOYQT NAMES macdeployqt HINTS "${QT_BIN_DIR}" REQUIRED)
     set(SHINSOKU_PACKAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/packages")
     set(SHINSOKU_MACOS_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/packaging/macos/Info.plist")
     configure_file(

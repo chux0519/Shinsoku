@@ -333,6 +333,12 @@ cmake --build build --config Release --target package_macos_dmg
 
 The resulting DMG is written to `build/packages/` and includes a directly usable `Shinsoku.app`.
 
+## Linux packaging
+
+GitHub Releases publish Linux builds as `x86_64` AppImages. The CI workflow builds the Linux binary, then packages it with `linuxdeploy` and the Qt plugin.
+
+Project-level release automation notes live in `RELEASE.md`.
+
 ## Repository structure
 
 - `src/core`: app state, configuration, providers, persistence, and orchestration
