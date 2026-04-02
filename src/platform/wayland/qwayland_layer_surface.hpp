@@ -54,7 +54,7 @@ public:
 
     bool isExposed() const override;
     void applyConfigure() override;
-    void setWindowSize(const QSize& size);
+    void setWindowSize(const QSize& size) override;
     void set_desired_geometry(QMargins margins, QSize desired_size);
 
 private:
