@@ -35,7 +35,11 @@ endif()
 option(OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD "Enable Wayland HUD via in-tree layer-shell backend" ON)
 option(SHINSOKU_ENABLE_TRAY_DEBUG "Enable temporary tray debug controls in the main window" OFF)
 
-qt_standard_project_setup()
+if(COMMAND qt_standard_project_setup)
+    qt_standard_project_setup()
+elseif(COMMAND qt6_standard_project_setup)
+    qt6_standard_project_setup()
+endif()
 
 qt_add_executable(shinsoku
     resources/app_theme.qrc
