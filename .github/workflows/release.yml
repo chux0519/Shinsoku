@@ -254,7 +254,15 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_MANIFEST_MODE=OFF \
             -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
-            -DCMAKE_PREFIX_PATH="$qt_prefix_path"
+            -DCMAKE_PREFIX_PATH="$qt_prefix_path" \
+            -DQt6_DIR="${qt_arch_dir}/cmake/Qt6" \
+            -DQt6Core_DIR="${qt_arch_dir}/cmake/Qt6Core" \
+            -DQt6Gui_DIR="${qt_arch_dir}/cmake/Qt6Gui" \
+            -DQt6Widgets_DIR="${qt_arch_dir}/cmake/Qt6Widgets" \
+            -DQt6Svg_DIR="${qt_arch_dir}/cmake/Qt6Svg" \
+            -DQt6WaylandClientPrivate_DIR="${qt_arch_dir}/cmake/Qt6WaylandClientPrivate" \
+            -DQt6WaylandCompositor_DIR="${qt_arch_dir}/cmake/Qt6WaylandCompositor" \
+            -DQt6WaylandScannerTools_DIR="${qt_arch_dir}/cmake/Qt6WaylandScannerTools"
 
       - name: Build Linux binary
         run: |
