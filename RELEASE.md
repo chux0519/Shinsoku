@@ -114,7 +114,7 @@ cmake --build build-release-windows --config Release --target package_windows_po
 
 ### Linux
 
-The workflow uses a GitHub-hosted `ubuntu-22.04` runner, installs the required autotools, X11/XCB/EGL, and Wayland/PulseAudio system packages, installs Qt and the remaining dependencies through `vcpkg`, builds the release binary, then packages it as an AppImage with `linuxdeploy`.
+The workflow uses a GitHub-hosted `ubuntu-22.04` runner, installs the required autotools and Wayland/PulseAudio system packages, installs Qt and the remaining dependencies through `vcpkg`, builds the release binary, then packages it as an AppImage with `linuxdeploy`.
 
 ## Notes
 

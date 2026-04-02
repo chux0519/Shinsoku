@@ -281,9 +281,6 @@ On Linux, the project is currently aimed at Wayland desktops.
 - `automake`
 - `gperf`
 - `libtool`
-- XCB / X11 development packages used by Qt on Linux
-  - for example on Ubuntu or Debian:
-  - `libxcb1-dev libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libegl1-mesa-dev`
 - Qt Wayland client support
 - the Wayland `wlr-layer-shell` protocol headers generated from the in-repo XML
 
@@ -307,7 +304,6 @@ On Linux, the project is currently aimed at Wayland desktops.
 - Linux system-audio capture depends on PulseAudio-compatible monitor sources being available on the desktop.
 - Linux X11 is not an active maintainer target.
 - Some `vcpkg` ports on Linux also expect autotools utilities from the system package manager. On Ubuntu or Debian, install `autoconf autoconf-archive automake gperf libtool` before configuring the project.
-- `vcpkg`'s Linux `qtbase` build also expects the platform X11/XCB/EGL development packages to be installed from the system package manager.
 
 ## Run
 
@@ -352,9 +348,7 @@ GitHub Releases publish Linux builds as `x86_64` AppImages. The CI workflow buil
 On Ubuntu or Debian, the release packaging path also expects:
 
 ```bash
-sudo apt install autoconf autoconf-archive automake gperf libtool \
-  libxcb1-dev libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev \
-  libxkbcommon-dev libxkbcommon-x11-dev libegl1-mesa-dev
+sudo apt install autoconf autoconf-archive automake gperf libtool
 ```
 
 Project-level release automation notes live in `RELEASE.md`.
