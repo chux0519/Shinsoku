@@ -174,8 +174,10 @@ jobs:
             autoconf \
             autoconf-archive \
             automake \
+            bison \
             build-essential \
             desktop-file-utils \
+            flex \
             gperf \
             libevdev-dev \
             libtool \

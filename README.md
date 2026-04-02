@@ -279,6 +279,8 @@ On Linux, the project is currently aimed at Wayland desktops.
 - `autoconf`
 - `autoconf-archive`
 - `automake`
+- `bison`
+- `flex`
 - `gperf`
 - `libtool`
 - Qt Wayland client support
@@ -303,7 +305,7 @@ On Linux, the project is currently aimed at Wayland desktops.
 - If `wlr-layer-shell` is unavailable, the Wayland-specific HUD path cannot be used.
 - Linux system-audio capture depends on PulseAudio-compatible monitor sources being available on the desktop.
 - Linux X11 is not an active maintainer target.
-- Some `vcpkg` ports on Linux also expect autotools utilities from the system package manager. On Ubuntu or Debian, install `autoconf autoconf-archive automake gperf libtool` before configuring the project.
+- Some `vcpkg` ports on Linux also expect parser generators and autotools utilities from the system package manager. On Ubuntu or Debian, install `autoconf autoconf-archive automake bison flex gperf libtool` before configuring the project.
 
 ## Run
 
@@ -348,7 +350,7 @@ GitHub Releases publish Linux builds as `x86_64` AppImages. The CI workflow buil
 On Ubuntu or Debian, the release packaging path also expects:
 
 ```bash
-sudo apt install autoconf autoconf-archive automake gperf libtool
+sudo apt install autoconf autoconf-archive automake bison flex gperf libtool
 ```
 
 Project-level release automation notes live in `RELEASE.md`.
