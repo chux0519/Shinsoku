@@ -16,6 +16,7 @@ permissions:
 
 env:
   QT_VERSION: "6.10.2"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   macos_release:
@@ -31,7 +32,7 @@ jobs:
       SHINSOKU_NOTARY_PROFILE: ${{ secrets.MACOS_NOTARY_PROFILE }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
@@ -66,7 +67,7 @@ jobs:
           cp "${dmg_path}" "dist/Shinsoku-${version}-macos-arm64.dmg"
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-release
           path: dist/Shinsoku-*-macos-arm64.dmg
@@ -80,7 +81,7 @@ jobs:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\.cache\vcpkg-binary-cache,readwrite
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
@@ -97,7 +98,7 @@ jobs:
           archives: qtbase qtsvg
 
       - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .cache/vcpkg-binary-cache
           key: windows-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt') }}
@@ -146,7 +147,7 @@ jobs:
           Copy-Item $zip.FullName "dist/Shinsoku-$version-windows-portable.zip" -Force
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-release
           path: dist/Shinsoku-*-windows-portable.zip
@@ -162,7 +163,7 @@ jobs:
       VCPKG_DEFAULT_TRIPLET: x64-linux
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
@@ -191,7 +192,7 @@ jobs:
             wayland-protocols
 
       - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .cache/vcpkg-binary-cache
           key: linux-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt') }}
@@ -249,7 +250,7 @@ jobs:
             --vcpkg-installed-dir "$VCPKG_INSTALLED_DIR"
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-release
           path: dist/Shinsoku-*-linux-x86_64.AppImage
@@ -266,7 +267,7 @@ jobs:
       RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref_name }}
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: release-assets
 
