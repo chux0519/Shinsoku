@@ -115,7 +115,9 @@ jobs:
         run: |
           & "$env:RUNNER_TEMP\vcpkg\vcpkg.exe" install `
             curl ixwebsocket mbedtls miniaudio nlohmann-json sqlite3 `
+            --classic `
             --triplet x64-windows `
+            "--vcpkg-root=$env:RUNNER_TEMP\vcpkg" `
             "--x-install-root=$env:GITHUB_WORKSPACE\vcpkg_installed"
 
       - name: Configure
@@ -209,7 +211,9 @@ jobs:
         run: |
           "$RUNNER_TEMP/vcpkg/vcpkg" install \
             curl ixwebsocket mbedtls miniaudio nlohmann-json sqlite3 \
+            --classic \
             --triplet "$VCPKG_DEFAULT_TRIPLET" \
+            --vcpkg-root="$RUNNER_TEMP/vcpkg" \
             --x-install-root="$VCPKG_INSTALLED_DIR"
 
       - name: Configure

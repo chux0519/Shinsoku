@@ -152,11 +152,12 @@ fi
 "$MACDEPLOYQT_PATH" "${deploy_args[@]}"
 
 if [[ -n "$CODESIGN_IDENTITY" ]]; then
-    codesign_args=(--force --options runtime --timestamp --sign "$CODESIGN_IDENTITY")
+    executable_codesign_args=(--force --options runtime --timestamp --sign "$CODESIGN_IDENTITY")
     if [[ -n "$ENTITLEMENTS_PATH" ]]; then
-        codesign_args+=(--entitlements "$ENTITLEMENTS_PATH")
+        executable_codesign_args+=(--entitlements "$ENTITLEMENTS_PATH")
     fi
-    codesign "${codesign_args[@]}" "$APP_BUNDLE_PATH"
+    codesign "${executable_codesign_args[@]}" "${MACOS_DIR}/${APP_NAME}"
+    codesign --force --deep --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE_PATH"
     codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH"
 fi
 
