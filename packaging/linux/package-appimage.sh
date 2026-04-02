@@ -138,6 +138,25 @@ export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so;libqxcb
 if [[ -n "$QT_QMAKE_PATH" ]]; then
     QT_INSTALL_PLUGINS="$("$QT_QMAKE_PATH" -query QT_INSTALL_PLUGINS 2>/dev/null || true)"
     QT_INSTALL_QML="$("$QT_QMAKE_PATH" -query QT_INSTALL_QML 2>/dev/null || true)"
+    QT_QMAKE_ROOT="$(cd "$(dirname "$QT_QMAKE_PATH")/.." && pwd)"
+    QT_TOOLS_PLUGINS_DIR="$QT_QMAKE_ROOT/plugins"
+    QT_TOOLS_QML_DIR="$QT_QMAKE_ROOT/qml"
+
+    if [[ -n "$QT_INSTALL_PLUGINS" && ! -d "$QT_INSTALL_PLUGINS" && -d "$QT_TOOLS_PLUGINS_DIR" ]]; then
+        mkdir -p "$(dirname "$QT_INSTALL_PLUGINS")"
+        ln -sfn "$QT_TOOLS_PLUGINS_DIR" "$QT_INSTALL_PLUGINS"
+    fi
+    if [[ -n "$QT_INSTALL_QML" && ! -d "$QT_INSTALL_QML" && -d "$QT_TOOLS_QML_DIR" ]]; then
+        mkdir -p "$(dirname "$QT_INSTALL_QML")"
+        ln -sfn "$QT_TOOLS_QML_DIR" "$QT_INSTALL_QML"
+    fi
+
+    if [[ -z "$QT_INSTALL_PLUGINS" && -d "$QT_TOOLS_PLUGINS_DIR" ]]; then
+        QT_INSTALL_PLUGINS="$QT_TOOLS_PLUGINS_DIR"
+    fi
+    if [[ -z "$QT_INSTALL_QML" && -d "$QT_TOOLS_QML_DIR" ]]; then
+        QT_INSTALL_QML="$QT_TOOLS_QML_DIR"
+    fi
     if [[ -n "$QT_INSTALL_PLUGINS" ]]; then
         export QT_PLUGIN_PATH="$QT_INSTALL_PLUGINS"
     fi
