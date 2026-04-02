@@ -135,6 +135,16 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 export NO_APPSTREAM=1
 export EXTRA_QT_MODULES="core;gui;widgets;svg"
 export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so;libqxcb.so"
+if [[ -n "$QT_QMAKE_PATH" ]]; then
+    QT_INSTALL_PLUGINS="$("$QT_QMAKE_PATH" -query QT_INSTALL_PLUGINS 2>/dev/null || true)"
+    QT_INSTALL_QML="$("$QT_QMAKE_PATH" -query QT_INSTALL_QML 2>/dev/null || true)"
+    if [[ -n "$QT_INSTALL_PLUGINS" ]]; then
+        export QT_PLUGIN_PATH="$QT_INSTALL_PLUGINS"
+    fi
+    if [[ -n "$QT_INSTALL_QML" ]]; then
+        export QML2_IMPORT_PATH="$QT_INSTALL_QML"
+    fi
+fi
 if [[ -n "$VCPKG_INSTALLED_DIR" ]]; then
     export LD_LIBRARY_PATH="${VCPKG_INSTALLED_DIR}/${TRIPLET}/lib:${LD_LIBRARY_PATH:-}"
 fi
