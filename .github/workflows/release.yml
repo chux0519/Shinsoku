@@ -247,41 +247,13 @@ jobs:
 
       - name: Configure
         run: |
-          find_qt_package_dir() {
-            local package_name="$1"
-            local config_name="$2"
-            local match
-            match="$(find /usr/lib /lib -path "*/cmake/${package_name}/${config_name}" -print -quit 2>/dev/null || true)"
-            if [[ -z "${match}" ]]; then
-              echo "Failed to locate ${config_name} for ${package_name}" >&2
-              return 1
-            fi
-            dirname "${match}"
-          }
-
-          qt_dir="$(find_qt_package_dir Qt6 Qt6Config.cmake)"
-          qt_core_dir="$(find_qt_package_dir Qt6Core Qt6CoreConfig.cmake)"
-          qt_gui_dir="$(find_qt_package_dir Qt6Gui Qt6GuiConfig.cmake)"
-          qt_widgets_dir="$(find_qt_package_dir Qt6Widgets Qt6WidgetsConfig.cmake)"
-          qt_svg_dir="$(find_qt_package_dir Qt6Svg Qt6SvgConfig.cmake)"
-          qt_wayland_client_private_dir="$(find_qt_package_dir Qt6WaylandClientPrivate Qt6WaylandClientPrivateConfig.cmake)"
-          qt_wayland_compositor_dir="$(find_qt_package_dir Qt6WaylandCompositor Qt6WaylandCompositorConfig.cmake)"
-          qt_wayland_scanner_tools_dir="$(find_qt_package_dir Qt6WaylandScannerTools Qt6WaylandScannerToolsConfig.cmake)"
-          qt_prefix_path="${qt_dir};${qt_core_dir};${qt_gui_dir};${qt_widgets_dir};${qt_svg_dir};${qt_wayland_client_private_dir};${qt_wayland_compositor_dir};${qt_wayland_scanner_tools_dir}"
-          cmake -S . -B build-release-linux -G Ninja \
+          qt_cmake_bin="$(command -v qt-cmake-private || command -v qt-cmake || command -v cmake)"
+          [[ -n "${qt_cmake_bin}" ]] || { echo "qt-cmake-private not found"; exit 1; }
+          "${qt_cmake_bin}" -S . -B build-release-linux -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_MANIFEST_MODE=OFF \
-            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
-            -DCMAKE_PREFIX_PATH="$qt_prefix_path" \
-            -DQt6_DIR="${qt_dir}" \
-            -DQt6Core_DIR="${qt_core_dir}" \
-            -DQt6Gui_DIR="${qt_gui_dir}" \
-            -DQt6Widgets_DIR="${qt_widgets_dir}" \
-            -DQt6Svg_DIR="${qt_svg_dir}" \
-            -DQt6WaylandClientPrivate_DIR="${qt_wayland_client_private_dir}" \
-            -DQt6WaylandCompositor_DIR="${qt_wayland_compositor_dir}" \
-            -DQt6WaylandScannerTools_DIR="${qt_wayland_scanner_tools_dir}"
+            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR"
 
       - name: Build Linux binary
         run: |
