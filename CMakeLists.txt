@@ -335,24 +335,7 @@ if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
         find_package(Qt6 QUIET COMPONENTS WaylandClientPrivate)
     endif()
     if(NOT TARGET Qt6::WaylandClientPrivate)
-        find_package(Qt6WaylandClient CONFIG REQUIRED)
-
-        file(GLOB SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_CANDIDATES
-            "/usr/include/*/qt6/QtWaylandClient/*/QtWaylandClient/private"
-            "/usr/include/qt6/QtWaylandClient/*/QtWaylandClient/private"
-        )
-        list(LENGTH SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_CANDIDATES SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_COUNT)
-        if(SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_COUNT EQUAL 0)
-            find_package(Qt6WaylandClientPrivate CONFIG REQUIRED)
-        else()
-            list(GET SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_CANDIDATES 0 SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_DIR)
-            add_library(shinsoku_qt_waylandclient_private INTERFACE)
-            target_link_libraries(shinsoku_qt_waylandclient_private INTERFACE Qt6::WaylandClient)
-            target_include_directories(shinsoku_qt_waylandclient_private INTERFACE
-                "${SHINSOKU_QT_WAYLANDCLIENT_PRIVATE_INCLUDE_DIR}"
-            )
-            add_library(Qt6::WaylandClientPrivate ALIAS shinsoku_qt_waylandclient_private)
-        endif()
+        find_package(Qt6WaylandClientPrivate CONFIG REQUIRED)
     endif()
     target_link_libraries(shinsoku PRIVATE Qt6::WaylandClientPrivate)
     qt6_generate_wayland_protocol_client_sources(shinsoku
