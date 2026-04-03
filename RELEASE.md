@@ -60,6 +60,9 @@ Set these repository-level values before running the workflow.
 - `MACOS_VCPKG_ROOT`
   - absolute path to the `vcpkg` checkout on the self-hosted Mac mini
   - example: `/Users/yongsheng/repos/vcpkg`
+- `LINUX_VCPKG_ROOT`
+  - absolute path to the `vcpkg` checkout on the self-hosted Linux runner
+  - example: `/data/vcpkg`
 
 ### Secrets
 
@@ -114,7 +117,20 @@ cmake --build build-release-windows --config Release --target package_windows_po
 
 ### Linux
 
-The workflow uses a GitHub-hosted `ubuntu-22.04` runner, installs the required autotools, parser-generator, and Wayland/PulseAudio system packages, installs Qt and the remaining dependencies through `vcpkg`, builds the release binary, then packages it as an AppImage with `linuxdeploy`.
+The workflow uses a self-hosted Linux x64 runner with:
+
+- `cmake`
+- `ninja`
+- `rsvg-convert`
+- `wayland-scanner`
+- the required system packages for Wayland, PulseAudio, autotools, parser generators, and AppImage creation
+- a working `vcpkg` checkout referenced by `LINUX_VCPKG_ROOT`
+
+The Linux release path now uses:
+
+- `x64-linux-dynamic` for Qt and the rest of the vcpkg dependencies
+- Qt's CMake deployment API during `cmake --install`
+- `linuxdeploy` only for wrapping the prepared `AppDir` into an AppImage
 
 ## Notes
 

@@ -155,77 +155,49 @@ jobs:
 
   linux_release:
     name: Linux Release
-    runs-on: ubuntu-22.04
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
     env:
+      LINUX_VCPKG_ROOT: ${{ vars.LINUX_VCPKG_ROOT }}
       RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref_name }}
-      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg-binary-cache,readwrite
       VCPKG_INSTALLED_DIR: ${{ github.workspace }}/vcpkg_installed
-      VCPKG_DEFAULT_TRIPLET: x64-linux
+      VCPKG_DEFAULT_TRIPLET: x64-linux-dynamic
+      VCPKG_HOST_TRIPLET: x64-linux
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
-      - name: Install system packages
+      - name: Validate Linux runner environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            autoconf \
-            autoconf-archive \
-            automake \
-            bison \
-            build-essential \
-            desktop-file-utils \
-            flex \
-            gperf \
-            libevdev-dev \
-            libtool \
-            libfuse2 \
-            libgl1-mesa-dev \
-            libpulse-dev \
-            libwayland-dev \
-            libxkbcommon-dev \
-            libxkbcommon-x11-0 \
-            ninja-build \
-            patchelf \
-            pkg-config \
-            librsvg2-bin \
-            wayland-protocols
-
-      - name: Restore vcpkg binary cache
-        uses: actions/cache@v5
-        with:
-          path: .cache/vcpkg-binary-cache
-          key: linux-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt') }}
-          restore-keys: |
-            linux-vcpkg-${{ runner.os }}-
-
-      - name: Bootstrap vcpkg
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
-          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
-
-      - name: Install non-Qt dependencies
-        run: |
-          "$RUNNER_TEMP/vcpkg/vcpkg" install \
-            curl ixwebsocket mbedtls miniaudio nlohmann-json qtbase qtsvg qtwayland sqlite3 \
-            --classic \
-            --triplet "$VCPKG_DEFAULT_TRIPLET" \
-            --vcpkg-root="$RUNNER_TEMP/vcpkg" \
-            --x-install-root="$VCPKG_INSTALLED_DIR"
+          test -n "$LINUX_VCPKG_ROOT"
+          test -x "$LINUX_VCPKG_ROOT/vcpkg"
+          command -v cmake
+          command -v ninja
+          command -v rsvg-convert
+          command -v wayland-scanner
 
       - name: Configure
         run: |
-          cmake -S . -B build-release-linux -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+          "$LINUX_VCPKG_ROOT/vcpkg" install \
+            curl ixwebsocket mbedtls miniaudio nlohmann-json qtbase qtsvg qtwayland sqlite3 \
+            --classic \
+            --triplet "$VCPKG_DEFAULT_TRIPLET" \
+            --vcpkg-root="$LINUX_VCPKG_ROOT" \
+            --x-install-root="$VCPKG_INSTALLED_DIR"
+          cmake -S . -B build-release-linux -G "Ninja Multi-Config" \
+            -DCMAKE_TOOLCHAIN_FILE="$LINUX_VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_DEFAULT_TRIPLET" \
+            -DVCPKG_HOST_TRIPLET="$VCPKG_HOST_TRIPLET" \
             -DVCPKG_MANIFEST_MODE=OFF \
             -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR"
 
       - name: Build Linux binary
         run: |
-          cmake --build build-release-linux --target shinsoku
+          cmake --build build-release-linux --config Release --target shinsoku
 
       - name: Download linuxdeploy
         run: |
