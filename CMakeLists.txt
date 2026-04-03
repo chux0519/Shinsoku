@@ -30,6 +30,14 @@ if(UNIX AND NOT APPLE)
     pkg_check_modules(LIBEVDEV REQUIRED IMPORTED_TARGET libevdev)
     pkg_check_modules(LIBPULSE REQUIRED IMPORTED_TARGET libpulse)
     pkg_check_modules(LIBPULSE_SIMPLE REQUIRED IMPORTED_TARGET libpulse-simple)
+    find_program(WAYLAND_SCANNER_EXECUTABLE NAMES wayland-scanner REQUIRED)
+    find_file(OHMYTYPELESS_XDG_SHELL_XML
+        NAMES xdg-shell.xml
+        PATHS
+            /usr/share/wayland-protocols/stable/xdg-shell
+            /usr/local/share/wayland-protocols/stable/xdg-shell
+        REQUIRED
+    )
 endif()
 
 option(OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD "Enable Wayland HUD via in-tree layer-shell backend" ON)
@@ -327,6 +335,24 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
+    set(OHMYTYPELESS_XDG_SHELL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/wayland-xdg-shell-client-protocol.h")
+    set(OHMYTYPELESS_XDG_SHELL_CODE "${CMAKE_CURRENT_BINARY_DIR}/wayland-xdg-shell-protocol.c")
+    add_custom_command(
+        OUTPUT "${OHMYTYPELESS_XDG_SHELL_HEADER}"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${OHMYTYPELESS_XDG_SHELL_XML}" "${OHMYTYPELESS_XDG_SHELL_HEADER}"
+        DEPENDS "${OHMYTYPELESS_XDG_SHELL_XML}"
+        VERBATIM
+    )
+    add_custom_command(
+        OUTPUT "${OHMYTYPELESS_XDG_SHELL_CODE}"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" public-code "${OHMYTYPELESS_XDG_SHELL_XML}" "${OHMYTYPELESS_XDG_SHELL_CODE}"
+        DEPENDS "${OHMYTYPELESS_XDG_SHELL_XML}"
+        VERBATIM
+    )
+    target_sources(shinsoku PRIVATE
+        "${OHMYTYPELESS_XDG_SHELL_HEADER}"
+        "${OHMYTYPELESS_XDG_SHELL_CODE}"
+    )
     find_package(Qt6WaylandClientPrivate CONFIG REQUIRED)
     target_link_libraries(shinsoku PRIVATE Qt6::WaylandClientPrivate)
     qt6_generate_wayland_protocol_client_sources(shinsoku
