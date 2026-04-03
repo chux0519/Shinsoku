@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.24)
 
 project(Shinsoku VERSION 0.1.0 LANGUAGES C CXX)
 
+include(GNUInstallDirs)
+
 if(APPLE)
     enable_language(OBJCXX)
     set(CMAKE_OBJCXX_STANDARD 20)
@@ -113,6 +115,11 @@ qt_add_executable(shinsoku
 if(WIN32)
     set_target_properties(shinsoku PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
+
+install(TARGETS shinsoku
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
 if(WIN32)
     target_sources(shinsoku PRIVATE
@@ -361,6 +368,16 @@ if(UNIX AND NOT APPLE AND OHMYTYPELESS_ENABLE_WAYLAND_LAYER_SHELL_HUD)
             ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wayland/wlr-layer-shell-unstable-v1.xml
     )
     target_compile_definitions(shinsoku PRIVATE OHMYTYPELESS_HAS_WAYLAND_LAYER_SHELL=1)
+endif()
+
+if(UNIX AND NOT APPLE)
+    qt_generate_deploy_app_script(
+        TARGET shinsoku
+        OUTPUT_SCRIPT SHINSOKU_LINUX_DEPLOY_QT_SCRIPT
+        NO_UNSUPPORTED_PLATFORM_ERROR
+        INCLUDE_PLUGIN_TYPES platforms
+    )
+    install(SCRIPT ${SHINSOKU_LINUX_DEPLOY_QT_SCRIPT})
 endif()
 
 target_compile_options(shinsoku PRIVATE

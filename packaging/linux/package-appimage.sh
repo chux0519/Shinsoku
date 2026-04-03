@@ -4,13 +4,12 @@ set -euo pipefail
 
 APP_NAME=""
 VERSION=""
-EXECUTABLE_PATH=""
+BUILD_DIR=""
+CONFIG="Release"
 OUTPUT_DIR=""
 LINUXDEPLOY_PATH=""
-LINUXDEPLOY_PLUGIN_QT_PATH=""
 DESKTOP_TEMPLATE=""
 ICON_SVG_PATH=""
-QT_QMAKE_PATH="${QMAKE:-}"
 TRIPLET="${VCPKG_DEFAULT_TRIPLET:-x64-linux}"
 VCPKG_INSTALLED_DIR="${VCPKG_INSTALLED_DIR:-}"
 
@@ -24,8 +23,12 @@ while [[ $# -gt 0 ]]; do
             VERSION="$2"
             shift 2
             ;;
-        --executable)
-            EXECUTABLE_PATH="$2"
+        --build-dir)
+            BUILD_DIR="$2"
+            shift 2
+            ;;
+        --config)
+            CONFIG="$2"
             shift 2
             ;;
         --output-dir)
@@ -37,7 +40,6 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --linuxdeploy-plugin-qt)
-            LINUXDEPLOY_PLUGIN_QT_PATH="$2"
             shift 2
             ;;
         --desktop-template)
@@ -46,10 +48,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --icon-svg)
             ICON_SVG_PATH="$2"
-            shift 2
-            ;;
-        --qmake)
-            QT_QMAKE_PATH="$2"
             shift 2
             ;;
         --triplet)
@@ -67,23 +65,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$APP_NAME" || -z "$VERSION" || -z "$EXECUTABLE_PATH" || -z "$OUTPUT_DIR" || -z "$LINUXDEPLOY_PATH" || -z "$LINUXDEPLOY_PLUGIN_QT_PATH" || -z "$DESKTOP_TEMPLATE" || -z "$ICON_SVG_PATH" ]]; then
+if [[ -z "$APP_NAME" || -z "$VERSION" || -z "$BUILD_DIR" || -z "$OUTPUT_DIR" || -z "$LINUXDEPLOY_PATH" || -z "$DESKTOP_TEMPLATE" || -z "$ICON_SVG_PATH" ]]; then
     echo "Missing required arguments." >&2
     exit 1
 fi
 
-if [[ ! -f "$EXECUTABLE_PATH" ]]; then
-    echo "Executable not found: $EXECUTABLE_PATH" >&2
+if [[ ! -d "$BUILD_DIR" ]]; then
+    echo "Build directory not found: $BUILD_DIR" >&2
     exit 1
 fi
 
 if [[ ! -x "$LINUXDEPLOY_PATH" ]]; then
     echo "linuxdeploy not executable: $LINUXDEPLOY_PATH" >&2
-    exit 1
-fi
-
-if [[ ! -x "$LINUXDEPLOY_PLUGIN_QT_PATH" ]]; then
-    echo "linuxdeploy Qt plugin not executable: $LINUXDEPLOY_PLUGIN_QT_PATH" >&2
     exit 1
 fi
 
@@ -112,6 +105,8 @@ ICON_DIR="$SHARE_DIR/icons/hicolor/256x256/apps"
 DESKTOP_FILE="$APP_SHARE_DIR/shinsoku.desktop"
 ICON_PNG="$ICON_DIR/shinsoku.png"
 OUTPUT_APPIMAGE="$OUTPUT_DIR/${APP_NAME}-${VERSION}-linux-x86_64.AppImage"
+INSTALL_PREFIX="$APPDIR/usr"
+INSTALLED_EXECUTABLE="$INSTALL_PREFIX/bin/shinsoku"
 
 cleanup() {
     rm -rf "$STAGE_ROOT"
@@ -119,51 +114,19 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$BIN_DIR" "$APP_SHARE_DIR" "$ICON_DIR"
-cp "$EXECUTABLE_PATH" "$BIN_DIR/shinsoku"
-chmod +x "$BIN_DIR/shinsoku"
+
+cmake --install "$BUILD_DIR" --config "$CONFIG" --prefix "$INSTALL_PREFIX"
+
+if [[ ! -f "$INSTALLED_EXECUTABLE" ]]; then
+    echo "Installed executable not found after cmake --install: $INSTALLED_EXECUTABLE" >&2
+    exit 1
+fi
+
 sed "s/@APP_NAME@/${APP_NAME}/g" "$DESKTOP_TEMPLATE" > "$DESKTOP_FILE"
 rsvg-convert "$ICON_SVG_PATH" -w 256 -h 256 -o "$ICON_PNG"
-
-PLUGIN_DIR="$STAGE_ROOT/plugins"
-mkdir -p "$PLUGIN_DIR"
-ln -sf "$LINUXDEPLOY_PLUGIN_QT_PATH" "$PLUGIN_DIR/linuxdeploy-plugin-qt"
-
-export PATH="$PLUGIN_DIR:$PATH"
-export QMAKE="$QT_QMAKE_PATH"
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
 export NO_APPSTREAM=1
-export EXTRA_QT_MODULES="core;gui;widgets;svg"
-export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so;libqxcb.so"
-if [[ -n "$QT_QMAKE_PATH" ]]; then
-    QT_INSTALL_PLUGINS="$("$QT_QMAKE_PATH" -query QT_INSTALL_PLUGINS 2>/dev/null || true)"
-    QT_INSTALL_QML="$("$QT_QMAKE_PATH" -query QT_INSTALL_QML 2>/dev/null || true)"
-    QT_QMAKE_ROOT="$(cd "$(dirname "$QT_QMAKE_PATH")/.." && pwd)"
-    QT_TOOLS_PLUGINS_DIR="$QT_QMAKE_ROOT/plugins"
-    QT_TOOLS_QML_DIR="$QT_QMAKE_ROOT/qml"
-
-    if [[ -n "$QT_INSTALL_PLUGINS" && ! -d "$QT_INSTALL_PLUGINS" && -d "$QT_TOOLS_PLUGINS_DIR" ]]; then
-        mkdir -p "$(dirname "$QT_INSTALL_PLUGINS")"
-        ln -sfn "$QT_TOOLS_PLUGINS_DIR" "$QT_INSTALL_PLUGINS"
-    fi
-    if [[ -n "$QT_INSTALL_QML" && ! -d "$QT_INSTALL_QML" && -d "$QT_TOOLS_QML_DIR" ]]; then
-        mkdir -p "$(dirname "$QT_INSTALL_QML")"
-        ln -sfn "$QT_TOOLS_QML_DIR" "$QT_INSTALL_QML"
-    fi
-
-    if [[ -z "$QT_INSTALL_PLUGINS" && -d "$QT_TOOLS_PLUGINS_DIR" ]]; then
-        QT_INSTALL_PLUGINS="$QT_TOOLS_PLUGINS_DIR"
-    fi
-    if [[ -z "$QT_INSTALL_QML" && -d "$QT_TOOLS_QML_DIR" ]]; then
-        QT_INSTALL_QML="$QT_TOOLS_QML_DIR"
-    fi
-    if [[ -n "$QT_INSTALL_PLUGINS" ]]; then
-        export QT_PLUGIN_PATH="$QT_INSTALL_PLUGINS"
-    fi
-    if [[ -n "$QT_INSTALL_QML" ]]; then
-        export QML2_IMPORT_PATH="$QT_INSTALL_QML"
-    fi
-fi
 if [[ -n "$VCPKG_INSTALLED_DIR" ]]; then
     export LD_LIBRARY_PATH="${VCPKG_INSTALLED_DIR}/${TRIPLET}/lib:${LD_LIBRARY_PATH:-}"
 fi
@@ -171,10 +134,9 @@ fi
 pushd "$STAGE_ROOT" >/dev/null
 "$LINUXDEPLOY_PATH" \
     --appdir "$APPDIR" \
-    -e "$BIN_DIR/shinsoku" \
+    -e "$INSTALLED_EXECUTABLE" \
     -d "$DESKTOP_FILE" \
     -i "$ICON_PNG" \
-    --plugin qt \
     --output appimage
 popd >/dev/null
 

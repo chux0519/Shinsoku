@@ -231,8 +231,7 @@ jobs:
         run: |
           mkdir -p tools/linuxdeploy
           curl -L https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -o tools/linuxdeploy/linuxdeploy-x86_64.AppImage
-          curl -L https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage -o tools/linuxdeploy/linuxdeploy-plugin-qt-x86_64.AppImage
-          chmod +x tools/linuxdeploy/linuxdeploy-x86_64.AppImage tools/linuxdeploy/linuxdeploy-plugin-qt-x86_64.AppImage packaging/linux/package-appimage.sh
+          chmod +x tools/linuxdeploy/linuxdeploy-x86_64.AppImage packaging/linux/package-appimage.sh
 
       - name: Build AppImage
         run: |
@@ -241,13 +240,12 @@ jobs:
           packaging/linux/package-appimage.sh \
             --app-name Shinsoku \
             --version "${version}" \
-            --executable "$PWD/build-release-linux/shinsoku" \
+            --build-dir "$PWD/build-release-linux" \
+            --config Release \
             --output-dir "$PWD/dist" \
             --linuxdeploy "$PWD/tools/linuxdeploy/linuxdeploy-x86_64.AppImage" \
-            --linuxdeploy-plugin-qt "$PWD/tools/linuxdeploy/linuxdeploy-plugin-qt-x86_64.AppImage" \
             --desktop-template "$PWD/packaging/linux/shinsoku.desktop.in" \
             --icon-svg "$PWD/resources/icons/square-bolt.svg" \
-            --qmake "$VCPKG_INSTALLED_DIR/$VCPKG_DEFAULT_TRIPLET/tools/Qt6/bin/qmake" \
             --triplet "$VCPKG_DEFAULT_TRIPLET" \
             --vcpkg-installed-dir "$VCPKG_INSTALLED_DIR"
 
