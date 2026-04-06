@@ -1,6 +1,7 @@
 #include "core/app_controller.hpp"
 
 #include "core/backend/backend_factory.hpp"
+#include "core/runtime_profile.hpp"
 #include "core/task_types.hpp"
 #include "platform/clipboard_service.hpp"
 #include "platform/global_hotkey.hpp"
@@ -126,35 +127,18 @@ std::string streaming_model_name(const AppConfig& config) {
     return {};
 }
 
-std::vector<std::pair<QString, QString>> profile_items_for_ui(const AppConfig& config) {
-    std::vector<std::pair<QString, QString>> items;
-    items.reserve(config.profiles.items.size());
-    for (const auto& profile : config.profiles.items) {
-        items.emplace_back(QString::fromStdString(profile.id), QString::fromStdString(profile.name));
-    }
-    return items;
-}
-
 AudioCaptureMode audio_capture_mode_from_config(const AppConfig& config) {
     return config.audio.capture_mode == "system" ? AudioCaptureMode::SystemLoopback : AudioCaptureMode::Microphone;
 }
 
-nlohmann::json capture_context_meta(const AppConfig& config) {
-    nlohmann::json input = {
-        {"capture_mode", config.audio.capture_mode},
-        {"sample_rate", config.audio.sample_rate},
-        {"channels", config.audio.channels},
-    };
-    if (config.audio.capture_mode == "microphone") {
-        input["device_id"] = config.audio.input_device_id;
-    } else {
-        input["device"] = "default_system_output";
+std::vector<std::pair<QString, QString>> profile_items_for_ui(const AppConfig& config) {
+    std::vector<std::pair<QString, QString>> items;
+    const auto core_items = profile_items(config);
+    items.reserve(core_items.size());
+    for (const auto& [id, name] : core_items) {
+        items.emplace_back(QString::fromStdString(id), QString::fromStdString(name));
     }
-
-    return {
-        {"input", std::move(input)},
-        {"profile", {{"id", config.profiles.active_profile_id}}},
-    };
+    return items;
 }
 
 QString global_hotkey_unavailable_reason() {
@@ -203,63 +187,7 @@ std::vector<std::byte> encode_pcm16(std::span<const float> samples) {
 }  // namespace
 
 void AppController::rebuild_runtime_config() {
-    runtime_config_ = config_;
-    if (runtime_config_.profiles.items.empty()) {
-        return;
-    }
-
-    auto profile_it = std::find_if(runtime_config_.profiles.items.begin(),
-                                   runtime_config_.profiles.items.end(),
-                                   [&](const ProfileConfig& profile) {
-                                       return profile.id == runtime_config_.profiles.active_profile_id;
-                                   });
-    if (profile_it == runtime_config_.profiles.items.end()) {
-        profile_it = runtime_config_.profiles.items.begin();
-        runtime_config_.profiles.active_profile_id = profile_it->id;
-    }
-
-    const ProfileConfig& profile = *profile_it;
-    runtime_config_.audio.capture_mode = profile.capture.input_source.empty() ? "microphone" : profile.capture.input_source;
-    if (runtime_config_.audio.capture_mode == "system") {
-        runtime_config_.audio.input_device_id.clear();
-    } else if (!profile.capture.input_device_id.empty()) {
-        runtime_config_.audio.input_device_id = profile.capture.input_device_id;
-    } else {
-        runtime_config_.audio.input_device_id.clear();
-    }
-    runtime_config_.pipeline.streaming.enabled = profile.capture.prefer_streaming;
-    runtime_config_.pipeline.streaming.provider = profile.capture.preferred_streaming_provider.empty()
-                                                      ? std::string("none")
-                                                      : profile.capture.preferred_streaming_provider;
-    runtime_config_.pipeline.streaming.language = profile.capture.language_hint;
-    runtime_config_.pipeline.refine.enabled = profile.transform.enabled;
-    runtime_config_.pipeline.refine.request_format = profile.transform.request_format.empty()
-                                                 ? AppConfig{}.pipeline.refine.request_format
-                                                 : profile.transform.request_format;
-    runtime_config_.pipeline.refine.translation_source_language = profile.transform.translation_source_language;
-    runtime_config_.pipeline.refine.translation_source_code = profile.transform.translation_source_code;
-    runtime_config_.pipeline.refine.translation_target_language = profile.transform.translation_target_language;
-    runtime_config_.pipeline.refine.translation_target_code = profile.transform.translation_target_code;
-    runtime_config_.pipeline.refine.translation_extra_instructions = profile.transform.translation_extra_instructions;
-    if (!profile.transform.enabled) {
-        runtime_config_.pipeline.refine.prompt_mode = "generic";
-        runtime_config_.pipeline.refine.system_prompt = AppConfig{}.pipeline.refine.system_prompt;
-    } else if (profile.transform.mode == "translation") {
-        runtime_config_.pipeline.refine.prompt_mode = "structured_translation";
-        runtime_config_.pipeline.refine.system_prompt.clear();
-    } else if (profile.transform.mode == "custom_prompt") {
-        runtime_config_.pipeline.refine.prompt_mode = "generic";
-        runtime_config_.pipeline.refine.system_prompt =
-            profile.transform.custom_prompt.empty() ? AppConfig{}.pipeline.refine.system_prompt : profile.transform.custom_prompt;
-    } else {
-        runtime_config_.pipeline.refine.prompt_mode = "generic";
-        runtime_config_.pipeline.refine.system_prompt = AppConfig{}.pipeline.refine.system_prompt;
-    }
-    runtime_config_.output.copy_to_clipboard = profile.output.copy_to_clipboard;
-    runtime_config_.output.paste_to_focused_window = profile.output.paste_to_focused_window;
-    if (!profile.output.paste_keys.empty()) {
-        runtime_config_.output.paste_keys = profile.output.paste_keys;
-    }
+    runtime_config_ = derive_runtime_config(config_);
 }
 
 AppController::AppController(MainWindow* window,
@@ -1041,12 +969,7 @@ bool AppController::uses_system_audio_capture() const {
 }
 
 bool AppController::active_profile_is_live_caption() const {
-    const auto profile_it = std::find_if(config_.profiles.items.begin(),
-                                         config_.profiles.items.end(),
-                                         [&](const ProfileConfig& profile) {
-                                             return profile.id == config_.profiles.active_profile_id;
-                                         });
-    return profile_it != config_.profiles.items.end() && profile_it->capture.input_source == "system";
+    return active_profile_uses_system_audio(config_);
 }
 
 bool AppController::should_use_live_caption_window() const {
@@ -1054,12 +977,7 @@ bool AppController::should_use_live_caption_window() const {
 }
 
 QString AppController::active_profile_name() const {
-    const auto profile_it = std::find_if(config_.profiles.items.begin(),
-                                         config_.profiles.items.end(),
-                                         [&](const ProfileConfig& profile) {
-                                             return profile.id == config_.profiles.active_profile_id;
-                                         });
-    return profile_it != config_.profiles.items.end() ? QString::fromStdString(profile_it->name) : QString();
+    return QString::fromStdString(active_profile_display_name(config_));
 }
 
 void AppController::enforce_platform_capabilities(QString* notice) {

@@ -70,6 +70,8 @@ qt_add_executable(shinsoku
     src/core/asr_client.cpp
     src/core/app_controller.hpp
     src/core/app_controller.cpp
+    src/core/runtime_profile.hpp
+    src/core/runtime_profile.cpp
     src/core/curl_support.hpp
     src/core/curl_support.cpp
     src/core/history_store.hpp
