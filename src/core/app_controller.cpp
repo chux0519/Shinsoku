@@ -927,7 +927,7 @@ void AppController::stop_recording() {
             active_capture_mode_ = CaptureMode::SelectionCommand;
             TextTask task;
             task.mode = CaptureMode::SelectionCommand;
-            task.selected_text = selection.selected_text;
+            task.selected_text = selection.selected_text.toStdString();
             transcribe_selection_command_async(std::move(task), samples, audio_path);
         } else if (forced_selection_command) {
             captured_selection_text_.reset();
@@ -1305,8 +1305,8 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         }
         TextTask task;
         task.mode = CaptureMode::SelectionCommand;
-        task.selected_text = captured_selection_text_.value_or(QString());
-        task.spoken_instruction = final_text.trimmed();
+        task.selected_text = captured_selection_text_.value_or(QString()).toStdString();
+        task.spoken_instruction = final_text.trimmed().toStdString();
         transcribe_selection_command_async(std::move(task), {}, std::move(audio_path), std::move(streaming_meta));
         return;
     }
@@ -1702,7 +1702,7 @@ void AppController::transcribe_selection_command_async(TextTask task,
                 nlohmann::json diagnostics = nlohmann::json::object();
                 nlohmann::json timing = nlohmann::json::object();
 
-                std::string instruction = task.spoken_instruction.trimmed().toStdString();
+                std::string instruction = QString::fromStdString(task.spoken_instruction).trimmed().toStdString();
                 if (instruction.empty()) {
                     std::unique_ptr<AsrBackend> asr_backend = make_asr_backend(config_snapshot);
                     const auto asr_start = std::chrono::steady_clock::now();
@@ -1743,7 +1743,7 @@ void AppController::transcribe_selection_command_async(TextTask task,
                 const auto transform_start = std::chrono::steady_clock::now();
                 const std::string transformed = refine_backend->transform(
                     TextTransformRequest{
-                        .input_text = task.selected_text.toStdString(),
+                        .input_text = task.selected_text,
                         .instruction = instruction,
                         .context = std::optional<std::string>("Rewrite the selected text according to the spoken instruction."),
                     },
@@ -1771,7 +1771,7 @@ void AppController::transcribe_selection_command_async(TextTask task,
                     meta["streaming"] = streaming_meta["streaming"];
                 }
                 meta["selection"] = {
-                    {"source_text", task.selected_text.toStdString()},
+                    {"source_text", task.selected_text},
                     {"spoken_instruction", instruction},
                     {"capture_backend", selection_backend_name},
                     {"capture_debug", selection_debug_info.toStdString()},

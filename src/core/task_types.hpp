@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QString>
+#include <string>
 
 namespace ohmytypeless {
 
@@ -11,9 +11,9 @@ enum class CaptureMode {
 
 struct TextTask {
     CaptureMode mode = CaptureMode::Dictation;
-    QString selected_text;
-    QString spoken_instruction;
-    QString result_text;
+    std::string selected_text;
+    std::string spoken_instruction;
+    std::string result_text;
 };
 
 }  // namespace ohmytypeless
