@@ -81,6 +81,95 @@ Update it when major work lands or priorities change.
    treating them as one generic bug.
 5. Keep Wayland Alt-key conflicts in the UX/documentation bucket, not as a
    low-level input-grab project.
+6. Prepare a mobile architecture split so Android and iOS work can reuse the
+   speech pipeline without dragging desktop UI and desktop platform services
+   into mobile code.
+
+## Mobile Direction
+
+### Product framing
+
+- do not treat mobile as a direct Qt port
+- do treat mobile as a new product surface built around speech input
+- prioritize Android first, because Android IME support is the closest match to
+  the desktop dictation workflow
+- treat iOS as a second phase with a stricter product scope
+
+### Recommended implementation split
+
+1. Shared core:
+   - provider/back-end abstractions
+   - streaming transport and auth config
+   - transform / refine pipeline
+   - profile and settings data model
+   - history / persistence schema where it is not desktop-UI-bound
+2. Android shell:
+   - Kotlin IME service
+   - native microphone capture and input-connection commit flow
+   - Android settings app for providers, profiles, permissions, and history
+3. iOS shell:
+   - Swift app first
+   - keyboard extension second
+   - keep the extension focused on voice-to-text insertion, not full desktop
+     parity
+
+### What should be reused
+
+- `src/core/backend/`
+- transport/auth/provider config logic
+- text transform/refinement logic
+- serialization-ready parts of app/profile config
+- persistence models that are not tied to Qt widgets or desktop file paths
+
+### What should not be reused directly
+
+- Qt desktop UI in `src/ui/`
+- tray, HUD, global hotkeys, desktop selection services
+- Wayland / Windows / macOS platform backends under `src/platform/`
+- desktop-first `AppController` orchestration if it assumes recorder triggers,
+  windowing, or clipboard flows that do not exist on mobile
+
+### Implementation order
+
+1. Extract a mobile-safe shared core from the current desktop code:
+   - remove Qt widget dependencies from reusable logic
+   - reduce reliance on desktop platform service abstractions inside shared
+     orchestration
+   - define a cleaner boundary for audio input, backend execution, and text
+     output
+2. Build Android IME MVP:
+   - hold / tap to dictate
+   - stream speech
+   - commit text into the active input field
+   - basic provider/profile selection
+3. Build Android companion settings app:
+   - provider setup
+   - profile editing
+   - history
+   - permission explanations
+4. Build iOS companion app:
+   - validate provider setup and mobile-safe shared core
+   - validate microphone and streaming UX
+5. Build iOS keyboard extension:
+   - minimal insertion flow first
+   - only add transform/profile complexity after the extension UX is stable
+
+### Technology recommendation
+
+- Android IME: Kotlin
+- iOS app and keyboard extension: Swift
+- Flutter is acceptable for a future companion settings app, but not preferred
+  for the IME/keyboard shell itself
+
+### Guardrails for mobile work
+
+- do not start by porting the Qt desktop UI
+- do not bind the shared core to Flutter, Kotlin, or Swift UI frameworks
+- do not let mobile product constraints leak back into desktop abstractions
+  unless the abstraction genuinely improves both sides
+- do not promise desktop feature parity on mobile in the first phase
+- do not start iOS keyboard work before Android IME and shared-core extraction
+  have proven the architecture
 
 ## Next Suggested Task
 
@@ -95,6 +184,10 @@ If work continues immediately, do this next:
 4. Validate macOS system-audio capture on real devices and confirm whether the
    current ScreenCaptureKit implementation behaves reliably enough for the
    `Live Caption` profile.
+5. When mobile work starts, begin with a codebase extraction pass:
+   - inventory which `src/core` types are still Qt-bound
+   - identify which backend/config/history modules can move into a shared
+     mobile-safe core without bringing desktop platform code with them
 
 ## Guardrails
 
@@ -108,3 +201,4 @@ If work continues immediately, do this next:
 - Do not chase "consume Alt globally on Wayland" through device grabs.
 - Do not create new long-lived planning docs unless they replace something in
   `AGENT.md` or `Roadmap.md`.
+- Do not start mobile implementation by trying to share the Qt desktop UI.

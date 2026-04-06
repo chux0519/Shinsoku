@@ -117,13 +117,55 @@ If work starts here, treat it as a separate backend from Wayland.
 
 ### macOS
 
+Current strength:
+
+- native hotkeys, selection, auto-paste, HUD, and system audio backends exist
+- packaging and notarized DMG flow exist
+
+Expected direction:
+
+- continue hardening permission UX and app-specific behavior on real machines
+- keep native backends behind the existing shared abstractions
+
+### Android
+
 Not implemented yet.
 
-Expected future direction:
+Expected direction:
 
-- global input via accessibility/event tap style APIs
-- focused text workflows via accessibility-backed paths where possible
-- system audio via a separate native strategy
+- treat Android as an input-method project, not a direct Qt port
+- build the IME shell in Kotlin
+- move reusable speech/backend/config logic into a mobile-safe shared core
+- keep audio capture, input-connection writes, permissions, and lifecycle in
+  native Android code
+
+Constraints:
+
+- do not try to reuse desktop Qt UI on Android
+- do not start with Flutter for the IME shell itself
+- expect the first Android milestone to be microphone dictation into the
+  current input field, not full parity with desktop features like tray, HUD, or
+  global hotkeys
+
+### iOS
+
+Not implemented yet.
+
+Expected direction:
+
+- treat iOS as a separate product surface with stricter limits than Android
+- prefer a Swift native app plus a later keyboard extension, rather than
+  starting with the keyboard extension first
+- reuse only the shared speech/backend/config core where platform constraints
+  allow it
+
+Constraints:
+
+- do not assume desktop-style global capture or selection workflows exist
+- do not assume the iOS keyboard extension can carry the full desktop product
+  model
+- treat iOS keyboard work as a second phase after Android IME and shared-core
+  extraction
 
 ## Current Capability Snapshot
 
@@ -150,9 +192,10 @@ Expected future direction:
 
 ### Still pending
 
-- macOS backend work
 - Linux X11 backend work
 - broader Linux system-audio runtime validation
+- Android input-method work
+- iOS app / keyboard work
 
 ## Documentation Policy
 
