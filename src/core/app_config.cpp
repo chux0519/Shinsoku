@@ -1,7 +1,6 @@
 #include "core/app_config.hpp"
 #include "platform/hotkey_names.hpp"
 
-#include <QDir>
 #include <QStandardPaths>
 
 #include <algorithm>
@@ -17,16 +16,12 @@ namespace {
 
 using SectionMap = std::unordered_map<std::string, std::unordered_map<std::string, std::string>>;
 
-std::filesystem::path path_from_qstring(const QString& path) {
-    return std::filesystem::path(QDir::fromNativeSeparators(path).toStdWString());
-}
-
-QString path_to_qstring(const std::filesystem::path& path) {
-    return QDir::cleanPath(QString::fromStdWString(path.generic_wstring()));
-}
-
 std::string path_to_portable_string(const std::filesystem::path& path) {
-    return path_to_qstring(path).toStdString();
+    return path.lexically_normal().generic_string();
+}
+
+std::filesystem::path path_from_portable_string(const std::string& path) {
+    return std::filesystem::path(path);
 }
 
 std::filesystem::path app_data_root() {
@@ -37,7 +32,7 @@ std::filesystem::path app_data_root() {
     if (path.isEmpty()) {
         return std::filesystem::temp_directory_path() / "shinsoku";
     }
-    return path_from_qstring(path);
+    return std::filesystem::path(path.toStdString());
 }
 
 std::filesystem::path config_root() {
@@ -48,7 +43,16 @@ std::filesystem::path config_root() {
     if (path.isEmpty()) {
         return std::filesystem::temp_directory_path() / "shinsoku";
     }
-    return path_from_qstring(path);
+    return std::filesystem::path(path.toStdString());
+}
+
+AppConfigPaths default_config_paths() {
+    const std::filesystem::path data_root = app_data_root();
+    return {
+        .config_path = config_root() / "config.toml",
+        .history_db_path = data_root / "history.sqlite3",
+        .recordings_dir = data_root / "recordings",
+    };
 }
 
 std::string trim(std::string value) {
@@ -402,17 +406,13 @@ std::optional<std::string> get_value(const SectionMap& sections, const std::stri
 
 }  // namespace
 
-AppConfig load_config() {
+AppConfig load_config(const AppConfigPaths& paths) {
     AppConfig config;
     const AppConfig defaults;
-    config.config_path = config_root() / "config.toml";
-    config.history_db_path = app_data_root() / "history.sqlite3";
-    config.audio.recordings_dir = app_data_root() / "recordings";
+    config.config_path = paths.config_path;
+    config.history_db_path = paths.history_db_path;
+    config.audio.recordings_dir = paths.recordings_dir;
     config.audio.rotation.max_files = 50U;
-
-    std::filesystem::create_directories(config.config_path.parent_path());
-    std::filesystem::create_directories(config.history_db_path.parent_path());
-    std::filesystem::create_directories(config.audio.recordings_dir);
 
     const SectionMap sections = parse_toml_like_file(config.config_path);
 
@@ -453,7 +453,7 @@ AppConfig load_config() {
         config.audio.save_recordings = parse_bool(*value, config.audio.save_recordings);
     }
     if (const auto value = get_value(sections, "audio", "recordings_dir")) {
-        config.audio.recordings_dir = path_from_qstring(QString::fromStdString(unquote(*value)));
+        config.audio.recordings_dir = path_from_portable_string(unquote(*value));
     }
     if (const auto value = get_value(sections, "audio.rotation", "mode")) {
         config.audio.rotation.mode = unquote(*value);
@@ -664,14 +664,23 @@ AppConfig load_config() {
 
     ensure_profiles(config);
 
+    return config;
+}
+
+AppConfig load_config() {
+    const AppConfigPaths paths = default_config_paths();
+    std::filesystem::create_directories(paths.config_path.parent_path());
+    std::filesystem::create_directories(paths.history_db_path.parent_path());
+    std::filesystem::create_directories(paths.recordings_dir);
+    AppConfig config = load_config(paths);
     std::filesystem::create_directories(config.audio.recordings_dir);
     return config;
 }
 
-void save_config(const AppConfig& config) {
-    std::filesystem::create_directories(config.config_path.parent_path());
+void save_config(const AppConfig& config, const std::filesystem::path& config_path) {
+    std::filesystem::create_directories(config_path.parent_path());
 
-    std::ofstream output(config.config_path);
+    std::ofstream output(config_path);
     if (!output.is_open()) {
         throw std::runtime_error("failed to open config file for writing");
     }
@@ -773,6 +782,10 @@ void save_config(const AppConfig& config) {
     output << "[appearance]\n";
     output << "app_theme = \"" << escape_toml_string(normalize_app_theme(config.appearance.app_theme)) << "\"\n";
     output << "tray_icon_theme = \"" << escape_toml_string(normalize_tray_icon_theme(config.appearance.tray_icon_theme)) << "\"\n";
+}
+
+void save_config(const AppConfig& config) {
+    save_config(config, config.config_path);
 }
 
 }  // namespace ohmytypeless

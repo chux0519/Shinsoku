@@ -209,7 +209,15 @@ struct AppConfig {
     std::filesystem::path config_path;
 };
 
+struct AppConfigPaths {
+    std::filesystem::path config_path;
+    std::filesystem::path history_db_path;
+    std::filesystem::path recordings_dir;
+};
+
 AppConfig load_config();
+AppConfig load_config(const AppConfigPaths& paths);
 void save_config(const AppConfig& config);
+void save_config(const AppConfig& config, const std::filesystem::path& config_path);
 
 }  // namespace ohmytypeless
