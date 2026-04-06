@@ -1,11 +1,11 @@
 #pragma once
 
-#include <QtGlobal>
-
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
+#include <filesystem>
 #include <optional>
-#include <QString>
+#include <string>
 
 namespace ohmytypeless {
 
@@ -18,11 +18,11 @@ enum class SessionState {
 };
 
 struct HistoryEntry {
-    qint64 id = 0;
-    QString created_at;
-    QString text;
+    std::int64_t id = 0;
+    std::string created_at;
+    std::string text;
     nlohmann::json meta;
-    std::optional<QString> audio_path;
+    std::optional<std::filesystem::path> audio_path;
 };
 
 }  // namespace ohmytypeless

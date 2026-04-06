@@ -323,7 +323,7 @@ void MainWindow::set_tray_available(bool available) {
     }
 }
 
-void MainWindow::update_history(const QList<HistoryEntry>& entries) {
+void MainWindow::update_history(const std::vector<HistoryEntry>& entries) {
     if (history_window_ != nullptr) {
         history_window_->set_entries(entries);
     }

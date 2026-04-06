@@ -76,7 +76,7 @@ QString build_summary(const HistoryEntry& entry) {
 }
 
 QString build_preview(const HistoryEntry& entry) {
-    QString preview = entry.text.simplified();
+    QString preview = QString::fromStdString(entry.text).simplified();
     if (preview.size() > 180) {
         preview = preview.left(177) + "...";
     }
@@ -90,7 +90,7 @@ QWidget* build_item_widget(const HistoryEntry& entry, QWidget* parent) {
     layout->setContentsMargins(16, 14, 16, 14);
     layout->setSpacing(6);
 
-    auto* header = new QLabel(QString("[%1]").arg(entry.created_at), container);
+    auto* header = new QLabel(QString("[%1]").arg(QString::fromStdString(entry.created_at)), container);
     header->setObjectName("entryHeader");
     QFont header_font = header->font();
     header_font.setBold(true);
@@ -181,12 +181,12 @@ HistoryWindow::HistoryWindow(QWidget* parent) : QWidget(parent) {
     });
 }
 
-void HistoryWindow::set_entries(const QList<HistoryEntry>& entries) {
+void HistoryWindow::set_entries(const std::vector<HistoryEntry>& entries) {
     list_->clear();
     append_entries(entries);
 }
 
-void HistoryWindow::append_entries(const QList<HistoryEntry>& entries) {
+void HistoryWindow::append_entries(const std::vector<HistoryEntry>& entries) {
     for (const auto& entry : entries) {
         append_entry(entry);
     }

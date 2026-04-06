@@ -2,9 +2,6 @@
 
 #include <sqlite3.h>
 
-#include <QByteArray>
-#include <QDir>
-
 #include <stdexcept>
 
 namespace ohmytypeless {
@@ -42,7 +39,7 @@ HistoryStore::~HistoryStore() {
     }
 }
 
-void HistoryStore::add_entry(const QString& text,
+void HistoryStore::add_entry(const std::string& text,
                              const std::optional<std::filesystem::path>& audio_path,
                              const nlohmann::json& meta) {
     std::scoped_lock lock(mutex_);
@@ -53,14 +50,12 @@ void HistoryStore::add_entry(const QString& text,
         throw std::runtime_error("failed to prepare history insert");
     }
 
-    const QByteArray text_utf8 = text.toUtf8();
     const std::string meta_string = meta.dump();
-    sqlite3_bind_text(stmt, 1, text_utf8.constData(), text_utf8.size(), SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 1, text.c_str(), static_cast<int>(text.size()), SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, meta_string.c_str(), static_cast<int>(meta_string.size()), SQLITE_TRANSIENT);
     if (audio_path.has_value()) {
-        const QString path_text = QDir::cleanPath(QString::fromStdWString(audio_path->generic_wstring()));
-        const QByteArray path_utf8 = path_text.toUtf8();
-        sqlite3_bind_text(stmt, 3, path_utf8.constData(), path_utf8.size(), SQLITE_TRANSIENT);
+        const std::string path_text = audio_path->lexically_normal().generic_string();
+        sqlite3_bind_text(stmt, 3, path_text.c_str(), static_cast<int>(path_text.size()), SQLITE_TRANSIENT);
     } else {
         sqlite3_bind_null(stmt, 3);
     }
@@ -73,7 +68,7 @@ void HistoryStore::add_entry(const QString& text,
     sqlite3_finalize(stmt);
 }
 
-void HistoryStore::delete_entry(qint64 id) {
+void HistoryStore::delete_entry(std::int64_t id) {
     std::scoped_lock lock(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
@@ -91,7 +86,7 @@ void HistoryStore::delete_entry(qint64 id) {
     sqlite3_finalize(stmt);
 }
 
-std::optional<HistoryEntry> HistoryStore::get_entry(qint64 id) const {
+std::optional<HistoryEntry> HistoryStore::get_entry(std::int64_t id) const {
     std::scoped_lock lock(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
@@ -110,12 +105,12 @@ std::optional<HistoryEntry> HistoryStore::get_entry(qint64 id) const {
     return entry;
 }
 
-QList<HistoryEntry> HistoryStore::list_recent(std::size_t limit) const {
+std::vector<HistoryEntry> HistoryStore::list_recent(std::size_t limit) const {
     return list_with_query("SELECT id, created_at, text, meta, audio_path FROM history ORDER BY id DESC LIMIT ?1", 0, false,
                            limit);
 }
 
-QList<HistoryEntry> HistoryStore::list_before_id(qint64 before_id, std::size_t limit) const {
+std::vector<HistoryEntry> HistoryStore::list_before_id(std::int64_t before_id, std::size_t limit) const {
     return list_with_query(
         "SELECT id, created_at, text, meta, audio_path FROM history WHERE id < ?1 ORDER BY id DESC LIMIT ?2",
         before_id,
@@ -181,7 +176,7 @@ bool HistoryStore::has_column(const char* table_name, const char* column_name) c
     return found;
 }
 
-QList<HistoryEntry> HistoryStore::list_with_query(const char* sql, qint64 id_arg, bool bind_id, std::size_t limit) const {
+std::vector<HistoryEntry> HistoryStore::list_with_query(const char* sql, std::int64_t id_arg, bool bind_id, std::size_t limit) const {
     std::scoped_lock lock(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
@@ -195,10 +190,10 @@ QList<HistoryEntry> HistoryStore::list_with_query(const char* sql, qint64 id_arg
     }
     sqlite3_bind_int64(stmt, bind_index, static_cast<sqlite3_int64>(limit));
 
-    QList<HistoryEntry> entries;
+    std::vector<HistoryEntry> entries;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         if (auto entry = entry_from_current_row(stmt); entry.has_value()) {
-            entries.push_back(*entry);
+            entries.push_back(std::move(*entry));
         }
     }
 
@@ -208,12 +203,12 @@ QList<HistoryEntry> HistoryStore::list_with_query(const char* sql, qint64 id_arg
 
 std::optional<HistoryEntry> HistoryStore::entry_from_current_row(sqlite3_stmt* stmt) const {
     HistoryEntry entry;
-    entry.id = static_cast<qint64>(sqlite3_column_int64(stmt, 0));
-    entry.created_at = QString::fromUtf8(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-    entry.text = QString::fromUtf8(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+    entry.id = static_cast<std::int64_t>(sqlite3_column_int64(stmt, 0));
+    entry.created_at = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+    entry.text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
     entry.meta = parse_json_or_empty(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
     if (sqlite3_column_type(stmt, 4) != SQLITE_NULL) {
-        entry.audio_path = QString::fromUtf8(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+        entry.audio_path = std::filesystem::path(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
     }
     return entry;
 }

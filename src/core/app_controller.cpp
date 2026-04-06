@@ -104,10 +104,10 @@ bool should_skip_transcription(const AudioAnalysis& analysis, const VadConfig& c
 QString pretty_details(const HistoryEntry& entry) {
     nlohmann::json details = nlohmann::json::object();
     details["id"] = entry.id;
-    details["created_at"] = entry.created_at.toStdString();
-    details["text"] = entry.text.toStdString();
+    details["created_at"] = entry.created_at;
+    details["text"] = entry.text;
     if (entry.audio_path.has_value()) {
-        details["audio_path"] = entry.audio_path->toStdString();
+        details["audio_path"] = entry.audio_path->generic_string();
     }
     details["meta"] = entry.meta;
     return QString::fromStdString(details.dump(2));
@@ -722,7 +722,7 @@ void AppController::copy_history_entry(qint64 id) {
         return;
     }
 
-    clipboard_->copy_text(entry->text);
+    clipboard_->copy_text(QString::fromStdString(entry->text));
     window_->set_status_text("Copied history entry.");
     hud_->show_notice("Copied");
 }
@@ -763,7 +763,7 @@ void AppController::delete_history_entry(qint64 id, bool delete_audio_if_present
     if (delete_audio_box != nullptr && delete_audio_box->isChecked()) {
         if (const auto entry = history_store_->get_entry(id); entry.has_value() && entry->audio_path.has_value()) {
             std::error_code error;
-            std::filesystem::remove(std::filesystem::path(entry->audio_path->toStdWString()), error);
+            std::filesystem::remove(*entry->audio_path, error);
         }
     }
 
@@ -776,16 +776,16 @@ void AppController::load_older_history() {
         return;
     }
 
-    const QList<HistoryEntry> older = history_store_->list_before_id(*oldest_loaded_history_id_, kHistoryPageSize);
-    if (older.isEmpty()) {
+    const std::vector<HistoryEntry> older = history_store_->list_before_id(*oldest_loaded_history_id_, kHistoryPageSize);
+    if (older.empty()) {
         window_->history_window()->set_load_older_visible(false);
         return;
     }
 
     oldest_loaded_history_id_ = older.back().id;
-    history_.append(older);
+    history_.insert(history_.end(), older.begin(), older.end());
     window_->history_window()->append_entries(older);
-    window_->history_window()->set_load_older_visible(older.size() == static_cast<qsizetype>(kHistoryPageSize));
+    window_->history_window()->set_load_older_visible(older.size() == kHistoryPageSize);
 }
 
 void AppController::start_recording(SessionState mode) {
@@ -1263,7 +1263,7 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
-        history_store_->add_entry(QString("Streaming transcription failed: %1").arg(error_text),
+        history_store_->add_entry(QString("Streaming transcription failed: %1").arg(error_text).toStdString(),
                                   audio_path,
                                   nlohmann::json{{"diagnostics", {{"error", error_text.toStdString()}}}, {"streaming", streaming_meta["streaming"]}});
         load_history();
@@ -1439,13 +1439,13 @@ void AppController::transcribe_streaming_result_async(QString transcript,
 
 void AppController::load_history() {
     history_ = history_store_->list_recent(kHistoryPageSize);
-    if (history_.isEmpty()) {
+    if (history_.empty()) {
         oldest_loaded_history_id_.reset();
     } else {
         oldest_loaded_history_id_ = history_.back().id;
     }
     window_->update_history(history_);
-    window_->history_window()->set_load_older_visible(history_.size() == static_cast<qsizetype>(kHistoryPageSize));
+    window_->history_window()->set_load_older_visible(history_.size() == kHistoryPageSize);
 }
 
 void AppController::preview_profile_audio_devices_for_mode(const QString& capture_mode) {
@@ -1599,7 +1599,7 @@ void AppController::on_transcription_finished() {
     }
 
     if (!result.error_text.isEmpty()) {
-        history_store_->add_entry(QString("Transcription failed: %1").arg(result.error_text),
+        history_store_->add_entry(QString("Transcription failed: %1").arg(result.error_text).toStdString(),
                                   result.audio_path,
                                   result.meta);
         load_history();
@@ -1624,7 +1624,7 @@ void AppController::on_transcription_finished() {
             auto_paste_debug = clipboard_->last_debug_info();
         }
 
-        history_store_->add_entry(result.text, result.audio_path, result.meta);
+        history_store_->add_entry(result.text.toStdString(), result.audio_path, result.meta);
         load_history();
 
         set_state(SessionState::Idle, "Ready.");

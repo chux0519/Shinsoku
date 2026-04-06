@@ -2,8 +2,9 @@
 
 #include "core/app_state.hpp"
 
-#include <QList>
 #include <QWidget>
+
+#include <vector>
 
 class QListWidget;
 class QListWidgetItem;
@@ -16,8 +17,8 @@ class HistoryWindow final : public QWidget {
 public:
     explicit HistoryWindow(QWidget* parent = nullptr);
 
-    void set_entries(const QList<HistoryEntry>& entries);
-    void append_entries(const QList<HistoryEntry>& entries);
+    void set_entries(const std::vector<HistoryEntry>& entries);
+    void append_entries(const std::vector<HistoryEntry>& entries);
     void set_load_older_visible(bool visible);
 
 signals:

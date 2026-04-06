@@ -138,7 +138,7 @@ private:
     std::unique_ptr<QFutureWatcher<RecordedKeyResult>> recorded_key_watcher_;
     std::shared_ptr<std::atomic_bool> transcription_cancel_flag_;
     SessionState state_ = SessionState::Idle;
-    QList<HistoryEntry> history_;
+    std::vector<HistoryEntry> history_;
     std::optional<qint64> oldest_loaded_history_id_;
     quint64 next_transcription_job_id_ = 1;
     quint64 active_transcription_job_id_ = 0;

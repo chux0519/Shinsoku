@@ -29,7 +29,7 @@ public:
     void set_session_state(SessionState state);
     void set_status_text(const QString& text);
     void set_tray_available(bool available);
-    void update_history(const QList<HistoryEntry>& entries);
+    void update_history(const std::vector<HistoryEntry>& entries);
     void set_profiles(const std::vector<std::pair<QString, QString>>& profiles, const QString& active_profile_id);
     void set_selection_command_available(bool available, const QString& reason = {});
     void set_tray_icon_theme(const QString& theme);
