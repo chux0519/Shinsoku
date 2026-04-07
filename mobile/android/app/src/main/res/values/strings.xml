@@ -26,6 +26,11 @@
     <string name="provider_summary_template">Provider: %1$s • %2$s</string>
     <string name="status_card_title">Current device status</string>
     <string name="recent_history_title">Recent voice input</string>
+    <string name="voice_lab_title">Voice lab</string>
+    <string name="voice_lab_idle">Ready to test the current provider and profile without switching keyboards.</string>
+    <string name="voice_lab_start">Start test</string>
+    <string name="voice_lab_stop">Stop test</string>
+    <string name="voice_lab_processing">Processing recorded audio…</string>
     <string name="settings_title">Settings</string>
     <string name="settings_body">These controls back the shared mobile voice-input core. They decide how recognized speech is committed from the IME.</string>
     <string name="workflow_presets_title">Workflow presets</string>

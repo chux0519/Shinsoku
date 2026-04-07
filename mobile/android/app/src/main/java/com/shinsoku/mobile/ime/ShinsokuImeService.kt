@@ -32,11 +32,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         configStore = AndroidVoiceInputConfigStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         historyStore = AndroidVoiceInputHistoryStore(this)
-        controller = VoiceInputController(
-            engine = RecognitionEngineFactory.create(this),
-            configStore = configStore,
-            observer = this,
-        )
+        rebuildController()
     }
 
     override fun onCreateInputView(): View {
@@ -50,6 +46,11 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
         titleView?.text = getString(R.string.ime_title_idle)
         micButton?.setOnClickListener {
+            if (controller?.currentState() !is VoiceInputUiState.Listening &&
+                controller?.currentState() !is VoiceInputUiState.Processing
+            ) {
+                rebuildController()
+            }
             controller?.onMicTapped()
         }
         insertButton?.setOnClickListener {
@@ -141,6 +142,15 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 commitSuffixMode = profile.commitSuffixMode,
                 languageTag = profile.languageTag,
             ),
+        )
+    }
+
+    private fun rebuildController() {
+        controller?.destroy()
+        controller = VoiceInputController(
+            engine = RecognitionEngineFactory.create(this),
+            configStore = configStore,
+            observer = this,
         )
     }
 }
