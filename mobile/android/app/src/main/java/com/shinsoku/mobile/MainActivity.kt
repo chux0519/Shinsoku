@@ -11,7 +11,9 @@ import com.shinsoku.mobile.history.HistoryActivity
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
+import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.speechcore.CommitSuffixMode
+import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import android.Manifest
 import android.content.pm.PackageManager
 import android.view.inputmethod.InputMethodManager
@@ -22,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
+    private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
     private val requestMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             bindState()
@@ -33,6 +36,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         configStore = AndroidVoiceInputConfigStore(this)
         historyStore = AndroidVoiceInputHistoryStore(this)
+        providerConfigStore = AndroidVoiceProviderConfigStore(this)
 
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -97,6 +101,28 @@ class MainActivity : AppCompatActivity() {
             profile.languageTag ?: getString(R.string.language_auto_label),
         )
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
+        val providerConfig = providerConfigStore.load()
+        binding.providerSummaryText.text = getString(
+            R.string.provider_summary_template,
+            when (providerConfig.activeRecognitionProvider) {
+                VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_android_system)
+                VoiceRecognitionProvider.OpenAiCompatible -> getString(R.string.provider_openai_compatible)
+                VoiceRecognitionProvider.Soniox -> getString(R.string.provider_soniox)
+                VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
+            },
+            when (providerConfig.activeRecognitionProvider) {
+                VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_credentials_not_required)
+                VoiceRecognitionProvider.OpenAiCompatible ->
+                    if (providerConfig.openAi.apiKey.isBlank()) getString(R.string.provider_credentials_missing)
+                    else getString(R.string.provider_credentials_ready)
+                VoiceRecognitionProvider.Soniox ->
+                    if (providerConfig.soniox.apiKey.isBlank()) getString(R.string.provider_credentials_missing)
+                    else getString(R.string.provider_credentials_ready)
+                VoiceRecognitionProvider.Bailian ->
+                    if (providerConfig.bailian.apiKey.isBlank()) getString(R.string.provider_credentials_missing)
+                    else getString(R.string.provider_credentials_ready)
+            },
+        )
         binding.mainPresetSummaryText.text = when (profile.id) {
             VoiceInputProfiles.dictation.id -> getString(R.string.preset_dictation_summary)
             VoiceInputProfiles.chat.id -> getString(R.string.preset_chat_summary)

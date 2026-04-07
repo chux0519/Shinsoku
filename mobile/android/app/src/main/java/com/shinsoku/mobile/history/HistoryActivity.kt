@@ -73,6 +73,7 @@ class HistoryActivity : AppCompatActivity() {
             text = getString(
                 R.string.history_meta_template,
                 time,
+                entry.provider,
                 mode,
                 suffix,
                 entry.languageTag ?: getString(R.string.language_auto_label),

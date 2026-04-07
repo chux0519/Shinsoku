@@ -22,6 +22,7 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
                 id = item.optString("id"),
                 text = item.optString("text"),
                 committedAtEpochMillis = item.optLong("committedAtEpochMillis"),
+                provider = item.optString("provider"),
                 autoCommit = item.optBoolean("autoCommit"),
                 commitSuffixMode = item.optString("commitSuffixMode")
                     .takeIf { it.isNotBlank() }
@@ -51,6 +52,7 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
                     .put("id", entry.id)
                     .put("text", entry.text)
                     .put("committedAtEpochMillis", entry.committedAtEpochMillis)
+                    .put("provider", entry.provider)
                     .put("autoCommit", entry.autoCommit)
                     .put("commitSuffixMode", entry.commitSuffixMode.name)
                     .put("languageTag", entry.languageTag ?: ""),

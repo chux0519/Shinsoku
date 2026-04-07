@@ -17,7 +17,8 @@ class VoiceInputController(
                 pendingCommit = null
                 startListening()
             }
-            is VoiceInputUiState.Listening, is VoiceInputUiState.Processing -> cancel()
+            is VoiceInputUiState.Listening -> finishListening()
+            is VoiceInputUiState.Processing -> cancel()
         }
     }
 
@@ -95,6 +96,11 @@ class VoiceInputController(
         engine.cancel()
         pendingCommit = null
         updateState(VoiceInputUiState.Idle)
+    }
+
+    private fun finishListening() {
+        engine.stop()
+        updateState(VoiceInputUiState.Processing)
     }
 
     private fun updateState(next: VoiceInputUiState) {
