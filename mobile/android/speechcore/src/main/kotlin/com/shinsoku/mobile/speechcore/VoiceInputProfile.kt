@@ -5,5 +5,11 @@ data class VoiceInputProfile(
     val displayName: String = "Default Dictation",
     val languageTag: String? = null,
     val autoCommit: Boolean = true,
-    val appendTrailingSpace: Boolean = true,
+    val commitSuffixMode: CommitSuffixMode = CommitSuffixMode.Space,
 )
+
+enum class CommitSuffixMode {
+    None,
+    Space,
+    Newline,
+}

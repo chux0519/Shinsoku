@@ -1,12 +1,18 @@
 package com.shinsoku.mobile.settings
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.shinsoku.mobile.databinding.ActivitySettingsBinding
+import com.shinsoku.mobile.ime.queryImeStatus
+import com.shinsoku.mobile.speechcore.CommitSuffixMode
+import com.shinsoku.mobile.speechcore.VoiceInputProfile
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
@@ -25,14 +31,81 @@ class SettingsActivity : AppCompatActivity() {
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
         }
+        binding.openKeyboardSettingsButton.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+        }
+        binding.openInputMethodPickerButton.setOnClickListener {
+            val imm = getSystemService(InputMethodManager::class.java)
+            imm?.showInputMethodPicker()
+        }
         binding.autoCommitSwitch.setOnCheckedChangeListener { _, isChecked ->
             configStore.saveAutoCommit(isChecked)
+            bindState()
         }
         binding.appendTrailingSpaceSwitch.setOnCheckedChangeListener { _, isChecked ->
-            configStore.saveAppendTrailingSpace(isChecked)
+            // Legacy toggle retained only as a fast path for the common "space after dictation" choice.
+            configStore.saveCommitSuffixMode(if (isChecked) CommitSuffixMode.Space else CommitSuffixMode.None)
+            bindState()
         }
         binding.saveLanguageButton.setOnClickListener {
             configStore.saveLanguageTag(binding.languageTagEdit.text?.toString().orEmpty())
+            bindState()
+        }
+        binding.useAutoLanguageButton.setOnClickListener {
+            configStore.saveLanguageTag("")
+            bindState()
+        }
+        binding.useEnglishButton.setOnClickListener {
+            configStore.saveLanguageTag("en-US")
+            bindState()
+        }
+        binding.useChineseButton.setOnClickListener {
+            configStore.saveLanguageTag("zh-CN")
+            bindState()
+        }
+        binding.applyDictationPresetButton.setOnClickListener {
+            configStore.saveProfile(
+                VoiceInputProfile(
+                    displayName = "Dictation",
+                    autoCommit = true,
+                    commitSuffixMode = CommitSuffixMode.Space,
+                    languageTag = null,
+                ),
+            )
+            bindState()
+        }
+        binding.applyChatPresetButton.setOnClickListener {
+            configStore.saveProfile(
+                VoiceInputProfile(
+                    displayName = "Chat",
+                    autoCommit = true,
+                    commitSuffixMode = CommitSuffixMode.Newline,
+                    languageTag = null,
+                ),
+            )
+            bindState()
+        }
+        binding.applyReviewPresetButton.setOnClickListener {
+            configStore.saveProfile(
+                VoiceInputProfile(
+                    displayName = "Review Before Insert",
+                    autoCommit = false,
+                    commitSuffixMode = CommitSuffixMode.None,
+                    languageTag = null,
+                ),
+            )
+            bindState()
+        }
+        binding.commitSuffixNoneButton.setOnClickListener {
+            configStore.saveCommitSuffixMode(CommitSuffixMode.None)
+            bindState()
+        }
+        binding.commitSuffixSpaceButton.setOnClickListener {
+            configStore.saveCommitSuffixMode(CommitSuffixMode.Space)
+            bindState()
+        }
+        binding.commitSuffixNewlineButton.setOnClickListener {
+            configStore.saveCommitSuffixMode(CommitSuffixMode.Newline)
             bindState()
         }
     }
@@ -48,16 +121,49 @@ class SettingsActivity : AppCompatActivity() {
             this,
             Manifest.permission.RECORD_AUDIO,
         ) == PackageManager.PERMISSION_GRANTED
+        val imeStatus = queryImeStatus(this)
 
         binding.permissionStatusText.text = getString(
             if (granted) com.shinsoku.mobile.R.string.permission_status_granted
             else com.shinsoku.mobile.R.string.permission_status_missing,
         )
+        binding.keyboardEnabledStatusText.text = getString(
+            if (imeStatus.enabled) com.shinsoku.mobile.R.string.keyboard_enabled_status
+            else com.shinsoku.mobile.R.string.keyboard_disabled_status,
+        )
+        binding.keyboardSelectedStatusText.text = getString(
+            if (imeStatus.selected) com.shinsoku.mobile.R.string.keyboard_selected_status
+            else com.shinsoku.mobile.R.string.keyboard_not_selected_status,
+        )
         binding.autoCommitSwitch.isChecked = profile.autoCommit
-        binding.appendTrailingSpaceSwitch.isChecked = profile.appendTrailingSpace
+        binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         val languageText = profile.languageTag.orEmpty()
         if (binding.languageTagEdit.text?.toString() != languageText) {
             binding.languageTagEdit.setText(languageText)
+        }
+        binding.commitSuffixNoneButton.isChecked = profile.commitSuffixMode == CommitSuffixMode.None
+        binding.commitSuffixSpaceButton.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
+        binding.commitSuffixNewlineButton.isChecked = profile.commitSuffixMode == CommitSuffixMode.Newline
+        binding.currentBehaviorSummaryText.text = getString(
+            com.shinsoku.mobile.R.string.behavior_summary_template,
+            if (profile.autoCommit) getString(com.shinsoku.mobile.R.string.behavior_auto_commit_on)
+            else getString(com.shinsoku.mobile.R.string.behavior_auto_commit_off),
+            when (profile.commitSuffixMode) {
+                CommitSuffixMode.None -> getString(com.shinsoku.mobile.R.string.commit_suffix_none)
+                CommitSuffixMode.Space -> getString(com.shinsoku.mobile.R.string.commit_suffix_space)
+                CommitSuffixMode.Newline -> getString(com.shinsoku.mobile.R.string.commit_suffix_newline)
+            },
+            profile.languageTag ?: getString(com.shinsoku.mobile.R.string.language_auto_label),
+        )
+        binding.recommendedPresetText.text = when {
+            !profile.autoCommit && profile.commitSuffixMode == CommitSuffixMode.None ->
+                getString(com.shinsoku.mobile.R.string.preset_review_summary)
+            profile.autoCommit && profile.commitSuffixMode == CommitSuffixMode.Newline ->
+                getString(com.shinsoku.mobile.R.string.preset_chat_summary)
+            profile.autoCommit && profile.commitSuffixMode == CommitSuffixMode.Space ->
+                getString(com.shinsoku.mobile.R.string.preset_dictation_summary)
+            else ->
+                getString(com.shinsoku.mobile.R.string.preset_custom_summary)
         }
     }
 }

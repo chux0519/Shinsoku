@@ -66,10 +66,40 @@ class VoiceInputControllerTest {
         assertEquals(emptyList(), observer.commits)
     }
 
+    @Test
+    fun `manual commit mode keeps transcript pending until confirmed`() {
+        val engine = FakeVoiceInputEngine()
+        val observer = RecordingObserver()
+        val controller = VoiceInputController(
+            engine = engine,
+            configStore = object : VoiceInputConfigStore {
+                override fun loadProfile(): VoiceInputProfile = VoiceInputProfile(
+                    autoCommit = false,
+                    commitSuffixMode = CommitSuffixMode.Newline,
+                )
+            },
+            observer = observer,
+        )
+
+        controller.onMicTapped()
+        engine.dispatchFinal("hello world")
+
+        assertEquals(
+            VoiceInputUiState.PendingCommit("hello world\n"),
+            observer.states.last(),
+        )
+        assertEquals(emptyList(), observer.commits)
+
+        controller.commitPending()
+
+        assertEquals(listOf(VoiceInputCommit("hello world\n")), observer.commits)
+        assertEquals(VoiceInputUiState.Idle, observer.states.last())
+    }
+
     private class FakeConfigStore : VoiceInputConfigStore {
         override fun loadProfile(): VoiceInputProfile = VoiceInputProfile(
             autoCommit = true,
-            appendTrailingSpace = true,
+            commitSuffixMode = CommitSuffixMode.Space,
         )
     }
 

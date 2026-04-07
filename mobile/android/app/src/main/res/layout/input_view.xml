@@ -24,6 +24,22 @@
         android:text="@string/ime_mic" />
 
     <Button
+        android:id="@+id/insertButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/ime_insert"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/clearButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/ime_clear"
+        android:visibility="gone" />
+
+    <Button
         android:id="@+id/spaceButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

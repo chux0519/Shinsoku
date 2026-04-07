@@ -12,15 +12,22 @@ voice-input product surface.
 
 - debug builds via `./gradlew assembleDebug`
 - an installable IME app shell
+- a launcher app that surfaces:
+  - microphone permission state
+  - keyboard enabled/selected state
+  - the currently active voice-input behavior summary
 - a keyboard service that can:
   - start Android speech recognition from the mic button
   - show partial recognition text in the IME header
-  - commit the final recognized text into the current editor
-  - append a trailing space when configured
+  - auto-commit the final recognized text into the current editor
+  - hold recognized text in a pending state and expose `Insert` / `Clear`
+    actions when review-before-insert is enabled
 - a settings screen for:
   - microphone permission
+  - keyboard enablement and picker shortcuts
   - auto-commit toggle
-  - trailing-space toggle
+  - commit suffix selection: none / space / newline
+  - workflow presets: dictation / chat / review-before-insert
   - optional language tag
 
 ### Local development
@@ -29,6 +36,7 @@ voice-input product surface.
 cd mobile/android
 ./gradlew assembleDebug
 ./gradlew :speechcore:test
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 The local Android SDK path is intentionally excluded from git via
@@ -39,3 +47,15 @@ The local Android SDK path is intentionally excluded from git via
 - move more backend/config/profile logic into mobile-safe shared code
 - replace Android's built-in recognizer with Shinsoku-managed speech backends
 - add provider configuration and profile selection to the mobile shell
+
+### Recommended manual test flow
+
+1. Install the debug APK.
+2. Open the app and grant microphone permission.
+3. Enable `Shinsoku Voice Input` in Android keyboard settings.
+4. Use Settings to switch among:
+   - `Dictation`: auto-commit + trailing space
+   - `Chat`: auto-commit + newline
+   - `Review`: pending transcript until `Insert`
+5. Switch to the IME in any text field and verify each mode behaves as
+   configured.

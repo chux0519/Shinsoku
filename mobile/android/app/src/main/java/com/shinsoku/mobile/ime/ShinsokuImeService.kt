@@ -15,6 +15,8 @@ import com.shinsoku.mobile.speechcore.VoiceInputUiState
 class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var titleView: TextView? = null
     private var micButton: Button? = null
+    private var insertButton: Button? = null
+    private var clearButton: Button? = null
     private var controller: VoiceInputController? = null
 
     override fun onCreate() {
@@ -30,12 +32,20 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         val view = LayoutInflater.from(this).inflate(R.layout.input_view, null, false)
         titleView = view.findViewById(R.id.imeTitle)
         micButton = view.findViewById(R.id.micButton)
+        insertButton = view.findViewById(R.id.insertButton)
+        clearButton = view.findViewById(R.id.clearButton)
         val space = view.findViewById<Button>(R.id.spaceButton)
         val backspace = view.findViewById<Button>(R.id.backspaceButton)
 
         titleView?.text = getString(R.string.ime_title_idle)
         micButton?.setOnClickListener {
             controller?.onMicTapped()
+        }
+        insertButton?.setOnClickListener {
+            controller?.commitPending()
+        }
+        clearButton?.setOnClickListener {
+            controller?.discardPending()
         }
         space.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
@@ -63,6 +73,8 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             is VoiceInputUiState.Idle -> {
                 titleView?.text = getString(R.string.ime_title_idle)
                 micButton?.text = getString(R.string.ime_mic)
+                insertButton?.visibility = View.GONE
+                clearButton?.visibility = View.GONE
             }
 
             is VoiceInputUiState.Listening -> {
@@ -72,16 +84,29 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                     state.partialTranscript
                 }
                 micButton?.text = getString(R.string.ime_stop)
+                insertButton?.visibility = View.GONE
+                clearButton?.visibility = View.GONE
             }
 
             is VoiceInputUiState.Processing -> {
                 titleView?.text = getString(R.string.ime_title_processing)
                 micButton?.text = getString(R.string.ime_stop)
+                insertButton?.visibility = View.GONE
+                clearButton?.visibility = View.GONE
+            }
+
+            is VoiceInputUiState.PendingCommit -> {
+                titleView?.text = state.text.trimEnd('\n', ' ')
+                micButton?.text = getString(R.string.ime_mic)
+                insertButton?.visibility = View.VISIBLE
+                clearButton?.visibility = View.VISIBLE
             }
 
             is VoiceInputUiState.Error -> {
                 titleView?.text = state.message
                 micButton?.text = getString(R.string.ime_retry)
+                insertButton?.visibility = View.GONE
+                clearButton?.visibility = View.GONE
             }
         }
     }
