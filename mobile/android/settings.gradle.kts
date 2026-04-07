@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ShinsokuAndroid"
 include(":app")
+include(":speechcore")

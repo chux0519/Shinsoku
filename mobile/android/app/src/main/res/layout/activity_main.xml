@@ -26,6 +26,45 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/titleText" />
 
+    <TextView
+        android:id="@+id/permissionStatusText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/bodyText" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/requestPermissionButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/request_microphone_permission"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/permissionStatusText" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/openKeyboardSettingsButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/open_keyboard_settings"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/requestPermissionButton" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/openInputMethodPickerButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/open_input_method_picker"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/openKeyboardSettingsButton" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/openSettingsButton"
         android:layout_width="wrap_content"
@@ -33,6 +72,6 @@
         android:layout_marginTop="24dp"
         android:text="@string/open_settings"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/bodyText" />
+        app:layout_constraintTop_toBottomOf="@id/openInputMethodPickerButton" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
