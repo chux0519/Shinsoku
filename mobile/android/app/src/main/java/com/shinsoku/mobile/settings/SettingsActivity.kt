@@ -13,6 +13,7 @@ import com.shinsoku.mobile.databinding.ActivitySettingsBinding
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.speechcore.CommitSuffixMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
+import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
@@ -64,36 +65,15 @@ class SettingsActivity : AppCompatActivity() {
             bindState()
         }
         binding.applyDictationPresetButton.setOnClickListener {
-            configStore.saveProfile(
-                VoiceInputProfile(
-                    displayName = "Dictation",
-                    autoCommit = true,
-                    commitSuffixMode = CommitSuffixMode.Space,
-                    languageTag = null,
-                ),
-            )
+            configStore.saveProfile(VoiceInputProfiles.dictation)
             bindState()
         }
         binding.applyChatPresetButton.setOnClickListener {
-            configStore.saveProfile(
-                VoiceInputProfile(
-                    displayName = "Chat",
-                    autoCommit = true,
-                    commitSuffixMode = CommitSuffixMode.Newline,
-                    languageTag = null,
-                ),
-            )
+            configStore.saveProfile(VoiceInputProfiles.chat)
             bindState()
         }
         binding.applyReviewPresetButton.setOnClickListener {
-            configStore.saveProfile(
-                VoiceInputProfile(
-                    displayName = "Review Before Insert",
-                    autoCommit = false,
-                    commitSuffixMode = CommitSuffixMode.None,
-                    languageTag = null,
-                ),
-            )
+            configStore.saveProfile(VoiceInputProfiles.review)
             bindState()
         }
         binding.commitSuffixNoneButton.setOnClickListener {
@@ -135,6 +115,7 @@ class SettingsActivity : AppCompatActivity() {
             if (imeStatus.selected) com.shinsoku.mobile.R.string.keyboard_selected_status
             else com.shinsoku.mobile.R.string.keyboard_not_selected_status,
         )
+        binding.activeProfileText.text = getString(com.shinsoku.mobile.R.string.active_profile_template, profile.displayName)
         binding.autoCommitSwitch.isChecked = profile.autoCommit
         binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         val languageText = profile.languageTag.orEmpty()
@@ -156,11 +137,11 @@ class SettingsActivity : AppCompatActivity() {
             profile.languageTag ?: getString(com.shinsoku.mobile.R.string.language_auto_label),
         )
         binding.recommendedPresetText.text = when {
-            !profile.autoCommit && profile.commitSuffixMode == CommitSuffixMode.None ->
+            profile.id == VoiceInputProfiles.review.id ->
                 getString(com.shinsoku.mobile.R.string.preset_review_summary)
-            profile.autoCommit && profile.commitSuffixMode == CommitSuffixMode.Newline ->
+            profile.id == VoiceInputProfiles.chat.id ->
                 getString(com.shinsoku.mobile.R.string.preset_chat_summary)
-            profile.autoCommit && profile.commitSuffixMode == CommitSuffixMode.Space ->
+            profile.id == VoiceInputProfiles.dictation.id ->
                 getString(com.shinsoku.mobile.R.string.preset_dictation_summary)
             else ->
                 getString(com.shinsoku.mobile.R.string.preset_custom_summary)

@@ -5,6 +5,9 @@ import android.provider.Settings
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.shinsoku.mobile.databinding.ActivityMainBinding
+import com.shinsoku.mobile.speechcore.VoiceInputProfiles
+import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
+import com.shinsoku.mobile.history.HistoryActivity
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
@@ -18,6 +21,7 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var configStore: AndroidVoiceInputConfigStore
+    private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private val requestMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             bindState()
@@ -28,6 +32,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         configStore = AndroidVoiceInputConfigStore(this)
+        historyStore = AndroidVoiceInputHistoryStore(this)
 
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -41,6 +46,21 @@ class MainActivity : AppCompatActivity() {
         }
         binding.openSettingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        binding.openHistoryButton.setOnClickListener {
+            startActivity(Intent(this, HistoryActivity::class.java))
+        }
+        binding.applyDictationPresetButton.setOnClickListener {
+            configStore.saveProfile(VoiceInputProfiles.dictation)
+            bindState()
+        }
+        binding.applyChatPresetButton.setOnClickListener {
+            configStore.saveProfile(VoiceInputProfiles.chat)
+            bindState()
+        }
+        binding.applyReviewPresetButton.setOnClickListener {
+            configStore.saveProfile(VoiceInputProfiles.review)
+            bindState()
         }
     }
 
@@ -76,5 +96,17 @@ class MainActivity : AppCompatActivity() {
             },
             profile.languageTag ?: getString(R.string.language_auto_label),
         )
+        binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
+        binding.mainPresetSummaryText.text = when (profile.id) {
+            VoiceInputProfiles.dictation.id -> getString(R.string.preset_dictation_summary)
+            VoiceInputProfiles.chat.id -> getString(R.string.preset_chat_summary)
+            VoiceInputProfiles.review.id -> getString(R.string.preset_review_summary)
+            else -> getString(R.string.preset_custom_summary)
+        }
+        binding.applyDictationPresetButton.isChecked = profile.id == VoiceInputProfiles.dictation.id
+        binding.applyChatPresetButton.isChecked = profile.id == VoiceInputProfiles.chat.id
+        binding.applyReviewPresetButton.isChecked = profile.id == VoiceInputProfiles.review.id
+        val latestEntry = historyStore.listEntries(limit = 1).firstOrNull()
+        binding.recentHistoryPreviewText.text = latestEntry?.text ?: getString(R.string.history_empty)
     }
 }

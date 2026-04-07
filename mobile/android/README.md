@@ -15,13 +15,16 @@ voice-input product surface.
 - a launcher app that surfaces:
   - microphone permission state
   - keyboard enabled/selected state
-  - the currently active voice-input behavior summary
+  - the currently active profile and voice-input behavior summary
+  - quick workflow switching for dictation / chat / review
+  - a recent history preview
 - a keyboard service that can:
   - start Android speech recognition from the mic button
   - show partial recognition text in the IME header
   - auto-commit the final recognized text into the current editor
   - hold recognized text in a pending state and expose `Insert` / `Clear`
     actions when review-before-insert is enabled
+- an on-device history store for committed voice-input snippets
 - a settings screen for:
   - microphone permission
   - keyboard enablement and picker shortcuts
@@ -46,7 +49,7 @@ The local Android SDK path is intentionally excluded from git via
 
 - move more backend/config/profile logic into mobile-safe shared code
 - replace Android's built-in recognizer with Shinsoku-managed speech backends
-- add provider configuration and profile selection to the mobile shell
+- add provider configuration to the mobile shell
 
 ### Recommended manual test flow
 

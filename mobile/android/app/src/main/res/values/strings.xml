@@ -5,6 +5,7 @@
     <string name="mobile_shell_title">Shinsoku Mobile Shell</string>
     <string name="mobile_shell_body">This app configures the Android voice input method and will eventually host provider setup, profiles, and history.</string>
     <string name="open_settings">Open Settings</string>
+    <string name="open_history">Open History</string>
     <string name="open_keyboard_settings">Open keyboard settings</string>
     <string name="open_input_method_picker">Open input method picker</string>
     <string name="request_microphone_permission">Grant microphone permission</string>
@@ -14,7 +15,9 @@
     <string name="keyboard_disabled_status">Shinsoku input method is not enabled yet.</string>
     <string name="keyboard_selected_status">Shinsoku is currently selected as the active keyboard.</string>
     <string name="keyboard_not_selected_status">Shinsoku is not the currently selected keyboard.</string>
+    <string name="active_profile_template">Active profile: %1$s</string>
     <string name="status_card_title">Current device status</string>
+    <string name="recent_history_title">Recent voice input</string>
     <string name="settings_title">Settings</string>
     <string name="settings_body">These controls back the shared mobile voice-input core. They decide how recognized speech is committed from the IME.</string>
     <string name="workflow_presets_title">Workflow presets</string>
@@ -42,6 +45,13 @@
     <string name="commit_suffix_newline">newline</string>
     <string name="behavior_summary_template">Commit: %1$s • Spacing: %2$s • Language: %3$s</string>
     <string name="test_editor_hint">Quick local test field. After enabling the keyboard, switch to Shinsoku and dictate into this editor.</string>
+    <string name="history_title">History</string>
+    <string name="history_body">Recent committed voice-input snippets stay on-device so you can verify behavior and recover phrases you dictated a moment ago.</string>
+    <string name="clear_history">Clear history</string>
+    <string name="history_empty">No committed voice input yet.</string>
+    <string name="history_mode_auto">auto</string>
+    <string name="history_mode_review">review</string>
+    <string name="history_meta_template">%1$s • %2$s • %3$s • %4$s</string>
     <string name="ime_title_idle">Shinsoku</string>
     <string name="ime_title_listening">Listening…</string>
     <string name="ime_title_processing">Processing…</string>

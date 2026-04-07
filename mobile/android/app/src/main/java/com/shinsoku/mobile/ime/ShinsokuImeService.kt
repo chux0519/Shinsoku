@@ -6,11 +6,14 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import com.shinsoku.mobile.R
+import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
+import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
+import java.util.UUID
 
 class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var titleView: TextView? = null
@@ -18,12 +21,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var insertButton: Button? = null
     private var clearButton: Button? = null
     private var controller: VoiceInputController? = null
+    private lateinit var configStore: AndroidVoiceInputConfigStore
+    private lateinit var historyStore: AndroidVoiceInputHistoryStore
 
     override fun onCreate() {
         super.onCreate()
+        configStore = AndroidVoiceInputConfigStore(this)
+        historyStore = AndroidVoiceInputHistoryStore(this)
         controller = VoiceInputController(
             engine = AndroidSpeechRecognizerEngine(this),
-            configStore = AndroidVoiceInputConfigStore(this),
+            configStore = configStore,
             observer = this,
         )
     }
@@ -113,5 +120,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     override fun onCommitRequested(commit: VoiceInputCommit) {
         currentInputConnection?.commitText(commit.text, 1)
+        val profile = configStore.loadProfile()
+        historyStore.appendEntry(
+            VoiceInputHistoryEntry(
+                id = UUID.randomUUID().toString(),
+                text = commit.text,
+                committedAtEpochMillis = System.currentTimeMillis(),
+                autoCommit = profile.autoCommit,
+                commitSuffixMode = profile.commitSuffixMode,
+                languageTag = profile.languageTag,
+            ),
+        )
     }
 }
