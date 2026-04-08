@@ -28,7 +28,8 @@ class AndroidVoicePostProcessor(
     context: Context,
 ) : VoiceTranscriptPostProcessor {
     companion object {
-        private const val POST_PROCESSING_TIMEOUT_SECONDS = 20L
+        private const val POST_PROCESSING_TIMEOUT_SECONDS = 45L
+        private const val POST_PROCESSING_MAX_TOKENS = 256
     }
 
     private val appContext = context.applicationContext
@@ -37,6 +38,9 @@ class AndroidVoicePostProcessor(
     private val client = OkHttpClient.Builder()
         .dns(com.shinsoku.mobile.ime.ShinsokuDns)
         .callTimeout(POST_PROCESSING_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(POST_PROCESSING_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
     override fun process(
@@ -119,6 +123,8 @@ class AndroidVoicePostProcessor(
             .put("model", model.ifBlank { "gpt-5.4-nano" })
             .put("messages", messages)
             .put("stream", false)
+            .put("max_tokens", POST_PROCESSING_MAX_TOKENS)
+            .put("temperature", 0.2)
             .toString()
 
         val endpoint = baseUrl.trimEnd('/') + "/chat/completions"
