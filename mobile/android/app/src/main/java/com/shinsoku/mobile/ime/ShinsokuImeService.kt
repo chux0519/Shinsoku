@@ -6,6 +6,7 @@ import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.Button
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -61,72 +62,85 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     override fun onCreateInputView(): View {
-        val view = LayoutInflater.from(this).inflate(R.layout.input_view, null, false)
-        titleView = view.findViewById(R.id.imeTitle)
-        subtitleView = view.findViewById(R.id.imeSubtitle)
-        micButton = view.findViewById(R.id.micButton)
-        insertButton = view.findViewById(R.id.insertButton)
-        clearButton = view.findViewById(R.id.clearButton)
-        dictationButton = view.findViewById(R.id.imeDictationButton)
-        chatButton = view.findViewById(R.id.imeChatButton)
-        reviewButton = view.findViewById(R.id.imeReviewButton)
-        translateButton = view.findViewById(R.id.imeTranslateButton)
-        val space = view.findViewById<MaterialButton>(R.id.spaceButton)
-        val backspace = view.findViewById<MaterialButton>(R.id.backspaceButton)
-        val settingsButton = view.findViewById<MaterialButton>(R.id.imeSettingsButton)
+        return try {
+            val view = LayoutInflater.from(this).inflate(R.layout.input_view, null, false)
+            titleView = view.findViewById(R.id.imeTitle)
+            subtitleView = view.findViewById(R.id.imeSubtitle)
+            micButton = view.findViewById(R.id.micButton)
+            insertButton = view.findViewById(R.id.insertButton)
+            clearButton = view.findViewById(R.id.clearButton)
+            dictationButton = view.findViewById(R.id.imeDictationButton)
+            chatButton = view.findViewById(R.id.imeChatButton)
+            reviewButton = view.findViewById(R.id.imeReviewButton)
+            translateButton = view.findViewById(R.id.imeTranslateButton)
+            val space = view.findViewById<MaterialButton>(R.id.spaceButton)
+            val backspace = view.findViewById<MaterialButton>(R.id.backspaceButton)
+            val settingsButton = view.findViewById<MaterialButton>(R.id.imeSettingsButton)
 
-        titleView?.text = getString(R.string.ime_title_idle)
-        subtitleView?.text = getString(R.string.ime_subtitle_ready)
-        micButton?.setOnClickListener {
-            try {
-                if (controller?.currentState() !is VoiceInputUiState.Listening &&
-                    controller?.currentState() !is VoiceInputUiState.Processing
-                ) {
-                    rebuildController()
+            titleView?.text = getString(R.string.ime_title_idle)
+            subtitleView?.text = getString(R.string.ime_subtitle_ready)
+            micButton?.setOnClickListener {
+                try {
+                    if (controller?.currentState() !is VoiceInputUiState.Listening &&
+                        controller?.currentState() !is VoiceInputUiState.Processing
+                    ) {
+                        rebuildController()
+                    }
+                    controller?.onMicTapped()
+                } catch (error: Throwable) {
+                    Log.e(TAG, "IME mic tap failed", error)
+                    titleView?.text = error.message ?: "Voice input failed to start."
+                    micButton?.text = getString(R.string.ime_retry)
+                    insertButton?.visibility = View.GONE
+                    clearButton?.visibility = View.GONE
                 }
-                controller?.onMicTapped()
-            } catch (error: Throwable) {
-                Log.e(TAG, "IME mic tap failed", error)
-                titleView?.text = error.message ?: "Voice input failed to start."
-                micButton?.text = getString(R.string.ime_retry)
-                insertButton?.visibility = View.GONE
-                clearButton?.visibility = View.GONE
             }
+            insertButton?.setOnClickListener {
+                controller?.commitPending()
+            }
+            clearButton?.setOnClickListener {
+                controller?.discardPending()
+            }
+            space.setOnClickListener {
+                currentInputConnection?.commitText(" ", 1)
+            }
+            backspace.setOnClickListener {
+                currentInputConnection?.deleteSurroundingText(1, 0)
+            }
+            settingsButton.setOnClickListener {
+                startActivity(
+                    Intent(this, SettingsActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
+                )
+            }
+            dictationButton?.setOnClickListener {
+                applyProfile(VoiceInputProfiles.dictation)
+            }
+            chatButton?.setOnClickListener {
+                applyProfile(VoiceInputProfiles.chat)
+            }
+            reviewButton?.setOnClickListener {
+                applyProfile(VoiceInputProfiles.review)
+            }
+            translateButton?.setOnClickListener {
+                applyProfile(VoiceInputProfiles.translateChineseToEnglish)
+            }
+            bindPresetButtons(configStore.loadProfile())
+            view
+        } catch (error: Throwable) {
+            Log.e(TAG, "Failed to inflate IME view", error)
+            titleView = null
+            subtitleView = null
+            micButton = null
+            insertButton = null
+            clearButton = null
+            dictationButton = null
+            chatButton = null
+            reviewButton = null
+            translateButton = null
+            createFallbackInputView(error)
         }
-        insertButton?.setOnClickListener {
-            controller?.commitPending()
-        }
-        clearButton?.setOnClickListener {
-            controller?.discardPending()
-        }
-        space.setOnClickListener {
-            currentInputConnection?.commitText(" ", 1)
-        }
-        backspace.setOnClickListener {
-            currentInputConnection?.deleteSurroundingText(1, 0)
-        }
-        settingsButton.setOnClickListener {
-            startActivity(
-                Intent(this, SettingsActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                },
-            )
-        }
-        dictationButton?.setOnClickListener {
-            applyProfile(VoiceInputProfiles.dictation)
-        }
-        chatButton?.setOnClickListener {
-            applyProfile(VoiceInputProfiles.chat)
-        }
-        reviewButton?.setOnClickListener {
-            applyProfile(VoiceInputProfiles.review)
-        }
-        translateButton?.setOnClickListener {
-            applyProfile(VoiceInputProfiles.translateChineseToEnglish)
-        }
-        bindPresetButtons(configStore.loadProfile())
-
-        return view
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -271,4 +285,25 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     private fun currentProfileLabel(): String = configStore.loadProfile().displayName
+
+    private fun createFallbackInputView(error: Throwable): View {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
+        }
+        val title = TextView(this).apply {
+            text = getString(R.string.ime_title_idle)
+        }
+        val message = TextView(this).apply {
+            text = error.message ?: "Input view failed to load."
+        }
+        val retry = Button(this).apply {
+            text = getString(R.string.ime_retry)
+            setOnClickListener { rebuildController() }
+        }
+        root.addView(title)
+        root.addView(message)
+        root.addView(retry)
+        return root
+    }
 }
