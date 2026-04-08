@@ -30,6 +30,23 @@
         <item name="materialButtonStyle">@style/Widget.Shinsoku.Button</item>
     </style>
 
+    <style name="Theme.Shinsoku.Ime" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/shinsoku_primary</item>
+        <item name="colorOnPrimary">@color/shinsoku_on_primary</item>
+        <item name="colorSecondary">@color/shinsoku_text</item>
+        <item name="colorOnSecondary">@color/shinsoku_surface</item>
+        <item name="colorSurface">@color/shinsoku_surface</item>
+        <item name="colorOnSurface">@color/shinsoku_text</item>
+        <item name="colorError">@color/shinsoku_error</item>
+        <item name="colorOnError">@color/shinsoku_surface</item>
+        <item name="android:windowBackground">@color/shinsoku_bg</item>
+        <item name="android:colorBackground">@color/shinsoku_bg</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Shinsoku.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Shinsoku.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Shinsoku.Large</item>
+        <item name="materialButtonStyle">@style/Widget.Shinsoku.Button</item>
+    </style>
+
     <style name="ShapeAppearance.Shinsoku.Small" parent="ShapeAppearance.Material3.Corner.Small">
         <item name="cornerSize">12dp</item>
     </style>
