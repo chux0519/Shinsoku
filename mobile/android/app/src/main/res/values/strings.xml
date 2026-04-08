@@ -34,6 +34,8 @@
     <string name="post_processing_hint_disabled">Do not modify recognized text after transcription. Shinsoku inserts the raw transcript directly.</string>
     <string name="post_processing_hint_local_cleanup">Apply only on-device cleanup such as whitespace and punctuation normalization.</string>
     <string name="post_processing_hint_provider_assisted">Run local cleanup first, then send the transcript to the configured OpenAI-compatible backend for correction.</string>
+    <string name="post_processing_timeout_fallback">Post-processing took too long. Shinsoku inserted the cleaned transcript instead.</string>
+    <string name="post_processing_failure_fallback">Post-processing failed. Shinsoku inserted the cleaned transcript instead.</string>
     <string name="status_card_title">Current device status</string>
     <string name="recent_history_title">Recent voice input</string>
     <string name="voice_lab_title">Voice lab</string>
@@ -111,6 +113,8 @@
     <string name="history_mode_auto">auto</string>
     <string name="history_mode_review">review</string>
     <string name="history_meta_template">%1$s • %2$s • %3$s • %4$s • %5$s</string>
+    <string name="history_detail_template">Profile: %1$s\nTransform: %2$s\nPost-processing: %3$s\nDebug: %4$s</string>
+    <string name="history_detail_none">none</string>
     <string name="ime_title_idle">Shinsoku</string>
     <string name="ime_title_listening">Listening…</string>
     <string name="ime_title_processing">Processing…</string>

@@ -1,6 +1,10 @@
 package com.shinsoku.mobile.processing
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
+import com.shinsoku.mobile.R
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
@@ -16,15 +20,18 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class AndroidVoicePostProcessor(
     context: Context,
 ) : VoiceTranscriptPostProcessor {
+    private val appContext = context.applicationContext
     private val runtimeConfigStore = AndroidVoiceRuntimeConfigStore(context)
     private val executor = Executors.newSingleThreadExecutor()
     private val client = OkHttpClient.Builder()
         .dns(com.shinsoku.mobile.ime.ShinsokuDns)
+        .callTimeout(8, TimeUnit.SECONDS)
         .build()
 
     override fun process(
@@ -62,6 +69,7 @@ class AndroidVoicePostProcessor(
                     "Provider-assisted post-processing failed, falling back to local cleanup",
                     error,
                 )
+                showFallbackHint(error)
                 callback.onSuccess(cleaned)
             }
         }
@@ -126,6 +134,17 @@ class AndroidVoicePostProcessor(
                 ?.optString("content")
                 ?.trim()
                 .orEmpty()
+        }
+    }
+
+    private fun showFallbackHint(error: Throwable) {
+        val messageRes = if ((error.message ?: "").contains("timeout", ignoreCase = true)) {
+            R.string.post_processing_timeout_fallback
+        } else {
+            R.string.post_processing_failure_fallback
+        }
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(appContext, appContext.getString(messageRes), Toast.LENGTH_SHORT).show()
         }
     }
 }

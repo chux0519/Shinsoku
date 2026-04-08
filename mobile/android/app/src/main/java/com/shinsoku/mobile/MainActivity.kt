@@ -266,15 +266,31 @@ class MainActivity : AppCompatActivity() {
 
     private fun appendHistory(commit: VoiceInputCommit) {
         val profile = configStore.loadProfile()
+        val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         historyStore.appendEntry(
             VoiceInputHistoryEntry(
                 id = UUID.randomUUID().toString(),
                 text = commit.text,
                 committedAtEpochMillis = System.currentTimeMillis(),
                 provider = providerLabel(providerConfigStore.load().activeRecognitionProvider),
+                profileName = profile.displayName,
+                transformMode = profile.transform.mode.name,
+                postProcessingMode = runtimeConfig.postProcessingConfig.mode.name,
                 autoCommit = profile.autoCommit,
                 commitSuffixMode = profile.commitSuffixMode,
                 languageTag = profile.languageTag,
+                debugDetail = buildString {
+                    append("request_format=")
+                    append(profile.transform.requestFormat.name)
+                    append(", transform_enabled=")
+                    append(profile.transform.enabled)
+                    if (profile.transform.mode == VoiceTransformMode.Translation) {
+                        append(", source=")
+                        append(profile.transform.translationSourceLanguage)
+                        append(", target=")
+                        append(profile.transform.translationTargetLanguage)
+                    }
+                },
             ),
         )
     }

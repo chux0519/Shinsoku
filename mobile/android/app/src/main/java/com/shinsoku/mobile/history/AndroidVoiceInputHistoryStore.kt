@@ -32,9 +32,13 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
             val textIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_TEXT)
             val committedAtIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_COMMITTED_AT_EPOCH_MILLIS)
             val providerIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_PROVIDER)
+            val profileNameIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_PROFILE_NAME)
+            val transformModeIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_TRANSFORM_MODE)
+            val postProcessingModeIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_POST_PROCESSING_MODE)
             val autoCommitIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_AUTO_COMMIT)
             val suffixModeIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_COMMIT_SUFFIX_MODE)
             val languageTagIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_LANGUAGE_TAG)
+            val debugDetailIndex = cursor.getColumnIndexOrThrow(VoiceInputHistorySchema.COLUMN_DEBUG_DETAIL)
 
             while (cursor.moveToNext()) {
                 entries += VoiceInputHistoryEntry(
@@ -42,12 +46,16 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
                     text = cursor.getString(textIndex),
                     committedAtEpochMillis = cursor.getLong(committedAtIndex),
                     provider = cursor.getString(providerIndex),
+                    profileName = cursor.getString(profileNameIndex),
+                    transformMode = cursor.getString(transformModeIndex),
+                    postProcessingMode = cursor.getString(postProcessingModeIndex),
                     autoCommit = cursor.getInt(autoCommitIndex) != 0,
                     commitSuffixMode = cursor.getString(suffixModeIndex)
                         ?.takeIf { it.isNotBlank() }
                         ?.let { runCatching { CommitSuffixMode.valueOf(it) }.getOrNull() }
                         ?: CommitSuffixMode.Space,
                     languageTag = cursor.getString(languageTagIndex)?.takeIf { it.isNotBlank() },
+                    debugDetail = cursor.getString(debugDetailIndex)?.takeIf { it.isNotBlank() },
                 )
             }
         }
@@ -121,12 +129,16 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
                     text = item.optString("text"),
                     committedAtEpochMillis = item.optLong("committedAtEpochMillis"),
                     provider = item.optString("provider"),
+                    profileName = item.optString("profileName").ifBlank { "Legacy" },
+                    transformMode = item.optString("transformMode").ifBlank { "cleanup" },
+                    postProcessingMode = item.optString("postProcessingMode").ifBlank { "local_cleanup" },
                     autoCommit = item.optBoolean("autoCommit"),
                     commitSuffixMode = item.optString("commitSuffixMode")
                         .takeIf { it.isNotBlank() }
                         ?.let { runCatching { CommitSuffixMode.valueOf(it) }.getOrNull() }
                         ?: CommitSuffixMode.Space,
                     languageTag = item.optString("languageTag").takeIf { it.isNotBlank() },
+                    debugDetail = item.optString("debugDetail").takeIf { it.isNotBlank() },
                 )
                 database.writableDatabase.insertWithOnConflict(
                     VoiceInputHistorySchema.TABLE_HISTORY,
@@ -156,9 +168,13 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
             put(VoiceInputHistorySchema.COLUMN_TEXT, text)
             put(VoiceInputHistorySchema.COLUMN_COMMITTED_AT_EPOCH_MILLIS, committedAtEpochMillis)
             put(VoiceInputHistorySchema.COLUMN_PROVIDER, provider)
+            put(VoiceInputHistorySchema.COLUMN_PROFILE_NAME, profileName)
+            put(VoiceInputHistorySchema.COLUMN_TRANSFORM_MODE, transformMode)
+            put(VoiceInputHistorySchema.COLUMN_POST_PROCESSING_MODE, postProcessingMode)
             put(VoiceInputHistorySchema.COLUMN_AUTO_COMMIT, if (autoCommit) 1 else 0)
             put(VoiceInputHistorySchema.COLUMN_COMMIT_SUFFIX_MODE, commitSuffixMode.name)
             put(VoiceInputHistorySchema.COLUMN_LANGUAGE_TAG, languageTag.orEmpty())
+            put(VoiceInputHistorySchema.COLUMN_DEBUG_DETAIL, debugDetail.orEmpty())
         }
 
     private class HistoryDatabase(
@@ -177,9 +193,13 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
                     ${VoiceInputHistorySchema.COLUMN_TEXT} TEXT NOT NULL,
                     ${VoiceInputHistorySchema.COLUMN_COMMITTED_AT_EPOCH_MILLIS} INTEGER NOT NULL,
                     ${VoiceInputHistorySchema.COLUMN_PROVIDER} TEXT NOT NULL,
+                    ${VoiceInputHistorySchema.COLUMN_PROFILE_NAME} TEXT NOT NULL,
+                    ${VoiceInputHistorySchema.COLUMN_TRANSFORM_MODE} TEXT NOT NULL,
+                    ${VoiceInputHistorySchema.COLUMN_POST_PROCESSING_MODE} TEXT NOT NULL,
                     ${VoiceInputHistorySchema.COLUMN_AUTO_COMMIT} INTEGER NOT NULL,
                     ${VoiceInputHistorySchema.COLUMN_COMMIT_SUFFIX_MODE} TEXT NOT NULL,
-                    ${VoiceInputHistorySchema.COLUMN_LANGUAGE_TAG} TEXT NOT NULL
+                    ${VoiceInputHistorySchema.COLUMN_LANGUAGE_TAG} TEXT NOT NULL,
+                    ${VoiceInputHistorySchema.COLUMN_DEBUG_DETAIL} TEXT NOT NULL
                 )
                 """.trimIndent(),
             )
@@ -192,11 +212,20 @@ class AndroidVoiceInputHistoryStore(context: Context) : VoiceInputHistoryStore {
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            if (oldVersion == newVersion) {
-                return
+            if (oldVersion < 2) {
+                db.execSQL(
+                    "ALTER TABLE ${VoiceInputHistorySchema.TABLE_HISTORY} ADD COLUMN ${VoiceInputHistorySchema.COLUMN_PROFILE_NAME} TEXT NOT NULL DEFAULT 'Legacy'",
+                )
+                db.execSQL(
+                    "ALTER TABLE ${VoiceInputHistorySchema.TABLE_HISTORY} ADD COLUMN ${VoiceInputHistorySchema.COLUMN_TRANSFORM_MODE} TEXT NOT NULL DEFAULT 'cleanup'",
+                )
+                db.execSQL(
+                    "ALTER TABLE ${VoiceInputHistorySchema.TABLE_HISTORY} ADD COLUMN ${VoiceInputHistorySchema.COLUMN_POST_PROCESSING_MODE} TEXT NOT NULL DEFAULT 'local_cleanup'",
+                )
+                db.execSQL(
+                    "ALTER TABLE ${VoiceInputHistorySchema.TABLE_HISTORY} ADD COLUMN ${VoiceInputHistorySchema.COLUMN_DEBUG_DETAIL} TEXT NOT NULL DEFAULT ''",
+                )
             }
-            db.execSQL("DROP TABLE IF EXISTS ${VoiceInputHistorySchema.TABLE_HISTORY}")
-            onCreate(db)
         }
     }
 

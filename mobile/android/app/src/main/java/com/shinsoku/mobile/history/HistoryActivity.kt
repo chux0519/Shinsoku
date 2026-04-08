@@ -81,8 +81,21 @@ class HistoryActivity : AppCompatActivity() {
             setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
             setPadding(0, dp(10), 0, 0)
         }
+        val detailView = TextView(this).apply {
+            text = getString(
+                R.string.history_detail_template,
+                entry.profileName,
+                entry.transformMode,
+                entry.postProcessingMode,
+                entry.debugDetail ?: getString(R.string.history_detail_none),
+            )
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
+            setPadding(0, dp(8), 0, 0)
+            setTextIsSelectable(true)
+        }
         content.addView(textView)
         content.addView(metaView)
+        content.addView(detailView)
         card.addView(content)
         return card
     }

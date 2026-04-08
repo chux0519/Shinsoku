@@ -54,17 +54,28 @@ object VoiceTransformPromptBuilder {
             transform.translationTargetCode,
             fallback = "target",
         )
+        val sourceNoun = transform.translationSourceLanguage.trim().ifEmpty { sourceLabel }
+        val targetNoun = transform.translationTargetLanguage.trim().ifEmpty { targetLabel }
         val prompt = buildString {
             append("You are a professional ")
             append(sourceLabel)
             append(" to ")
             append(targetLabel)
-            append(" translator.\n")
-            append("Translate the user text accurately. Return only the translated text.\n")
-            append("Do not add commentary, notes, or markdown fences.")
+            append(" translator. Your goal is to accurately convey the meaning and nuances of the original ")
+            append(sourceNoun)
+            append(" text while adhering to ")
+            append(targetNoun)
+            append(" grammar, vocabulary, and cultural sensitivities.\n")
+            append("Produce only the ")
+            append(targetNoun)
+            append(" translation, without any additional explanations or commentary. Please translate the following ")
+            append(sourceNoun)
+            append(" text into ")
+            append(targetNoun)
+            append(":")
             val extra = transform.translationExtraInstructions.trim()
             if (extra.isNotEmpty()) {
-                append("\nAdditional instructions:\n")
+                append("\n")
                 append(extra)
             }
         }

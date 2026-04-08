@@ -28,7 +28,8 @@ class VoiceTransformPromptBuilderTest {
         assertEquals("你好世界", plan.userContent)
         assertTrue(plan.systemPrompt.contains("Chinese (zh)"))
         assertTrue(plan.systemPrompt.contains("English (en)"))
-        assertTrue(plan.systemPrompt.contains("translator"))
+        assertTrue(plan.systemPrompt.contains("Your goal is to accurately convey the meaning and nuances"))
+        assertTrue(plan.systemPrompt.contains("Please translate the following Chinese text into English:"))
     }
 
     @Test

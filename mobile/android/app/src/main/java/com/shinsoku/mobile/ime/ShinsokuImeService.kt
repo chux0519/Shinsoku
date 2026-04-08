@@ -10,6 +10,7 @@ import com.shinsoku.mobile.R
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
+import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
@@ -17,6 +18,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
+import com.shinsoku.mobile.speechcore.VoiceTransformMode
 import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
 import com.shinsoku.mobile.processing.NativeTranscriptCleanup
 import java.util.UUID
@@ -33,6 +35,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var controller: VoiceInputController? = null
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
+    private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
 
     override fun onCreate() {
@@ -40,6 +43,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         TranscriptCommitPlanner.nativeCommitPlanner = NativeTranscriptCleanup::planTranscriptCommit
         configStore = AndroidVoiceInputConfigStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
+        runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
         historyStore = AndroidVoiceInputHistoryStore(this)
         rebuildController()
     }
@@ -144,6 +148,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     override fun onCommitRequested(commit: VoiceInputCommit) {
         currentInputConnection?.commitText(commit.text, 1)
         val profile = configStore.loadProfile()
+        val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerLabel = when (providerConfigStore.load().activeRecognitionProvider) {
             VoiceRecognitionProvider.AndroidSystem -> "Android System"
             VoiceRecognitionProvider.OpenAiCompatible -> "OpenAI-Compatible"
@@ -156,9 +161,24 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 text = commit.text,
                 committedAtEpochMillis = System.currentTimeMillis(),
                 provider = providerLabel,
+                profileName = profile.displayName,
+                transformMode = profile.transform.mode.name,
+                postProcessingMode = runtimeConfig.postProcessingConfig.mode.name,
                 autoCommit = profile.autoCommit,
                 commitSuffixMode = profile.commitSuffixMode,
                 languageTag = profile.languageTag,
+                debugDetail = buildString {
+                    append("request_format=")
+                    append(profile.transform.requestFormat.name)
+                    append(", transform_enabled=")
+                    append(profile.transform.enabled)
+                    if (profile.transform.mode == VoiceTransformMode.Translation) {
+                        append(", source=")
+                        append(profile.transform.translationSourceLanguage)
+                        append(", target=")
+                        append(profile.transform.translationTargetLanguage)
+                    }
+                },
             ),
         )
     }
