@@ -51,14 +51,17 @@
                     android:textColor="@color/shinsoku_text_muted" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/imeSettingsButton"
-                style="@style/Widget.Shinsoku.Button.Outline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
+                android:background="@drawable/bg_ime_button_outline"
                 android:minWidth="0dp"
+                android:minHeight="40dp"
+                android:paddingLeft="14dp"
+                android:paddingTop="8dp"
+                android:paddingRight="14dp"
+                android:paddingBottom="8dp"
                 android:text="@string/ime_settings" />
         </LinearLayout>
 
@@ -73,35 +76,55 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
+                <Button
                     android:id="@+id/imeDictationButton"
-                    style="@style/Widget.Shinsoku.Button.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/bg_ime_button_chip"
+                    android:minHeight="36dp"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="6dp"
                     android:text="@string/ime_profile_dictation_short" />
 
-                <com.google.android.material.button.MaterialButton
+                <Button
                     android:id="@+id/imeChatButton"
-                    style="@style/Widget.Shinsoku.Button.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_ime_button_chip"
+                    android:minHeight="36dp"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="6dp"
                     android:text="@string/ime_profile_chat_short" />
 
-                <com.google.android.material.button.MaterialButton
+                <Button
                     android:id="@+id/imeReviewButton"
-                    style="@style/Widget.Shinsoku.Button.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_ime_button_chip"
+                    android:minHeight="36dp"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="6dp"
                     android:text="@string/ime_profile_review_short" />
 
-                <com.google.android.material.button.MaterialButton
+                <Button
                     android:id="@+id/imeTranslateButton"
-                    style="@style/Widget.Shinsoku.Button.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_ime_button_chip"
+                    android:minHeight="36dp"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="6dp"
                     android:text="@string/ime_profile_translate_short" />
             </LinearLayout>
         </HorizontalScrollView>
@@ -113,29 +136,33 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/micButton"
-                style="@style/Widget.Shinsoku.Button.Primary"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:background="@drawable/bg_ime_button_primary"
+                android:minHeight="44dp"
+                android:textColor="@color/shinsoku_on_primary"
                 android:text="@string/ime_mic" />
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/insertButton"
-                style="@style/Widget.Shinsoku.Button.Tonal"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:background="@drawable/bg_ime_button_tonal"
+                android:minHeight="40dp"
                 android:text="@string/ime_insert"
                 android:visibility="gone" />
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/clearButton"
-                style="@style/Widget.Shinsoku.Button.Outline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:background="@drawable/bg_ime_button_outline"
+                android:minHeight="40dp"
                 android:text="@string/ime_clear"
                 android:visibility="gone" />
         </LinearLayout>
@@ -154,20 +181,22 @@
                 android:textAppearance="?attr/textAppearanceLabelMedium"
                 android:textColor="@color/shinsoku_text_muted" />
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/spaceButton"
-                style="@style/Widget.Shinsoku.Button.Outline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
+                android:background="@drawable/bg_ime_button_outline"
+                android:minHeight="40dp"
                 android:text="@string/ime_space" />
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/backspaceButton"
-                style="@style/Widget.Shinsoku.Button.Outline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:background="@drawable/bg_ime_button_outline"
+                android:minHeight="40dp"
                 android:text="@string/ime_delete" />
         </LinearLayout>
     </LinearLayout>

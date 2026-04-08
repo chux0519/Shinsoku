@@ -1,13 +1,12 @@
 package com.shinsoku.mobile.ime
 
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.LinearLayout
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.shinsoku.mobile.R
@@ -16,7 +15,6 @@ import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
-import com.google.android.material.button.MaterialButton
 import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
@@ -38,13 +36,13 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     private var titleView: TextView? = null
     private var subtitleView: TextView? = null
-    private var micButton: MaterialButton? = null
-    private var insertButton: MaterialButton? = null
-    private var clearButton: MaterialButton? = null
-    private var dictationButton: MaterialButton? = null
-    private var chatButton: MaterialButton? = null
-    private var reviewButton: MaterialButton? = null
-    private var translateButton: MaterialButton? = null
+    private var micButton: Button? = null
+    private var insertButton: Button? = null
+    private var clearButton: Button? = null
+    private var dictationButton: Button? = null
+    private var chatButton: Button? = null
+    private var reviewButton: Button? = null
+    private var translateButton: Button? = null
     private var controller: VoiceInputController? = null
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
@@ -73,9 +71,9 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             chatButton = view.findViewById(R.id.imeChatButton)
             reviewButton = view.findViewById(R.id.imeReviewButton)
             translateButton = view.findViewById(R.id.imeTranslateButton)
-            val space = view.findViewById<MaterialButton>(R.id.spaceButton)
-            val backspace = view.findViewById<MaterialButton>(R.id.backspaceButton)
-            val settingsButton = view.findViewById<MaterialButton>(R.id.imeSettingsButton)
+            val space = view.findViewById<Button>(R.id.spaceButton)
+            val backspace = view.findViewById<Button>(R.id.backspaceButton)
+            val settingsButton = view.findViewById<Button>(R.id.imeSettingsButton)
 
             titleView?.text = getString(R.string.ime_title_idle)
             subtitleView?.text = getString(R.string.ime_subtitle_ready)
@@ -265,22 +263,21 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         bindPresetButton(translateButton, profile.id == VoiceInputProfiles.translateChineseToEnglish.id)
     }
 
-    private fun bindPresetButton(button: MaterialButton?, active: Boolean) {
+    private fun bindPresetButton(button: Button?, active: Boolean) {
         if (button == null) {
             return
         }
         val background = if (active) {
-            R.color.shinsoku_chip_active
+            R.drawable.bg_ime_button_chip_active
         } else {
-            R.color.shinsoku_chip_bg
+            R.drawable.bg_ime_button_chip
         }
         val foreground = if (active) {
             R.color.shinsoku_chip_active_text
         } else {
             R.color.shinsoku_text
         }
-        button.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, background))
-        button.strokeColor = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.shinsoku_border))
+        button.setBackgroundResource(background)
         button.setTextColor(ContextCompat.getColor(this, foreground))
     }
 
