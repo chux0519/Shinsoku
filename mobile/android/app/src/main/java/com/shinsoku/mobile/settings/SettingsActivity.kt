@@ -11,11 +11,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.shinsoku.mobile.databinding.ActivitySettingsBinding
+import com.shinsoku.mobile.ime.RecognitionProviderDiagnostics
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.speechcore.CommitSuffixMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
 import com.shinsoku.mobile.speechcore.VoiceInputProfiles
-import com.shinsoku.mobile.speechcore.VoiceProviderConfig
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 
 class SettingsActivity : AppCompatActivity() {
@@ -139,6 +139,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun bindState() {
         val profile = configStore.loadProfile()
         val providerConfig = providerConfigStore.load()
+        val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
         val granted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.RECORD_AUDIO,
@@ -161,8 +162,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.providerStatusText.text = getString(
             com.shinsoku.mobile.R.string.provider_summary_template,
             providerLabel(providerConfig.activeRecognitionProvider),
-            providerCredentialStatus(providerConfig),
-        )
+            providerStatus.summary,
+        ) + "\n" + providerStatus.detail
         binding.autoCommitSwitch.isChecked = profile.autoCommit
         binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         val languageText = profile.languageTag.orEmpty()
@@ -253,16 +254,4 @@ class SettingsActivity : AppCompatActivity() {
         VoiceRecognitionProvider.Bailian -> getString(com.shinsoku.mobile.R.string.provider_bailian)
     }
 
-    private fun providerCredentialStatus(providerConfig: VoiceProviderConfig): String = when (providerConfig.activeRecognitionProvider) {
-        VoiceRecognitionProvider.AndroidSystem -> getString(com.shinsoku.mobile.R.string.provider_credentials_not_required)
-        VoiceRecognitionProvider.OpenAiCompatible ->
-            if (providerConfig.openAi.apiKey.isBlank()) getString(com.shinsoku.mobile.R.string.provider_credentials_missing)
-            else getString(com.shinsoku.mobile.R.string.provider_credentials_ready)
-        VoiceRecognitionProvider.Soniox ->
-            if (providerConfig.soniox.apiKey.isBlank()) getString(com.shinsoku.mobile.R.string.provider_credentials_missing)
-            else getString(com.shinsoku.mobile.R.string.provider_credentials_ready)
-        VoiceRecognitionProvider.Bailian ->
-            if (providerConfig.bailian.apiKey.isBlank()) getString(com.shinsoku.mobile.R.string.provider_credentials_missing)
-            else getString(com.shinsoku.mobile.R.string.provider_credentials_ready)
-    }
 }

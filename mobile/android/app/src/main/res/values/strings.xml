@@ -3,7 +3,7 @@
     <string name="app_name">Shinsoku</string>
     <string name="ime_name">Shinsoku Voice Input</string>
     <string name="mobile_shell_title">Shinsoku Mobile Shell</string>
-    <string name="mobile_shell_body">This app configures the Android voice input method and will eventually host provider setup, profiles, and history.</string>
+    <string name="mobile_shell_body">This app configures the Android voice input method, hosts provider setup and profiles, and now includes a voice lab for live backend testing before switching to the IME.</string>
     <string name="open_settings">Open Settings</string>
     <string name="open_history">Open History</string>
     <string name="open_keyboard_settings">Open keyboard settings</string>
@@ -35,7 +35,7 @@
     <string name="settings_body">These controls back the shared mobile voice-input core. They decide how recognized speech is committed from the IME.</string>
     <string name="workflow_presets_title">Workflow presets</string>
     <string name="provider_section_title">Recognition backend</string>
-    <string name="provider_section_body">Choose the backend Shinsoku should target next. Android system speech works today; OpenAI-compatible and streaming providers are now configurable so the app can grow into them without another settings rewrite.</string>
+    <string name="provider_section_body">Choose the backend Shinsoku should use for the next voice session. Android system, OpenAI-compatible batch, and the current streaming providers all feed the same shared mobile voice-input core.</string>
     <string name="provider_openai_section_title">OpenAI-compatible batch transcription</string>
     <string name="provider_soniox_section_title">Soniox streaming transcription</string>
     <string name="provider_bailian_section_title">Bailian streaming transcription</string>

@@ -16,25 +16,10 @@ object RecognitionEngineFactory {
                 OpenAiBatchRecognitionEngine(context, providerConfig)
 
             VoiceRecognitionProvider.Soniox ->
-                UnsupportedRecognitionEngine("Soniox streaming is not wired yet on Android.")
+                SonioxStreamingRecognitionEngine(context, providerConfig)
 
             VoiceRecognitionProvider.Bailian ->
-                UnsupportedRecognitionEngine("Bailian streaming is not wired yet on Android.")
+                BailianStreamingRecognitionEngine(context, providerConfig)
         }
     }
-}
-
-private class UnsupportedRecognitionEngine(
-    private val message: String,
-) : VoiceInputEngine {
-    override fun start(
-        profile: com.shinsoku.mobile.speechcore.VoiceInputProfile,
-        listener: VoiceInputEngine.Listener,
-    ) {
-        listener.onError(message)
-    }
-
-    override fun stop() = Unit
-    override fun cancel() = Unit
-    override fun destroy() = Unit
 }

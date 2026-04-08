@@ -7,6 +7,7 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.shinsoku.mobile.databinding.ActivityMainBinding
 import com.shinsoku.mobile.ime.RecognitionEngineFactory
+import com.shinsoku.mobile.ime.RecognitionProviderDiagnostics
 import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.history.HistoryActivity
@@ -128,6 +129,7 @@ class MainActivity : AppCompatActivity() {
         )
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
         val providerConfig = providerConfigStore.load()
+        val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
         binding.providerSummaryText.text = getString(
             R.string.provider_summary_template,
             when (providerConfig.activeRecognitionProvider) {
@@ -136,19 +138,8 @@ class MainActivity : AppCompatActivity() {
                 VoiceRecognitionProvider.Soniox -> getString(R.string.provider_soniox)
                 VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
             },
-            when (providerConfig.activeRecognitionProvider) {
-                VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_credentials_not_required)
-                VoiceRecognitionProvider.OpenAiCompatible ->
-                    if (providerConfig.openAi.apiKey.isBlank()) getString(R.string.provider_credentials_missing)
-                    else getString(R.string.provider_credentials_ready)
-                VoiceRecognitionProvider.Soniox ->
-                    if (providerConfig.soniox.apiKey.isBlank()) getString(R.string.provider_credentials_missing)
-                    else getString(R.string.provider_credentials_ready)
-                VoiceRecognitionProvider.Bailian ->
-                    if (providerConfig.bailian.apiKey.isBlank()) getString(R.string.provider_credentials_missing)
-                    else getString(R.string.provider_credentials_ready)
-            },
-        )
+            providerStatus.summary,
+        ) + "\n" + providerStatus.detail
         binding.mainPresetSummaryText.text = when (profile.id) {
             VoiceInputProfiles.dictation.id -> getString(R.string.preset_dictation_summary)
             VoiceInputProfiles.chat.id -> getString(R.string.preset_chat_summary)
