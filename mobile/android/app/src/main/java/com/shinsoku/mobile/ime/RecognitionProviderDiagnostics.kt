@@ -21,9 +21,14 @@ object RecognitionProviderDiagnostics {
         VoiceRecognitionProvider.OpenAiCompatible -> buildRemoteStatus(
             providerName = "OpenAI-compatible",
             apiKey = config.openAi.apiKey,
-            model = config.openAi.model,
+            model = config.openAi.transcriptionModel,
             endpoint = config.openAi.baseUrl,
             allowedSchemes = setOf("http", "https"),
+            extraChecks = {
+                if (config.openAi.postProcessingModel.isBlank()) {
+                    add("Post-processing model is missing.")
+                }
+            },
         )
 
         VoiceRecognitionProvider.Soniox -> buildRemoteStatus(

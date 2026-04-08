@@ -1,7 +1,6 @@
 package com.shinsoku.mobile.ime
 
 import android.content.Context
-import android.media.MediaRecorder
 import com.shinsoku.mobile.speechcore.VoiceInputEngine
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
 import com.shinsoku.mobile.speechcore.VoiceProviderConfig
@@ -12,7 +11,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.Executors
 
@@ -24,7 +25,9 @@ class OpenAiBatchRecognitionEngine(
         .dns(ShinsokuDns)
         .build()
     private val executor = Executors.newSingleThreadExecutor()
-    private var recorder: MediaRecorder? = null
+    private val pcmRecorder = PcmAudioRecorder()
+    private val pcmBuffer = ByteArrayOutputStream()
+    private var recordingActive = false
     private var outputFile: File? = null
     private var activeListener: VoiceInputEngine.Listener? = null
     private var activeProfile: VoiceInputProfile? = null
@@ -36,27 +39,27 @@ class OpenAiBatchRecognitionEngine(
             listener.onError("OpenAI-compatible API key is missing.")
             return
         }
-        if (providerConfig.openAi.model.isBlank()) {
-            listener.onError("OpenAI-compatible model is missing.")
+        if (providerConfig.openAi.transcriptionModel.isBlank()) {
+            listener.onError("OpenAI-compatible transcription model is missing.")
             return
         }
 
         runCatching {
             activeListener = listener
             activeProfile = profile
-            val tempFile = File.createTempFile("shinsoku-", ".m4a", context.cacheDir)
+            pcmBuffer.reset()
+            val tempFile = File.createTempFile("shinsoku-", ".wav", context.cacheDir)
             outputFile = tempFile
-            val mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(64_000)
-                setAudioSamplingRate(16_000)
-                setOutputFile(tempFile.absolutePath)
-                prepare()
-                start()
-            }
-            recorder = mediaRecorder
+            recordingActive = true
+            pcmRecorder.start(
+                onChunk = { chunk -> synchronized(pcmBuffer) { pcmBuffer.write(chunk) } },
+                onError = { message ->
+                    if (recordingActive) {
+                        cleanupRecording(deleteFile = true)
+                        listener.onError(message)
+                    }
+                },
+            )
             listener.onReady()
         }.onFailure { error ->
             cleanupRecording(deleteFile = true)
@@ -74,15 +77,16 @@ class OpenAiBatchRecognitionEngine(
         val listener = activeListener ?: return
         val profile = activeProfile
         val file = outputFile
-        val mediaRecorder = recorder
-        if (profile == null || file == null || mediaRecorder == null) {
+        if (profile == null || file == null || !recordingActive) {
             listener.onError("Recording session is not active.")
             cleanupRecording(deleteFile = true)
             return
         }
 
         runCatching {
-            mediaRecorder.stop()
+            recordingActive = false
+            pcmRecorder.stop()
+            writeWavFile(file)
         }.onFailure { error ->
             cleanupRecording(deleteFile = true)
             listener.onError(
@@ -94,10 +98,6 @@ class OpenAiBatchRecognitionEngine(
             )
             return
         }
-
-        mediaRecorder.reset()
-        mediaRecorder.release()
-        recorder = null
 
         executor.execute {
             try {
@@ -122,9 +122,8 @@ class OpenAiBatchRecognitionEngine(
     }
 
     override fun cancel() {
-        runCatching {
-            recorder?.stop()
-        }
+        recordingActive = false
+        runCatching { pcmRecorder.stop() }
         cleanupRecording(deleteFile = true)
     }
 
@@ -136,11 +135,11 @@ class OpenAiBatchRecognitionEngine(
     private fun transcribe(file: File, profile: VoiceInputProfile): String {
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("model", providerConfig.openAi.model)
+            .addFormDataPart("model", providerConfig.openAi.transcriptionModel)
             .addFormDataPart(
                 "file",
                 file.name,
-                file.asRequestBody("audio/mp4".toMediaType()),
+                file.asRequestBody("audio/wav".toMediaType()),
             )
             .apply {
                 profile.languageTag
@@ -170,11 +169,9 @@ class OpenAiBatchRecognitionEngine(
     }
 
     private fun cleanupRecording(deleteFile: Boolean) {
-        recorder?.runCatching {
-            reset()
-            release()
-        }
-        recorder = null
+        recordingActive = false
+        runCatching { pcmRecorder.stop() }
+        synchronized(pcmBuffer) { pcmBuffer.reset() }
         activeListener = null
         activeProfile = null
         val file = outputFile
@@ -182,5 +179,57 @@ class OpenAiBatchRecognitionEngine(
         if (deleteFile) {
             file?.delete()
         }
+    }
+
+    private fun writeWavFile(file: File) {
+        val pcm = synchronized(pcmBuffer) {
+            pcmBuffer.toByteArray().also { pcmBuffer.reset() }
+        }
+        FileOutputStream(file).use { output ->
+            output.write(buildWavHeader(pcm.size, sampleRateHz = 16_000, channelCount = 1, bitsPerSample = 16))
+            output.write(pcm)
+        }
+    }
+
+    private fun buildWavHeader(
+        dataSize: Int,
+        sampleRateHz: Int,
+        channelCount: Int,
+        bitsPerSample: Int,
+    ): ByteArray {
+        val byteRate = sampleRateHz * channelCount * bitsPerSample / 8
+        val blockAlign = channelCount * bitsPerSample / 8
+        val chunkSize = 36 + dataSize
+        return ByteArray(44).apply {
+            writeAscii(0, "RIFF")
+            writeIntLE(4, chunkSize)
+            writeAscii(8, "WAVE")
+            writeAscii(12, "fmt ")
+            writeIntLE(16, 16)
+            writeShortLE(20, 1)
+            writeShortLE(22, channelCount)
+            writeIntLE(24, sampleRateHz)
+            writeIntLE(28, byteRate)
+            writeShortLE(32, blockAlign)
+            writeShortLE(34, bitsPerSample)
+            writeAscii(36, "data")
+            writeIntLE(40, dataSize)
+        }
+    }
+
+    private fun ByteArray.writeAscii(offset: Int, value: String) {
+        value.forEachIndexed { index, char -> this[offset + index] = char.code.toByte() }
+    }
+
+    private fun ByteArray.writeIntLE(offset: Int, value: Int) {
+        this[offset] = (value and 0xFF).toByte()
+        this[offset + 1] = ((value shr 8) and 0xFF).toByte()
+        this[offset + 2] = ((value shr 16) and 0xFF).toByte()
+        this[offset + 3] = ((value shr 24) and 0xFF).toByte()
+    }
+
+    private fun ByteArray.writeShortLE(offset: Int, value: Int) {
+        this[offset] = (value and 0xFF).toByte()
+        this[offset + 1] = ((value shr 8) and 0xFF).toByte()
     }
 }

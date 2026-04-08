@@ -59,7 +59,7 @@ class AndroidVoicePostProcessor(
                     promptPlan = promptPlan,
                     baseUrl = providerConfig.openAi.baseUrl,
                     apiKey = providerConfig.openAi.apiKey,
-                    model = providerConfig.openAi.model,
+                    model = providerConfig.openAi.postProcessingModel,
                 )
             }.onSuccess { refined ->
                 callback.onSuccess(refined.ifBlank { cleaned })

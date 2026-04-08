@@ -22,7 +22,14 @@ class AndroidVoiceProviderConfigStore(context: Context) : VoiceProviderConfigSto
             openAi = OpenAiProviderConfig(
                 baseUrl = preferences.getString(KEY_OPENAI_BASE_URL, OpenAiProviderConfig().baseUrl).orEmpty(),
                 apiKey = preferences.getString(KEY_OPENAI_API_KEY, "").orEmpty(),
-                model = preferences.getString(KEY_OPENAI_MODEL, OpenAiProviderConfig().model).orEmpty(),
+                transcriptionModel = preferences.getString(
+                    KEY_OPENAI_TRANSCRIPTION_MODEL,
+                    preferences.getString(KEY_OPENAI_MODEL, OpenAiProviderConfig().transcriptionModel),
+                ).orEmpty(),
+                postProcessingModel = preferences.getString(
+                    KEY_OPENAI_POST_PROCESSING_MODEL,
+                    preferences.getString(KEY_OPENAI_MODEL, OpenAiProviderConfig().postProcessingModel),
+                ).orEmpty(),
             ),
             soniox = SonioxProviderConfig(
                 url = preferences.getString(KEY_SONIOX_URL, SonioxProviderConfig().url).orEmpty(),
@@ -43,7 +50,9 @@ class AndroidVoiceProviderConfigStore(context: Context) : VoiceProviderConfigSto
             .putString(KEY_ACTIVE_PROVIDER, config.activeRecognitionProvider.name)
             .putString(KEY_OPENAI_BASE_URL, config.openAi.baseUrl)
             .putString(KEY_OPENAI_API_KEY, config.openAi.apiKey)
-            .putString(KEY_OPENAI_MODEL, config.openAi.model)
+            .putString(KEY_OPENAI_MODEL, config.openAi.transcriptionModel)
+            .putString(KEY_OPENAI_TRANSCRIPTION_MODEL, config.openAi.transcriptionModel)
+            .putString(KEY_OPENAI_POST_PROCESSING_MODEL, config.openAi.postProcessingModel)
             .putString(KEY_SONIOX_URL, config.soniox.url)
             .putString(KEY_SONIOX_API_KEY, config.soniox.apiKey)
             .putString(KEY_SONIOX_MODEL, config.soniox.model)
@@ -64,6 +73,8 @@ class AndroidVoiceProviderConfigStore(context: Context) : VoiceProviderConfigSto
         private const val KEY_OPENAI_BASE_URL = "openai_base_url"
         private const val KEY_OPENAI_API_KEY = "openai_api_key"
         private const val KEY_OPENAI_MODEL = "openai_model"
+        private const val KEY_OPENAI_TRANSCRIPTION_MODEL = "openai_transcription_model"
+        private const val KEY_OPENAI_POST_PROCESSING_MODEL = "openai_post_processing_model"
         private const val KEY_SONIOX_URL = "soniox_url"
         private const val KEY_SONIOX_API_KEY = "soniox_api_key"
         private const val KEY_SONIOX_MODEL = "soniox_model"

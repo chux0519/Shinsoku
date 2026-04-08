@@ -15,13 +15,19 @@ class RecognitionProviderDiagnosticsTest {
         val status = RecognitionProviderDiagnostics.status(
             VoiceProviderConfig(
                 activeRecognitionProvider = VoiceRecognitionProvider.OpenAiCompatible,
-                openAi = OpenAiProviderConfig(baseUrl = "https://api.openai.com/v1", apiKey = "", model = ""),
+                openAi = OpenAiProviderConfig(
+                    baseUrl = "https://api.openai.com/v1",
+                    apiKey = "",
+                    transcriptionModel = "",
+                    postProcessingModel = "",
+                ),
             ),
         )
 
         assertFalse(status.ready)
         assertTrue(status.detail.contains("API key is missing"))
         assertTrue(status.detail.contains("Model is missing"))
+        assertTrue(status.detail.contains("Post-processing model is missing"))
     }
 
     @Test

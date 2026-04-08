@@ -10,7 +10,8 @@ enum class VoiceRecognitionProvider {
 data class OpenAiProviderConfig(
     val baseUrl: String = "https://api.openai.com/v1",
     val apiKey: String = "",
-    val model: String = "gpt-4o-mini-transcribe",
+    val transcriptionModel: String = "gpt-4o-mini-transcribe",
+    val postProcessingModel: String = "gpt-5.4-nano",
 )
 
 data class SonioxProviderConfig(

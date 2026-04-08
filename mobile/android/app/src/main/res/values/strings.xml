@@ -72,7 +72,8 @@
     <string name="language_chinese_label">Chinese</string>
     <string name="openai_base_url_label">Base URL</string>
     <string name="openai_api_key_label">API key</string>
-    <string name="openai_model_label">Model</string>
+    <string name="openai_transcription_model_label">Transcription model</string>
+    <string name="openai_post_processing_model_label">Post-processing model</string>
     <string name="streaming_url_label">Streaming URL</string>
     <string name="streaming_api_key_label">Streaming API key</string>
     <string name="streaming_model_label">Streaming model</string>

@@ -225,10 +225,22 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:hint="@string/openai_model_label">
+                    android:hint="@string/openai_transcription_model_label">
 
                     <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/openAiModelEdit"
+                        android:id="@+id/openAiTranscriptionModelEdit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/openai_post_processing_model_label">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/openAiPostProcessingModelEdit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
                 </com.google.android.material.textfield.TextInputLayout>

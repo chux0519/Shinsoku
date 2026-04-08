@@ -161,7 +161,8 @@ class SettingsActivity : AppCompatActivity() {
                     openAi = current.openAi.copy(
                         baseUrl = binding.openAiBaseUrlEdit.text?.toString().orEmpty().trim(),
                         apiKey = binding.openAiApiKeyEdit.text?.toString().orEmpty().trim(),
-                        model = binding.openAiModelEdit.text?.toString().orEmpty().trim(),
+                        transcriptionModel = binding.openAiTranscriptionModelEdit.text?.toString().orEmpty().trim(),
+                        postProcessingModel = binding.openAiPostProcessingModelEdit.text?.toString().orEmpty().trim(),
                     ),
                     soniox = current.soniox.copy(
                         url = binding.sonioxUrlEdit.text?.toString().orEmpty().trim(),
@@ -285,8 +286,11 @@ class SettingsActivity : AppCompatActivity() {
         if (binding.openAiApiKeyEdit.text?.toString() != providerConfig.openAi.apiKey) {
             binding.openAiApiKeyEdit.setText(providerConfig.openAi.apiKey)
         }
-        if (binding.openAiModelEdit.text?.toString() != providerConfig.openAi.model) {
-            binding.openAiModelEdit.setText(providerConfig.openAi.model)
+        if (binding.openAiTranscriptionModelEdit.text?.toString() != providerConfig.openAi.transcriptionModel) {
+            binding.openAiTranscriptionModelEdit.setText(providerConfig.openAi.transcriptionModel)
+        }
+        if (binding.openAiPostProcessingModelEdit.text?.toString() != providerConfig.openAi.postProcessingModel) {
+            binding.openAiPostProcessingModelEdit.setText(providerConfig.openAi.postProcessingModel)
         }
         if (binding.sonioxUrlEdit.text?.toString() != providerConfig.soniox.url) {
             binding.sonioxUrlEdit.setText(providerConfig.soniox.url)
