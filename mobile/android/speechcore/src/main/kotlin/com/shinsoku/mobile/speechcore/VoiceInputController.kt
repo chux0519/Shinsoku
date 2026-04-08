@@ -4,6 +4,7 @@ class VoiceInputController(
     private val engine: VoiceInputEngine,
     private val configStore: VoiceInputConfigStore,
     private val observer: VoiceInputControllerObserver,
+    private val postProcessor: VoiceTranscriptPostProcessor = LocalTranscriptCleanupPostProcessor(),
 ) : VoiceInputEngine.Listener {
     private var state: VoiceInputUiState = VoiceInputUiState.Idle
     private var pendingCommit: VoiceInputCommit? = null
@@ -45,6 +46,7 @@ class VoiceInputController(
     }
 
     fun destroy() {
+        pendingCommit = null
         engine.destroy()
     }
 
@@ -59,26 +61,30 @@ class VoiceInputController(
     override fun onFinalResult(text: String) {
         updateState(VoiceInputUiState.Processing)
         val profile = configStore.loadProfile()
-        val normalized = text.trim()
-        if (normalized.isEmpty()) {
-            updateState(VoiceInputUiState.Error("No speech recognized."))
-            return
-        }
+        postProcessor.process(text, profile, object : VoiceTranscriptPostProcessorCallback {
+            override fun onSuccess(text: String) {
+                val normalized = text.trim()
+                if (normalized.isEmpty()) {
+                    updateState(VoiceInputUiState.Error("No speech recognized."))
+                    return
+                }
 
-        val committedText = normalized + when (profile.commitSuffixMode) {
-            CommitSuffixMode.None -> ""
-            CommitSuffixMode.Space -> " "
-            CommitSuffixMode.Newline -> "\n"
-        }
+                val commit = TranscriptCommitPlanner.plan(normalized, profile)
+                if (profile.autoCommit) {
+                    observer.onCommitRequested(commit)
+                    pendingCommit = null
+                    updateState(VoiceInputUiState.Idle)
+                } else {
+                    pendingCommit = commit
+                    updateState(VoiceInputUiState.PendingCommit(commit.text))
+                }
+            }
 
-        if (profile.autoCommit) {
-            observer.onCommitRequested(VoiceInputCommit(committedText))
-            pendingCommit = null
-            updateState(VoiceInputUiState.Idle)
-        } else {
-            pendingCommit = VoiceInputCommit(committedText)
-            updateState(VoiceInputUiState.PendingCommit(committedText))
-        }
+            override fun onError(message: String) {
+                pendingCommit = null
+                updateState(VoiceInputUiState.Error(message))
+            }
+        })
     }
 
     override fun onError(message: String) {

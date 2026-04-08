@@ -14,6 +14,7 @@ import com.shinsoku.mobile.databinding.ActivitySettingsBinding
 import com.shinsoku.mobile.ime.RecognitionProviderDiagnostics
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.speechcore.CommitSuffixMode
+import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
 import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
@@ -22,6 +23,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
+    private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private val requestMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             bindState()
@@ -33,6 +35,7 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(binding.root)
         configStore = AndroidVoiceInputConfigStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
+        runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
 
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -139,6 +142,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun bindState() {
         val profile = configStore.loadProfile()
         val providerConfig = providerConfigStore.load()
+        val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
         val granted = ContextCompat.checkSelfPermission(
             this,
@@ -163,6 +167,16 @@ class SettingsActivity : AppCompatActivity() {
             com.shinsoku.mobile.R.string.provider_summary_template,
             providerLabel(providerConfig.activeRecognitionProvider),
             providerStatus.summary,
+        ) + "\n" + getString(
+            com.shinsoku.mobile.R.string.post_processing_summary_template,
+            when (runtimeConfig.postProcessingConfig.mode) {
+                TranscriptPostProcessingMode.Disabled ->
+                    getString(com.shinsoku.mobile.R.string.post_processing_disabled)
+                TranscriptPostProcessingMode.LocalCleanup ->
+                    getString(com.shinsoku.mobile.R.string.post_processing_local_cleanup)
+                TranscriptPostProcessingMode.ProviderAssisted ->
+                    getString(com.shinsoku.mobile.R.string.post_processing_provider_assisted)
+            },
         ) + "\n" + providerStatus.detail
         binding.autoCommitSwitch.isChecked = profile.autoCommit
         binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space

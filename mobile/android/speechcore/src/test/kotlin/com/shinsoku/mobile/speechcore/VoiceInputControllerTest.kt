@@ -12,6 +12,7 @@ class VoiceInputControllerTest {
             engine = engine,
             configStore = FakeConfigStore(),
             observer = observer,
+            postProcessor = ImmediatePostProcessor(),
         )
 
         controller.onMicTapped()
@@ -38,6 +39,7 @@ class VoiceInputControllerTest {
             engine = engine,
             configStore = FakeConfigStore(),
             observer = observer,
+            postProcessor = ImmediatePostProcessor(),
         )
 
         controller.onMicTapped()
@@ -57,6 +59,7 @@ class VoiceInputControllerTest {
             engine = engine,
             configStore = FakeConfigStore(),
             observer = observer,
+            postProcessor = ImmediatePostProcessor(),
         )
 
         controller.onMicTapped()
@@ -79,6 +82,7 @@ class VoiceInputControllerTest {
                 )
             },
             observer = observer,
+            postProcessor = ImmediatePostProcessor(),
         )
 
         controller.onMicTapped()
@@ -137,6 +141,16 @@ class VoiceInputControllerTest {
 
         fun dispatchFinal(text: String) {
             listener?.onFinalResult(text)
+        }
+    }
+
+    private class ImmediatePostProcessor : VoiceTranscriptPostProcessor {
+        override fun process(
+            rawText: String,
+            profile: VoiceInputProfile,
+            callback: VoiceTranscriptPostProcessorCallback,
+        ) {
+            callback.onSuccess(rawText)
         }
     }
 }

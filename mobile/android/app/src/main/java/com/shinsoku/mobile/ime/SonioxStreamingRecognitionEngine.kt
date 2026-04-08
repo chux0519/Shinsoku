@@ -17,7 +17,9 @@ class SonioxStreamingRecognitionEngine(
     @Suppress("UNUSED_PARAMETER") private val context: Context,
     private val providerConfig: VoiceProviderConfig,
 ) : VoiceInputEngine {
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .dns(ShinsokuDns)
+        .build()
     private val recorder = PcmAudioRecorder()
     private val transcriptAccumulator = SonioxTranscriptAccumulator()
     private var socket: WebSocket? = null
@@ -128,7 +130,13 @@ class SonioxStreamingRecognitionEngine(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             if (!finalDelivered) {
-                emitError(t.message ?: "Soniox connection failed.")
+                emitError(
+                    RecognitionEndpointDebug.formatFailure(
+                        providerName = "Soniox",
+                        endpoint = providerConfig.soniox.url,
+                        throwable = t,
+                    ) + "\n" + NetworkPreflight.resolveEndpoint(providerConfig.soniox.url).detail,
+                )
             }
             cleanup()
         }

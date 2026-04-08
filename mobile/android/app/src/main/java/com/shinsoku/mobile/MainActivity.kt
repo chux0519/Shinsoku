@@ -3,6 +3,7 @@ package com.shinsoku.mobile
 import android.content.Intent
 import android.provider.Settings
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.shinsoku.mobile.databinding.ActivityMainBinding
@@ -12,6 +13,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.history.HistoryActivity
 import com.shinsoku.mobile.ime.queryImeStatus
+import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
 import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
@@ -20,6 +22,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
 import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
+import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import android.Manifest
@@ -28,12 +31,18 @@ import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import java.util.UUID
+import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val TAG = "ShinsokuMain"
+    }
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
+    private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private var labController: VoiceInputController? = null
     private val requestMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -47,6 +56,7 @@ class MainActivity : AppCompatActivity() {
         configStore = AndroidVoiceInputConfigStore(this)
         historyStore = AndroidVoiceInputHistoryStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
+        runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
 
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -129,6 +139,7 @@ class MainActivity : AppCompatActivity() {
         )
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
         val providerConfig = providerConfigStore.load()
+        val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
         binding.providerSummaryText.text = getString(
             R.string.provider_summary_template,
@@ -139,6 +150,13 @@ class MainActivity : AppCompatActivity() {
                 VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
             },
             providerStatus.summary,
+        ) + "\n" + getString(
+            R.string.post_processing_summary_template,
+            when (runtimeConfig.postProcessingConfig.mode) {
+                TranscriptPostProcessingMode.Disabled -> getString(R.string.post_processing_disabled)
+                TranscriptPostProcessingMode.LocalCleanup -> getString(R.string.post_processing_local_cleanup)
+                TranscriptPostProcessingMode.ProviderAssisted -> getString(R.string.post_processing_provider_assisted)
+            },
         ) + "\n" + providerStatus.detail
         binding.mainPresetSummaryText.text = when (profile.id) {
             VoiceInputProfiles.dictation.id -> getString(R.string.preset_dictation_summary)
@@ -173,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             },
+            postProcessor = AndroidVoicePostProcessor(this),
         )
     }
 
@@ -217,6 +236,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             is VoiceInputUiState.Error -> {
+                Log.e(TAG, "Voice lab error: ${state.message}")
                 binding.voiceLabStatusText.text = state.message
                 binding.voiceLabMicButton.text = getString(R.string.voice_lab_start)
                 binding.voiceLabInsertButton.visibility = View.GONE

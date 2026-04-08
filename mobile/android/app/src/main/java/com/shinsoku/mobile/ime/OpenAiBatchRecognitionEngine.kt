@@ -20,12 +20,16 @@ class OpenAiBatchRecognitionEngine(
     private val context: Context,
     private val providerConfig: VoiceProviderConfig,
 ) : VoiceInputEngine {
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .dns(ShinsokuDns)
+        .build()
     private val executor = Executors.newSingleThreadExecutor()
     private var recorder: MediaRecorder? = null
     private var outputFile: File? = null
     private var activeListener: VoiceInputEngine.Listener? = null
     private var activeProfile: VoiceInputProfile? = null
+    private val transcriptionEndpoint: String
+        get() = providerConfig.openAi.baseUrl.trimEnd('/') + "/audio/transcriptions"
 
     override fun start(profile: VoiceInputProfile, listener: VoiceInputEngine.Listener) {
         if (providerConfig.openAi.apiKey.isBlank()) {
@@ -56,7 +60,13 @@ class OpenAiBatchRecognitionEngine(
             listener.onReady()
         }.onFailure { error ->
             cleanupRecording(deleteFile = true)
-            listener.onError(error.message ?: "Failed to start recording.")
+            listener.onError(
+                RecognitionEndpointDebug.formatFailure(
+                    providerName = "OpenAI-compatible",
+                    endpoint = transcriptionEndpoint,
+                    throwable = error,
+                ),
+            )
         }
     }
 
@@ -75,7 +85,13 @@ class OpenAiBatchRecognitionEngine(
             mediaRecorder.stop()
         }.onFailure { error ->
             cleanupRecording(deleteFile = true)
-            listener.onError(error.message ?: "Failed to stop recording.")
+            listener.onError(
+                RecognitionEndpointDebug.formatFailure(
+                    providerName = "OpenAI-compatible",
+                    endpoint = transcriptionEndpoint,
+                    throwable = error,
+                ),
+            )
             return
         }
 
@@ -92,7 +108,13 @@ class OpenAiBatchRecognitionEngine(
                     listener.onFinalResult(text)
                 }
             } catch (error: Exception) {
-                listener.onError(error.message ?: "OpenAI transcription failed.")
+                listener.onError(
+                    RecognitionEndpointDebug.formatFailure(
+                        providerName = "OpenAI-compatible",
+                        endpoint = transcriptionEndpoint,
+                        throwable = error,
+                    ),
+                )
             } finally {
                 cleanupRecording(deleteFile = true)
             }
@@ -129,9 +151,8 @@ class OpenAiBatchRecognitionEngine(
             .addFormDataPart("response_format", "json")
             .build()
 
-        val url = providerConfig.openAi.baseUrl.trimEnd('/') + "/audio/transcriptions"
         val request = Request.Builder()
-            .url(url)
+            .url(transcriptionEndpoint)
             .addHeader("Authorization", "Bearer ${providerConfig.openAi.apiKey}")
             .post(requestBody)
             .build()

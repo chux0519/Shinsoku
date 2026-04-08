@@ -7,12 +7,13 @@ import com.shinsoku.mobile.speechcore.OpenAiProviderConfig
 import com.shinsoku.mobile.speechcore.SonioxProviderConfig
 import com.shinsoku.mobile.speechcore.VoiceProviderConfig
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
+import com.shinsoku.mobile.speechcore.VoiceProviderConfigStore
 
-class AndroidVoiceProviderConfigStore(context: Context) {
+class AndroidVoiceProviderConfigStore(context: Context) : VoiceProviderConfigStore {
     private val preferences: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun load(): VoiceProviderConfig {
+    override fun loadProviderConfig(): VoiceProviderConfig {
         val activeProvider = preferences.getString(KEY_ACTIVE_PROVIDER, null)?.let {
             runCatching { VoiceRecognitionProvider.valueOf(it) }.getOrNull()
         } ?: VoiceRecognitionProvider.AndroidSystem
@@ -37,7 +38,7 @@ class AndroidVoiceProviderConfigStore(context: Context) {
         )
     }
 
-    fun save(config: VoiceProviderConfig) {
+    override fun saveProviderConfig(config: VoiceProviderConfig) {
         preferences.edit()
             .putString(KEY_ACTIVE_PROVIDER, config.activeRecognitionProvider.name)
             .putString(KEY_OPENAI_BASE_URL, config.openAi.baseUrl)
@@ -52,6 +53,10 @@ class AndroidVoiceProviderConfigStore(context: Context) {
             .putString(KEY_BAILIAN_MODEL, config.bailian.model)
             .apply()
     }
+
+    fun load(): VoiceProviderConfig = loadProviderConfig()
+
+    fun save(config: VoiceProviderConfig) = saveProviderConfig(config)
 
     private companion object {
         private const val PREFS_NAME = "shinsoku_voice_provider"

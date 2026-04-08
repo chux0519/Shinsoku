@@ -1,6 +1,7 @@
 package com.shinsoku.mobile.ime
 
 import android.inputmethodservice.InputMethodService
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
@@ -15,9 +16,14 @@ import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
+import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
 import java.util.UUID
 
 class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
+    companion object {
+        private const val TAG = "ShinsokuImeService"
+    }
+
     private var titleView: TextView? = null
     private var micButton: Button? = null
     private var insertButton: Button? = null
@@ -46,12 +52,20 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
         titleView?.text = getString(R.string.ime_title_idle)
         micButton?.setOnClickListener {
-            if (controller?.currentState() !is VoiceInputUiState.Listening &&
-                controller?.currentState() !is VoiceInputUiState.Processing
-            ) {
-                rebuildController()
+            try {
+                if (controller?.currentState() !is VoiceInputUiState.Listening &&
+                    controller?.currentState() !is VoiceInputUiState.Processing
+                ) {
+                    rebuildController()
+                }
+                controller?.onMicTapped()
+            } catch (error: Throwable) {
+                Log.e(TAG, "IME mic tap failed", error)
+                titleView?.text = error.message ?: "Voice input failed to start."
+                micButton?.text = getString(R.string.ime_retry)
+                insertButton?.visibility = View.GONE
+                clearButton?.visibility = View.GONE
             }
-            controller?.onMicTapped()
         }
         insertButton?.setOnClickListener {
             controller?.commitPending()
@@ -115,6 +129,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Error -> {
+                Log.e(TAG, "IME error: ${state.message}")
                 titleView?.text = state.message
                 micButton?.text = getString(R.string.ime_retry)
                 insertButton?.visibility = View.GONE
@@ -151,6 +166,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             engine = RecognitionEngineFactory.create(this),
             configStore = configStore,
             observer = this,
+            postProcessor = AndroidVoicePostProcessor(this),
         )
     }
 }

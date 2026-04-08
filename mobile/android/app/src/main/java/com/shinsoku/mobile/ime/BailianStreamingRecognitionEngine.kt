@@ -18,7 +18,9 @@ class BailianStreamingRecognitionEngine(
     @Suppress("UNUSED_PARAMETER") private val context: Context,
     private val providerConfig: VoiceProviderConfig,
 ) : VoiceInputEngine {
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .dns(ShinsokuDns)
+        .build()
     private val recorder = PcmAudioRecorder()
     private val transcriptAccumulator = BailianTranscriptAccumulator()
     private var socket: WebSocket? = null
@@ -151,7 +153,13 @@ class BailianStreamingRecognitionEngine(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             if (!finalDelivered) {
-                emitError(t.message ?: "Bailian connection failed.")
+                emitError(
+                    RecognitionEndpointDebug.formatFailure(
+                        providerName = "Bailian",
+                        endpoint = providerConfig.bailian.url,
+                        throwable = t,
+                    ) + "\n" + NetworkPreflight.resolveEndpoint(providerConfig.bailian.url).detail,
+                )
             }
             cleanup()
         }

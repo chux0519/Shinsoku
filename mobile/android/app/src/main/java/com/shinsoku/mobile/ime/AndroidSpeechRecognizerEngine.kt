@@ -21,33 +21,44 @@ class AndroidSpeechRecognizerEngine(
             return
         }
 
-        activeListener = listener
-        val recognizer = speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also {
-            speechRecognizer = it
-            it.setRecognitionListener(ListenerAdapter())
-        }
+        runCatching {
+            activeListener = listener
+            val recognizer = speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also {
+                speechRecognizer = it
+                it.setRecognitionListener(ListenerAdapter())
+            }
 
-        recognizer.startListening(
-            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(
-                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-                )
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                profile.languageTag?.takeIf { it.isNotBlank() }?.let {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
-                }
-            },
-        )
+            recognizer.startListening(
+                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+                    )
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    profile.languageTag?.takeIf { it.isNotBlank() }?.let {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
+                    }
+                },
+            )
+        }.onFailure { error ->
+            listener.onError(error.message ?: "Failed to start Android speech recognition.")
+            activeListener = null
+        }
     }
 
     override fun stop() {
-        speechRecognizer?.stopListening()
+        runCatching {
+            speechRecognizer?.stopListening()
+        }.onFailure {
+            activeListener?.onError("Failed to stop Android speech recognition.")
+        }
     }
 
     override fun cancel() {
-        speechRecognizer?.cancel()
+        runCatching {
+            speechRecognizer?.cancel()
+        }
     }
 
     override fun destroy() {

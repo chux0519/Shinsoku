@@ -53,7 +53,15 @@ class PcmAudioRecorder(
 
         audioRecord = recorder
         running.set(true)
-        recorder.startRecording()
+        runCatching {
+            recorder.startRecording()
+        }.onFailure { error ->
+            running.set(false)
+            recorder.release()
+            audioRecord = null
+            onError(error.message ?: "Failed to start audio recording.")
+            return
+        }
 
         worker = Thread {
             val buffer = ByteArray(bufferSize)

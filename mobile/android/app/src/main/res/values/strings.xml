@@ -24,6 +24,10 @@
     <string name="provider_credentials_missing">credentials missing</string>
     <string name="provider_credentials_ready">credentials saved</string>
     <string name="provider_summary_template">Provider: %1$s • %2$s</string>
+    <string name="post_processing_summary_template">Post-processing: %1$s</string>
+    <string name="post_processing_disabled">disabled</string>
+    <string name="post_processing_local_cleanup">local cleanup only</string>
+    <string name="post_processing_provider_assisted">provider-assisted cleanup</string>
     <string name="status_card_title">Current device status</string>
     <string name="recent_history_title">Recent voice input</string>
     <string name="voice_lab_title">Voice lab</string>

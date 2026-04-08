@@ -83,13 +83,13 @@ object RecognitionProviderDiagnostics {
             ProviderRuntimeStatus(
                 ready = true,
                 summary = "credentials ready",
-                detail = "$providerName is configured for live recognition.",
+                detail = "$providerName is configured for live recognition.\n${RecognitionEndpointDebug.describe(normalizedEndpoint)}",
             )
         } else {
             ProviderRuntimeStatus(
                 ready = false,
                 summary = "configuration incomplete",
-                detail = "$providerName is not ready: ${issues.joinToString(" ")}",
+                detail = "$providerName is not ready: ${issues.joinToString(" ")}\n${RecognitionEndpointDebug.describe(normalizedEndpoint)}",
             )
         }
     }
