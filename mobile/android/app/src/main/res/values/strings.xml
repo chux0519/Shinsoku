@@ -96,6 +96,9 @@
     <string name="translation_target_code_label">Target code</string>
     <string name="translation_extra_instructions_label">Extra translation instructions</string>
     <string name="save_transform_settings">Save transform settings</string>
+    <string name="transform_system_prompt_title">System prompt</string>
+    <string name="transform_single_prompt_preview_title">Single prompt preview</string>
+    <string name="transform_preview_placeholder">&lt;recognized transcript here&gt;</string>
     <string name="transform_summary_disabled">Transform disabled. Shinsoku keeps only the configured post-processing mode.</string>
     <string name="transform_summary_cleanup">Transform mode cleanup. Provider-assisted mode will only correct transcript quality without changing language.</string>
     <string name="transform_summary_translation">Transform mode translation from %1$s to %2$s.</string>

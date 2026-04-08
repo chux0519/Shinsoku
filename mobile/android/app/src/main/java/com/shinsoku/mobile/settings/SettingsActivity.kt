@@ -19,6 +19,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputProfile
 import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.speechcore.VoiceRefineRequestFormat
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
+import com.shinsoku.mobile.speechcore.VoiceTransformPromptBuilder
 import com.shinsoku.mobile.speechcore.VoiceTransformConfig
 import com.shinsoku.mobile.speechcore.VoiceTransformMode
 
@@ -359,6 +360,23 @@ class SettingsActivity : AppCompatActivity() {
                 )
             else ->
                 getString(com.shinsoku.mobile.R.string.transform_summary_custom)
+        }
+        val previewPlan = VoiceTransformPromptBuilder.build(
+            getString(com.shinsoku.mobile.R.string.transform_preview_placeholder),
+            profile,
+        )
+        if (previewPlan.requestFormat == VoiceRefineRequestFormat.SingleUserMessage) {
+            binding.transformPreviewTitleText.text =
+                getString(com.shinsoku.mobile.R.string.transform_single_prompt_preview_title)
+            binding.transformPreviewText.text = buildString {
+                append(previewPlan.systemPrompt.trim())
+                append("\n\n")
+                append(previewPlan.userContent)
+            }
+        } else {
+            binding.transformPreviewTitleText.text =
+                getString(com.shinsoku.mobile.R.string.transform_system_prompt_title)
+            binding.transformPreviewText.text = previewPlan.systemPrompt
         }
     }
 

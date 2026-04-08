@@ -533,6 +533,13 @@
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/transform_section_body"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/transformEnabledSwitch"
                     android:layout_width="match_parent"
@@ -702,6 +709,21 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:text="@string/save_transform_settings" />
+
+                <TextView
+                    android:id="@+id/transformPreviewTitleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                <TextView
+                    android:id="@+id/transformPreviewText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textIsSelectable="true"
+                    android:textAppearance="?attr/textAppearanceBodySmall" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
