@@ -14,6 +14,12 @@ add_library(
 find_library(log-lib log)
 
 target_compile_features(shinsoku_nativecore PRIVATE cxx_std_20)
+target_link_options(
+    shinsoku_nativecore
+    PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,-z,common-page-size=16384"
+)
 target_include_directories(
     shinsoku_nativecore
     PRIVATE

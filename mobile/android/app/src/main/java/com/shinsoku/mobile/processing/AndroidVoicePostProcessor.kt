@@ -48,7 +48,12 @@ class AndroidVoicePostProcessor(
                 refineWithOpenAi(cleaned, providerConfig.openAi.baseUrl, providerConfig.openAi.apiKey, providerConfig.openAi.model)
             }.onSuccess { refined ->
                 callback.onSuccess(refined.ifBlank { cleaned })
-            }.onFailure {
+            }.onFailure { error ->
+                android.util.Log.w(
+                    "ShinsokuPostProcess",
+                    "Provider-assisted post-processing failed, falling back to local cleanup",
+                    error,
+                )
                 callback.onSuccess(cleaned)
             }
         }
