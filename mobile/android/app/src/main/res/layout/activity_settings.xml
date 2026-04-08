@@ -182,8 +182,7 @@
             android:id="@+id/openAiConfigCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:visibility="gone">
+            android:layout_marginTop="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -196,6 +195,13 @@
                     android:layout_height="wrap_content"
                     android:text="@string/provider_openai_section_title"
                     android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/provider_openai_section_body"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"

@@ -333,8 +333,6 @@ class SettingsActivity : AppCompatActivity() {
             binding.translationExtraInstructionsEdit.setText(profile.transform.translationExtraInstructions)
         }
 
-        binding.openAiConfigCard.visibility =
-            if (providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.OpenAiCompatible) View.VISIBLE else View.GONE
         binding.sonioxConfigCard.visibility =
             if (providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.Soniox) View.VISIBLE else View.GONE
         binding.bailianConfigCard.visibility =

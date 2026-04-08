@@ -48,7 +48,8 @@
     <string name="workflow_presets_title">Workflow presets</string>
     <string name="provider_section_title">Recognition backend</string>
     <string name="provider_section_body">Choose the backend Shinsoku should use for the next voice session. Android system, OpenAI-compatible batch, and the current streaming providers all feed the same shared mobile voice-input core.</string>
-    <string name="provider_openai_section_title">OpenAI-compatible batch transcription</string>
+    <string name="provider_openai_section_title">OpenAI-compatible backend</string>
+    <string name="provider_openai_section_body">This configuration is shared by OpenAI-compatible batch transcription and provider-assisted post-processing. Keep it filled even when the active recognition backend is Soniox or Bailian.</string>
     <string name="provider_soniox_section_title">Soniox streaming transcription</string>
     <string name="provider_bailian_section_title">Bailian streaming transcription</string>
     <string name="preset_dictation_title">Dictation</string>
