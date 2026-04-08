@@ -4,8 +4,10 @@ import android.content.Context
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
+import com.shinsoku.mobile.speechcore.VoiceRefineRequestFormat
 import com.shinsoku.mobile.speechcore.VoiceTranscriptPostProcessor
 import com.shinsoku.mobile.speechcore.VoiceTranscriptPostProcessorCallback
+import com.shinsoku.mobile.speechcore.VoiceTransformPromptBuilder
 import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -42,10 +44,16 @@ class AndroidVoicePostProcessor(
             callback.onSuccess(cleaned)
             return
         }
+        val promptPlan = VoiceTransformPromptBuilder.build(cleaned, profile)
 
         executor.execute {
             runCatching {
-                refineWithOpenAi(cleaned, providerConfig.openAi.baseUrl, providerConfig.openAi.apiKey, providerConfig.openAi.model)
+                refineWithOpenAi(
+                    promptPlan = promptPlan,
+                    baseUrl = providerConfig.openAi.baseUrl,
+                    apiKey = providerConfig.openAi.apiKey,
+                    model = providerConfig.openAi.model,
+                )
             }.onSuccess { refined ->
                 callback.onSuccess(refined.ifBlank { cleaned })
             }.onFailure { error ->
@@ -60,30 +68,43 @@ class AndroidVoicePostProcessor(
     }
 
     private fun refineWithOpenAi(
-        input: String,
+        promptPlan: com.shinsoku.mobile.speechcore.VoiceTransformPromptPlan,
         baseUrl: String,
         apiKey: String,
         model: String,
     ): String {
+        val messages = JSONArray()
+        when (promptPlan.requestFormat) {
+            VoiceRefineRequestFormat.SystemAndUser -> {
+                messages.put(
+                    JSONObject()
+                        .put("role", "system")
+                        .put("content", promptPlan.systemPrompt),
+                )
+                messages.put(
+                    JSONObject()
+                        .put("role", "user")
+                        .put("content", promptPlan.userContent),
+                )
+            }
+
+            VoiceRefineRequestFormat.SingleUserMessage -> {
+                val mergedPrompt = buildString {
+                    append(promptPlan.systemPrompt.trim())
+                    append("\n\n")
+                    append(promptPlan.userContent)
+                }
+                messages.put(
+                    JSONObject()
+                        .put("role", "user")
+                        .put("content", mergedPrompt),
+                )
+            }
+        }
+
         val requestBody = JSONObject()
             .put("model", model.ifBlank { "gpt-5.4-nano" })
-            .put(
-                "messages",
-                JSONArray()
-                    .put(
-                        JSONObject()
-                            .put("role", "system")
-                            .put(
-                                "content",
-                                "You are a transcription post-processor. Return only corrected text. Do not translate. Fix only obvious ASR typos, spacing, punctuation, and readability.",
-                            ),
-                    )
-                    .put(
-                        JSONObject()
-                            .put("role", "user")
-                            .put("content", input),
-                    ),
-            )
+            .put("messages", messages)
             .toString()
 
         val endpoint = baseUrl.trimEnd('/') + "/chat/completions"

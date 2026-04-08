@@ -184,6 +184,15 @@
 
                 </LinearLayout>
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/applyTranslateZhEnPresetButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:checkable="true"
+                    android:text="@string/preset_translate_zh_en_title" />
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

@@ -26,6 +26,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
 import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
+import com.shinsoku.mobile.speechcore.VoiceTransformMode
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import android.Manifest
 import android.content.pm.PackageManager
@@ -89,6 +90,10 @@ class MainActivity : AppCompatActivity() {
             configStore.saveProfile(VoiceInputProfiles.review)
             bindState()
         }
+        binding.applyTranslateZhEnPresetButton.setOnClickListener {
+            configStore.saveProfile(VoiceInputProfiles.translateChineseToEnglish)
+            bindState()
+        }
         binding.voiceLabMicButton.setOnClickListener {
             ensureLabController()
             labController?.onMicTapped()
@@ -139,7 +144,16 @@ class MainActivity : AppCompatActivity() {
                 CommitSuffixMode.Newline -> getString(R.string.commit_suffix_newline)
             },
             profile.languageTag ?: getString(R.string.language_auto_label),
-        )
+        ) + "\n" + when {
+            !profile.transform.enabled -> getString(R.string.transform_summary_disabled)
+            profile.transform.mode == VoiceTransformMode.Cleanup -> getString(R.string.transform_summary_cleanup)
+            profile.transform.mode == VoiceTransformMode.Translation -> getString(
+                R.string.transform_summary_translation,
+                profile.transform.translationSourceLanguage,
+                profile.transform.translationTargetLanguage,
+            )
+            else -> getString(R.string.transform_summary_custom)
+        }
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
         val providerConfig = providerConfigStore.load()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
@@ -165,11 +179,13 @@ class MainActivity : AppCompatActivity() {
             VoiceInputProfiles.dictation.id -> getString(R.string.preset_dictation_summary)
             VoiceInputProfiles.chat.id -> getString(R.string.preset_chat_summary)
             VoiceInputProfiles.review.id -> getString(R.string.preset_review_summary)
+            VoiceInputProfiles.translateChineseToEnglish.id -> getString(R.string.preset_translate_zh_en_summary)
             else -> getString(R.string.preset_custom_summary)
         }
         binding.applyDictationPresetButton.isChecked = profile.id == VoiceInputProfiles.dictation.id
         binding.applyChatPresetButton.isChecked = profile.id == VoiceInputProfiles.chat.id
         binding.applyReviewPresetButton.isChecked = profile.id == VoiceInputProfiles.review.id
+        binding.applyTranslateZhEnPresetButton.isChecked = profile.id == VoiceInputProfiles.translateChineseToEnglish.id
         val latestEntry = historyStore.listEntries(limit = 1).firstOrNull()
         binding.recentHistoryPreviewText.text = latestEntry?.text ?: getString(R.string.history_empty)
     }

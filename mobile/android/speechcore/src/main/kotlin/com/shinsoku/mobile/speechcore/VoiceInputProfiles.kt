@@ -25,15 +25,38 @@ object VoiceInputProfiles {
         languageTag = null,
     )
 
-    val builtIns: List<VoiceInputProfile> = listOf(dictation, chat, review)
+    val translateChineseToEnglish = VoiceInputProfile(
+        id = "translate_zh_en",
+        displayName = "Translate Chinese to English",
+        autoCommit = true,
+        commitSuffixMode = CommitSuffixMode.Space,
+        languageTag = "zh-CN",
+        transform = VoiceTransformConfig(
+            enabled = true,
+            mode = VoiceTransformMode.Translation,
+            requestFormat = VoiceRefineRequestFormat.SystemAndUser,
+            translationSourceLanguage = "Chinese",
+            translationSourceCode = "zh",
+            translationTargetLanguage = "English",
+            translationTargetCode = "en",
+        ),
+    )
+
+    val builtIns: List<VoiceInputProfile> = listOf(
+        dictation,
+        chat,
+        review,
+        translateChineseToEnglish,
+    )
 
     fun builtInById(id: String?): VoiceInputProfile? =
         builtIns.firstOrNull { it.id == id }
 
     fun identify(profile: VoiceInputProfile): VoiceInputProfile? =
         builtIns.firstOrNull {
-            it.autoCommit == profile.autoCommit &&
+                it.autoCommit == profile.autoCommit &&
                 it.commitSuffixMode == profile.commitSuffixMode &&
-                it.languageTag == profile.languageTag
+                it.languageTag == profile.languageTag &&
+                it.transform == profile.transform
         }
 }
