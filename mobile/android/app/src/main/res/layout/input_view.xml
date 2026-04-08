@@ -52,7 +52,7 @@
             </LinearLayout>
 
             <Button
-                android:id="@+id/imeSettingsButton"
+                android:id="@+id/imeMoreButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_ime_button_outline"
@@ -62,72 +62,35 @@
                 android:paddingTop="8dp"
                 android:paddingRight="14dp"
                 android:paddingBottom="8dp"
-                android:text="@string/ime_settings" />
+                android:text="@string/ime_more" />
         </LinearLayout>
 
-        <HorizontalScrollView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:scrollbars="none">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:text="@string/ime_mode_label"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="@color/shinsoku_text_muted" />
 
-                <Button
-                    android:id="@+id/imeDictationButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_ime_button_chip"
-                    android:minHeight="36dp"
-                    android:paddingLeft="14dp"
-                    android:paddingTop="6dp"
-                    android:paddingRight="14dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/ime_profile_dictation_short" />
-
-                <Button
-                    android:id="@+id/imeChatButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_ime_button_chip"
-                    android:minHeight="36dp"
-                    android:paddingLeft="14dp"
-                    android:paddingTop="6dp"
-                    android:paddingRight="14dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/ime_profile_chat_short" />
-
-                <Button
-                    android:id="@+id/imeReviewButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_ime_button_chip"
-                    android:minHeight="36dp"
-                    android:paddingLeft="14dp"
-                    android:paddingTop="6dp"
-                    android:paddingRight="14dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/ime_profile_review_short" />
-
-                <Button
-                    android:id="@+id/imeTranslateButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_ime_button_chip"
-                    android:minHeight="36dp"
-                    android:paddingLeft="14dp"
-                    android:paddingTop="6dp"
-                    android:paddingRight="14dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/ime_profile_translate_short" />
-            </LinearLayout>
-        </HorizontalScrollView>
+            <Spinner
+                android:id="@+id/imePresetSpinner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_ime_button_outline"
+                android:minHeight="40dp"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -142,19 +105,30 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@drawable/bg_ime_button_primary"
-                android:minHeight="44dp"
+                android:minHeight="52dp"
+                android:textSize="16sp"
                 android:textColor="@color/shinsoku_on_primary"
                 android:text="@string/ime_mic" />
+        </LinearLayout>
 
-            <Button
-                android:id="@+id/insertButton"
-                android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/imePendingActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="end"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/imePendingHint"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_ime_button_tonal"
-                android:minHeight="40dp"
-                android:text="@string/ime_insert"
-                android:visibility="gone" />
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1"
+                android:text="@string/ime_pending_hint"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="@color/shinsoku_text_muted" />
 
             <Button
                 android:id="@+id/clearButton"
@@ -163,41 +137,16 @@
                 android:layout_marginStart="8dp"
                 android:background="@drawable/bg_ime_button_outline"
                 android:minHeight="40dp"
-                android:text="@string/ime_clear"
-                android:visibility="gone" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/ime_tools_label"
-                android:textAppearance="?attr/textAppearanceLabelMedium"
-                android:textColor="@color/shinsoku_text_muted" />
+                android:text="@string/ime_clear" />
 
             <Button
-                android:id="@+id/spaceButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/bg_ime_button_outline"
-                android:minHeight="40dp"
-                android:text="@string/ime_space" />
-
-            <Button
-                android:id="@+id/backspaceButton"
+                android:id="@+id/insertButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/bg_ime_button_outline"
+                android:background="@drawable/bg_ime_button_tonal"
                 android:minHeight="40dp"
-                android:text="@string/ime_delete" />
+                android:text="@string/ime_insert" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
