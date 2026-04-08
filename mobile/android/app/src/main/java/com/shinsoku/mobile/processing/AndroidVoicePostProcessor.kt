@@ -21,6 +21,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
@@ -119,23 +120,25 @@ class AndroidVoicePostProcessor(
             }
         }
 
+        val endpoint = baseUrl.trimEnd('/') + "/chat/completions"
         val requestBody = JSONObject()
             .put("model", model.ifBlank { "gpt-5.4-nano" })
             .put("messages", messages)
             .put("stream", false)
             .put("max_tokens", POST_PROCESSING_MAX_TOKENS)
             .put("temperature", 0.2)
-            .toString()
+        if (isDashScopeCompatibleEndpoint(endpoint)) {
+            requestBody.put("enable_thinking", false)
+        }
 
-        val endpoint = baseUrl.trimEnd('/') + "/chat/completions"
         Log.d(
             "ShinsokuPostProcess",
-            "Requesting provider-assisted transform. endpoint=$endpoint model=$model format=${promptPlan.requestFormat}",
+            "Requesting provider-assisted transform. endpoint=$endpoint model=$model format=${promptPlan.requestFormat} dashscope=${isDashScopeCompatibleEndpoint(endpoint)}",
         )
         val request = Request.Builder()
             .url(endpoint)
             .addHeader("Authorization", "Bearer $apiKey")
-            .post(requestBody.toRequestBody("application/json".toMediaType()))
+            .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
         client.newCall(request).execute().use { response ->
@@ -170,5 +173,13 @@ class AndroidVoicePostProcessor(
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(appContext, appContext.getString(messageRes), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun isDashScopeCompatibleEndpoint(endpoint: String): Boolean {
+        val uri = runCatching { URI(endpoint) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase().orEmpty()
+        return host == "dashscope.aliyuncs.com" ||
+            host == "dashscope-intl.aliyuncs.com" ||
+            host == "dashscope-us.aliyuncs.com"
     }
 }
