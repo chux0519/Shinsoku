@@ -26,12 +26,16 @@ import java.util.concurrent.Executors
 class AndroidVoicePostProcessor(
     context: Context,
 ) : VoiceTranscriptPostProcessor {
+    companion object {
+        private const val POST_PROCESSING_TIMEOUT_SECONDS = 20L
+    }
+
     private val appContext = context.applicationContext
     private val runtimeConfigStore = AndroidVoiceRuntimeConfigStore(context)
     private val executor = Executors.newSingleThreadExecutor()
     private val client = OkHttpClient.Builder()
         .dns(com.shinsoku.mobile.ime.ShinsokuDns)
-        .callTimeout(8, TimeUnit.SECONDS)
+        .callTimeout(POST_PROCESSING_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
     override fun process(
