@@ -14,6 +14,7 @@ import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.history.HistoryActivity
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
+import com.shinsoku.mobile.processing.NativeTranscriptCleanup
 import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
@@ -22,6 +23,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
 import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
+import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
@@ -61,6 +63,7 @@ class MainActivity : AppCompatActivity() {
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
         }
+        TranscriptCommitPlanner.nativeCommitPlanner = NativeTranscriptCleanup::planTranscriptCommit
         binding.openKeyboardSettingsButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
         }

@@ -1,8 +1,10 @@
-#include <jni.h>
+#include "shinsoku/nativecore/transcript_cleanup.hpp"
 
 #include <regex>
 #include <stdexcept>
 #include <string>
+
+namespace shinsoku::nativecore {
 
 namespace {
 
@@ -108,6 +110,8 @@ std::string normalize_whitespace(const std::string& input) {
     return normalized;
 }
 
+}  // namespace
+
 std::string cleanup_transcript(const std::string& input) {
     const std::string normalized_utf8 = normalize_whitespace(input);
     if (normalized_utf8.empty()) {
@@ -158,26 +162,4 @@ std::string cleanup_transcript(const std::string& input) {
     return u32_to_utf8(output);
 }
 
-}  // namespace
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_shinsoku_mobile_processing_NativeTranscriptCleanup_cleanupTranscriptNative(
-    JNIEnv* env,
-    jobject /* thiz */,
-    jstring text
-) {
-    if (text == nullptr) {
-        return env->NewStringUTF("");
-    }
-
-    const char* input_chars = env->GetStringUTFChars(text, nullptr);
-    if (input_chars == nullptr) {
-        return env->NewStringUTF("");
-    }
-
-    const std::string input(input_chars);
-    env->ReleaseStringUTFChars(text, input_chars);
-
-    const std::string cleaned = cleanup_transcript(input);
-    return env->NewStringUTF(cleaned.c_str());
-}
+}  // namespace shinsoku::nativecore

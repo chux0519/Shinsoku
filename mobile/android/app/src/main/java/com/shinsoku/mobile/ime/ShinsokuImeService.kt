@@ -10,6 +10,7 @@ import com.shinsoku.mobile.R
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
+import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
@@ -17,6 +18,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
+import com.shinsoku.mobile.processing.NativeTranscriptCleanup
 import java.util.UUID
 
 class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
@@ -35,6 +37,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     override fun onCreate() {
         super.onCreate()
+        TranscriptCommitPlanner.nativeCommitPlanner = NativeTranscriptCleanup::planTranscriptCommit
         configStore = AndroidVoiceInputConfigStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         historyStore = AndroidVoiceInputHistoryStore(this)
