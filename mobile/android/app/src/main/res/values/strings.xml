@@ -48,6 +48,7 @@
     <string name="settings_configuration_title">Current configuration</string>
     <string name="workflow_preset_label">Workflow preset</string>
     <string name="recognition_backend_label">Recognition backend</string>
+    <string name="post_processing_label">Post-processing</string>
     <string name="workflow_presets_title">Workflow presets</string>
     <string name="provider_section_title">Recognition backend</string>
     <string name="provider_section_body">Choose the backend Shinsoku should use for the next voice session. Android system, OpenAI-compatible batch, and the current streaming providers all feed the same shared mobile voice-input core.</string>
@@ -83,6 +84,7 @@
     <string name="openai_post_base_url_label">Post-processing base URL</string>
     <string name="openai_post_api_key_label">Post-processing API key</string>
     <string name="save_backend_config">Save backend config</string>
+    <string name="save_all_settings">Save changes</string>
     <string name="streaming_url_label">Streaming URL</string>
     <string name="streaming_api_key_label">Streaming API key</string>
     <string name="streaming_model_label">Streaming model</string>

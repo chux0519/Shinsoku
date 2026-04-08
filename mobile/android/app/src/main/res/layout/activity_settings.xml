@@ -144,6 +144,20 @@
                         android:layout_height="wrap_content"
                         android:inputType="none" />
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:hint="@string/post_processing_label">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/postProcessingDropdown"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none" />
+                </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -337,14 +351,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/saveProviderConfigButton"
-            style="@style/Widget.Shinsoku.Button.Outline"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/save_backend_config" />
-
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -371,38 +377,6 @@
                     android:textAppearance="?attr/textAppearanceBodyMedium"
                     android:textColor="@color/shinsoku_text_muted" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/postProcessingDisabledButton"
-                        style="@style/Widget.Shinsoku.Button.Chip"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checkable="true"
-                        android:text="@string/post_processing_disabled" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/postProcessingLocalCleanupButton"
-                        style="@style/Widget.Shinsoku.Button.Chip"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:checkable="true"
-                        android:text="@string/post_processing_local_cleanup_short" />
-                </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/postProcessingProviderAssistedButton"
-                    style="@style/Widget.Shinsoku.Button.Chip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:checkable="true"
-                    android:text="@string/post_processing_provider_assisted_short" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -657,14 +631,6 @@
                         android:minLines="3" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/saveTransformSettingsButton"
-                    style="@style/Widget.Shinsoku.Button.Outline"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/save_transform_settings" />
-
                 <TextView
                     android:id="@+id/transformPreviewTitleText"
                     android:layout_width="match_parent"
@@ -764,18 +730,10 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/saveLanguageButton"
-                style="@style/Widget.Shinsoku.Button.Primary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/save_language" />
-
-            <com.google.android.material.button.MaterialButton
                 android:id="@+id/useAutoLanguageButton"
                 style="@style/Widget.Shinsoku.Button.Outline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
                 android:text="@string/language_auto_label" />
 
             <com.google.android.material.button.MaterialButton
@@ -794,6 +752,14 @@
                 android:layout_marginStart="8dp"
                 android:text="@string/language_chinese_label" />
         </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/saveAllSettingsButton"
+            style="@style/Widget.Shinsoku.Button.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/save_all_settings" />
 
     </LinearLayout>
 

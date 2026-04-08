@@ -143,41 +143,38 @@
                     android:textColor="@color/shinsoku_text_muted"
                     android:textIsSelectable="true" />
 
-                <HorizontalScrollView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:scrollbars="none">
+                    android:orientation="vertical">
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/requestPermissionButton"
+                        style="@style/Widget.Shinsoku.Button.Outline"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:text="@string/request_microphone_permission"
+                        android:textAlignment="center" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/requestPermissionButton"
-                            style="@style/Widget.Shinsoku.Button.Outline"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/request_microphone_permission" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/openKeyboardSettingsButton"
+                        style="@style/Widget.Shinsoku.Button.Outline"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/open_keyboard_settings"
+                        android:textAlignment="center" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/openKeyboardSettingsButton"
-                            style="@style/Widget.Shinsoku.Button.Outline"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="@string/open_keyboard_settings" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/openInputMethodPickerButton"
-                            style="@style/Widget.Shinsoku.Button.Outline"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="@string/open_input_method_picker" />
-                    </LinearLayout>
-                </HorizontalScrollView>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/openInputMethodPickerButton"
+                        style="@style/Widget.Shinsoku.Button.Outline"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/open_input_method_picker"
+                        android:textAlignment="center" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -206,47 +203,19 @@
                     android:textAppearance="?attr/textAppearanceBodyMedium"
                     android:textColor="@color/shinsoku_text_muted" />
 
-                <LinearLayout
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:orientation="vertical">
+                    android:hint="@string/workflow_preset_label">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyDictationPresetButton"
-                        style="@style/Widget.Shinsoku.Button.Chip"
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/mainWorkflowPresetDropdown"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:checkable="true"
-                        android:text="@string/preset_dictation_title" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyChatPresetButton"
-                        style="@style/Widget.Shinsoku.Button.Chip"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:checkable="true"
-                        android:text="@string/preset_chat_title" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyReviewPresetButton"
-                        style="@style/Widget.Shinsoku.Button.Chip"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:checkable="true"
-                        android:text="@string/preset_review_title" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyTranslateZhEnPresetButton"
-                        style="@style/Widget.Shinsoku.Button.Chip"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:checkable="true"
-                        android:text="@string/preset_translate_zh_en_title" />
-                </LinearLayout>
+                        android:inputType="none" />
+                </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

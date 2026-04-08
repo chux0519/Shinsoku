@@ -24,6 +24,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private lateinit var presetOptions: LinkedHashMap<String, VoiceInputProfile>
     private lateinit var providerOptions: LinkedHashMap<String, VoiceRecognitionProvider>
+    private lateinit var postProcessingOptions: LinkedHashMap<String, TranscriptPostProcessingMode>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,11 +45,19 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.provider_soniox) to VoiceRecognitionProvider.Soniox,
             getString(R.string.provider_bailian) to VoiceRecognitionProvider.Bailian,
         )
+        postProcessingOptions = linkedMapOf(
+            getString(R.string.post_processing_disabled) to TranscriptPostProcessingMode.Disabled,
+            getString(R.string.post_processing_local_cleanup_short) to TranscriptPostProcessingMode.LocalCleanup,
+            getString(R.string.post_processing_provider_assisted_short) to TranscriptPostProcessingMode.ProviderAssisted,
+        )
         binding.workflowPresetDropdown.setAdapter(
             ArrayAdapter(this, android.R.layout.simple_list_item_1, presetOptions.keys.toList()),
         )
         binding.recognitionBackendDropdown.setAdapter(
             ArrayAdapter(this, android.R.layout.simple_list_item_1, providerOptions.keys.toList()),
+        )
+        binding.postProcessingDropdown.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, postProcessingOptions.keys.toList()),
         )
         binding.workflowPresetDropdown.setOnItemClickListener { _, _, position, _ ->
             presetOptions.values.elementAtOrNull(position)?.let {
@@ -61,6 +70,12 @@ class SettingsActivity : AppCompatActivity() {
                 saveProviderSelection(it)
             }
         }
+        binding.postProcessingDropdown.setOnItemClickListener { _, _, position, _ ->
+            postProcessingOptions.values.elementAtOrNull(position)?.let {
+                runtimeConfigStore.savePostProcessingMode(it)
+                bindState()
+            }
+        }
 
         binding.autoCommitSwitch.setOnCheckedChangeListener { _, isChecked ->
             configStore.saveAutoCommit(isChecked)
@@ -69,10 +84,6 @@ class SettingsActivity : AppCompatActivity() {
         binding.appendTrailingSpaceSwitch.setOnCheckedChangeListener { _, isChecked ->
             // Legacy toggle retained only as a fast path for the common "space after dictation" choice.
             configStore.saveCommitSuffixMode(if (isChecked) CommitSuffixMode.Space else CommitSuffixMode.None)
-            bindState()
-        }
-        binding.saveLanguageButton.setOnClickListener {
-            configStore.saveLanguageTag(binding.languageTagEdit.text?.toString().orEmpty())
             bindState()
         }
         binding.useAutoLanguageButton.setOnClickListener {
@@ -99,18 +110,6 @@ class SettingsActivity : AppCompatActivity() {
             configStore.saveCommitSuffixMode(CommitSuffixMode.Newline)
             bindState()
         }
-        binding.postProcessingDisabledButton.setOnClickListener {
-            runtimeConfigStore.savePostProcessingMode(TranscriptPostProcessingMode.Disabled)
-            bindState()
-        }
-        binding.postProcessingLocalCleanupButton.setOnClickListener {
-            runtimeConfigStore.savePostProcessingMode(TranscriptPostProcessingMode.LocalCleanup)
-            bindState()
-        }
-        binding.postProcessingProviderAssistedButton.setOnClickListener {
-            runtimeConfigStore.savePostProcessingMode(TranscriptPostProcessingMode.ProviderAssisted)
-            bindState()
-        }
         binding.transformModeCleanupButton.setOnClickListener {
             binding.transformModeCleanupButton.isChecked = true
             binding.transformModeTranslationButton.isChecked = false
@@ -134,11 +133,7 @@ class SettingsActivity : AppCompatActivity() {
             binding.requestFormatSystemAndUserButton.isChecked = false
             binding.requestFormatSingleUserButton.isChecked = true
         }
-        binding.saveTransformSettingsButton.setOnClickListener {
-            configStore.saveTransform(currentTransformFromUi())
-            bindState()
-        }
-        binding.saveProviderConfigButton.setOnClickListener {
+        binding.saveAllSettingsButton.setOnClickListener {
             val current = providerConfigStore.load()
             providerConfigStore.save(
                 current.copy(
@@ -165,6 +160,8 @@ class SettingsActivity : AppCompatActivity() {
                     ),
                 ),
             )
+            configStore.saveTransform(currentTransformFromUi())
+            configStore.saveLanguageTag(binding.languageTagEdit.text?.toString().orEmpty())
             bindState()
         }
     }
@@ -208,6 +205,14 @@ class SettingsActivity : AppCompatActivity() {
         ) + "\n" + providerStatus.detail
         binding.workflowPresetDropdown.setText(profile.displayName, false)
         binding.recognitionBackendDropdown.setText(providerLabel(providerConfig.activeRecognitionProvider), false)
+        binding.postProcessingDropdown.setText(
+            when (runtimeConfig.postProcessingConfig.mode) {
+                TranscriptPostProcessingMode.Disabled -> getString(R.string.post_processing_disabled)
+                TranscriptPostProcessingMode.LocalCleanup -> getString(R.string.post_processing_local_cleanup_short)
+                TranscriptPostProcessingMode.ProviderAssisted -> getString(R.string.post_processing_provider_assisted_short)
+            },
+            false,
+        )
         binding.autoCommitSwitch.isChecked = profile.autoCommit
         binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         val languageText = profile.languageTag.orEmpty()
@@ -217,12 +222,6 @@ class SettingsActivity : AppCompatActivity() {
         binding.commitSuffixNoneButton.isChecked = profile.commitSuffixMode == CommitSuffixMode.None
         binding.commitSuffixSpaceButton.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         binding.commitSuffixNewlineButton.isChecked = profile.commitSuffixMode == CommitSuffixMode.Newline
-        binding.postProcessingDisabledButton.isChecked =
-            runtimeConfig.postProcessingConfig.mode == TranscriptPostProcessingMode.Disabled
-        binding.postProcessingLocalCleanupButton.isChecked =
-            runtimeConfig.postProcessingConfig.mode == TranscriptPostProcessingMode.LocalCleanup
-        binding.postProcessingProviderAssistedButton.isChecked =
-            runtimeConfig.postProcessingConfig.mode == TranscriptPostProcessingMode.ProviderAssisted
         binding.transformEnabledSwitch.isChecked = profile.transform.enabled
         binding.transformModeCleanupButton.isChecked = profile.transform.mode == VoiceTransformMode.Cleanup
         binding.transformModeTranslationButton.isChecked = profile.transform.mode == VoiceTransformMode.Translation

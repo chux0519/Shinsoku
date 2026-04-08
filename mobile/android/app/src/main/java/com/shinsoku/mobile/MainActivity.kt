@@ -5,6 +5,7 @@ import android.provider.Settings
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
 import com.shinsoku.mobile.databinding.ActivityMainBinding
 import com.shinsoku.mobile.ime.RecognitionEngineFactory
@@ -46,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
+    private lateinit var presetOptions: LinkedHashMap<String, com.shinsoku.mobile.speechcore.VoiceInputProfile>
     private var labController: VoiceInputController? = null
     private val requestMicrophonePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -60,6 +62,21 @@ class MainActivity : AppCompatActivity() {
         historyStore = AndroidVoiceInputHistoryStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
+        presetOptions = linkedMapOf(
+            getString(R.string.preset_dictation_title) to VoiceInputProfiles.dictation,
+            getString(R.string.preset_chat_title) to VoiceInputProfiles.chat,
+            getString(R.string.preset_review_title) to VoiceInputProfiles.review,
+            getString(R.string.preset_translate_zh_en_title) to VoiceInputProfiles.translateChineseToEnglish,
+        )
+        binding.mainWorkflowPresetDropdown.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, presetOptions.keys.toList()),
+        )
+        binding.mainWorkflowPresetDropdown.setOnItemClickListener { _, _, position, _ ->
+            presetOptions.values.elementAtOrNull(position)?.let {
+                configStore.saveProfile(it)
+                bindState()
+            }
+        }
 
         binding.requestPermissionButton.setOnClickListener {
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
@@ -77,22 +94,6 @@ class MainActivity : AppCompatActivity() {
         }
         binding.openHistoryButton.setOnClickListener {
             startActivity(Intent(this, HistoryActivity::class.java))
-        }
-        binding.applyDictationPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.dictation)
-            bindState()
-        }
-        binding.applyChatPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.chat)
-            bindState()
-        }
-        binding.applyReviewPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.review)
-            bindState()
-        }
-        binding.applyTranslateZhEnPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.translateChineseToEnglish)
-            bindState()
         }
         binding.voiceLabMicButton.setOnClickListener {
             ensureLabController()
@@ -182,10 +183,7 @@ class MainActivity : AppCompatActivity() {
             VoiceInputProfiles.translateChineseToEnglish.id -> getString(R.string.preset_translate_zh_en_summary)
             else -> getString(R.string.preset_custom_summary)
         }
-        binding.applyDictationPresetButton.isChecked = profile.id == VoiceInputProfiles.dictation.id
-        binding.applyChatPresetButton.isChecked = profile.id == VoiceInputProfiles.chat.id
-        binding.applyReviewPresetButton.isChecked = profile.id == VoiceInputProfiles.review.id
-        binding.applyTranslateZhEnPresetButton.isChecked = profile.id == VoiceInputProfiles.translateChineseToEnglish.id
+        binding.mainWorkflowPresetDropdown.setText(profile.displayName, false)
         val latestEntry = historyStore.listEntries(limit = 1).firstOrNull()
         binding.recentHistoryPreviewText.text = latestEntry?.text ?: getString(R.string.history_empty)
     }
