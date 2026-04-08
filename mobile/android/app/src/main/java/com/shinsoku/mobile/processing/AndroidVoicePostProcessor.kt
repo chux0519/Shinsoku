@@ -3,6 +3,7 @@ package com.shinsoku.mobile.processing
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import com.shinsoku.mobile.R
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
@@ -68,7 +69,7 @@ class AndroidVoicePostProcessor(
             }.onSuccess { refined ->
                 callback.onSuccess(refined.ifBlank { cleaned })
             }.onFailure { error ->
-                android.util.Log.w(
+                Log.w(
                     "ShinsokuPostProcess",
                     "Provider-assisted post-processing failed, falling back to local cleanup",
                     error,
@@ -117,9 +118,14 @@ class AndroidVoicePostProcessor(
         val requestBody = JSONObject()
             .put("model", model.ifBlank { "gpt-5.4-nano" })
             .put("messages", messages)
+            .put("stream", false)
             .toString()
 
         val endpoint = baseUrl.trimEnd('/') + "/chat/completions"
+        Log.d(
+            "ShinsokuPostProcess",
+            "Requesting provider-assisted transform. endpoint=$endpoint model=$model format=${promptPlan.requestFormat}",
+        )
         val request = Request.Builder()
             .url(endpoint)
             .addHeader("Authorization", "Bearer $apiKey")
@@ -129,8 +135,16 @@ class AndroidVoicePostProcessor(
         client.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
+                Log.e(
+                    "ShinsokuPostProcess",
+                    "Post-processing HTTP failure. code=${response.code} body=$body",
+                )
                 throw IOException(body.ifBlank { "OpenAI post-processing failed with ${response.code}." })
             }
+            Log.d(
+                "ShinsokuPostProcess",
+                "Post-processing success. code=${response.code} body=$body",
+            )
             val json = JSONObject(body)
             return json.optJSONArray("choices")
                 ?.optJSONObject(0)
