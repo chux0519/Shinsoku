@@ -1,18 +1,12 @@
 package com.shinsoku.mobile.settings
 
-import android.Manifest
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
-import android.provider.Settings
 import android.view.View
-import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
+import com.shinsoku.mobile.R
 import com.shinsoku.mobile.databinding.ActivitySettingsBinding
 import com.shinsoku.mobile.ime.RecognitionProviderDiagnostics
-import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.speechcore.CommitSuffixMode
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
@@ -28,10 +22,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
-    private val requestMicrophonePermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            bindState()
-        }
+    private lateinit var presetOptions: LinkedHashMap<String, VoiceInputProfile>
+    private lateinit var providerOptions: LinkedHashMap<String, VoiceRecognitionProvider>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,17 +32,36 @@ class SettingsActivity : AppCompatActivity() {
         configStore = AndroidVoiceInputConfigStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
+        presetOptions = linkedMapOf(
+            getString(R.string.preset_dictation_title) to VoiceInputProfiles.dictation,
+            getString(R.string.preset_chat_title) to VoiceInputProfiles.chat,
+            getString(R.string.preset_review_title) to VoiceInputProfiles.review,
+            getString(R.string.preset_translate_zh_en_title) to VoiceInputProfiles.translateChineseToEnglish,
+        )
+        providerOptions = linkedMapOf(
+            getString(R.string.provider_android_system) to VoiceRecognitionProvider.AndroidSystem,
+            getString(R.string.provider_openai_compatible) to VoiceRecognitionProvider.OpenAiCompatible,
+            getString(R.string.provider_soniox) to VoiceRecognitionProvider.Soniox,
+            getString(R.string.provider_bailian) to VoiceRecognitionProvider.Bailian,
+        )
+        binding.workflowPresetDropdown.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, presetOptions.keys.toList()),
+        )
+        binding.recognitionBackendDropdown.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, providerOptions.keys.toList()),
+        )
+        binding.workflowPresetDropdown.setOnItemClickListener { _, _, position, _ ->
+            presetOptions.values.elementAtOrNull(position)?.let {
+                configStore.saveProfile(it)
+                bindState()
+            }
+        }
+        binding.recognitionBackendDropdown.setOnItemClickListener { _, _, position, _ ->
+            providerOptions.values.elementAtOrNull(position)?.let {
+                saveProviderSelection(it)
+            }
+        }
 
-        binding.requestPermissionButton.setOnClickListener {
-            requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
-        }
-        binding.openKeyboardSettingsButton.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-        }
-        binding.openInputMethodPickerButton.setOnClickListener {
-            val imm = getSystemService(InputMethodManager::class.java)
-            imm?.showInputMethodPicker()
-        }
         binding.autoCommitSwitch.setOnCheckedChangeListener { _, isChecked ->
             configStore.saveAutoCommit(isChecked)
             bindState()
@@ -74,22 +85,6 @@ class SettingsActivity : AppCompatActivity() {
         }
         binding.useChineseButton.setOnClickListener {
             configStore.saveLanguageTag("zh-CN")
-            bindState()
-        }
-        binding.applyDictationPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.dictation)
-            bindState()
-        }
-        binding.applyChatPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.chat)
-            bindState()
-        }
-        binding.applyReviewPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.review)
-            bindState()
-        }
-        binding.applyTranslateZhEnPresetButton.setOnClickListener {
-            configStore.saveProfile(VoiceInputProfiles.translateChineseToEnglish)
             bindState()
         }
         binding.commitSuffixNoneButton.setOnClickListener {
@@ -143,27 +138,19 @@ class SettingsActivity : AppCompatActivity() {
             configStore.saveTransform(currentTransformFromUi())
             bindState()
         }
-        binding.providerAndroidSystemButton.setOnClickListener {
-            saveProviderSelection(VoiceRecognitionProvider.AndroidSystem)
-        }
-        binding.providerOpenAiButton.setOnClickListener {
-            saveProviderSelection(VoiceRecognitionProvider.OpenAiCompatible)
-        }
-        binding.providerSonioxButton.setOnClickListener {
-            saveProviderSelection(VoiceRecognitionProvider.Soniox)
-        }
-        binding.providerBailianButton.setOnClickListener {
-            saveProviderSelection(VoiceRecognitionProvider.Bailian)
-        }
         binding.saveProviderConfigButton.setOnClickListener {
             val current = providerConfigStore.load()
             providerConfigStore.save(
                 current.copy(
-                    openAi = current.openAi.copy(
+                    openAiRecognition = current.openAiRecognition.copy(
                         baseUrl = binding.openAiBaseUrlEdit.text?.toString().orEmpty().trim(),
                         apiKey = binding.openAiApiKeyEdit.text?.toString().orEmpty().trim(),
                         transcriptionModel = binding.openAiTranscriptionModelEdit.text?.toString().orEmpty().trim(),
-                        postProcessingModel = binding.openAiPostProcessingModelEdit.text?.toString().orEmpty().trim(),
+                    ),
+                    openAiPostProcessing = current.openAiPostProcessing.copy(
+                        baseUrl = binding.postProcessOpenAiBaseUrlEdit.text?.toString().orEmpty().trim(),
+                        apiKey = binding.postProcessOpenAiApiKeyEdit.text?.toString().orEmpty().trim(),
+                        model = binding.postProcessOpenAiModelEdit.text?.toString().orEmpty().trim(),
                     ),
                     soniox = current.soniox.copy(
                         url = binding.sonioxUrlEdit.text?.toString().orEmpty().trim(),
@@ -192,40 +179,35 @@ class SettingsActivity : AppCompatActivity() {
         val providerConfig = providerConfigStore.load()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
-        val granted = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.RECORD_AUDIO,
-        ) == PackageManager.PERMISSION_GRANTED
-        val imeStatus = queryImeStatus(this)
-
-        binding.permissionStatusText.text = getString(
-            if (granted) com.shinsoku.mobile.R.string.permission_status_granted
-            else com.shinsoku.mobile.R.string.permission_status_missing,
+        binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
+        binding.currentBehaviorSummaryText.text = getString(
+            R.string.behavior_summary_template,
+            if (profile.autoCommit) getString(R.string.behavior_auto_commit_on)
+            else getString(R.string.behavior_auto_commit_off),
+            when (profile.commitSuffixMode) {
+                CommitSuffixMode.None -> getString(R.string.commit_suffix_none)
+                CommitSuffixMode.Space -> getString(R.string.commit_suffix_space)
+                CommitSuffixMode.Newline -> getString(R.string.commit_suffix_newline)
+            },
+            profile.languageTag ?: getString(R.string.language_auto_label),
         )
-        binding.keyboardEnabledStatusText.text = getString(
-            if (imeStatus.enabled) com.shinsoku.mobile.R.string.keyboard_enabled_status
-            else com.shinsoku.mobile.R.string.keyboard_disabled_status,
-        )
-        binding.keyboardSelectedStatusText.text = getString(
-            if (imeStatus.selected) com.shinsoku.mobile.R.string.keyboard_selected_status
-            else com.shinsoku.mobile.R.string.keyboard_not_selected_status,
-        )
-        binding.activeProfileText.text = getString(com.shinsoku.mobile.R.string.active_profile_template, profile.displayName)
         binding.providerStatusText.text = getString(
-            com.shinsoku.mobile.R.string.provider_summary_template,
+            R.string.provider_summary_template,
             providerLabel(providerConfig.activeRecognitionProvider),
             providerStatus.summary,
         ) + "\n" + getString(
-            com.shinsoku.mobile.R.string.post_processing_summary_template,
+            R.string.post_processing_summary_template,
             when (runtimeConfig.postProcessingConfig.mode) {
                 TranscriptPostProcessingMode.Disabled ->
-                    getString(com.shinsoku.mobile.R.string.post_processing_disabled)
+                    getString(R.string.post_processing_disabled)
                 TranscriptPostProcessingMode.LocalCleanup ->
-                    getString(com.shinsoku.mobile.R.string.post_processing_local_cleanup)
+                    getString(R.string.post_processing_local_cleanup)
                 TranscriptPostProcessingMode.ProviderAssisted ->
-                    getString(com.shinsoku.mobile.R.string.post_processing_provider_assisted)
+                    getString(R.string.post_processing_provider_assisted)
             },
         ) + "\n" + providerStatus.detail
+        binding.workflowPresetDropdown.setText(profile.displayName, false)
+        binding.recognitionBackendDropdown.setText(providerLabel(providerConfig.activeRecognitionProvider), false)
         binding.autoCommitSwitch.isChecked = profile.autoCommit
         binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         val languageText = profile.languageTag.orEmpty()
@@ -262,36 +244,34 @@ class SettingsActivity : AppCompatActivity() {
         )
         binding.recommendedPresetText.text = when {
             profile.id == VoiceInputProfiles.review.id ->
-                getString(com.shinsoku.mobile.R.string.preset_review_summary)
+                getString(R.string.preset_review_summary)
             profile.id == VoiceInputProfiles.chat.id ->
-                getString(com.shinsoku.mobile.R.string.preset_chat_summary)
+                getString(R.string.preset_chat_summary)
             profile.id == VoiceInputProfiles.translateChineseToEnglish.id ->
-                getString(com.shinsoku.mobile.R.string.preset_translate_zh_en_summary)
+                getString(R.string.preset_translate_zh_en_summary)
             profile.id == VoiceInputProfiles.dictation.id ->
-                getString(com.shinsoku.mobile.R.string.preset_dictation_summary)
+                getString(R.string.preset_dictation_summary)
             else ->
-                getString(com.shinsoku.mobile.R.string.preset_custom_summary)
+                getString(R.string.preset_custom_summary)
         }
-        binding.providerAndroidSystemButton.isChecked =
-            providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.AndroidSystem
-        binding.providerOpenAiButton.isChecked =
-            providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.OpenAiCompatible
-        binding.providerSonioxButton.isChecked =
-            providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.Soniox
-        binding.providerBailianButton.isChecked =
-            providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.Bailian
 
-        if (binding.openAiBaseUrlEdit.text?.toString() != providerConfig.openAi.baseUrl) {
-            binding.openAiBaseUrlEdit.setText(providerConfig.openAi.baseUrl)
+        if (binding.openAiBaseUrlEdit.text?.toString() != providerConfig.openAiRecognition.baseUrl) {
+            binding.openAiBaseUrlEdit.setText(providerConfig.openAiRecognition.baseUrl)
         }
-        if (binding.openAiApiKeyEdit.text?.toString() != providerConfig.openAi.apiKey) {
-            binding.openAiApiKeyEdit.setText(providerConfig.openAi.apiKey)
+        if (binding.openAiApiKeyEdit.text?.toString() != providerConfig.openAiRecognition.apiKey) {
+            binding.openAiApiKeyEdit.setText(providerConfig.openAiRecognition.apiKey)
         }
-        if (binding.openAiTranscriptionModelEdit.text?.toString() != providerConfig.openAi.transcriptionModel) {
-            binding.openAiTranscriptionModelEdit.setText(providerConfig.openAi.transcriptionModel)
+        if (binding.openAiTranscriptionModelEdit.text?.toString() != providerConfig.openAiRecognition.transcriptionModel) {
+            binding.openAiTranscriptionModelEdit.setText(providerConfig.openAiRecognition.transcriptionModel)
         }
-        if (binding.openAiPostProcessingModelEdit.text?.toString() != providerConfig.openAi.postProcessingModel) {
-            binding.openAiPostProcessingModelEdit.setText(providerConfig.openAi.postProcessingModel)
+        if (binding.postProcessOpenAiBaseUrlEdit.text?.toString() != providerConfig.openAiPostProcessing.baseUrl) {
+            binding.postProcessOpenAiBaseUrlEdit.setText(providerConfig.openAiPostProcessing.baseUrl)
+        }
+        if (binding.postProcessOpenAiApiKeyEdit.text?.toString() != providerConfig.openAiPostProcessing.apiKey) {
+            binding.postProcessOpenAiApiKeyEdit.setText(providerConfig.openAiPostProcessing.apiKey)
+        }
+        if (binding.postProcessOpenAiModelEdit.text?.toString() != providerConfig.openAiPostProcessing.model) {
+            binding.postProcessOpenAiModelEdit.setText(providerConfig.openAiPostProcessing.model)
         }
         if (binding.sonioxUrlEdit.text?.toString() != providerConfig.soniox.url) {
             binding.sonioxUrlEdit.setText(providerConfig.soniox.url)
@@ -339,33 +319,33 @@ class SettingsActivity : AppCompatActivity() {
             if (providerConfig.activeRecognitionProvider == VoiceRecognitionProvider.Bailian) View.VISIBLE else View.GONE
         binding.postProcessingHintText.text = when (runtimeConfig.postProcessingConfig.mode) {
             TranscriptPostProcessingMode.Disabled ->
-                getString(com.shinsoku.mobile.R.string.post_processing_hint_disabled)
+                getString(R.string.post_processing_hint_disabled)
             TranscriptPostProcessingMode.LocalCleanup ->
-                getString(com.shinsoku.mobile.R.string.post_processing_hint_local_cleanup)
+                getString(R.string.post_processing_hint_local_cleanup)
             TranscriptPostProcessingMode.ProviderAssisted ->
-                getString(com.shinsoku.mobile.R.string.post_processing_hint_provider_assisted)
+                getString(R.string.post_processing_hint_provider_assisted)
         }
         binding.transformSummaryText.text = when {
             !profile.transform.enabled ->
-                getString(com.shinsoku.mobile.R.string.transform_summary_disabled)
+                getString(R.string.transform_summary_disabled)
             profile.transform.mode == VoiceTransformMode.Cleanup ->
-                getString(com.shinsoku.mobile.R.string.transform_summary_cleanup)
+                getString(R.string.transform_summary_cleanup)
             profile.transform.mode == VoiceTransformMode.Translation ->
                 getString(
-                    com.shinsoku.mobile.R.string.transform_summary_translation,
+                    R.string.transform_summary_translation,
                     profile.transform.translationSourceLanguage,
                     profile.transform.translationTargetLanguage,
                 )
             else ->
-                getString(com.shinsoku.mobile.R.string.transform_summary_custom)
+                getString(R.string.transform_summary_custom)
         }
         val previewPlan = VoiceTransformPromptBuilder.build(
-            getString(com.shinsoku.mobile.R.string.transform_preview_placeholder),
+            getString(R.string.transform_preview_placeholder),
             profile,
         )
         if (previewPlan.requestFormat == VoiceRefineRequestFormat.SingleUserMessage) {
             binding.transformPreviewTitleText.text =
-                getString(com.shinsoku.mobile.R.string.transform_single_prompt_preview_title)
+                getString(R.string.transform_single_prompt_preview_title)
             binding.transformPreviewText.text = buildString {
                 append(previewPlan.systemPrompt.trim())
                 append("\n\n")
@@ -373,7 +353,7 @@ class SettingsActivity : AppCompatActivity() {
             }
         } else {
             binding.transformPreviewTitleText.text =
-                getString(com.shinsoku.mobile.R.string.transform_system_prompt_title)
+                getString(R.string.transform_system_prompt_title)
             binding.transformPreviewText.text = previewPlan.systemPrompt
         }
     }
@@ -408,10 +388,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun providerLabel(provider: VoiceRecognitionProvider): String = when (provider) {
-        VoiceRecognitionProvider.AndroidSystem -> getString(com.shinsoku.mobile.R.string.provider_android_system)
-        VoiceRecognitionProvider.OpenAiCompatible -> getString(com.shinsoku.mobile.R.string.provider_openai_compatible)
-        VoiceRecognitionProvider.Soniox -> getString(com.shinsoku.mobile.R.string.provider_soniox)
-        VoiceRecognitionProvider.Bailian -> getString(com.shinsoku.mobile.R.string.provider_bailian)
+        VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_android_system)
+        VoiceRecognitionProvider.OpenAiCompatible -> getString(R.string.provider_openai_compatible)
+        VoiceRecognitionProvider.Soniox -> getString(R.string.provider_soniox)
+        VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
     }
 
 }

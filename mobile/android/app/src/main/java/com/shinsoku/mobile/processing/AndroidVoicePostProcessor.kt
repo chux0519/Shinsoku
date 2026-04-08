@@ -62,9 +62,9 @@ class AndroidVoicePostProcessor(
             runCatching {
                 refineWithOpenAi(
                     promptPlan = promptPlan,
-                    baseUrl = providerConfig.openAi.baseUrl,
-                    apiKey = providerConfig.openAi.apiKey,
-                    model = providerConfig.openAi.postProcessingModel,
+                    baseUrl = providerConfig.openAiPostProcessing.baseUrl,
+                    apiKey = providerConfig.openAiPostProcessing.apiKey,
+                    model = providerConfig.openAiPostProcessing.model,
                 )
             }.onSuccess { refined ->
                 callback.onSuccess(refined.ifBlank { cleaned })

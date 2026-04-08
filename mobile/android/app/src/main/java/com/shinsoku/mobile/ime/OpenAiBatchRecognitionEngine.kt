@@ -32,14 +32,14 @@ class OpenAiBatchRecognitionEngine(
     private var activeListener: VoiceInputEngine.Listener? = null
     private var activeProfile: VoiceInputProfile? = null
     private val transcriptionEndpoint: String
-        get() = providerConfig.openAi.baseUrl.trimEnd('/') + "/audio/transcriptions"
+        get() = providerConfig.openAiRecognition.baseUrl.trimEnd('/') + "/audio/transcriptions"
 
     override fun start(profile: VoiceInputProfile, listener: VoiceInputEngine.Listener) {
-        if (providerConfig.openAi.apiKey.isBlank()) {
+        if (providerConfig.openAiRecognition.apiKey.isBlank()) {
             listener.onError("OpenAI-compatible API key is missing.")
             return
         }
-        if (providerConfig.openAi.transcriptionModel.isBlank()) {
+        if (providerConfig.openAiRecognition.transcriptionModel.isBlank()) {
             listener.onError("OpenAI-compatible transcription model is missing.")
             return
         }
@@ -135,7 +135,7 @@ class OpenAiBatchRecognitionEngine(
     private fun transcribe(file: File, profile: VoiceInputProfile): String {
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("model", providerConfig.openAi.transcriptionModel)
+            .addFormDataPart("model", providerConfig.openAiRecognition.transcriptionModel)
             .addFormDataPart(
                 "file",
                 file.name,
@@ -152,7 +152,7 @@ class OpenAiBatchRecognitionEngine(
 
         val request = Request.Builder()
             .url(transcriptionEndpoint)
-            .addHeader("Authorization", "Bearer ${providerConfig.openAi.apiKey}")
+            .addHeader("Authorization", "Bearer ${providerConfig.openAiRecognition.apiKey}")
             .post(requestBody)
             .build()
 

@@ -20,7 +20,7 @@ class AndroidVoiceRuntimeConfigStore(
         val providerConfig = providerStore.loadProviderConfig()
         val derivedMode = NativeVoiceRuntime.derivePostProcessingMode(
             activeProviderName = providerConfig.activeRecognitionProvider.name,
-            openAiApiKey = providerConfig.openAi.apiKey,
+            openAiApiKey = providerConfig.openAiPostProcessing.apiKey,
         )
         val selectedMode = preferences.getString(KEY_POST_PROCESSING_MODE, null)
             ?.let { runCatching { TranscriptPostProcessingMode.valueOf(it) }.getOrNull() }

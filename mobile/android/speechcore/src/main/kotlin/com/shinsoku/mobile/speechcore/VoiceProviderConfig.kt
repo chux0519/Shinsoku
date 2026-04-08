@@ -14,6 +14,12 @@ data class OpenAiProviderConfig(
     val postProcessingModel: String = "gpt-5.4-nano",
 )
 
+data class OpenAiPostProcessingConfig(
+    val baseUrl: String = "https://api.openai.com/v1",
+    val apiKey: String = "",
+    val model: String = "gpt-5.4-nano",
+)
+
 data class SonioxProviderConfig(
     val url: String = "wss://stt-rt.soniox.com/transcribe-websocket",
     val apiKey: String = "",
@@ -29,7 +35,8 @@ data class BailianProviderConfig(
 
 data class VoiceProviderConfig(
     val activeRecognitionProvider: VoiceRecognitionProvider = VoiceRecognitionProvider.AndroidSystem,
-    val openAi: OpenAiProviderConfig = OpenAiProviderConfig(),
+    val openAiRecognition: OpenAiProviderConfig = OpenAiProviderConfig(),
+    val openAiPostProcessing: OpenAiPostProcessingConfig = OpenAiPostProcessingConfig(),
     val soniox: SonioxProviderConfig = SonioxProviderConfig(),
     val bailian: BailianProviderConfig = BailianProviderConfig(),
 )

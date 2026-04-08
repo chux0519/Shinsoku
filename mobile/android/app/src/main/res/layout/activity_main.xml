@@ -206,53 +206,47 @@
                     android:textAppearance="?attr/textAppearanceBodyMedium"
                     android:textColor="@color/shinsoku_text_muted" />
 
-                <HorizontalScrollView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:scrollbars="none">
+                    android:orientation="vertical">
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/applyDictationPresetButton"
+                        style="@style/Widget.Shinsoku.Button.Chip"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:checkable="true"
+                        android:text="@string/preset_dictation_title" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/applyDictationPresetButton"
-                            style="@style/Widget.Shinsoku.Button.Chip"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:checkable="true"
-                            android:text="@string/preset_dictation_title" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/applyChatPresetButton"
+                        style="@style/Widget.Shinsoku.Button.Chip"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:checkable="true"
+                        android:text="@string/preset_chat_title" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/applyChatPresetButton"
-                            style="@style/Widget.Shinsoku.Button.Chip"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:checkable="true"
-                            android:text="@string/preset_chat_title" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/applyReviewPresetButton"
+                        style="@style/Widget.Shinsoku.Button.Chip"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:checkable="true"
+                        android:text="@string/preset_review_title" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/applyReviewPresetButton"
-                            style="@style/Widget.Shinsoku.Button.Chip"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:checkable="true"
-                            android:text="@string/preset_review_title" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/applyTranslateZhEnPresetButton"
-                            style="@style/Widget.Shinsoku.Button.Chip"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:checkable="true"
-                            android:text="@string/preset_translate_zh_en_title" />
-                    </LinearLayout>
-                </HorizontalScrollView>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/applyTranslateZhEnPresetButton"
+                        style="@style/Widget.Shinsoku.Button.Chip"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:checkable="true"
+                        android:text="@string/preset_translate_zh_en_title" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
