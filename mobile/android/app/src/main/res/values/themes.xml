@@ -1,6 +1,94 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Shinsoku" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor" tools:targetApi="l">?android:colorBackground</item>
+        <item name="colorPrimary">@color/shinsoku_primary</item>
+        <item name="colorOnPrimary">@color/shinsoku_on_primary</item>
+        <item name="colorPrimaryContainer">@color/shinsoku_surface_muted</item>
+        <item name="colorOnPrimaryContainer">@color/shinsoku_text</item>
+        <item name="colorSecondary">@color/shinsoku_text</item>
+        <item name="colorOnSecondary">@color/shinsoku_surface</item>
+        <item name="colorSecondaryContainer">@color/shinsoku_surface_muted</item>
+        <item name="colorOnSecondaryContainer">@color/shinsoku_text</item>
+        <item name="colorTertiary">@color/shinsoku_success</item>
+        <item name="colorOnTertiary">@color/shinsoku_surface</item>
+        <item name="colorSurface">@color/shinsoku_surface</item>
+        <item name="colorOnSurface">@color/shinsoku_text</item>
+        <item name="colorSurfaceVariant">@color/shinsoku_surface_muted</item>
+        <item name="colorOnSurfaceVariant">@color/shinsoku_text_muted</item>
+        <item name="android:colorBackground">@color/shinsoku_bg</item>
+        <item name="colorOnBackground">@color/shinsoku_text</item>
+        <item name="colorOutline">@color/shinsoku_border</item>
+        <item name="colorError">@color/shinsoku_error</item>
+        <item name="colorOnError">@color/shinsoku_surface</item>
+        <item name="android:windowBackground">@color/shinsoku_bg</item>
+        <item name="android:navigationBarColor" tools:targetApi="o_mr1">@color/shinsoku_bg</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/shinsoku_bg</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Shinsoku.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Shinsoku.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Shinsoku.Large</item>
+        <item name="materialCardViewStyle">@style/Widget.Shinsoku.Card</item>
+        <item name="materialButtonStyle">@style/Widget.Shinsoku.Button</item>
+    </style>
+
+    <style name="ShapeAppearance.Shinsoku.Small" parent="ShapeAppearance.Material3.Corner.Small">
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Shinsoku.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">18dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Shinsoku.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/shinsoku_surface</item>
+        <item name="strokeColor">@color/shinsoku_border</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Medium</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Button" parent="Widget.Material3.Button">
+        <item name="android:minHeight">44dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Small</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:minHeight">44dp</item>
+        <item name="backgroundTint">@color/shinsoku_primary</item>
+        <item name="android:textColor">@color/shinsoku_on_primary</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Small</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:minHeight">40dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Small</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Button.Outline" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">40dp</item>
+        <item name="strokeColor">@color/shinsoku_border</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Small</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Button.Chip" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">36dp</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="strokeColor">@color/shinsoku_border</item>
+        <item name="backgroundTint">@color/shinsoku_chip_bg</item>
+        <item name="android:textColor">@color/shinsoku_text</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Small</item>
+    </style>
+
+    <style name="Widget.Shinsoku.Button.Chip.Active" parent="Widget.Material3.Button">
+        <item name="android:minHeight">36dp</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="backgroundTint">@color/shinsoku_chip_active</item>
+        <item name="android:textColor">@color/shinsoku_chip_active_text</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Shinsoku.Small</item>
     </style>
 </resources>

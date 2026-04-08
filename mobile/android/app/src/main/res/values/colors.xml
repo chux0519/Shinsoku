@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="shinsoku_bg">#F6F8FA</color>
+    <color name="shinsoku_surface">#FFFFFF</color>
+    <color name="shinsoku_surface_muted">#EEF2F6</color>
+    <color name="shinsoku_border">#D0D7DE</color>
+    <color name="shinsoku_text">#1F2328</color>
+    <color name="shinsoku_text_muted">#59636E</color>
+    <color name="shinsoku_primary">#111827</color>
+    <color name="shinsoku_on_primary">#FFFFFF</color>
+    <color name="shinsoku_success">#1F883D</color>
+    <color name="shinsoku_warning">#9A6700</color>
+    <color name="shinsoku_error">#D1242F</color>
+    <color name="shinsoku_inverse_surface">#0D1117</color>
+    <color name="shinsoku_inverse_text">#F0F6FC</color>
+    <color name="shinsoku_accent_surface">#111827</color>
+    <color name="shinsoku_chip_bg">#F3F4F6</color>
+    <color name="shinsoku_chip_active">#111827</color>
+    <color name="shinsoku_chip_active_text">#FFFFFF</color>
+    <color name="shinsoku_icon_foreground">#FFFFFF</color>
+</resources>

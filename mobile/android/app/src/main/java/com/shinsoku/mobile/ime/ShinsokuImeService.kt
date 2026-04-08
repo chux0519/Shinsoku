@@ -1,20 +1,27 @@
 package com.shinsoku.mobile.ime
 
+import android.content.Intent
+import android.content.res.ColorStateList
 import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.shinsoku.mobile.R
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
+import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
+import com.google.android.material.button.MaterialButton
 import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
+import com.shinsoku.mobile.speechcore.VoiceInputProfile
+import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import com.shinsoku.mobile.speechcore.VoiceInputHistoryEntry
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
@@ -29,9 +36,14 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     private var titleView: TextView? = null
-    private var micButton: Button? = null
-    private var insertButton: Button? = null
-    private var clearButton: Button? = null
+    private var subtitleView: TextView? = null
+    private var micButton: MaterialButton? = null
+    private var insertButton: MaterialButton? = null
+    private var clearButton: MaterialButton? = null
+    private var dictationButton: MaterialButton? = null
+    private var chatButton: MaterialButton? = null
+    private var reviewButton: MaterialButton? = null
+    private var translateButton: MaterialButton? = null
     private var controller: VoiceInputController? = null
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
@@ -51,13 +63,20 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     override fun onCreateInputView(): View {
         val view = LayoutInflater.from(this).inflate(R.layout.input_view, null, false)
         titleView = view.findViewById(R.id.imeTitle)
+        subtitleView = view.findViewById(R.id.imeSubtitle)
         micButton = view.findViewById(R.id.micButton)
         insertButton = view.findViewById(R.id.insertButton)
         clearButton = view.findViewById(R.id.clearButton)
-        val space = view.findViewById<Button>(R.id.spaceButton)
-        val backspace = view.findViewById<Button>(R.id.backspaceButton)
+        dictationButton = view.findViewById(R.id.imeDictationButton)
+        chatButton = view.findViewById(R.id.imeChatButton)
+        reviewButton = view.findViewById(R.id.imeReviewButton)
+        translateButton = view.findViewById(R.id.imeTranslateButton)
+        val space = view.findViewById<MaterialButton>(R.id.spaceButton)
+        val backspace = view.findViewById<MaterialButton>(R.id.backspaceButton)
+        val settingsButton = view.findViewById<MaterialButton>(R.id.imeSettingsButton)
 
         titleView?.text = getString(R.string.ime_title_idle)
+        subtitleView?.text = getString(R.string.ime_subtitle_ready)
         micButton?.setOnClickListener {
             try {
                 if (controller?.currentState() !is VoiceInputUiState.Listening &&
@@ -86,6 +105,26 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         backspace.setOnClickListener {
             currentInputConnection?.deleteSurroundingText(1, 0)
         }
+        settingsButton.setOnClickListener {
+            startActivity(
+                Intent(this, SettingsActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+        }
+        dictationButton?.setOnClickListener {
+            applyProfile(VoiceInputProfiles.dictation)
+        }
+        chatButton?.setOnClickListener {
+            applyProfile(VoiceInputProfiles.chat)
+        }
+        reviewButton?.setOnClickListener {
+            applyProfile(VoiceInputProfiles.review)
+        }
+        translateButton?.setOnClickListener {
+            applyProfile(VoiceInputProfiles.translateChineseToEnglish)
+        }
+        bindPresetButtons(configStore.loadProfile())
 
         return view
     }
@@ -105,6 +144,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         when (state) {
             is VoiceInputUiState.Idle -> {
                 titleView?.text = getString(R.string.ime_title_idle)
+                subtitleView?.text = getString(R.string.ime_subtitle_ready)
                 micButton?.text = getString(R.string.ime_mic)
                 insertButton?.visibility = View.GONE
                 clearButton?.visibility = View.GONE
@@ -116,6 +156,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 } else {
                     state.partialTranscript
                 }
+                subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_stop)
                 insertButton?.visibility = View.GONE
                 clearButton?.visibility = View.GONE
@@ -123,6 +164,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
             is VoiceInputUiState.Processing -> {
                 titleView?.text = getString(R.string.ime_title_processing)
+                subtitleView?.text = getString(R.string.ime_subtitle_processing)
                 micButton?.text = getString(R.string.ime_stop)
                 insertButton?.visibility = View.GONE
                 clearButton?.visibility = View.GONE
@@ -130,6 +172,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
             is VoiceInputUiState.PendingCommit -> {
                 titleView?.text = state.text.trimEnd('\n', ' ')
+                subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_mic)
                 insertButton?.visibility = View.VISIBLE
                 clearButton?.visibility = View.VISIBLE
@@ -138,6 +181,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             is VoiceInputUiState.Error -> {
                 Log.e(TAG, "IME error: ${state.message}")
                 titleView?.text = state.message
+                subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_retry)
                 insertButton?.visibility = View.GONE
                 clearButton?.visibility = View.GONE
@@ -191,5 +235,40 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             observer = this,
             postProcessor = AndroidVoicePostProcessor(this),
         )
+        bindPresetButtons(configStore.loadProfile())
     }
+
+    private fun applyProfile(profile: VoiceInputProfile) {
+        configStore.saveProfile(profile)
+        rebuildController()
+        onStateChanged(controller?.currentState() ?: VoiceInputUiState.Idle)
+    }
+
+    private fun bindPresetButtons(profile: VoiceInputProfile) {
+        bindPresetButton(dictationButton, profile.id == VoiceInputProfiles.dictation.id)
+        bindPresetButton(chatButton, profile.id == VoiceInputProfiles.chat.id)
+        bindPresetButton(reviewButton, profile.id == VoiceInputProfiles.review.id)
+        bindPresetButton(translateButton, profile.id == VoiceInputProfiles.translateChineseToEnglish.id)
+    }
+
+    private fun bindPresetButton(button: MaterialButton?, active: Boolean) {
+        if (button == null) {
+            return
+        }
+        val background = if (active) {
+            R.color.shinsoku_chip_active
+        } else {
+            R.color.shinsoku_chip_bg
+        }
+        val foreground = if (active) {
+            R.color.shinsoku_chip_active_text
+        } else {
+            R.color.shinsoku_text
+        }
+        button.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, background))
+        button.strokeColor = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.shinsoku_border))
+        button.setTextColor(ContextCompat.getColor(this, foreground))
+    }
+
+    private fun currentProfileLabel(): String = configStore.loadProfile().displayName
 }

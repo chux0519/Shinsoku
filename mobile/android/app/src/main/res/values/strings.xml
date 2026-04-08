@@ -123,6 +123,9 @@
     <string name="ime_title_idle">Shinsoku</string>
     <string name="ime_title_listening">Listening…</string>
     <string name="ime_title_processing">Processing…</string>
+    <string name="ime_subtitle_ready">System-following voice keyboard</string>
+    <string name="ime_subtitle_listening">Streaming transcript to the active editor</string>
+    <string name="ime_subtitle_processing">Polishing text before commit</string>
     <string name="ime_mic">Mic</string>
     <string name="ime_stop">Stop</string>
     <string name="ime_retry">Retry</string>
@@ -130,4 +133,10 @@
     <string name="ime_clear">Clear</string>
     <string name="ime_space">Space</string>
     <string name="ime_delete">Delete</string>
+    <string name="ime_settings">Settings</string>
+    <string name="ime_profile_dictation_short">Dictation</string>
+    <string name="ime_profile_chat_short">Chat</string>
+    <string name="ime_profile_review_short">Review</string>
+    <string name="ime_profile_translate_short">Zh→En</string>
+    <string name="ime_tools_label">Edit</string>
 </resources>
