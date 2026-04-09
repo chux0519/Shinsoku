@@ -29,6 +29,10 @@
             android:name=".history.HistoryActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ime.DraftEditorActivity"
+            android:exported="false" />
+
         <service
             android:name=".ime.ShinsokuImeService"
             android:directBootAware="true"

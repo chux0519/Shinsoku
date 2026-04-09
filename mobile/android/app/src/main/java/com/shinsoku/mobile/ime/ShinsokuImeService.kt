@@ -1,6 +1,7 @@
 package com.shinsoku.mobile.ime
 
 import android.content.Intent
+import android.content.IntentFilter
 import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.LayoutInflater
@@ -13,6 +14,7 @@ import android.widget.PopupMenu
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.shinsoku.mobile.R
@@ -45,6 +47,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var micButton: Button? = null
     private var insertButton: Button? = null
     private var clearButton: Button? = null
+    private var editButton: Button? = null
     private var presetSpinner: Spinner? = null
     private var pendingActionsRow: View? = null
     private var controller: VoiceInputController? = null
@@ -53,6 +56,17 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private var suppressPresetSelection = false
+    private var pendingDraftText: String? = null
+    private val draftInsertReceiver = DraftInsertReceiver { editedText ->
+        if (editedText.isBlank()) {
+            controller?.discardPending()
+            return@DraftInsertReceiver
+        }
+        currentInputConnection?.commitText(editedText, 1)
+        appendHistory(editedText)
+        DraftEditorSessionStore.clearDraft(this)
+        controller?.discardPending()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -61,6 +75,12 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
         historyStore = AndroidVoiceInputHistoryStore(this)
+        ContextCompat.registerReceiver(
+            this,
+            draftInsertReceiver,
+            IntentFilter(DraftEditorActivity.ACTION_INSERT_DRAFT),
+            RECEIVER_NOT_EXPORTED,
+        )
         rebuildController()
     }
 
@@ -73,6 +93,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             micButton = view.findViewById(R.id.micButton)
             insertButton = view.findViewById(R.id.insertButton)
             clearButton = view.findViewById(R.id.clearButton)
+            editButton = view.findViewById(R.id.editButton)
             presetSpinner = view.findViewById(R.id.imePresetSpinner)
             pendingActionsRow = view.findViewById(R.id.imePendingActions)
             val moreButton = view.findViewById<Button>(R.id.imeMoreButton)
@@ -102,6 +123,9 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             clearButton?.setOnClickListener {
                 controller?.discardPending()
             }
+            editButton?.setOnClickListener {
+                openDraftEditor()
+            }
             moreButton.setOnClickListener { anchor ->
                 showMoreMenu(anchor)
             }
@@ -114,6 +138,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             micButton = null
             insertButton = null
             clearButton = null
+            editButton = null
             presetSpinner = null
             pendingActionsRow = null
             createFallbackInputView(error)
@@ -128,12 +153,14 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     override fun onDestroy() {
         controller?.destroy()
         controller = null
+        unregisterReceiver(draftInsertReceiver)
         super.onDestroy()
     }
 
     override fun onStateChanged(state: VoiceInputUiState) {
         when (state) {
             is VoiceInputUiState.Idle -> {
+                pendingDraftText = null
                 titleView?.text = getString(R.string.ime_title_idle)
                 subtitleView?.text = getString(R.string.ime_subtitle_ready)
                 micButton?.text = getString(R.string.ime_mic)
@@ -159,6 +186,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.PendingCommit -> {
+                pendingDraftText = state.text
                 titleView?.text = state.text.trimEnd('\n', ' ')
                 subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_mic)
@@ -177,6 +205,10 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     override fun onCommitRequested(commit: VoiceInputCommit) {
         currentInputConnection?.commitText(commit.text, 1)
+        appendHistory(commit.text)
+    }
+
+    private fun appendHistory(text: String) {
         val profile = configStore.loadProfile()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerLabel = when (providerConfigStore.load().activeRecognitionProvider) {
@@ -188,7 +220,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         historyStore.appendEntry(
             VoiceInputHistoryEntry(
                 id = UUID.randomUUID().toString(),
-                text = commit.text,
+                text = text,
                 committedAtEpochMillis = System.currentTimeMillis(),
                 provider = providerLabel,
                 profileName = profile.displayName,
@@ -276,6 +308,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     private fun currentProfileLabel(): String = configStore.loadProfile().displayName
+
+    private fun openDraftEditor() {
+        val text = pendingDraftText ?: return
+        DraftEditorSessionStore.saveDraft(this, text)
+        startActivity(
+            Intent(this, DraftEditorActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    }
 
     private fun applyImeSafeInsets(root: View) {
         val panel = root.findViewById<View>(R.id.imePanel) ?: return
