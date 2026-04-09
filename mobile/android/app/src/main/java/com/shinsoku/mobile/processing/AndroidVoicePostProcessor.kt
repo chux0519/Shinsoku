@@ -1,7 +1,6 @@
 package com.shinsoku.mobile.processing
 
 import android.content.Context
-import com.shinsoku.mobile.speechcore.LocalTranscriptCleanupPostProcessor
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
@@ -31,7 +30,7 @@ class AndroidVoicePostProcessor(
         profile: VoiceInputProfile,
         callback: VoiceTranscriptPostProcessorCallback,
     ) {
-        val cleaned = LocalTranscriptCleanupPostProcessor.cleanupTranscript(rawText)
+        val cleaned = NativeTranscriptCleanup.cleanupTranscript(rawText)
         if (cleaned.isEmpty()) {
             callback.onSuccess("")
             return
