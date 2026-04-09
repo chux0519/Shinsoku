@@ -147,6 +147,7 @@
     <string name="ime_settings">Settings</string>
     <string name="ime_more">More</string>
     <string name="ime_mode_label">Mode</string>
+    <string name="ime_mic_hint">Tap once to speak. Stop when you are done.</string>
     <string name="ime_pending_hint">Review the result before inserting.</string>
     <string name="draft_editor_title">Edit draft</string>
     <string name="draft_editor_subtitle">You can switch to any keyboard here to fine-tune the transcript before inserting it back.</string>
