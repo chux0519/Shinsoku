@@ -13,6 +13,8 @@ import android.widget.PopupMenu
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.shinsoku.mobile.R
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
 import com.shinsoku.mobile.settings.SettingsActivity
@@ -65,6 +67,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     override fun onCreateInputView(): View {
         return try {
             val view = LayoutInflater.from(this).inflate(R.layout.input_view, null, false)
+            applyImeSafeInsets(view)
             titleView = view.findViewById(R.id.imeTitle)
             subtitleView = view.findViewById(R.id.imeSubtitle)
             micButton = view.findViewById(R.id.micButton)
@@ -273,6 +276,25 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     private fun currentProfileLabel(): String = configStore.loadProfile().displayName
+
+    private fun applyImeSafeInsets(root: View) {
+        val panel = root.findViewById<View>(R.id.imePanel) ?: return
+        val basePaddingBottom = panel.paddingBottom
+        val extraBottomPadding = (12 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bottomInset = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            ).bottom
+            panel.setPadding(
+                panel.paddingLeft,
+                panel.paddingTop,
+                panel.paddingRight,
+                basePaddingBottom + bottomInset + extraBottomPadding,
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+    }
 
     private fun showMoreMenu(anchor: View) {
         PopupMenu(this, anchor).apply {
