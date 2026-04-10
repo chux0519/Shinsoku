@@ -112,13 +112,19 @@ struct HomeView: View {
 
     private var draftsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent drafts")
-                .font(.headline)
+            HStack {
+                Text("Recent drafts")
+                    .font(.headline)
+                Spacer()
+                NavigationLink("Manage") {
+                    DraftsView()
+                }
+            }
             if workspace.drafts.isEmpty {
                 Text("No saved drafts yet.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(workspace.drafts.prefix(5)) { draft in
+                ForEach(workspace.drafts.prefix(3)) { draft in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(draft.text)
                             .lineLimit(3)
@@ -128,7 +134,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 8)
-                    if draft.id != workspace.drafts.prefix(5).last?.id {
+                    if draft.id != workspace.drafts.prefix(3).last?.id {
                         Divider()
                     }
                 }
@@ -142,7 +148,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Keyboard extension")
                 .font(.headline)
-            Text("Use the keyboard to insert the latest saved draft into the active editor. This is the practical iOS path while direct microphone dictation remains an app-owned flow.")
+            Text("Use the keyboard to switch among recent drafts and insert them into the active editor. Recording stays in the app, insertion stays in the keyboard.")
                 .foregroundStyle(.secondary)
         }
         .padding(18)

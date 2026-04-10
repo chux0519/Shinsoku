@@ -7,6 +7,9 @@ struct RootView: View {
         NavigationStack {
             HomeView()
                 .toolbar {
+                    NavigationLink("Drafts") {
+                        DraftsView()
+                    }
                     NavigationLink("Settings") {
                         SettingsView()
                     }

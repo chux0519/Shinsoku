@@ -6,8 +6,12 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private let profileLabel = UILabel()
     private let latestDraftLabel = UILabel()
     private let insertButton = UIButton(type: .system)
+    private let previousButton = UIButton(type: .system)
+    private let nextDraftButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
     private let stackView = UIStackView()
+    private var drafts: [StoredDraft] = []
+    private var currentDraftIndex = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -44,9 +48,17 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         latestDraftLabel.font = .systemFont(ofSize: 17, weight: .regular)
         latestDraftLabel.text = "Open the Shinsoku app to create a draft."
 
+        previousButton.configuration = .tinted()
+        previousButton.configuration?.title = "Previous"
+        previousButton.addTarget(self, action: #selector(showPreviousDraft), for: .touchUpInside)
+
         insertButton.configuration = .filled()
-        insertButton.configuration?.title = "Insert latest"
-        insertButton.addTarget(self, action: #selector(insertLatestDraft), for: .touchUpInside)
+        insertButton.configuration?.title = "Insert"
+        insertButton.addTarget(self, action: #selector(insertCurrentDraft), for: .touchUpInside)
+
+        nextDraftButton.configuration = .tinted()
+        nextDraftButton.configuration?.title = "Next draft"
+        nextDraftButton.addTarget(self, action: #selector(showNextDraft), for: .touchUpInside)
 
         nextKeyboardButton.configuration = .tinted()
         nextKeyboardButton.configuration?.title = "Next keyboard"
@@ -59,7 +71,13 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         stackView.addArrangedSubview(profileLabel)
         stackView.addArrangedSubview(latestDraftLabel)
 
-        let buttonRow = UIStackView(arrangedSubviews: [insertButton, nextKeyboardButton])
+        let draftRow = UIStackView(arrangedSubviews: [previousButton, insertButton, nextDraftButton])
+        draftRow.axis = .horizontal
+        draftRow.spacing = 12
+        draftRow.distribution = .fillEqually
+        stackView.addArrangedSubview(draftRow)
+
+        let buttonRow = UIStackView(arrangedSubviews: [nextKeyboardButton])
         buttonRow.axis = .horizontal
         buttonRow.spacing = 12
         buttonRow.distribution = .fillEqually
@@ -72,7 +90,9 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
             stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
             stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -18),
+            previousButton.heightAnchor.constraint(equalToConstant: 46),
             insertButton.heightAnchor.constraint(equalToConstant: 46),
+            nextDraftButton.heightAnchor.constraint(equalToConstant: 46),
             nextKeyboardButton.heightAnchor.constraint(equalToConstant: 46),
         ])
     }
@@ -81,18 +101,49 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         let profile = VoiceProfileStore.loadSelectedProfile()
         profileLabel.text = profile.title
 
-        if let draft = DraftStore.loadDrafts().first {
-            latestDraftLabel.text = draft.text
-            insertButton.isEnabled = true
-        } else {
+        drafts = DraftStore.loadDrafts()
+        currentDraftIndex = min(currentDraftIndex, max(drafts.count - 1, 0))
+        guard let draft = drafts[safe: currentDraftIndex] else {
             latestDraftLabel.text = "Open the Shinsoku app, dictate a phrase, then come back here to insert it."
             insertButton.isEnabled = false
+            previousButton.isEnabled = false
+            nextDraftButton.isEnabled = false
+            return
+        }
+        latestDraftLabel.text = draft.text
+        insertButton.isEnabled = true
+        previousButton.isEnabled = drafts.count > 1
+        nextDraftButton.isEnabled = drafts.count > 1
+    }
+
+    @objc
+    private func insertCurrentDraft() {
+        guard let draft = drafts[safe: currentDraftIndex] else { return }
+        textDocumentProxy.insertText(draft.text)
+    }
+
+    @objc
+    private func showPreviousDraft() {
+        guard !drafts.isEmpty else { return }
+        currentDraftIndex = (currentDraftIndex - 1 + drafts.count) % drafts.count
+        if let draft = drafts[safe: currentDraftIndex] {
+            latestDraftLabel.text = draft.text
         }
     }
 
     @objc
-    private func insertLatestDraft() {
-        guard let draft = DraftStore.loadDrafts().first else { return }
-        textDocumentProxy.insertText(draft.text)
+    private func showNextDraft() {
+        guard !drafts.isEmpty else { return }
+        currentDraftIndex = (currentDraftIndex + 1) % drafts.count
+        if let draft = drafts[safe: currentDraftIndex] {
+            latestDraftLabel.text = draft.text
+        }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        guard indices.contains(index) else { return nil }
+        return self[index]
     }
 }

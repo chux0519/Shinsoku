@@ -25,6 +25,11 @@ final class IOSVoiceWorkspace: ObservableObject {
         refresh()
     }
 
+    func updateDraft(id: UUID, text: String, profile: VoiceProfile) {
+        DraftStore.update(id: id, text: text, profileID: profile.id)
+        refresh()
+    }
+
     func clearDrafts() {
         DraftStore.clear()
         refresh()

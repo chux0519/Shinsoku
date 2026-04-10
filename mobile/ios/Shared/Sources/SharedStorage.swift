@@ -68,6 +68,20 @@ enum DraftStore {
         saveDrafts(drafts)
     }
 
+    static func update(id: UUID, text: String, profileID: String) {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            remove(id: id)
+            return
+        }
+        var drafts = loadDrafts()
+        guard let index = drafts.firstIndex(where: { $0.id == id }) else { return }
+        drafts[index].text = normalized
+        drafts[index].profileID = profileID
+        drafts[index].updatedAt = .now
+        saveDrafts(drafts)
+    }
+
     static func remove(id: UUID) {
         saveDrafts(loadDrafts().filter { $0.id != id })
     }
