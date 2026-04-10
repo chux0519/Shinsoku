@@ -217,7 +217,7 @@ struct HomeView: View {
                     .foregroundStyle(.red)
             }
 
-            Text("Tip: use Review when you want to keep the text in drafts first, then insert it from the keyboard after a quick pass.")
+            Text("\(workspace.selectedProfile.summary) \(workspace.selectedProfile.behaviorSummary)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -317,7 +317,7 @@ struct HomeView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            Text("Insert from the keyboard with profile-aware suffix behavior. Dictation appends a space, chat appends a newline, and review inserts the text as-is.")
+            Text("Insert from the keyboard with the currently selected profile. \(workspace.selectedProfile.behaviorSummary)")
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 8) {
                 setupStep(number: 1, text: "Enable Shinsoku Keyboard in iOS Settings > General > Keyboard > Keyboards.")
