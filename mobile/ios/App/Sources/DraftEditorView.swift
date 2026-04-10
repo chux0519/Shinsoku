@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DraftEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -105,6 +106,16 @@ struct DraftEditorView: View {
                     saveDraft()
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button("Copy text") {
+                    UIPasteboard.general.string = text
+                }
+                .buttonStyle(.bordered)
+
+                ShareLink(item: text) {
+                    Text("Share")
+                }
+                .buttonStyle(.bordered)
 
                 Button("Delete draft", role: .destructive) {
                     workspace.deleteDraft(id: draft.id)

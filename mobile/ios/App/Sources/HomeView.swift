@@ -177,11 +177,24 @@ struct HomeView: View {
                 .buttonStyle(.bordered)
                 .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
+                Button("Copy") {
+                    UIPasteboard.general.string = transcriber.transcript
+                }
+                .buttonStyle(.bordered)
+                .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
                 Button("Clear") {
                     transcriber.stop(resetTranscript: true)
                 }
                 .buttonStyle(.bordered)
             }
+
+            Button("Save and open drafts") {
+                workspace.saveDraft(transcriber.transcript)
+                NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .shinsokuCard()
     }
