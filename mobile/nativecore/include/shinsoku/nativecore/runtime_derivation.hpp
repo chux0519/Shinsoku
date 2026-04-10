@@ -17,7 +17,13 @@ enum class TranscriptPostProcessingMode {
     ProviderAssisted,
 };
 
-TranscriptPostProcessingMode derive_post_processing_mode(
+TranscriptPostProcessingMode default_post_processing_mode(
+    RecognitionProvider provider,
+    const std::string& openai_api_key
+);
+
+TranscriptPostProcessingMode resolve_post_processing_mode(
+    TranscriptPostProcessingMode requested_mode,
     RecognitionProvider provider,
     const std::string& openai_api_key
 );

@@ -62,9 +62,10 @@ Java_com_shinsoku_mobile_processing_NativeTranscriptCleanup_planTranscriptCommit
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_shinsoku_mobile_processing_NativeVoiceRuntime_derivePostProcessingModeNative(
+Java_com_shinsoku_mobile_processing_NativeVoiceRuntime_resolvePostProcessingModeNative(
     JNIEnv* env,
     jobject /* thiz */,
+    jstring requested_mode_name,
     jstring active_provider_name,
     jstring openai_api_key
 ) {
@@ -78,7 +79,17 @@ Java_com_shinsoku_mobile_processing_NativeVoiceRuntime_derivePostProcessingModeN
         provider = shinsoku::nativecore::RecognitionProvider::Bailian;
     }
 
-    const auto mode = shinsoku::nativecore::derive_post_processing_mode(
+    const std::string requested_mode_name_value = from_java_string(env, requested_mode_name);
+    shinsoku::nativecore::TranscriptPostProcessingMode requested_mode =
+        shinsoku::nativecore::TranscriptPostProcessingMode::LocalCleanup;
+    if (requested_mode_name_value == "Disabled") {
+        requested_mode = shinsoku::nativecore::TranscriptPostProcessingMode::Disabled;
+    } else if (requested_mode_name_value == "ProviderAssisted") {
+        requested_mode = shinsoku::nativecore::TranscriptPostProcessingMode::ProviderAssisted;
+    }
+
+    const auto mode = shinsoku::nativecore::resolve_post_processing_mode(
+        requested_mode,
         provider,
         from_java_string(env, openai_api_key)
     );

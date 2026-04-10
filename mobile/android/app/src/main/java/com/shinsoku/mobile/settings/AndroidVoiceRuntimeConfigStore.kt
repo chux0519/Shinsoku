@@ -18,19 +18,20 @@ class AndroidVoiceRuntimeConfigStore(
 
     override fun loadRuntimeConfig(): VoiceRuntimeConfig {
         val providerConfig = providerStore.loadProviderConfig()
-        val derivedMode = NativeVoiceRuntime.derivePostProcessingMode(
+        val requestedMode = preferences.getString(KEY_POST_PROCESSING_MODE, null)
+            ?.let { runCatching { TranscriptPostProcessingMode.valueOf(it) }.getOrNull() }
+            ?: TranscriptPostProcessingMode.ProviderAssisted
+        val effectiveMode = NativeVoiceRuntime.resolvePostProcessingMode(
+            requestedMode = requestedMode,
             activeProviderName = providerConfig.activeRecognitionProvider.name,
             openAiApiKey = providerConfig.openAiPostProcessing.apiKey,
         )
-        val selectedMode = preferences.getString(KEY_POST_PROCESSING_MODE, null)
-            ?.let { runCatching { TranscriptPostProcessingMode.valueOf(it) }.getOrNull() }
-            ?: derivedMode
 
         return VoiceRuntimeConfig(
             profile = profileStore.loadProfile(),
             providerConfig = providerConfig,
             postProcessingConfig = VoicePostProcessingConfig(
-                mode = selectedMode,
+                mode = effectiveMode,
             ),
         )
     }

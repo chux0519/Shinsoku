@@ -3,17 +3,21 @@ package com.shinsoku.mobile.processing
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 
 object NativeVoiceRuntime {
-    fun derivePostProcessingMode(
+    fun resolvePostProcessingMode(
+        requestedMode: TranscriptPostProcessingMode,
         activeProviderName: String,
         openAiApiKey: String,
     ): TranscriptPostProcessingMode {
         val modeName = runCatching {
-            derivePostProcessingModeNative(activeProviderName, openAiApiKey)
+            resolvePostProcessingModeNative(requestedMode.name, activeProviderName, openAiApiKey)
         }.getOrElse {
-            if (activeProviderName == "OpenAiCompatible" && openAiApiKey.isNotBlank()) {
-                TranscriptPostProcessingMode.ProviderAssisted.name
-            } else {
+            if (requestedMode == TranscriptPostProcessingMode.Disabled) {
+                TranscriptPostProcessingMode.Disabled.name
+            } else if (requestedMode == TranscriptPostProcessingMode.ProviderAssisted &&
+                openAiApiKey.isBlank()) {
                 TranscriptPostProcessingMode.LocalCleanup.name
+            } else {
+                requestedMode.name
             }
         }
 
@@ -21,7 +25,8 @@ object NativeVoiceRuntime {
             .getOrDefault(TranscriptPostProcessingMode.LocalCleanup)
     }
 
-    private external fun derivePostProcessingModeNative(
+    private external fun resolvePostProcessingModeNative(
+        requestedModeName: String,
         activeProviderName: String,
         openAiApiKey: String,
     ): String
