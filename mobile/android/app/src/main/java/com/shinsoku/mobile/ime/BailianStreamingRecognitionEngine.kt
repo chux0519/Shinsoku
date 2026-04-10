@@ -207,6 +207,9 @@ class BailianStreamingRecognitionEngine(
                     }
                 }
             },
+            onStarted = {
+                listener?.onReady()
+            },
             onError = { error ->
                 emitError(error)
                 socket?.close(1011, error)
@@ -216,7 +219,6 @@ class BailianStreamingRecognitionEngine(
             return false
         }
         recorderStarted = true
-        listener?.onReady()
         return true
     }
 

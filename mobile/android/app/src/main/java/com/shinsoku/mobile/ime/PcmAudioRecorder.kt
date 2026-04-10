@@ -11,7 +11,7 @@ class PcmAudioRecorder(
     private val channelCount: Int = 1,
 ) {
     private companion object {
-        private const val STARTUP_GRACE_PERIOD_MS = 800L
+        private const val STARTUP_GRACE_PERIOD_MS = 1_600L
         private const val MAX_CONSECUTIVE_READ_ERRORS = 4
         private const val RETRY_SLEEP_MS = 20L
     }
@@ -23,6 +23,7 @@ class PcmAudioRecorder(
     fun start(
         onChunk: (ByteArray) -> Unit,
         onError: (String) -> Unit,
+        onStarted: (() -> Unit)? = null,
     ): Boolean {
         if (running.get()) {
             onError("Audio recorder is already running.")
@@ -45,15 +46,7 @@ class PcmAudioRecorder(
         }
 
         val bufferSize = maxOf(minBufferSize * 2, sampleRateHz / 5)
-        val recorder = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            sampleRateHz,
-            channelConfig,
-            AudioFormat.ENCODING_PCM_16BIT,
-            bufferSize,
-        )
-        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-            recorder.release()
+        val recorder = createRecorderWithFallback(channelConfig, bufferSize) ?: run {
             onError("Failed to initialize audio recorder.")
             return false
         }
@@ -81,12 +74,17 @@ class PcmAudioRecorder(
             val buffer = ByteArray(bufferSize)
             val startupDeadline = SystemClock.elapsedRealtime() + STARTUP_GRACE_PERIOD_MS
             var consecutiveReadErrors = 0
+            var firstChunkDelivered = false
             try {
                 while (running.get()) {
                     val read = recorder.read(buffer, 0, buffer.size)
                     when {
                         read > 0 -> {
                             consecutiveReadErrors = 0
+                            if (!firstChunkDelivered) {
+                                firstChunkDelivered = true
+                                onStarted?.invoke()
+                            }
                             onChunk(buffer.copyOf(read))
                         }
                         read == 0 -> {
@@ -136,5 +134,26 @@ class PcmAudioRecorder(
         worker = null
         audioRecord?.release()
         audioRecord = null
+    }
+
+    private fun createRecorderWithFallback(channelConfig: Int, bufferSize: Int): AudioRecord? {
+        val candidateSources = intArrayOf(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC,
+        )
+        for (source in candidateSources) {
+            val recorder = AudioRecord(
+                source,
+                sampleRateHz,
+                channelConfig,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize,
+            )
+            if (recorder.state == AudioRecord.STATE_INITIALIZED) {
+                return recorder
+            }
+            recorder.release()
+        }
+        return null
     }
 }

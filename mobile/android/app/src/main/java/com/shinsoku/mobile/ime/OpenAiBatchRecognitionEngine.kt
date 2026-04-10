@@ -53,6 +53,9 @@ class OpenAiBatchRecognitionEngine(
             recordingActive = true
             val started = pcmRecorder.start(
                 onChunk = { chunk -> synchronized(pcmBuffer) { pcmBuffer.write(chunk) } },
+                onStarted = {
+                    listener.onReady()
+                },
                 onError = { message ->
                     if (recordingActive) {
                         cleanupRecording(deleteFile = true)
@@ -64,7 +67,6 @@ class OpenAiBatchRecognitionEngine(
                 cleanupRecording(deleteFile = true)
                 return@runCatching
             }
-            listener.onReady()
         }.onFailure { error ->
             cleanupRecording(deleteFile = true)
             listener.onError(

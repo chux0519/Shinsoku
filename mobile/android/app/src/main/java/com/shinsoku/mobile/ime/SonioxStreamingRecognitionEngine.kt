@@ -195,6 +195,9 @@ class SonioxStreamingRecognitionEngine(
                     }
                 }
             },
+            onStarted = {
+                listener?.onReady()
+            },
             onError = { error ->
                 emitError(error)
                 socket?.close(1011, error)
@@ -204,7 +207,6 @@ class SonioxStreamingRecognitionEngine(
             return false
         }
         recorderStarted = true
-        listener?.onReady()
         return true
     }
 
