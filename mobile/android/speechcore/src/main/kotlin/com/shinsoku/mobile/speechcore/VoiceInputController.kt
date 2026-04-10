@@ -18,6 +18,7 @@ class VoiceInputController(
                 pendingCommit = null
                 startListening()
             }
+            is VoiceInputUiState.Preparing -> cancel()
             is VoiceInputUiState.Listening -> finishListening()
             is VoiceInputUiState.Processing -> cancel()
         }
@@ -94,7 +95,7 @@ class VoiceInputController(
 
     private fun startListening() {
         pendingCommit = null
-        updateState(VoiceInputUiState.Listening())
+        updateState(VoiceInputUiState.Preparing)
         engine.start(configStore.loadProfile(), this)
     }
 

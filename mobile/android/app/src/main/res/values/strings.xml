@@ -131,9 +131,11 @@
     <string name="history_detail_template">Profile: %1$s\nTransform: %2$s\nPost-processing: %3$s\nDebug: %4$s</string>
     <string name="history_detail_none">none</string>
     <string name="ime_title_idle">Shinsoku</string>
+    <string name="ime_title_preparing">Preparing…</string>
     <string name="ime_title_listening">Listening…</string>
     <string name="ime_title_processing">Processing…</string>
     <string name="ime_subtitle_ready">System-following voice keyboard</string>
+    <string name="ime_subtitle_preparing">Wait for the microphone to become ready before speaking.</string>
     <string name="ime_subtitle_listening">Streaming transcript to the active editor</string>
     <string name="ime_subtitle_processing">Polishing text before commit</string>
     <string name="ime_mic">Mic</string>
@@ -149,6 +151,7 @@
     <string name="ime_more">More</string>
     <string name="ime_mode_button">Mode</string>
     <string name="ime_mic_hint">Tap once to speak. Stop when you are done.</string>
+    <string name="ime_live_preview_preparing">Preparing microphone…</string>
     <string name="ime_live_preview_placeholder">Live transcript will appear here.</string>
     <string name="ime_pending_hint">Review the result before inserting.</string>
     <string name="draft_editor_title">Edit draft</string>

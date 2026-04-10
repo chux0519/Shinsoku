@@ -51,7 +51,7 @@ class OpenAiBatchRecognitionEngine(
             val tempFile = File.createTempFile("shinsoku-", ".wav", context.cacheDir)
             outputFile = tempFile
             recordingActive = true
-            pcmRecorder.start(
+            val started = pcmRecorder.start(
                 onChunk = { chunk -> synchronized(pcmBuffer) { pcmBuffer.write(chunk) } },
                 onError = { message ->
                     if (recordingActive) {
@@ -60,6 +60,10 @@ class OpenAiBatchRecognitionEngine(
                     }
                 },
             )
+            if (!started) {
+                cleanupRecording(deleteFile = true)
+                return@runCatching
+            }
             listener.onReady()
         }.onFailure { error ->
             cleanupRecording(deleteFile = true)

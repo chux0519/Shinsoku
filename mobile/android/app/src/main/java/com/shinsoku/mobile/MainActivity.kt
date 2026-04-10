@@ -227,6 +227,13 @@ class MainActivity : AppCompatActivity() {
                 binding.voiceLabClearButton.visibility = View.GONE
             }
 
+            is VoiceInputUiState.Preparing -> {
+                binding.voiceLabStatusText.text = getString(R.string.ime_title_preparing)
+                binding.voiceLabMicButton.text = getString(R.string.voice_lab_stop)
+                binding.voiceLabInsertButton.visibility = View.GONE
+                binding.voiceLabClearButton.visibility = View.GONE
+            }
+
             is VoiceInputUiState.Listening -> {
                 binding.voiceLabStatusText.text = if (state.partialTranscript.isBlank()) {
                     getString(R.string.ime_title_listening)

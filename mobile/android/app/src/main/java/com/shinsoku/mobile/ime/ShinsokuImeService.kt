@@ -183,6 +183,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 bindModeButton(configStore.loadProfile())
             }
 
+            is VoiceInputUiState.Preparing -> {
+                titleView?.text = getString(R.string.ime_title_preparing)
+                subtitleView?.text = getString(R.string.ime_subtitle_preparing)
+                micButton?.text = getString(R.string.ime_stop)
+                pendingActionsRow?.visibility = View.GONE
+                livePreviewView?.text = getString(R.string.ime_live_preview_preparing)
+                livePreviewView?.visibility = View.VISIBLE
+                bindModeButton(configStore.loadProfile())
+            }
+
             is VoiceInputUiState.Listening -> {
                 titleView?.text = getString(R.string.ime_title_listening)
                 subtitleView?.text = currentProfileLabel()

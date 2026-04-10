@@ -16,10 +16,10 @@ class PcmAudioRecorder(
     fun start(
         onChunk: (ByteArray) -> Unit,
         onError: (String) -> Unit,
-    ) {
+    ): Boolean {
         if (running.get()) {
             onError("Audio recorder is already running.")
-            return
+            return false
         }
 
         val channelConfig = if (channelCount == 1) {
@@ -34,7 +34,7 @@ class PcmAudioRecorder(
         )
         if (minBufferSize <= 0) {
             onError("Audio recording is unavailable on this device.")
-            return
+            return false
         }
 
         val bufferSize = maxOf(minBufferSize * 2, sampleRateHz / 5)
@@ -48,7 +48,7 @@ class PcmAudioRecorder(
         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
             recorder.release()
             onError("Failed to initialize audio recorder.")
-            return
+            return false
         }
 
         audioRecord = recorder
@@ -60,7 +60,7 @@ class PcmAudioRecorder(
             recorder.release()
             audioRecord = null
             onError(error.message ?: "Failed to start audio recording.")
-            return
+            return false
         }
 
         worker = Thread {
@@ -85,6 +85,8 @@ class PcmAudioRecorder(
             name = "ShinsokuPcmRecorder"
             start()
         }
+
+        return true
     }
 
     fun stop() {

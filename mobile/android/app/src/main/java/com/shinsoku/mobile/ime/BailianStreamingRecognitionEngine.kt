@@ -12,6 +12,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
 import java.util.Locale
+import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicInteger
 
 class BailianStreamingRecognitionEngine(
@@ -28,6 +29,10 @@ class BailianStreamingRecognitionEngine(
     private var finalDelivered = false
     private var finalized = false
     private var taskId = ""
+    private var recorderStarted = false
+    private var streamReady = false
+    private val pendingAudio = ArrayDeque<ByteArray>()
+    private val sendLock = Any()
 
     override fun start(profile: VoiceInputProfile, listener: VoiceInputEngine.Listener) {
         RecognitionProviderDiagnostics.requireReady(
@@ -40,7 +45,14 @@ class BailianStreamingRecognitionEngine(
         finalDelivered = false
         finalized = false
         taskId = makeTaskId()
+        recorderStarted = false
+        streamReady = false
         transcriptAccumulator.reset()
+        pendingAudio.clear()
+
+        if (!startRecorder()) {
+            return
+        }
 
         val request = Request.Builder()
             .url(providerConfig.bailian.url)
@@ -52,17 +64,20 @@ class BailianStreamingRecognitionEngine(
     override fun stop() {
         if (finalized) return
         finalized = true
-        recorder.stop()
-        socket?.send(
-            JSONObject()
-                .put("header", JSONObject().put("action", "finish-task").put("task_id", taskId).put("streaming", "duplex"))
-                .put("payload", JSONObject().put("input", JSONObject()))
-                .toString(),
-        )
+        stopRecorder()
+        synchronized(sendLock) {
+            if (streamReady) {
+                sendFinishTask(socket)
+            }
+        }
     }
 
     override fun cancel() {
-        recorder.cancel()
+        stopRecorder()
+        synchronized(sendLock) {
+            pendingAudio.clear()
+            streamReady = false
+        }
         socket?.close(1000, "cancel")
         cleanup()
     }
@@ -115,19 +130,13 @@ class BailianStreamingRecognitionEngine(
                 }
 
                 is BailianTranscriptAccumulator.Event.TaskStarted -> {
-                    recorder.start(
-                        onChunk = { bytes ->
-                            if (!webSocket.send(bytes.toByteString())) {
-                                emitError("Failed to stream audio to Bailian.")
-                                webSocket.close(1011, "audio send failed")
-                            }
-                        },
-                        onError = { error ->
-                            emitError(error)
-                            webSocket.close(1011, error)
-                        },
-                    )
-                    listener?.onReady()
+                    synchronized(sendLock) {
+                        streamReady = true
+                        flushPendingAudio(webSocket)
+                        if (finalized) {
+                            sendFinishTask(webSocket)
+                        }
+                    }
                 }
 
                 is BailianTranscriptAccumulator.Event.Partial -> {
@@ -174,9 +183,69 @@ class BailianStreamingRecognitionEngine(
     }
 
     private fun cleanup() {
-        recorder.cancel()
+        stopRecorder()
+        synchronized(sendLock) {
+            pendingAudio.clear()
+            streamReady = false
+        }
         listener = null
         socket = null
+    }
+
+    private fun startRecorder(): Boolean {
+        val started = recorder.start(
+            onChunk = { bytes ->
+                synchronized(sendLock) {
+                    val webSocket = socket
+                    if (streamReady && webSocket != null) {
+                        if (!webSocket.send(bytes.toByteString())) {
+                            emitError("Failed to stream audio to Bailian.")
+                            webSocket.close(1011, "audio send failed")
+                        }
+                    } else {
+                        pendingAudio.addLast(bytes)
+                    }
+                }
+            },
+            onError = { error ->
+                emitError(error)
+                socket?.close(1011, error)
+            },
+        )
+        if (!started) {
+            return false
+        }
+        recorderStarted = true
+        listener?.onReady()
+        return true
+    }
+
+    private fun stopRecorder() {
+        if (!recorderStarted) return
+        recorderStarted = false
+        recorder.stop()
+    }
+
+    private fun flushPendingAudio(webSocket: WebSocket) {
+        while (pendingAudio.isNotEmpty()) {
+            val chunk = pendingAudio.removeFirst()
+            if (!webSocket.send(chunk.toByteString())) {
+                pendingAudio.clear()
+                emitError("Failed to stream audio to Bailian.")
+                webSocket.close(1011, "audio send failed")
+                return
+            }
+        }
+    }
+
+    private fun sendFinishTask(webSocket: WebSocket?) {
+        if (webSocket == null) return
+        webSocket.send(
+            JSONObject()
+                .put("header", JSONObject().put("action", "finish-task").put("task_id", taskId).put("streaming", "duplex"))
+                .put("payload", JSONObject().put("input", JSONObject()))
+                .toString(),
+        )
     }
 
     private companion object {

@@ -12,6 +12,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString.Companion.toByteString
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.ArrayDeque
 
 class SonioxStreamingRecognitionEngine(
     @Suppress("UNUSED_PARAMETER") private val context: Context,
@@ -29,6 +30,10 @@ class SonioxStreamingRecognitionEngine(
     private var finalCandidateText = ""
     private var finalDelivered = false
     private var finalized = false
+    private var recorderStarted = false
+    private var streamReady = false
+    private val pendingAudio = ArrayDeque<ByteArray>()
+    private val sendLock = Any()
 
     override fun start(profile: VoiceInputProfile, listener: VoiceInputEngine.Listener) {
         RecognitionProviderDiagnostics.requireReady(
@@ -43,7 +48,14 @@ class SonioxStreamingRecognitionEngine(
         finalCandidateText = ""
         finalDelivered = false
         finalized = false
+        recorderStarted = false
+        streamReady = false
         transcriptAccumulator.reset()
+        pendingAudio.clear()
+
+        if (!startRecorder()) {
+            return
+        }
 
         val request = Request.Builder()
             .url(providerConfig.soniox.url)
@@ -54,13 +66,20 @@ class SonioxStreamingRecognitionEngine(
     override fun stop() {
         if (finalized) return
         finalized = true
-        recorder.stop()
-        socket?.send("""{"type":"finalize"}""")
-        socket?.send(ByteArray(0).toByteString())
+        stopRecorder()
+        synchronized(sendLock) {
+            if (streamReady) {
+                sendFinalize(socket)
+            }
+        }
     }
 
     override fun cancel() {
-        recorder.cancel()
+        stopRecorder()
+        synchronized(sendLock) {
+            pendingAudio.clear()
+            streamReady = false
+        }
         socket?.close(1000, "cancel")
         cleanup()
     }
@@ -86,19 +105,13 @@ class SonioxStreamingRecognitionEngine(
                 webSocket.close(1011, "start failed")
                 return
             }
-            recorder.start(
-                onChunk = { bytes ->
-                    if (!webSocket.send(bytes.toByteString())) {
-                        emitError("Failed to stream audio to Soniox.")
-                        webSocket.close(1011, "audio send failed")
-                    }
-                },
-                onError = { error ->
-                    emitError(error)
-                    webSocket.close(1011, error)
-                },
-            )
-            listener?.onReady()
+            synchronized(sendLock) {
+                streamReady = true
+                flushPendingAudio(webSocket)
+                if (finalized) {
+                    sendFinalize(webSocket)
+                }
+            }
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
@@ -157,9 +170,65 @@ class SonioxStreamingRecognitionEngine(
     }
 
     private fun cleanup() {
-        recorder.cancel()
+        stopRecorder()
+        synchronized(sendLock) {
+            pendingAudio.clear()
+            streamReady = false
+        }
         listener = null
         profile = null
         socket = null
+    }
+
+    private fun startRecorder(): Boolean {
+        val started = recorder.start(
+            onChunk = { bytes ->
+                synchronized(sendLock) {
+                    val webSocket = socket
+                    if (streamReady && webSocket != null) {
+                        if (!webSocket.send(bytes.toByteString())) {
+                            emitError("Failed to stream audio to Soniox.")
+                            webSocket.close(1011, "audio send failed")
+                        }
+                    } else {
+                        pendingAudio.addLast(bytes)
+                    }
+                }
+            },
+            onError = { error ->
+                emitError(error)
+                socket?.close(1011, error)
+            },
+        )
+        if (!started) {
+            return false
+        }
+        recorderStarted = true
+        listener?.onReady()
+        return true
+    }
+
+    private fun stopRecorder() {
+        if (!recorderStarted) return
+        recorderStarted = false
+        recorder.stop()
+    }
+
+    private fun flushPendingAudio(webSocket: WebSocket) {
+        while (pendingAudio.isNotEmpty()) {
+            val chunk = pendingAudio.removeFirst()
+            if (!webSocket.send(chunk.toByteString())) {
+                pendingAudio.clear()
+                emitError("Failed to stream audio to Soniox.")
+                webSocket.close(1011, "audio send failed")
+                return
+            }
+        }
+    }
+
+    private fun sendFinalize(webSocket: WebSocket?) {
+        if (webSocket == null) return
+        webSocket.send("""{"type":"finalize"}""")
+        webSocket.send(ByteArray(0).toByteString())
     }
 }

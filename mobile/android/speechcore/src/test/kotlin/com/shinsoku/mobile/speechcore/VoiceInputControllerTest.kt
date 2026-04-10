@@ -21,7 +21,7 @@ class VoiceInputControllerTest {
 
         assertEquals(
             listOf(
-                VoiceInputUiState.Listening(),
+                VoiceInputUiState.Preparing,
                 VoiceInputUiState.Listening(),
                 VoiceInputUiState.Processing,
                 VoiceInputUiState.Idle,
@@ -63,6 +63,7 @@ class VoiceInputControllerTest {
         )
 
         controller.onMicTapped()
+        assertEquals(VoiceInputUiState.Preparing, observer.states.last())
         engine.dispatchFinal("   ")
 
         assertEquals(VoiceInputUiState.Error("No speech recognized."), observer.states.last())
