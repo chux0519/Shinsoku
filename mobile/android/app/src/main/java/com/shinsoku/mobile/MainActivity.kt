@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
         )
         binding.behaviorSummaryText.text = profile.behaviorSummary + " • " +
             (profile.languageTag ?: getString(R.string.language_auto_label)) + "\n" +
-            (NativeVoiceTransformSummary.build(profile.transform) ?: fallbackTransformSummary(profile))
+            NativeVoiceTransformSummary.build(profile.transform)
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
         val providerConfig = providerConfigStore.load()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
@@ -163,18 +163,6 @@ class MainActivity : AppCompatActivity() {
         val latestEntry = historyStore.listEntries(limit = 1).firstOrNull()
         binding.recentHistoryPreviewText.text = latestEntry?.text ?: getString(R.string.history_empty)
     }
-
-    private fun fallbackTransformSummary(profile: com.shinsoku.mobile.speechcore.VoiceInputProfile): String =
-        when {
-            !profile.transform.enabled -> getString(R.string.transform_summary_disabled)
-            profile.transform.mode == VoiceTransformMode.Cleanup -> getString(R.string.transform_summary_cleanup)
-            profile.transform.mode == VoiceTransformMode.Translation -> getString(
-                R.string.transform_summary_translation,
-                profile.transform.translationSourceLanguage,
-                profile.transform.translationTargetLanguage,
-            )
-            else -> getString(R.string.transform_summary_custom)
-        }
 
     private fun rebuildLabController() {
         labController?.destroy()

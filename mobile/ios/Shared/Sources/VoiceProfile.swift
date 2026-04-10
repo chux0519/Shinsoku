@@ -131,7 +131,7 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
     }
 
     var transformSummary: String {
-        NativeTransformSummary.describe(transform: transform) ?? "Transform disabled."
+        NativeTransformSummary.describe(transform: transform)
     }
 
     static let defaults: [VoiceProfile] = NativeVoiceProfiles.loadBuiltIns() ?? [
