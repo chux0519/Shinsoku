@@ -2,7 +2,9 @@ package com.shinsoku.mobile.ime
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
 import android.os.Bundle
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -14,6 +16,13 @@ class AndroidSpeechRecognizerEngine(
 ) : VoiceInputEngine {
     private var speechRecognizer: SpeechRecognizer? = null
     private var activeListener: VoiceInputEngine.Listener? = null
+    private var activeProfile: VoiceInputProfile? = null
+    private var hasRetriedCurrentSession = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    init {
+        warmUpRecognizer()
+    }
 
     override fun start(profile: VoiceInputProfile, listener: VoiceInputEngine.Listener) {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
@@ -23,27 +32,15 @@ class AndroidSpeechRecognizerEngine(
 
         runCatching {
             activeListener = listener
-            val recognizer = speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also {
-                speechRecognizer = it
-                it.setRecognitionListener(ListenerAdapter())
-            }
-
-            recognizer.startListening(
-                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(
-                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-                    )
-                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                    profile.languageTag?.takeIf { it.isNotBlank() }?.let {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
-                    }
-                },
-            )
+            activeProfile = profile
+            hasRetriedCurrentSession = false
+            val recognizer = ensureRecognizer()
+            recognizer.cancel()
+            recognizer.startListening(createRecognizerIntent(profile))
         }.onFailure { error ->
             listener.onError(error.message ?: "Failed to start Android speech recognition.")
             activeListener = null
+            activeProfile = null
         }
     }
 
@@ -65,10 +62,14 @@ class AndroidSpeechRecognizerEngine(
         speechRecognizer?.destroy()
         speechRecognizer = null
         activeListener = null
+        activeProfile = null
+        hasRetriedCurrentSession = false
+        mainHandler.removeCallbacksAndMessages(null)
     }
 
     private inner class ListenerAdapter : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
+            hasRetriedCurrentSession = false
             activeListener?.onReady()
         }
 
@@ -86,10 +87,31 @@ class AndroidSpeechRecognizerEngine(
             } else {
                 activeListener?.onFinalResult(text)
             }
+            activeProfile = null
         }
 
         override fun onError(error: Int) {
+            if (error == SpeechRecognizer.ERROR_CLIENT && !hasRetriedCurrentSession) {
+                val profile = activeProfile
+                val listener = activeListener
+                if (profile != null && listener != null) {
+                    hasRetriedCurrentSession = true
+                    mainHandler.postDelayed(
+                        {
+                            runCatching {
+                                ensureRecognizer().cancel()
+                                ensureRecognizer().startListening(createRecognizerIntent(profile))
+                            }.onFailure {
+                                activeListener?.onError("Speech recognizer client error.")
+                            }
+                        },
+                        180L,
+                    )
+                    return
+                }
+            }
             activeListener?.onError(errorMessage(error))
+            activeProfile = null
         }
 
         override fun onBeginningOfSpeech() = Unit
@@ -114,6 +136,33 @@ class AndroidSpeechRecognizerEngine(
         private fun Bundle?.bestResult(): String {
             val values = this?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             return values?.firstOrNull().orEmpty()
+        }
+    }
+
+    private fun warmUpRecognizer() {
+        runCatching {
+            ensureRecognizer()
+        }
+    }
+
+    private fun ensureRecognizer(): SpeechRecognizer {
+        return speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also {
+            speechRecognizer = it
+            it.setRecognitionListener(ListenerAdapter())
+        }
+    }
+
+    private fun createRecognizerIntent(profile: VoiceInputProfile): Intent {
+        return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            profile.languageTag?.takeIf { it.isNotBlank() }?.let {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
+            }
         }
     }
 }
