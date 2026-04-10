@@ -52,5 +52,13 @@ struct RootView: View {
             selectedTab = .drafts
             workspace.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .shinsokuOpenSettings)) { _ in
+            selectedTab = .settings
+            workspace.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .shinsokuOpenHome)) { _ in
+            selectedTab = .home
+            workspace.refresh()
+        }
     }
 }
