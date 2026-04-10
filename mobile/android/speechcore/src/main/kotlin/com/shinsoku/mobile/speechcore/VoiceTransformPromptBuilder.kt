@@ -8,6 +8,8 @@ data class VoiceTransformPromptPlan(
 
 object VoiceTransformPromptBuilder {
     fun build(rawTranscript: String, profile: VoiceInputProfile): VoiceTransformPromptPlan {
+        NativeVoiceTransformPromptBuilder.build(rawTranscript, profile)?.let { return it }
+
         val cleanedInput = rawTranscript.trim()
         val transform = profile.transform
         if (!transform.enabled) {

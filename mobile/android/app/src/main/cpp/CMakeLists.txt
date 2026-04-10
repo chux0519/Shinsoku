@@ -10,6 +10,7 @@ add_library(
     ../../../../../nativecore/src/profile_presets.cpp
     ../../../../../nativecore/src/transcript_cleanup.cpp
     ../../../../../nativecore/src/transcript_commit_planner.cpp
+    ../../../../../nativecore/src/transform_prompt.cpp
     ../../../../../nativecore/src/runtime_derivation.cpp
 )
 
