@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shinsoku</title>
+    <meta
+      name="description"
+      content="Shinsoku is a cross-platform voice input product for desktop and mobile."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <a class="brand" href="./index.html">
+          <img src="./assets/square-bolt.svg" alt="" />
+          <span>Shinsoku</span>
+        </a>
+        <nav class="nav">
+          <a href="#product">Product</a>
+          <a href="#platforms">Platforms</a>
+          <a href="#build">Build</a>
+          <a href="../README.md">Repo</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Cross-platform voice input</div>
+            <h1>Speak once. Work everywhere.</h1>
+            <p class="lede">
+              Shinsoku turns voice into practical input across desktop and
+              mobile. Use profiles, streaming backends, prompt-based transforms,
+              and native shells instead of settling for one rigid workflow.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="../README.md">View source</a>
+              <a class="button secondary" href="#platforms">See platforms</a>
+            </div>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-header">
+              <span>Shinsoku</span>
+              <span class="pill">System theme</span>
+            </div>
+            <div class="hero-card-body">
+              <div class="hero-mode-row">
+                <span class="chip active">Dictation</span>
+                <span class="chip">Review</span>
+                <span class="chip">Zh→En</span>
+              </div>
+              <div class="hero-preview">
+                Build the thing first, polish it second.
+              </div>
+              <div class="hero-mic">Mic</div>
+              <div class="hero-footer">
+                <span>Profiles</span>
+                <span>History</span>
+                <span>Transform</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="product" class="section">
+          <div class="section-heading">
+            <div class="eyebrow">Product</div>
+            <h2>One workflow model, multiple native shells</h2>
+          </div>
+          <div class="grid three">
+            <article class="card">
+              <h3>Profiles</h3>
+              <p>
+                Switch among dictation, review-before-insert, bilingual
+                transform, and custom prompt flows without rebuilding your setup
+                every time.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Backends</h3>
+              <p>
+                Use batch or streaming transcription, then run optional
+                post-processing with a separate provider and model.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Native UI</h3>
+              <p>
+                Desktop stays in Qt. Android stays native. iOS is being built as
+                SwiftUI plus a keyboard extension instead of forcing one UI
+                toolkit everywhere.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="platforms" class="section">
+          <div class="section-heading">
+            <div class="eyebrow">Platforms</div>
+            <h2>Built where people actually work</h2>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>Desktop</h3>
+              <ul>
+                <li>Windows, macOS, and Linux Qt app</li>
+                <li>Streaming ASR and transform pipeline</li>
+                <li>Clipboard/paste/HUD/history workflows</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>Mobile</h3>
+              <ul>
+                <li>Android IME and settings shell</li>
+                <li>Shared mobile native core direction</li>
+                <li>iOS app and keyboard scaffold in progress</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="build" class="section">
+          <div class="section-heading">
+            <div class="eyebrow">Build</div>
+            <h2>Use the repo without fighting its structure</h2>
+          </div>
+          <div class="grid two">
+            <article class="code-card">
+              <div class="code-card-title">Desktop</div>
+              <pre><code>cmake -S . -B build -G "Ninja Multi-Config" \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release --target shinsoku</code></pre>
+            </article>
+            <article class="code-card">
+              <div class="code-card-title">Android</div>
+              <pre><code>cd mobile/android
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk</code></pre>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+  </html>
