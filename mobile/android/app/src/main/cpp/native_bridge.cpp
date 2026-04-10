@@ -162,6 +162,61 @@ Java_com_shinsoku_mobile_speechcore_NativeVoiceProfiles_builtinProfilesJsonNativ
     return to_java_string(env, shinsoku::nativecore::builtin_profiles_json());
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_shinsoku_mobile_speechcore_NativeVoiceProfiles_identifyBuiltInProfileIdNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jboolean auto_commit,
+    jstring commit_suffix_mode,
+    jstring language_tag,
+    jboolean transform_enabled,
+    jstring transform_mode_name,
+    jstring request_format_name,
+    jstring custom_prompt,
+    jstring translation_source_language,
+    jstring translation_source_code,
+    jstring translation_target_language,
+    jstring translation_target_code,
+    jstring translation_extra_instructions
+) {
+    using shinsoku::nativecore::TransformPromptConfig;
+    using shinsoku::nativecore::TransformPromptMode;
+    using shinsoku::nativecore::TransformRequestFormat;
+
+    TransformPromptConfig config;
+    config.enabled = transform_enabled == JNI_TRUE;
+
+    const std::string mode = from_java_string(env, transform_mode_name);
+    if (mode == "Translation") {
+        config.mode = TransformPromptMode::Translation;
+    } else if (mode == "CustomPrompt") {
+        config.mode = TransformPromptMode::CustomPrompt;
+    } else {
+        config.mode = TransformPromptMode::Cleanup;
+    }
+
+    const std::string request_format = from_java_string(env, request_format_name);
+    config.request_format = request_format == "SingleUserMessage"
+        ? TransformRequestFormat::SingleUserMessage
+        : TransformRequestFormat::SystemAndUser;
+    config.custom_prompt = from_java_string(env, custom_prompt);
+    config.translation_source_language = from_java_string(env, translation_source_language);
+    config.translation_source_code = from_java_string(env, translation_source_code);
+    config.translation_target_language = from_java_string(env, translation_target_language);
+    config.translation_target_code = from_java_string(env, translation_target_code);
+    config.translation_extra_instructions = from_java_string(env, translation_extra_instructions);
+
+    return to_java_string(
+        env,
+        shinsoku::nativecore::identify_builtin_profile_id(
+            auto_commit == JNI_TRUE,
+            from_java_string(env, commit_suffix_mode),
+            from_java_string(env, language_tag),
+            config
+        )
+    );
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_shinsoku_mobile_speechcore_NativeVoiceTransformPromptBuilder_buildPromptPlanNative(
     JNIEnv* env,

@@ -63,10 +63,11 @@ object VoiceInputProfiles {
         builtIns.getOrNull(index)
 
     fun identify(profile: VoiceInputProfile): VoiceInputProfile? =
-        builtIns.firstOrNull {
+        NativeVoiceProfiles.identifyBuiltIn(profile)?.let(::builtInById)
+            ?: builtIns.firstOrNull {
                 it.autoCommit == profile.autoCommit &&
                 it.commitSuffixMode == profile.commitSuffixMode &&
                 it.languageTag == profile.languageTag &&
                 it.transform == profile.transform
-        }
+            }
 }

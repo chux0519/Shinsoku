@@ -45,7 +45,8 @@ enum VoiceProfileStore {
     }
 
     static func saveSelectedProfile(_ profile: VoiceProfile) {
-        ShinsokuSharedStorage.defaults.set(profile.id, forKey: ShinsokuSharedStorage.selectedProfileKey)
+        let normalizedID = NativeVoiceProfiles.identifyBuiltIn(profile) ?? profile.id
+        ShinsokuSharedStorage.defaults.set(normalizedID, forKey: ShinsokuSharedStorage.selectedProfileKey)
     }
 }
 

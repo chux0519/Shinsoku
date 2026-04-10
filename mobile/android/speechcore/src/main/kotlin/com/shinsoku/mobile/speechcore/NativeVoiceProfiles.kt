@@ -52,5 +52,38 @@ object NativeVoiceProfiles {
         }.getOrNull()
     }
 
+    fun identifyBuiltIn(profile: VoiceInputProfile): String? {
+        return runCatching {
+            identifyBuiltInProfileIdNative(
+                autoCommit = profile.autoCommit,
+                commitSuffixMode = profile.commitSuffixMode.name,
+                languageTag = profile.languageTag.orEmpty(),
+                transformEnabled = profile.transform.enabled,
+                transformMode = profile.transform.mode.name,
+                requestFormat = profile.transform.requestFormat.name,
+                customPrompt = profile.transform.customPrompt,
+                translationSourceLanguage = profile.transform.translationSourceLanguage,
+                translationSourceCode = profile.transform.translationSourceCode,
+                translationTargetLanguage = profile.transform.translationTargetLanguage,
+                translationTargetCode = profile.transform.translationTargetCode,
+                translationExtraInstructions = profile.transform.translationExtraInstructions,
+            )
+        }.getOrNull()?.ifBlank { null }
+    }
+
     private external fun builtinProfilesJsonNative(): String
+    private external fun identifyBuiltInProfileIdNative(
+        autoCommit: Boolean,
+        commitSuffixMode: String,
+        languageTag: String,
+        transformEnabled: Boolean,
+        transformMode: String,
+        requestFormat: String,
+        customPrompt: String,
+        translationSourceLanguage: String,
+        translationSourceCode: String,
+        translationTargetLanguage: String,
+        translationTargetCode: String,
+        translationExtraInstructions: String,
+    ): String
 }

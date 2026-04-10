@@ -59,6 +59,23 @@ enum NativeVoiceProfiles {
         return decoded?.compactMap(makeProfile)
     }
 
+    static func identifyBuiltIn(_ profile: VoiceProfile) -> String? {
+        NativeProfileBridge.identifyBuiltInProfileID(
+            withAutoCommit: profile.autoCommit,
+            commitSuffixMode: profile.commitSuffixMode.rawValue,
+            languageTag: profile.languageTag ?? "",
+            enabled: profile.transform.enabled,
+            mode: profile.transform.mode.rawValue,
+            requestFormat: profile.transform.requestFormat.rawValue,
+            customPrompt: profile.transform.customPrompt,
+            translationSourceLanguage: profile.transform.translationSourceLanguage,
+            translationSourceCode: profile.transform.translationSourceCode,
+            translationTargetLanguage: profile.transform.translationTargetLanguage,
+            translationTargetCode: profile.transform.translationTargetCode,
+            translationExtraInstructions: profile.transform.translationExtraInstructions
+        )
+    }
+
     private static func makeProfile(from native: NativeBuiltinProfile) -> VoiceProfile? {
         let mode: VoiceCommitMode
         switch native.presetKind {
