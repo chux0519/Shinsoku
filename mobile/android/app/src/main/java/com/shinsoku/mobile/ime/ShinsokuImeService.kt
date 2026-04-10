@@ -18,8 +18,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.shinsoku.mobile.MainActivity
 import com.shinsoku.mobile.R
 import com.shinsoku.mobile.history.AndroidVoiceInputHistoryStore
+import com.shinsoku.mobile.history.HistoryActivity
 import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
@@ -50,6 +52,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var clearButton: Button? = null
     private var editButton: Button? = null
     private var modeButton: Button? = null
+    private var spaceButton: Button? = null
     private var livePreviewView: TextView? = null
     private var pendingActionsRow: View? = null
     private var controller: VoiceInputController? = null
@@ -58,6 +61,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private var pendingDraftText: String? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val draftInsertReceiver = DraftInsertReceiver { editedText ->
         if (editedText.isBlank()) {
             controller?.discardPending()
@@ -96,6 +100,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             clearButton = view.findViewById(R.id.clearButton)
             editButton = view.findViewById(R.id.editButton)
             modeButton = view.findViewById(R.id.imeModeButton)
+            spaceButton = view.findViewById(R.id.spaceButton)
             livePreviewView = view.findViewById(R.id.imeLivePreview)
             pendingActionsRow = view.findViewById(R.id.imePendingActions)
             val moreButton = view.findViewById<Button>(R.id.imeMoreButton)
@@ -127,6 +132,9 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             modeButton?.setOnClickListener { anchor ->
                 showModeMenu(anchor)
             }
+            spaceButton?.setOnClickListener {
+                currentInputConnection?.commitText(" ", 1)
+            }
             moreButton.setOnClickListener { anchor ->
                 showMoreMenu(anchor)
             }
@@ -147,6 +155,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             clearButton = null
             editButton = null
             modeButton = null
+            spaceButton = null
             livePreviewView = null
             pendingActionsRow = null
             createFallbackInputView(error)
@@ -172,6 +181,10 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     override fun onStateChanged(state: VoiceInputUiState) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { onStateChanged(state) }
+            return
+        }
         when (state) {
             is VoiceInputUiState.Idle -> {
                 pendingDraftText = null
@@ -238,6 +251,10 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     override fun onCommitRequested(commit: VoiceInputCommit) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { onCommitRequested(commit) }
+            return
+        }
         currentInputConnection?.commitText(commit.text, 1)
         appendHistory(commit.text)
     }
@@ -332,19 +349,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     private fun applyImeSafeInsets(root: View) {
-        val panel = root.findViewById<View>(R.id.imePanel) ?: return
-        val basePaddingBottom = panel.paddingBottom
-        val extraBottomPadding = (12 * resources.displayMetrics.density).toInt()
+        val bottomBar = root.findViewById<View>(R.id.imeBottomBar) ?: return
+        val extraBottomPadding = (2 * resources.displayMetrics.density).toInt()
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val bottomInset = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             ).bottom
-            panel.setPadding(
-                panel.paddingLeft,
-                panel.paddingTop,
-                panel.paddingRight,
-                basePaddingBottom + bottomInset + extraBottomPadding,
-            )
+            bottomBar.layoutParams = bottomBar.layoutParams.apply {
+                height = bottomInset + extraBottomPadding
+            }
+            bottomBar.requestLayout()
             insets
         }
         ViewCompat.requestApplyInsets(root)
@@ -352,16 +366,31 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     private fun showMoreMenu(anchor: View) {
         PopupMenu(this, anchor).apply {
-            menu.add(0, 1, 0, getString(R.string.ime_space))
-            menu.add(0, 2, 1, getString(R.string.ime_delete))
-            menu.add(0, 3, 2, getString(R.string.ime_settings))
+            menu.add(0, 1, 0, getString(R.string.ime_settings))
+            menu.add(0, 2, 1, getString(R.string.ime_history))
+            menu.add(0, 3, 2, getString(R.string.ime_open_app))
+            menu.add(0, 4, 3, getString(R.string.ime_home))
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    1 -> currentInputConnection?.commitText(" ", 1)
-                    2 -> currentInputConnection?.deleteSurroundingText(1, 0)
-                    3 -> startActivity(
+                    1 -> startActivity(
                         Intent(this@ShinsokuImeService, SettingsActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        },
+                    )
+                    2 -> startActivity(
+                        Intent(this@ShinsokuImeService, HistoryActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        },
+                    )
+                    3 -> startActivity(
+                        Intent(this@ShinsokuImeService, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        },
+                    )
+                    4 -> startActivity(
+                        Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         },
                     )
                 }

@@ -4,6 +4,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.SystemClock
+import android.util.Log
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PcmAudioRecorder(
@@ -11,6 +12,7 @@ class PcmAudioRecorder(
     private val channelCount: Int = 1,
 ) {
     private companion object {
+        private const val TAG = "ShinsokuPcmRecorder"
         private const val STARTUP_GRACE_PERIOD_MS = 1_600L
         private const val MAX_CONSECUTIVE_READ_ERRORS = 4
         private const val RETRY_SLEEP_MS = 20L
@@ -46,6 +48,7 @@ class PcmAudioRecorder(
         }
 
         val bufferSize = maxOf(minBufferSize * 2, sampleRateHz / 5)
+        Log.d(TAG, "start requested. minBufferSize=$minBufferSize bufferSize=$bufferSize sampleRate=$sampleRateHz channels=$channelCount")
         val recorder = createRecorderWithFallback(channelConfig, bufferSize) ?: run {
             onError("Failed to initialize audio recorder.")
             return false
@@ -69,6 +72,7 @@ class PcmAudioRecorder(
             onError("Failed to enter recording state.")
             return false
         }
+        Log.d(TAG, "AudioRecord entered recording state.")
 
         worker = Thread {
             val buffer = ByteArray(bufferSize)
@@ -83,6 +87,7 @@ class PcmAudioRecorder(
                             consecutiveReadErrors = 0
                             if (!firstChunkDelivered) {
                                 firstChunkDelivered = true
+                                Log.d(TAG, "First PCM chunk arrived. bytes=$read")
                                 onStarted?.invoke()
                             }
                             onChunk(buffer.copyOf(read))
@@ -93,6 +98,7 @@ class PcmAudioRecorder(
                         read < 0 && running.get() -> {
                             val duringStartup = SystemClock.elapsedRealtime() < startupDeadline
                             consecutiveReadErrors += 1
+                            Log.w(TAG, "AudioRecord read error. code=$read duringStartup=$duringStartup consecutive=$consecutiveReadErrors")
                             if (duringStartup || consecutiveReadErrors < MAX_CONSECUTIVE_READ_ERRORS) {
                                 Thread.sleep(RETRY_SLEEP_MS)
                                 continue
@@ -117,6 +123,7 @@ class PcmAudioRecorder(
     }
 
     fun stop() {
+        Log.d(TAG, "stop requested. running=${running.get()}")
         if (!running.getAndSet(false)) {
             releaseRecorder()
             return
@@ -142,6 +149,7 @@ class PcmAudioRecorder(
             MediaRecorder.AudioSource.MIC,
         )
         for (source in candidateSources) {
+            Log.d(TAG, "Trying audio source=$source")
             val recorder = AudioRecord(
                 source,
                 sampleRateHz,
@@ -150,6 +158,7 @@ class PcmAudioRecorder(
                 bufferSize,
             )
             if (recorder.state == AudioRecord.STATE_INITIALIZED) {
+                Log.d(TAG, "Initialized AudioRecord with source=$source")
                 return recorder
             }
             recorder.release()
