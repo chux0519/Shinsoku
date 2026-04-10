@@ -21,7 +21,7 @@ struct DraftsView: View {
                             Text(draft.text)
                                 .foregroundStyle(.primary)
                                 .lineLimit(4)
-                            Text(profileTitle(for: draft.profileID))
+                            Text("\(profileTitle(for: draft.profileID)) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }

@@ -4,10 +4,13 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let profileLabel = UILabel()
+    private let metaLabel = UILabel()
     private let latestDraftLabel = UILabel()
     private let insertButton = UIButton(type: .system)
+    private let insertAndClearButton = UIButton(type: .system)
     private let previousButton = UIButton(type: .system)
     private let nextDraftButton = UIButton(type: .system)
+    private let refreshButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
     private let stackView = UIStackView()
     private var drafts: [StoredDraft] = []
@@ -29,8 +32,10 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         profileLabel.translatesAutoresizingMaskIntoConstraints = false
+        metaLabel.translatesAutoresizingMaskIntoConstraints = false
         latestDraftLabel.translatesAutoresizingMaskIntoConstraints = false
         insertButton.translatesAutoresizingMaskIntoConstraints = false
+        insertAndClearButton.translatesAutoresizingMaskIntoConstraints = false
         nextKeyboardButton.translatesAutoresizingMaskIntoConstraints = false
         stackView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -44,6 +49,9 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         profileLabel.font = .systemFont(ofSize: 13, weight: .medium)
         profileLabel.textColor = .secondaryLabel
 
+        metaLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        metaLabel.textColor = .tertiaryLabel
+
         latestDraftLabel.numberOfLines = 4
         latestDraftLabel.font = .systemFont(ofSize: 17, weight: .regular)
         latestDraftLabel.text = "Open the Shinsoku app to create a draft."
@@ -56,9 +64,17 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         insertButton.configuration?.title = "Insert"
         insertButton.addTarget(self, action: #selector(insertCurrentDraft), for: .touchUpInside)
 
+        insertAndClearButton.configuration = .tinted()
+        insertAndClearButton.configuration?.title = "Insert & remove"
+        insertAndClearButton.addTarget(self, action: #selector(insertAndRemoveCurrentDraft), for: .touchUpInside)
+
         nextDraftButton.configuration = .tinted()
         nextDraftButton.configuration?.title = "Next draft"
         nextDraftButton.addTarget(self, action: #selector(showNextDraft), for: .touchUpInside)
+
+        refreshButton.configuration = .tinted()
+        refreshButton.configuration?.title = "Refresh"
+        refreshButton.addTarget(self, action: #selector(refreshDrafts), for: .touchUpInside)
 
         nextKeyboardButton.configuration = .tinted()
         nextKeyboardButton.configuration?.title = "Next keyboard"
@@ -69,6 +85,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(subtitleLabel)
         stackView.addArrangedSubview(profileLabel)
+        stackView.addArrangedSubview(metaLabel)
         stackView.addArrangedSubview(latestDraftLabel)
 
         let draftRow = UIStackView(arrangedSubviews: [previousButton, insertButton, nextDraftButton])
@@ -77,11 +94,16 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         draftRow.distribution = .fillEqually
         stackView.addArrangedSubview(draftRow)
 
-        let buttonRow = UIStackView(arrangedSubviews: [nextKeyboardButton])
+        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, refreshButton, nextKeyboardButton])
+        utilityRow.axis = .horizontal
+        utilityRow.spacing = 12
+        utilityRow.distribution = .fillEqually
+        stackView.addArrangedSubview(utilityRow)
+
+        let buttonRow = utilityRow
         buttonRow.axis = .horizontal
         buttonRow.spacing = 12
         buttonRow.distribution = .fillEqually
-        stackView.addArrangedSubview(buttonRow)
 
         view.addSubview(stackView)
 
@@ -93,6 +115,8 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             previousButton.heightAnchor.constraint(equalToConstant: 46),
             insertButton.heightAnchor.constraint(equalToConstant: 46),
             nextDraftButton.heightAnchor.constraint(equalToConstant: 46),
+            insertAndClearButton.heightAnchor.constraint(equalToConstant: 46),
+            refreshButton.heightAnchor.constraint(equalToConstant: 46),
             nextKeyboardButton.heightAnchor.constraint(equalToConstant: 46),
         ])
     }
@@ -105,13 +129,17 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         currentDraftIndex = min(currentDraftIndex, max(drafts.count - 1, 0))
         guard let draft = drafts[safe: currentDraftIndex] else {
             latestDraftLabel.text = "Open the Shinsoku app, dictate a phrase, then come back here to insert it."
+            metaLabel.text = "No shared drafts yet"
             insertButton.isEnabled = false
+            insertAndClearButton.isEnabled = false
             previousButton.isEnabled = false
             nextDraftButton.isEnabled = false
             return
         }
         latestDraftLabel.text = draft.text
+        metaLabel.text = "\(profile.title) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))"
         insertButton.isEnabled = true
+        insertAndClearButton.isEnabled = true
         previousButton.isEnabled = drafts.count > 1
         nextDraftButton.isEnabled = drafts.count > 1
     }
@@ -119,25 +147,37 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     @objc
     private func insertCurrentDraft() {
         guard let draft = drafts[safe: currentDraftIndex] else { return }
-        textDocumentProxy.insertText(draft.text)
+        let profile = VoiceProfileStore.loadSelectedProfile()
+        textDocumentProxy.insertText(draft.text + profile.mode.commitSuffix)
+    }
+
+    @objc
+    private func insertAndRemoveCurrentDraft() {
+        guard let draft = drafts[safe: currentDraftIndex] else { return }
+        insertCurrentDraft()
+        DraftStore.remove(id: draft.id)
+        drafts = DraftStore.loadDrafts()
+        currentDraftIndex = 0
+        reloadDraft()
     }
 
     @objc
     private func showPreviousDraft() {
         guard !drafts.isEmpty else { return }
         currentDraftIndex = (currentDraftIndex - 1 + drafts.count) % drafts.count
-        if let draft = drafts[safe: currentDraftIndex] {
-            latestDraftLabel.text = draft.text
-        }
+        reloadDraft()
     }
 
     @objc
     private func showNextDraft() {
         guard !drafts.isEmpty else { return }
         currentDraftIndex = (currentDraftIndex + 1) % drafts.count
-        if let draft = drafts[safe: currentDraftIndex] {
-            latestDraftLabel.text = draft.text
-        }
+        reloadDraft()
+    }
+
+    @objc
+    private func refreshDrafts() {
+        reloadDraft()
     }
 }
 

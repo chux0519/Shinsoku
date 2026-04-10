@@ -33,6 +33,17 @@ enum VoiceCommitMode: String, CaseIterable, Identifiable, Hashable {
             return "Transcribe first, then transform to English."
         }
     }
+
+    var commitSuffix: String {
+        switch self {
+        case .dictation, .translateChineseToEnglish:
+            return " "
+        case .chat:
+            return "\n"
+        case .review:
+            return ""
+        }
+    }
 }
 
 struct VoiceProfile: Identifiable, Equatable, Hashable {

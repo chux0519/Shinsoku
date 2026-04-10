@@ -128,7 +128,7 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(draft.text)
                             .lineLimit(3)
-                        Text(profileTitle(for: draft.profileID))
+                        Text("\(profileTitle(for: draft.profileID)) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -148,7 +148,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Keyboard extension")
                 .font(.headline)
-            Text("Use the keyboard to switch among recent drafts and insert them into the active editor. Recording stays in the app, insertion stays in the keyboard.")
+            Text("Insert from the keyboard with profile-aware suffix behavior. Dictation appends a space, chat appends a newline, and review inserts the text as-is.")
                 .foregroundStyle(.secondary)
         }
         .padding(18)
