@@ -52,10 +52,10 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
     let mode: VoiceCommitMode
     let languageTag: String?
 
-    static let defaults: [VoiceProfile] = [
+    static let defaults: [VoiceProfile] = NativeVoiceProfiles.loadBuiltIns() ?? [
         VoiceProfile(id: "dictation", title: "Dictation", mode: .dictation, languageTag: nil),
         VoiceProfile(id: "chat", title: "Chat", mode: .chat, languageTag: nil),
         VoiceProfile(id: "review", title: "Review", mode: .review, languageTag: nil),
-        VoiceProfile(id: "zh-en", title: "Chinese to English", mode: .translateChineseToEnglish, languageTag: "zh-CN"),
+        VoiceProfile(id: "translate_zh_en", title: "Zh→En", mode: .translateChineseToEnglish, languageTag: "zh-CN"),
     ]
 }

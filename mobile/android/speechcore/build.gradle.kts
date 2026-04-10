@@ -10,6 +10,7 @@ java {
 
 dependencies {
     implementation(kotlin("stdlib"))
+    implementation("org.json:json:20240303")
     testImplementation(kotlin("test"))
 }
 

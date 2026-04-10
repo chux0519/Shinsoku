@@ -5,6 +5,7 @@
 #include "shinsoku/nativecore/transcript_cleanup.hpp"
 #include "shinsoku/nativecore/transcript_commit_planner.hpp"
 #include "shinsoku/nativecore/runtime_derivation.hpp"
+#include "shinsoku/nativecore/profile_presets.hpp"
 
 namespace {
 
@@ -90,4 +91,12 @@ Java_com_shinsoku_mobile_processing_NativeVoiceRuntime_derivePostProcessingModeN
         default:
             return to_java_string(env, "LocalCleanup");
     }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_shinsoku_mobile_speechcore_NativeVoiceProfiles_builtinProfilesJsonNative(
+    JNIEnv* env,
+    jobject /* thiz */
+) {
+    return to_java_string(env, shinsoku::nativecore::builtin_profiles_json());
 }

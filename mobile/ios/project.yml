@@ -10,6 +10,7 @@ targets:
     sources:
       - path: App/Sources
       - path: Shared/Sources
+      - path: ../nativecore/src
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shinsoku.mobile.ios
@@ -21,6 +22,10 @@ targets:
         SWIFT_VERSION: "5.10"
         SUPPORTS_MACCATALYST: "NO"
         CODE_SIGN_ENTITLEMENTS: App/ShinsokuMobile.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: Shared/Sources/ShinsokuBridgingHeader.h
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/../nativecore/include
+        CLANG_CXX_LANGUAGE_STANDARD: gnu++20
     dependencies:
       - target: ShinsokuKeyboard
       - sdk: Speech.framework
@@ -31,6 +36,7 @@ targets:
     sources:
       - path: Keyboard/Sources
       - path: Shared/Sources
+      - path: ../nativecore/src
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shinsoku.mobile.ios.keyboard
@@ -43,3 +49,7 @@ targets:
         INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
         SWIFT_VERSION: "5.10"
         CODE_SIGN_ENTITLEMENTS: Keyboard/ShinsokuKeyboard.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: Shared/Sources/ShinsokuBridgingHeader.h
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/../nativecore/include
+        CLANG_CXX_LANGUAGE_STANDARD: gnu++20

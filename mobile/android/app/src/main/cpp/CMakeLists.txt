@@ -6,6 +6,8 @@ add_library(
     shinsoku_nativecore
     SHARED
     native_bridge.cpp
+    ../../../../../nativecore/src/c_api.cpp
+    ../../../../../nativecore/src/profile_presets.cpp
     ../../../../../nativecore/src/transcript_cleanup.cpp
     ../../../../../nativecore/src/transcript_commit_planner.cpp
     ../../../../../nativecore/src/runtime_derivation.cpp
