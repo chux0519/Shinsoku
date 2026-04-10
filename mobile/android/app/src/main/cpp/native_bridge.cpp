@@ -5,6 +5,7 @@
 #include "shinsoku/nativecore/transcript_cleanup.hpp"
 #include "shinsoku/nativecore/transcript_commit_planner.hpp"
 #include "shinsoku/nativecore/runtime_derivation.hpp"
+#include "shinsoku/nativecore/provider_diagnostics.hpp"
 #include "shinsoku/nativecore/profile_presets.hpp"
 #include "shinsoku/nativecore/transform_prompt.hpp"
 
@@ -103,6 +104,54 @@ Java_com_shinsoku_mobile_processing_NativeVoiceRuntime_resolvePostProcessingMode
         default:
             return to_java_string(env, "LocalCleanup");
     }
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_shinsoku_mobile_ime_RecognitionProviderDiagnostics_describeProviderRuntimeNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jstring active_provider_name,
+    jstring openai_base_url,
+    jstring openai_api_key,
+    jstring openai_transcription_model,
+    jstring soniox_url,
+    jstring soniox_api_key,
+    jstring soniox_model,
+    jstring bailian_region,
+    jstring bailian_url,
+    jstring bailian_api_key,
+    jstring bailian_model
+) {
+    const std::string provider_name = from_java_string(env, active_provider_name);
+    shinsoku::nativecore::RecognitionProvider provider = shinsoku::nativecore::RecognitionProvider::AndroidSystem;
+    if (provider_name == "OpenAiCompatible") {
+        provider = shinsoku::nativecore::RecognitionProvider::OpenAiCompatible;
+    } else if (provider_name == "Soniox") {
+        provider = shinsoku::nativecore::RecognitionProvider::Soniox;
+    } else if (provider_name == "Bailian") {
+        provider = shinsoku::nativecore::RecognitionProvider::Bailian;
+    }
+
+    const auto status = shinsoku::nativecore::describe_provider_runtime(
+        provider,
+        from_java_string(env, openai_base_url),
+        from_java_string(env, openai_api_key),
+        from_java_string(env, openai_transcription_model),
+        from_java_string(env, soniox_url),
+        from_java_string(env, soniox_api_key),
+        from_java_string(env, soniox_model),
+        from_java_string(env, bailian_region),
+        from_java_string(env, bailian_url),
+        from_java_string(env, bailian_api_key),
+        from_java_string(env, bailian_model)
+    );
+
+    jclass string_class = env->FindClass("java/lang/String");
+    jobjectArray output = env->NewObjectArray(3, string_class, nullptr);
+    env->SetObjectArrayElement(output, 0, to_java_string(env, status.ready ? "true" : "false"));
+    env->SetObjectArrayElement(output, 1, to_java_string(env, status.summary));
+    env->SetObjectArrayElement(output, 2, to_java_string(env, status.detail));
+    return output;
 }
 
 extern "C" JNIEXPORT jstring JNICALL

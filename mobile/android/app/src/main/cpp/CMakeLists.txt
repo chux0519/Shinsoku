@@ -12,6 +12,7 @@ add_library(
     ../../../../../nativecore/src/transcript_commit_planner.cpp
     ../../../../../nativecore/src/transform_prompt.cpp
     ../../../../../nativecore/src/runtime_derivation.cpp
+    ../../../../../nativecore/src/provider_diagnostics.cpp
 )
 
 find_library(log-lib log)

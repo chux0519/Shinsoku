@@ -11,13 +11,49 @@ data class ProviderRuntimeStatus(
 )
 
 object RecognitionProviderDiagnostics {
+    init {
+        runCatching { System.loadLibrary("shinsoku_nativecore") }
+    }
+
     fun status(config: VoiceProviderConfig): ProviderRuntimeStatus = when (config.activeRecognitionProvider) {
+        else -> nativeStatus(config) ?: fallbackStatus(config)
+    }
+
+    fun requireReady(config: VoiceProviderConfig): String? {
+        val status = status(config)
+        return if (status.ready) null else status.detail
+    }
+
+    private fun nativeStatus(config: VoiceProviderConfig): ProviderRuntimeStatus? {
+        val result = runCatching {
+            describeProviderRuntimeNative(
+                activeProviderName = config.activeRecognitionProvider.name,
+                openaiBaseUrl = config.openAiRecognition.baseUrl,
+                openaiApiKey = config.openAiRecognition.apiKey,
+                openaiTranscriptionModel = config.openAiRecognition.transcriptionModel,
+                sonioxUrl = config.soniox.url,
+                sonioxApiKey = config.soniox.apiKey,
+                sonioxModel = config.soniox.model,
+                bailianRegion = config.bailian.region,
+                bailianUrl = config.bailian.url,
+                bailianApiKey = config.bailian.apiKey,
+                bailianModel = config.bailian.model,
+            )
+        }.getOrNull() ?: return null
+        if (result.size < 3) return null
+        return ProviderRuntimeStatus(
+            ready = result[0] == "true",
+            summary = result[1],
+            detail = result[2],
+        )
+    }
+
+    private fun fallbackStatus(config: VoiceProviderConfig): ProviderRuntimeStatus = when (config.activeRecognitionProvider) {
         VoiceRecognitionProvider.AndroidSystem -> ProviderRuntimeStatus(
             ready = true,
             summary = "on-device ready",
             detail = "Uses Android system speech recognition. No remote credentials required.",
         )
-
         VoiceRecognitionProvider.OpenAiCompatible -> buildRemoteStatus(
             providerName = "OpenAI-compatible",
             apiKey = config.openAiRecognition.apiKey,
@@ -25,7 +61,6 @@ object RecognitionProviderDiagnostics {
             endpoint = config.openAiRecognition.baseUrl,
             allowedSchemes = setOf("http", "https"),
         )
-
         VoiceRecognitionProvider.Soniox -> buildRemoteStatus(
             providerName = "Soniox",
             apiKey = config.soniox.apiKey,
@@ -33,7 +68,6 @@ object RecognitionProviderDiagnostics {
             endpoint = config.soniox.url,
             allowedSchemes = setOf("ws", "wss"),
         )
-
         VoiceRecognitionProvider.Bailian -> buildRemoteStatus(
             providerName = "Bailian",
             apiKey = config.bailian.apiKey,
@@ -46,11 +80,6 @@ object RecognitionProviderDiagnostics {
                 }
             },
         )
-    }
-
-    fun requireReady(config: VoiceProviderConfig): String? {
-        val status = status(config)
-        return if (status.ready) null else status.detail
     }
 
     private fun buildRemoteStatus(
@@ -93,4 +122,18 @@ object RecognitionProviderDiagnostics {
             )
         }
     }
+
+    private external fun describeProviderRuntimeNative(
+        activeProviderName: String,
+        openaiBaseUrl: String,
+        openaiApiKey: String,
+        openaiTranscriptionModel: String,
+        sonioxUrl: String,
+        sonioxApiKey: String,
+        sonioxModel: String,
+        bailianRegion: String,
+        bailianUrl: String,
+        bailianApiKey: String,
+        bailianModel: String,
+    ): Array<String>
 }
