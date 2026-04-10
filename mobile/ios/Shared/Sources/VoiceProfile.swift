@@ -131,17 +131,7 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
     }
 
     var transformSummary: String {
-        guard transform.enabled else {
-            return "Transform disabled."
-        }
-        switch transform.mode {
-        case .cleanup:
-            return "Cleanup prompt with \(transform.requestFormat == .singleUserMessage ? "single prompt" : "system + user") format."
-        case .translation:
-            return "Translate \(transform.translationSourceLanguage) to \(transform.translationTargetLanguage)."
-        case .customPrompt:
-            return "Custom prompt with \(transform.requestFormat == .singleUserMessage ? "single prompt" : "system + user") format."
-        }
+        NativeTransformSummary.describe(transform: transform) ?? "Transform disabled."
     }
 
     static let defaults: [VoiceProfile] = NativeVoiceProfiles.loadBuiltIns() ?? [

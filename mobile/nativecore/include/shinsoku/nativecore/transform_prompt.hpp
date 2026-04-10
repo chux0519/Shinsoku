@@ -38,4 +38,6 @@ TransformPromptPlan build_transform_prompt(
     const TransformPromptConfig& config
 );
 
+std::string describe_transform_config(const TransformPromptConfig& config);
+
 }  // namespace shinsoku::nativecore

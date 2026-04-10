@@ -14,7 +14,16 @@ NS_ASSUME_NONNULL_BEGIN
                                              translationSourceCode:(NSString *)translationSourceCode
                                          translationTargetLanguage:(NSString *)translationTargetLanguage
                                              translationTargetCode:(NSString *)translationTargetCode
-                                   translationExtraInstructions:(NSString *)translationExtraInstructions;
+                                    translationExtraInstructions:(NSString *)translationExtraInstructions;
++ (nullable NSString *)describeTransformEnabled:(BOOL)enabled
+                                           mode:(NSString *)mode
+                                  requestFormat:(NSString *)requestFormat
+                                   customPrompt:(NSString *)customPrompt
+                      translationSourceLanguage:(NSString *)translationSourceLanguage
+                          translationSourceCode:(NSString *)translationSourceCode
+                      translationTargetLanguage:(NSString *)translationTargetLanguage
+                          translationTargetCode:(NSString *)translationTargetCode
+                translationExtraInstructions:(NSString *)translationExtraInstructions;
 
 @end
 

@@ -29,6 +29,7 @@ import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.speechcore.VoiceTransformMode
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
+import com.shinsoku.mobile.speechcore.NativeVoiceTransformSummary
 import android.Manifest
 import android.content.pm.PackageManager
 import android.view.inputmethod.InputMethodManager
@@ -133,16 +134,9 @@ class MainActivity : AppCompatActivity() {
         binding.keyboardSelectedStatusText.text = getString(
             if (imeStatus.selected) R.string.keyboard_selected_status else R.string.keyboard_not_selected_status,
         )
-        binding.behaviorSummaryText.text = profile.behaviorSummary + " • " + (profile.languageTag ?: getString(R.string.language_auto_label)) + "\n" + when {
-            !profile.transform.enabled -> getString(R.string.transform_summary_disabled)
-            profile.transform.mode == VoiceTransformMode.Cleanup -> getString(R.string.transform_summary_cleanup)
-            profile.transform.mode == VoiceTransformMode.Translation -> getString(
-                R.string.transform_summary_translation,
-                profile.transform.translationSourceLanguage,
-                profile.transform.translationTargetLanguage,
-            )
-            else -> getString(R.string.transform_summary_custom)
-        }
+        binding.behaviorSummaryText.text = profile.behaviorSummary + " • " +
+            (profile.languageTag ?: getString(R.string.language_auto_label)) + "\n" +
+            (NativeVoiceTransformSummary.build(profile.transform) ?: fallbackTransformSummary(profile))
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
         val providerConfig = providerConfigStore.load()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
@@ -169,6 +163,18 @@ class MainActivity : AppCompatActivity() {
         val latestEntry = historyStore.listEntries(limit = 1).firstOrNull()
         binding.recentHistoryPreviewText.text = latestEntry?.text ?: getString(R.string.history_empty)
     }
+
+    private fun fallbackTransformSummary(profile: com.shinsoku.mobile.speechcore.VoiceInputProfile): String =
+        when {
+            !profile.transform.enabled -> getString(R.string.transform_summary_disabled)
+            profile.transform.mode == VoiceTransformMode.Cleanup -> getString(R.string.transform_summary_cleanup)
+            profile.transform.mode == VoiceTransformMode.Translation -> getString(
+                R.string.transform_summary_translation,
+                profile.transform.translationSourceLanguage,
+                profile.transform.translationTargetLanguage,
+            )
+            else -> getString(R.string.transform_summary_custom)
+        }
 
     private fun rebuildLabController() {
         labController?.destroy()

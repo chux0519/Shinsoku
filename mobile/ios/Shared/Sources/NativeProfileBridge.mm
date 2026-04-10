@@ -57,4 +57,39 @@
     return @[systemPrompt, userContent, format];
 }
 
++ (nullable NSString *)describeTransformEnabled:(BOOL)enabled
+                                           mode:(NSString *)mode
+                                  requestFormat:(NSString *)requestFormat
+                                   customPrompt:(NSString *)customPrompt
+                      translationSourceLanguage:(NSString *)translationSourceLanguage
+                          translationSourceCode:(NSString *)translationSourceCode
+                      translationTargetLanguage:(NSString *)translationTargetLanguage
+                          translationTargetCode:(NSString *)translationTargetCode
+                translationExtraInstructions:(NSString *)translationExtraInstructions {
+    using namespace shinsoku::nativecore;
+
+    TransformPromptConfig config;
+    config.enabled = enabled;
+    if ([mode isEqualToString:@"translation"]) {
+        config.mode = TransformPromptMode::Translation;
+    } else if ([mode isEqualToString:@"custom_prompt"]) {
+        config.mode = TransformPromptMode::CustomPrompt;
+    } else {
+        config.mode = TransformPromptMode::Cleanup;
+    }
+
+    config.request_format = [requestFormat isEqualToString:@"single_user_message"]
+        ? TransformRequestFormat::SingleUserMessage
+        : TransformRequestFormat::SystemAndUser;
+    config.custom_prompt = customPrompt.UTF8String ?: "";
+    config.translation_source_language = translationSourceLanguage.UTF8String ?: "";
+    config.translation_source_code = translationSourceCode.UTF8String ?: "";
+    config.translation_target_language = translationTargetLanguage.UTF8String ?: "";
+    config.translation_target_code = translationTargetCode.UTF8String ?: "";
+    config.translation_extra_instructions = translationExtraInstructions.UTF8String ?: "";
+
+    const auto summary = describe_transform_config(config);
+    return [NSString stringWithUTF8String:summary.c_str()] ?: nil;
+}
+
 @end

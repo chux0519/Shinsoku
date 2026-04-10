@@ -146,4 +146,36 @@ TransformPromptPlan build_transform_prompt(
     }
 }
 
+std::string describe_transform_config(const TransformPromptConfig& config) {
+    if (!config.enabled) {
+        return "Transform disabled.";
+    }
+
+    switch (config.mode) {
+        case TransformPromptMode::Cleanup:
+            return std::string("Cleanup prompt with ")
+                + (config.request_format == TransformRequestFormat::SingleUserMessage
+                    ? "single prompt"
+                    : "system + user")
+                + " format.";
+        case TransformPromptMode::Translation: {
+            const std::string source = trim(config.translation_source_language).empty()
+                ? "source"
+                : trim(config.translation_source_language);
+            const std::string target = trim(config.translation_target_language).empty()
+                ? "target"
+                : trim(config.translation_target_language);
+            return "Translate " + source + " to " + target + ".";
+        }
+        case TransformPromptMode::CustomPrompt:
+            return std::string("Custom prompt with ")
+                + (config.request_format == TransformRequestFormat::SingleUserMessage
+                    ? "single prompt"
+                    : "system + user")
+                + " format.";
+        default:
+            return "Transform disabled.";
+    }
+}
+
 }  // namespace shinsoku::nativecore

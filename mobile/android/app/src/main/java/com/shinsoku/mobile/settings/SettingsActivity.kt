@@ -13,6 +13,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputProfile
 import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.speechcore.VoiceRefineRequestFormat
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
+import com.shinsoku.mobile.speechcore.NativeVoiceTransformSummary
 import com.shinsoku.mobile.speechcore.VoiceTransformPromptBuilder
 import com.shinsoku.mobile.speechcore.VoiceTransformConfig
 import com.shinsoku.mobile.speechcore.VoiceTransformMode
@@ -289,20 +290,8 @@ class SettingsActivity : AppCompatActivity() {
             TranscriptPostProcessingMode.ProviderAssisted ->
                 getString(R.string.post_processing_hint_provider_assisted)
         }
-        binding.transformSummaryText.text = when {
-            !profile.transform.enabled ->
-                getString(R.string.transform_summary_disabled)
-            profile.transform.mode == VoiceTransformMode.Cleanup ->
-                getString(R.string.transform_summary_cleanup)
-            profile.transform.mode == VoiceTransformMode.Translation ->
-                getString(
-                    R.string.transform_summary_translation,
-                    profile.transform.translationSourceLanguage,
-                    profile.transform.translationTargetLanguage,
-                )
-            else ->
-                getString(R.string.transform_summary_custom)
-        }
+        binding.transformSummaryText.text =
+            NativeVoiceTransformSummary.build(profile.transform) ?: fallbackTransformSummary(profile)
         val previewPlan = VoiceTransformPromptBuilder.build(
             getString(R.string.transform_preview_placeholder),
             profile,
@@ -350,6 +339,22 @@ class SettingsActivity : AppCompatActivity() {
             translationExtraInstructions = binding.translationExtraInstructionsEdit.text?.toString().orEmpty().trim(),
         )
     }
+
+    private fun fallbackTransformSummary(profile: VoiceInputProfile): String =
+        when {
+            !profile.transform.enabled ->
+                getString(R.string.transform_summary_disabled)
+            profile.transform.mode == VoiceTransformMode.Cleanup ->
+                getString(R.string.transform_summary_cleanup)
+            profile.transform.mode == VoiceTransformMode.Translation ->
+                getString(
+                    R.string.transform_summary_translation,
+                    profile.transform.translationSourceLanguage,
+                    profile.transform.translationTargetLanguage,
+                )
+            else ->
+                getString(R.string.transform_summary_custom)
+        }
 
     private fun providerLabel(provider: VoiceRecognitionProvider): String = when (provider) {
         VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_android_system)
