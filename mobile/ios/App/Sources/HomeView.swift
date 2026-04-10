@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
@@ -10,8 +11,8 @@ struct HomeView: View {
                 hero
                 permissionCard
                 dictationCard
-                draftsCard
                 keyboardCard
+                draftsCard
             }
             .padding(20)
         }
@@ -32,6 +33,9 @@ struct HomeView: View {
                 .font(.system(size: 34, weight: .semibold, design: .rounded))
             Text("Speak in the app, then insert from the keyboard.")
                 .foregroundStyle(.secondary)
+            Text("The app owns dictation and draft review. The keyboard stays focused on quick insertion into the current field.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -45,6 +49,12 @@ struct HomeView: View {
                 Task {
                     await transcriber.requestPermissions()
                 }
+            }
+            .buttonStyle(.bordered)
+
+            Button("Open app settings") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(url)
             }
             .buttonStyle(.bordered)
         }
@@ -83,6 +93,10 @@ struct HomeView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
+
+            Text("Tip: use Review when you want to keep the text in drafts first, then insert it from the keyboard after a quick pass.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
                 Button(transcriber.isRecording ? "Stop" : "Start dictation") {
@@ -145,20 +159,23 @@ struct HomeView: View {
     }
 
     private var keyboardCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Keyboard extension")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Keyboard extension")
+                    .font(.headline)
+                Spacer()
+                Button("Open Drafts") {
+                    NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+                }
+                .buttonStyle(.bordered)
+            }
             Text("Insert from the keyboard with profile-aware suffix behavior. Dictation appends a space, chat appends a newline, and review inserts the text as-is.")
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Setup")
-                    .font(.subheadline.weight(.semibold))
-                Text("1. Enable Shinsoku Keyboard in iOS keyboard settings.")
-                Text("2. Return here to dictate a phrase.")
-                Text("3. Switch to the Shinsoku keyboard and insert the saved draft.")
+            VStack(alignment: .leading, spacing: 8) {
+                setupStep(number: 1, text: "Enable Shinsoku Keyboard in iOS Settings > General > Keyboard > Keyboards.")
+                setupStep(number: 2, text: "Return here, dictate a phrase, and save it as a draft.")
+                setupStep(number: 3, text: "Switch to Shinsoku Keyboard in any text field, then insert the saved draft.")
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -167,4 +184,20 @@ struct HomeView: View {
     private func profileTitle(for id: String) -> String {
         VoiceProfile.defaults.first(where: { $0.id == id })?.title ?? id
     }
+
+    private func setupStep(number: Int, text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(number)")
+                .font(.footnote.weight(.semibold))
+                .frame(width: 22, height: 22)
+                .background(Color(.secondarySystemBackground), in: Circle())
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+extension Notification.Name {
+    static let shinsokuOpenDrafts = Notification.Name("shinsokuOpenDrafts")
 }
