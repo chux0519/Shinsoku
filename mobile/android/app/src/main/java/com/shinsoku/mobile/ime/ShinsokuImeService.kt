@@ -6,12 +6,10 @@ import android.inputmethodservice.InputMethodService
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.PopupMenu
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
@@ -48,14 +46,17 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private var insertButton: Button? = null
     private var clearButton: Button? = null
     private var editButton: Button? = null
-    private var presetSpinner: Spinner? = null
+    private var dictationButton: Button? = null
+    private var chatButton: Button? = null
+    private var reviewButton: Button? = null
+    private var translateButton: Button? = null
+    private var livePreviewView: TextView? = null
     private var pendingActionsRow: View? = null
     private var controller: VoiceInputController? = null
     private lateinit var configStore: AndroidVoiceInputConfigStore
     private lateinit var providerConfigStore: AndroidVoiceProviderConfigStore
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
-    private var suppressPresetSelection = false
     private var pendingDraftText: String? = null
     private val draftInsertReceiver = DraftInsertReceiver { editedText ->
         if (editedText.isBlank()) {
@@ -94,20 +95,20 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             insertButton = view.findViewById(R.id.insertButton)
             clearButton = view.findViewById(R.id.clearButton)
             editButton = view.findViewById(R.id.editButton)
-            presetSpinner = view.findViewById(R.id.imePresetSpinner)
+            dictationButton = view.findViewById(R.id.imeDictationButton)
+            chatButton = view.findViewById(R.id.imeChatButton)
+            reviewButton = view.findViewById(R.id.imeReviewButton)
+            translateButton = view.findViewById(R.id.imeTranslateButton)
+            livePreviewView = view.findViewById(R.id.imeLivePreview)
             pendingActionsRow = view.findViewById(R.id.imePendingActions)
             val moreButton = view.findViewById<Button>(R.id.imeMoreButton)
+            val backspaceButton = view.findViewById<Button>(R.id.backspaceButton)
+            val enterButton = view.findViewById<Button>(R.id.enterButton)
 
             titleView?.text = getString(R.string.ime_title_idle)
             subtitleView?.text = getString(R.string.ime_subtitle_ready)
-            bindPresetSelector()
             micButton?.setOnClickListener {
                 try {
-                    if (controller?.currentState() !is VoiceInputUiState.Listening &&
-                        controller?.currentState() !is VoiceInputUiState.Processing
-                    ) {
-                        rebuildController()
-                    }
                     controller?.onMicTapped()
                 } catch (error: Throwable) {
                     Log.e(TAG, "IME mic tap failed", error)
@@ -126,10 +127,20 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             editButton?.setOnClickListener {
                 openDraftEditor()
             }
+            dictationButton?.setOnClickListener { applyProfile(VoiceInputProfiles.dictation) }
+            chatButton?.setOnClickListener { applyProfile(VoiceInputProfiles.chat) }
+            reviewButton?.setOnClickListener { applyProfile(VoiceInputProfiles.review) }
+            translateButton?.setOnClickListener { applyProfile(VoiceInputProfiles.translateChineseToEnglish) }
             moreButton.setOnClickListener { anchor ->
                 showMoreMenu(anchor)
             }
-            bindPresetSelection(configStore.loadProfile())
+            backspaceButton.setOnClickListener {
+                currentInputConnection?.deleteSurroundingText(1, 0)
+            }
+            enterButton.setOnClickListener {
+                currentInputConnection?.commitText("\n", 1)
+            }
+            bindPresetButtons(configStore.loadProfile())
             view
         } catch (error: Throwable) {
             Log.e(TAG, "Failed to inflate IME view", error)
@@ -139,7 +150,11 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             insertButton = null
             clearButton = null
             editButton = null
-            presetSpinner = null
+            dictationButton = null
+            chatButton = null
+            reviewButton = null
+            translateButton = null
+            livePreviewView = null
             pendingActionsRow = null
             createFallbackInputView(error)
         }
@@ -148,6 +163,12 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         controller?.stop()
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        rebuildController()
+        onStateChanged(controller?.currentState() ?: VoiceInputUiState.Idle)
     }
 
     override fun onDestroy() {
@@ -165,17 +186,17 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 subtitleView?.text = getString(R.string.ime_subtitle_ready)
                 micButton?.text = getString(R.string.ime_mic)
                 pendingActionsRow?.visibility = View.GONE
+                livePreviewView?.visibility = View.GONE
             }
 
             is VoiceInputUiState.Listening -> {
-                titleView?.text = if (state.partialTranscript.isBlank()) {
-                    getString(R.string.ime_title_listening)
-                } else {
-                    state.partialTranscript
-                }
+                titleView?.text = getString(R.string.ime_title_listening)
                 subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
+                val partial = state.partialTranscript.ifBlank { getString(R.string.ime_live_preview_placeholder) }
+                livePreviewView?.text = partial
+                livePreviewView?.visibility = View.VISIBLE
             }
 
             is VoiceInputUiState.Processing -> {
@@ -183,14 +204,18 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 subtitleView?.text = getString(R.string.ime_subtitle_processing)
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
+                livePreviewView?.text = getString(R.string.ime_title_processing)
+                livePreviewView?.visibility = View.VISIBLE
             }
 
             is VoiceInputUiState.PendingCommit -> {
                 pendingDraftText = state.text
-                titleView?.text = state.text.trimEnd('\n', ' ')
+                titleView?.text = currentProfileLabel()
                 subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_mic)
                 pendingActionsRow?.visibility = View.VISIBLE
+                livePreviewView?.text = state.text.trimEnd('\n', ' ')
+                livePreviewView?.visibility = View.VISIBLE
             }
 
             is VoiceInputUiState.Error -> {
@@ -199,6 +224,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_retry)
                 pendingActionsRow?.visibility = View.GONE
+                livePreviewView?.visibility = View.GONE
             }
         }
     }
@@ -253,7 +279,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             observer = this,
             postProcessor = AndroidVoicePostProcessor(this),
         )
-        bindPresetSelection(configStore.loadProfile())
+        bindPresetButtons(configStore.loadProfile())
     }
 
     private fun applyProfile(profile: VoiceInputProfile) {
@@ -262,49 +288,24 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         onStateChanged(controller?.currentState() ?: VoiceInputUiState.Idle)
     }
 
-    private fun bindPresetSelector() {
-        val spinner = presetSpinner ?: return
-        val labels = listOf(
-            getString(R.string.ime_profile_dictation_short),
-            getString(R.string.ime_profile_chat_short),
-            getString(R.string.ime_profile_review_short),
-            getString(R.string.ime_profile_translate_short),
-        )
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        spinner.adapter = adapter
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (suppressPresetSelection) {
-                    return
-                }
-                val profile = when (position) {
-                    1 -> VoiceInputProfiles.chat
-                    2 -> VoiceInputProfiles.review
-                    3 -> VoiceInputProfiles.translateChineseToEnglish
-                    else -> VoiceInputProfiles.dictation
-                }
-                if (configStore.loadProfile().id != profile.id) {
-                    applyProfile(profile)
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-        }
+    private fun bindPresetButtons(profile: VoiceInputProfile) {
+        bindPresetButton(dictationButton, profile.id == VoiceInputProfiles.dictation.id)
+        bindPresetButton(chatButton, profile.id == VoiceInputProfiles.chat.id)
+        bindPresetButton(reviewButton, profile.id == VoiceInputProfiles.review.id)
+        bindPresetButton(translateButton, profile.id == VoiceInputProfiles.translateChineseToEnglish.id)
     }
 
-    private fun bindPresetSelection(profile: VoiceInputProfile) {
-        val spinner = presetSpinner ?: return
-        val index = when (profile.id) {
-            VoiceInputProfiles.chat.id -> 1
-            VoiceInputProfiles.review.id -> 2
-            VoiceInputProfiles.translateChineseToEnglish.id -> 3
-            else -> 0
-        }
-        suppressPresetSelection = true
-        spinner.setSelection(index, false)
-        suppressPresetSelection = false
+    private fun bindPresetButton(button: Button?, active: Boolean) {
+        if (button == null) return
+        button.setBackgroundResource(
+            if (active) R.drawable.bg_ime_button_chip_active else R.drawable.bg_ime_button_chip,
+        )
+        button.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (active) R.color.shinsoku_chip_active_text else R.color.shinsoku_text,
+            ),
+        )
     }
 
     private fun currentProfileLabel(): String = configStore.loadProfile().displayName
