@@ -23,6 +23,7 @@ struct HomeView: View {
         .navigationTitle("Shinsoku")
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            transcriber.refreshAuthorizationState()
             if transcriber.authorizationState == .unknown {
                 await transcriber.requestPermissions()
             }
@@ -238,8 +239,8 @@ struct HomeView: View {
                 Text("Keyboard extension")
                     .font(.headline)
                 Spacer()
-                Button("Open Drafts") {
-                    NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+                NavigationLink("Setup guide") {
+                    SetupGuideView()
                 }
                 .buttonStyle(.bordered)
             }
@@ -249,6 +250,17 @@ struct HomeView: View {
                 setupStep(number: 1, text: "Enable Shinsoku Keyboard in iOS Settings > General > Keyboard > Keyboards.")
                 setupStep(number: 2, text: "Return here, dictate a phrase, and save it as a draft.")
                 setupStep(number: 3, text: "Switch to Shinsoku Keyboard in any text field, then insert the saved draft.")
+            }
+            HStack(spacing: 12) {
+                Button("Open Drafts") {
+                    NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Open Settings") {
+                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .shinsokuCard()

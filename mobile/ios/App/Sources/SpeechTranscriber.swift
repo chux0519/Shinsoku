@@ -34,6 +34,29 @@ final class SpeechTranscriber: NSObject, ObservableObject {
     private var task: SFSpeechRecognitionTask?
     private var recognizer: SFSpeechRecognizer?
 
+    func refreshAuthorizationState() {
+        let speechStatus = SFSpeechRecognizer.authorizationStatus()
+        let audioStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+
+        guard audioStatus == .authorized else {
+            authorizationState = audioStatus == .restricted ? .restricted : .denied
+            return
+        }
+
+        switch speechStatus {
+        case .authorized:
+            authorizationState = .ready
+        case .denied:
+            authorizationState = .denied
+        case .restricted:
+            authorizationState = .restricted
+        case .notDetermined:
+            authorizationState = .unknown
+        @unknown default:
+            authorizationState = .restricted
+        }
+    }
+
     func requestPermissions() async {
         let speechStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
@@ -60,6 +83,8 @@ final class SpeechTranscriber: NSObject, ObservableObject {
         @unknown default:
             authorizationState = .restricted
         }
+
+        refreshAuthorizationState()
     }
 
     func start(localeIdentifier: String?) {

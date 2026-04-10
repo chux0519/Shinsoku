@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
+    @EnvironmentObject private var transcriber: SpeechTranscriber
 
     var body: some View {
         ScrollView {
@@ -9,6 +10,7 @@ struct SettingsView: View {
                 header
                 runtimeCard
                 workflowCard
+                keyboardCard
                 setupCard
                 draftsCard
             }
@@ -18,6 +20,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .onAppear {
             workspace.refresh()
+            transcriber.refreshAuthorizationState()
         }
     }
 
@@ -72,6 +75,27 @@ struct SettingsView: View {
             reminderRow(number: 1, text: "Grant microphone and speech recognition access in the app first.")
             reminderRow(number: 2, text: "Enable Shinsoku Keyboard in Settings > General > Keyboard > Keyboards.")
             reminderRow(number: 3, text: "Allow Full Access if you want the keyboard extension to open the app and stay in sync with shared drafts.")
+        }
+        .shinsokuSettingsCard()
+    }
+
+    private var keyboardCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Keyboard handoff")
+                .font(.headline)
+            Text("Shinsoku on iOS works as a two-part flow: dictate in the app, then insert from the keyboard extension.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            LabeledContent("Speech access") {
+                Text(transcriber.authorizationState == .ready ? "Ready" : "Needs attention")
+                    .foregroundStyle(transcriber.authorizationState == .ready ? Color.secondary : Color.orange)
+            }
+
+            NavigationLink("Open setup guide") {
+                SetupGuideView()
+            }
+            .buttonStyle(.bordered)
         }
         .shinsokuSettingsCard()
     }

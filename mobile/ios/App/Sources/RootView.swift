@@ -8,6 +8,8 @@ struct RootView: View {
     }
 
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
+    @EnvironmentObject private var transcriber: SpeechTranscriber
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .home
 
     var body: some View {
@@ -59,6 +61,11 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .shinsokuOpenHome)) { _ in
             selectedTab = .home
             workspace.refresh()
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            guard newValue == .active else { return }
+            workspace.refresh()
+            transcriber.refreshAuthorizationState()
         }
     }
 }
