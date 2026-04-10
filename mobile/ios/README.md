@@ -1,24 +1,37 @@
 ## iOS
 
-This directory now contains the first native iOS scaffold for Shinsoku.
+This directory now contains a usable first iOS implementation for Shinsoku.
 
-The structure mirrors the Android side:
+### Current shape
 
-- `App/`: SwiftUI app shell
-- `Keyboard/`: keyboard extension shell
-- `Shared/`: small reusable model layer for the iOS targets
-- `project.yml`: XcodeGen manifest for generating an Xcode project
+- `App/`: SwiftUI host app
+- `Keyboard/`: keyboard extension
+- `Shared/`: shared profile and draft persistence layer
+- `project.yml`: XcodeGen manifest
 
-### Current direction
+### What works now
 
 - native SwiftUI app shell
-- native keyboard extension
-- room for future Objective-C++ / C++ bridge work
-- shared prompt/profile/runtime concepts aligned with the rest of the repo
+- on-device speech dictation in the app using `Speech` + `AVAudioEngine`
+- shared App Group storage for drafts and selected profile
+- a drafts list with editing and deletion
+- a keyboard extension that can:
+  - show the active profile
+  - browse recent drafts
+  - insert the selected draft into the current text field
+  - switch to the next keyboard
 
-### Generate the Xcode project
+### Product shape on iOS
 
-This scaffold uses XcodeGen to avoid committing a bulky generated `.xcodeproj`.
+The iOS direction is intentionally different from Android:
+
+- recording happens in the app
+- insertion happens in the keyboard extension
+
+That is the most practical shape while keeping the implementation aligned with
+iOS platform constraints.
+
+### Generate the project
 
 ```bash
 brew install xcodegen
@@ -27,14 +40,19 @@ xcodegen generate
 open ShinsokuMobile.xcodeproj
 ```
 
-### What is already included
+### Build check
 
-- app home screen
-- profile picker shell
-- keyboard extension shell
-- shared profile model
-- shared draft entry model
+```bash
+cd mobile/ios
+xcodegen generate
+xcodebuild -project ShinsokuMobile.xcodeproj \
+  -scheme ShinsokuMobile \
+  -destination 'generic/platform=iOS Simulator' \
+  build
+```
 
-This is not yet a complete voice-input implementation. It is the maintainable
-starting point for building the iOS app and keyboard extension without pushing
-iOS-specific project files into the repository root.
+### Near-term direction
+
+- move more prompt/profile/runtime logic toward shared native core
+- replace simple app-owned dictation with reusable backend abstractions
+- improve keyboard UX and app-to-keyboard continuity
