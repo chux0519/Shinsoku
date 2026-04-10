@@ -10,6 +10,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 20) {
                 hero
                 permissionCard
+                storageCard
                 dictationCard
                 keyboardCard
                 draftsCard
@@ -118,6 +119,21 @@ struct HomeView: View {
                     transcriber.stop(resetTranscript: true)
                 }
                 .buttonStyle(.bordered)
+            }
+        }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var storageCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Shared draft state")
+                .font(.headline)
+            LabeledContent("Saved drafts", value: "\(workspace.storageDiagnostics.draftCount)")
+            LabeledContent("Shared app group", value: workspace.storageDiagnostics.appGroupID)
+            LabeledContent("Storage mode") {
+                Text(workspace.storageDiagnostics.isUsingSharedDefaults ? "Ready" : "Fallback")
+                    .foregroundStyle(workspace.storageDiagnostics.isUsingSharedDefaults ? Color.secondary : Color.red)
             }
         }
         .padding(18)

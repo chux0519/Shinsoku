@@ -2,10 +2,18 @@ import Foundation
 
 enum ShinsokuSharedStorage {
     static let appGroupID = "group.com.shinsoku.mobile"
-    static let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
+    static let sharedDefaults = UserDefaults(suiteName: appGroupID)
+    static let defaults = sharedDefaults ?? .standard
+    static let isUsingFallbackDefaults = sharedDefaults == nil
 
     fileprivate static let selectedProfileKey = "selectedProfileID"
     fileprivate static let draftsKey = "drafts"
+}
+
+struct SharedStorageDiagnostics {
+    let appGroupID: String
+    let isUsingSharedDefaults: Bool
+    let draftCount: Int
 }
 
 struct StoredDraft: Codable, Equatable, Identifiable {
@@ -88,5 +96,13 @@ enum DraftStore {
 
     static func clear() {
         ShinsokuSharedStorage.defaults.removeObject(forKey: ShinsokuSharedStorage.draftsKey)
+    }
+
+    static func diagnostics() -> SharedStorageDiagnostics {
+        SharedStorageDiagnostics(
+            appGroupID: ShinsokuSharedStorage.appGroupID,
+            isUsingSharedDefaults: !ShinsokuSharedStorage.isUsingFallbackDefaults,
+            draftCount: loadDrafts().count
+        )
     }
 }

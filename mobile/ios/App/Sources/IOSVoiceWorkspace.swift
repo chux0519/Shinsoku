@@ -4,10 +4,12 @@ import Foundation
 final class IOSVoiceWorkspace: ObservableObject {
     @Published var selectedProfile: VoiceProfile = VoiceProfileStore.loadSelectedProfile()
     @Published var drafts: [StoredDraft] = DraftStore.loadDrafts()
+    @Published var storageDiagnostics: SharedStorageDiagnostics = DraftStore.diagnostics()
 
     func refresh() {
         selectedProfile = VoiceProfileStore.loadSelectedProfile()
         drafts = DraftStore.loadDrafts()
+        storageDiagnostics = DraftStore.diagnostics()
     }
 
     func selectProfile(_ profile: VoiceProfile) {
@@ -33,5 +35,14 @@ final class IOSVoiceWorkspace: ObservableObject {
     func clearDrafts() {
         DraftStore.clear()
         refresh()
+    }
+
+    func cycleProfile() {
+        guard let currentIndex = VoiceProfile.defaults.firstIndex(of: selectedProfile) else {
+            selectProfile(VoiceProfile.defaults[0])
+            return
+        }
+        let nextIndex = (currentIndex + 1) % VoiceProfile.defaults.count
+        selectProfile(VoiceProfile.defaults[nextIndex])
     }
 }

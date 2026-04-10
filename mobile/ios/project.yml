@@ -16,18 +16,9 @@ targets:
         PRODUCT_NAME: Shinsoku
         CURRENT_PROJECT_VERSION: "1"
         MARKETING_VERSION: "0.1.0"
-        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
-        INFOPLIST_KEY_CFBundleDisplayName: Shinsoku
-        INFOPLIST_KEY_CFBundleURLTypes:
-          - CFBundleURLName: com.shinsoku.mobile
-            CFBundleURLSchemes:
-              - shinsoku
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: Shinsoku uses the microphone for voice input.
-        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Shinsoku uses speech recognition to transcribe voice drafts.
-        INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: App/Info.plist
         SWIFT_VERSION: "5.10"
-        GENERATE_INFOPLIST_FILE: "YES"
         SUPPORTS_MACCATALYST: "NO"
         CODE_SIGN_ENTITLEMENTS: App/ShinsokuMobile.entitlements
     dependencies:

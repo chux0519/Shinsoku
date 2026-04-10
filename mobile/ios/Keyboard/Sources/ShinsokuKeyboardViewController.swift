@@ -5,7 +5,9 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private let subtitleLabel = UILabel()
     private let profileLabel = UILabel()
     private let metaLabel = UILabel()
+    private let statusLabel = UILabel()
     private let latestDraftLabel = UILabel()
+    private let profileButton = UIButton(type: .system)
     private let insertButton = UIButton(type: .system)
     private let insertAndClearButton = UIButton(type: .system)
     private let openAppButton = UIButton(type: .system)
@@ -34,7 +36,9 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         profileLabel.translatesAutoresizingMaskIntoConstraints = false
         metaLabel.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
         latestDraftLabel.translatesAutoresizingMaskIntoConstraints = false
+        profileButton.translatesAutoresizingMaskIntoConstraints = false
         insertButton.translatesAutoresizingMaskIntoConstraints = false
         insertAndClearButton.translatesAutoresizingMaskIntoConstraints = false
         nextKeyboardButton.translatesAutoresizingMaskIntoConstraints = false
@@ -53,9 +57,20 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         metaLabel.font = .systemFont(ofSize: 12, weight: .regular)
         metaLabel.textColor = .tertiaryLabel
 
+        statusLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        statusLabel.textColor = .secondaryLabel
+        statusLabel.numberOfLines = 2
+
         latestDraftLabel.numberOfLines = 4
         latestDraftLabel.font = .systemFont(ofSize: 17, weight: .regular)
         latestDraftLabel.text = "Open the Shinsoku app to create a draft."
+        latestDraftLabel.backgroundColor = .secondarySystemBackground
+        latestDraftLabel.layer.cornerRadius = 16
+        latestDraftLabel.layer.masksToBounds = true
+
+        profileButton.configuration = .tinted()
+        profileButton.configuration?.title = "Cycle profile"
+        profileButton.addTarget(self, action: #selector(cycleProfile), for: .touchUpInside)
 
         previousButton.configuration = .tinted()
         previousButton.configuration?.title = "Previous"
@@ -89,8 +104,15 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         stackView.spacing = 12
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(subtitleLabel)
-        stackView.addArrangedSubview(profileLabel)
+
+        let profileRow = UIStackView(arrangedSubviews: [profileLabel, profileButton])
+        profileRow.axis = .horizontal
+        profileRow.spacing = 12
+        profileRow.alignment = .center
+        stackView.addArrangedSubview(profileRow)
+
         stackView.addArrangedSubview(metaLabel)
+        stackView.addArrangedSubview(statusLabel)
         stackView.addArrangedSubview(latestDraftLabel)
 
         let draftRow = UIStackView(arrangedSubviews: [previousButton, insertButton, nextDraftButton])
@@ -118,6 +140,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
             stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
             stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -18),
+            latestDraftLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 96),
             previousButton.heightAnchor.constraint(equalToConstant: 46),
             insertButton.heightAnchor.constraint(equalToConstant: 46),
             nextDraftButton.heightAnchor.constraint(equalToConstant: 46),
@@ -131,9 +154,14 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private func reloadDraft() {
         let profile = VoiceProfileStore.loadSelectedProfile()
         profileLabel.text = profile.title
+        profileButton.configuration?.title = "Mode: \(profile.mode.title)"
 
         drafts = DraftStore.loadDrafts()
+        let diagnostics = DraftStore.diagnostics()
         currentDraftIndex = min(currentDraftIndex, max(drafts.count - 1, 0))
+        statusLabel.text = diagnosticsStatusText(for: diagnostics)
+        openAppButton.isEnabled = hasFullAccess
+
         guard let draft = drafts[safe: currentDraftIndex] else {
             latestDraftLabel.text = "Open the Shinsoku app, dictate a phrase, then come back here to insert it."
             metaLabel.text = "No shared drafts yet"
@@ -149,6 +177,13 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         insertAndClearButton.isEnabled = true
         previousButton.isEnabled = drafts.count > 1
         nextDraftButton.isEnabled = drafts.count > 1
+    }
+
+    private func diagnosticsStatusText(for diagnostics: SharedStorageDiagnostics) -> String {
+        var parts: [String] = []
+        parts.append(hasFullAccess ? "Full Access on" : "Full Access off")
+        parts.append(diagnostics.isUsingSharedDefaults ? "Shared drafts ready" : "Using fallback storage")
+        return parts.joined(separator: " · ")
     }
 
     @objc
@@ -184,6 +219,20 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
 
     @objc
     private func refreshDrafts() {
+        reloadDraft()
+    }
+
+    @objc
+    private func cycleProfile() {
+        let profiles = VoiceProfile.defaults
+        let current = VoiceProfileStore.loadSelectedProfile()
+        guard let index = profiles.firstIndex(of: current) else {
+            VoiceProfileStore.saveSelectedProfile(profiles[0])
+            reloadDraft()
+            return
+        }
+        let next = profiles[(index + 1) % profiles.count]
+        VoiceProfileStore.saveSelectedProfile(next)
         reloadDraft()
     }
 
