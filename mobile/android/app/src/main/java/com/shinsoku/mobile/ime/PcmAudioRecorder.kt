@@ -3,12 +3,19 @@ package com.shinsoku.mobile.ime
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.SystemClock
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PcmAudioRecorder(
     private val sampleRateHz: Int = 16_000,
     private val channelCount: Int = 1,
 ) {
+    private companion object {
+        private const val STARTUP_GRACE_PERIOD_MS = 800L
+        private const val MAX_CONSECUTIVE_READ_ERRORS = 4
+        private const val RETRY_SLEEP_MS = 20L
+    }
+
     private val running = AtomicBoolean(false)
     private var audioRecord: AudioRecord? = null
     private var worker: Thread? = null
@@ -39,7 +46,7 @@ class PcmAudioRecorder(
 
         val bufferSize = maxOf(minBufferSize * 2, sampleRateHz / 5)
         val recorder = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
             sampleRateHz,
             channelConfig,
             AudioFormat.ENCODING_PCM_16BIT,
@@ -62,16 +69,38 @@ class PcmAudioRecorder(
             onError(error.message ?: "Failed to start audio recording.")
             return false
         }
+        if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            running.set(false)
+            recorder.release()
+            audioRecord = null
+            onError("Failed to enter recording state.")
+            return false
+        }
 
         worker = Thread {
             val buffer = ByteArray(bufferSize)
+            val startupDeadline = SystemClock.elapsedRealtime() + STARTUP_GRACE_PERIOD_MS
+            var consecutiveReadErrors = 0
             try {
                 while (running.get()) {
                     val read = recorder.read(buffer, 0, buffer.size)
                     when {
-                        read > 0 -> onChunk(buffer.copyOf(read))
+                        read > 0 -> {
+                            consecutiveReadErrors = 0
+                            onChunk(buffer.copyOf(read))
+                        }
+                        read == 0 -> {
+                            Thread.sleep(RETRY_SLEEP_MS)
+                        }
                         read < 0 && running.get() -> {
-                            onError("Audio capture failed.")
+                            val duringStartup = SystemClock.elapsedRealtime() < startupDeadline
+                            consecutiveReadErrors += 1
+                            if (duringStartup || consecutiveReadErrors < MAX_CONSECUTIVE_READ_ERRORS) {
+                                Thread.sleep(RETRY_SLEEP_MS)
+                                continue
+                            }
+                            onError("Audio capture failed (code=$read).")
+                            running.set(false)
                             break
                         }
                     }
