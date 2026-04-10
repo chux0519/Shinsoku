@@ -205,7 +205,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private func insertCurrentDraft() {
         guard let draft = drafts[safe: currentDraftIndex] else { return }
         let profile = VoiceProfileStore.loadSelectedProfile()
-        textDocumentProxy.insertText(draft.text + profile.mode.commitSuffix)
+        textDocumentProxy.insertText(draft.text + profile.commitSuffix)
     }
 
     @objc

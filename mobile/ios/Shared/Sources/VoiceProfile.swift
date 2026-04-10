@@ -1,5 +1,33 @@
 import Foundation
 
+enum VoiceCommitSuffixMode: String, Hashable {
+    case none = "None"
+    case space = "Space"
+    case newline = "Newline"
+
+    var suffix: String {
+        switch self {
+        case .none:
+            return ""
+        case .space:
+            return " "
+        case .newline:
+            return "\n"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .none:
+            return "No suffix"
+        case .space:
+            return "Append space"
+        case .newline:
+            return "Append newline"
+        }
+    }
+}
+
 enum VoiceTransformMode: String, Hashable {
     case cleanup = "cleanup"
     case translation = "translation"
@@ -79,16 +107,6 @@ enum VoiceCommitMode: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    var commitSuffix: String {
-        switch self {
-        case .dictation, .translateChineseToEnglish:
-            return " "
-        case .chat:
-            return "\n"
-        case .review:
-            return ""
-        }
-    }
 }
 
 struct VoiceProfile: Identifiable, Equatable, Hashable {
@@ -96,7 +114,16 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
     let title: String
     let mode: VoiceCommitMode
     let languageTag: String?
+    let autoCommit: Bool
+    let commitSuffixMode: VoiceCommitSuffixMode
     let transform: VoiceTransformConfig
+
+    var commitSuffix: String { commitSuffixMode.suffix }
+
+    var behaviorSummary: String {
+        let commitDescription = autoCommit ? "Auto-insert on" : "Review before insert"
+        return "\(commitDescription) · \(commitSuffixMode.title)"
+    }
 
     var transformSummary: String {
         guard transform.enabled else {
@@ -113,14 +140,40 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
     }
 
     static let defaults: [VoiceProfile] = NativeVoiceProfiles.loadBuiltIns() ?? [
-        VoiceProfile(id: "dictation", title: "Dictation", mode: .dictation, languageTag: nil, transform: VoiceTransformConfig()),
-        VoiceProfile(id: "chat", title: "Chat", mode: .chat, languageTag: nil, transform: VoiceTransformConfig()),
-        VoiceProfile(id: "review", title: "Review", mode: .review, languageTag: nil, transform: VoiceTransformConfig()),
+        VoiceProfile(
+            id: "dictation",
+            title: "Dictation",
+            mode: .dictation,
+            languageTag: nil,
+            autoCommit: true,
+            commitSuffixMode: .space,
+            transform: VoiceTransformConfig()
+        ),
+        VoiceProfile(
+            id: "chat",
+            title: "Chat",
+            mode: .chat,
+            languageTag: nil,
+            autoCommit: true,
+            commitSuffixMode: .newline,
+            transform: VoiceTransformConfig()
+        ),
+        VoiceProfile(
+            id: "review",
+            title: "Review",
+            mode: .review,
+            languageTag: nil,
+            autoCommit: false,
+            commitSuffixMode: .none,
+            transform: VoiceTransformConfig()
+        ),
         VoiceProfile(
             id: "translate_zh_en",
             title: "Zh→En",
             mode: .translateChineseToEnglish,
             languageTag: "zh-CN",
+            autoCommit: true,
+            commitSuffixMode: .space,
             transform: VoiceTransformConfig(
                 enabled: true,
                 mode: .translation,

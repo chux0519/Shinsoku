@@ -75,6 +75,8 @@ enum NativeVoiceProfiles {
             title: native.displayName,
             mode: mode,
             languageTag: native.languageTag.isEmpty ? nil : native.languageTag,
+            autoCommit: native.autoCommit,
+            commitSuffixMode: VoiceCommitSuffixMode(rawValue: native.commitSuffixMode) ?? .space,
             transform: VoiceTransformConfig(
                 enabled: native.transform.enabled,
                 mode: VoiceTransformMode(rawValue: native.transform.mode.lowercased()) ?? .cleanup,

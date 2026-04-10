@@ -82,6 +82,9 @@ struct DraftEditorView: View {
             Text(selectedProfile.mode.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            Text(selectedProfile.behaviorSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .draftEditorCard()
     }
