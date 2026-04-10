@@ -27,6 +27,7 @@ import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
+import com.shinsoku.mobile.speechcore.NativeVoiceRuntimeMetadata
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
@@ -244,18 +245,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private fun appendHistory(text: String) {
         val profile = configStore.loadProfile()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
-        val providerLabel = when (providerConfigStore.load().activeRecognitionProvider) {
-            VoiceRecognitionProvider.AndroidSystem -> "Android System"
-            VoiceRecognitionProvider.OpenAiCompatible -> "OpenAI-Compatible"
-            VoiceRecognitionProvider.Soniox -> "Soniox"
-            VoiceRecognitionProvider.Bailian -> "Bailian"
-        }
+        val runtimeMetadata = NativeVoiceRuntimeMetadata.describe(
+            providerConfigStore.load().activeRecognitionProvider,
+            runtimeConfig.postProcessingConfig.mode,
+        )
         historyStore.appendEntry(
             VoiceInputHistoryEntry(
                 id = UUID.randomUUID().toString(),
                 text = text,
                 committedAtEpochMillis = System.currentTimeMillis(),
-                provider = providerLabel,
+                provider = runtimeMetadata.providerLabel,
                 profileName = profile.displayName,
                 transformMode = profile.transform.mode.name,
                 postProcessingMode = runtimeConfig.postProcessingConfig.mode.name,
