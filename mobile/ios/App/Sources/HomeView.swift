@@ -29,14 +29,22 @@ struct HomeView: View {
     }
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Shinsoku")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-            Text("Speak in the app, then insert from the keyboard.")
-                .foregroundStyle(.secondary)
-            Text("The app owns dictation and draft review. The keyboard stays focused on quick insertion into the current field.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Shinsoku")
+                    .font(.system(size: 36, weight: .semibold, design: .rounded))
+                Text("Speak in the app, then insert from the keyboard.")
+                    .font(.title3.weight(.semibold))
+                Text("The app handles dictation and draft review. The keyboard stays focused on fast insertion into the current field.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 10) {
+                statusChip(title: workspace.selectedProfile.title, systemImage: "slider.horizontal.3")
+                statusChip(title: transcriber.authorizationState == .ready ? "Speech ready" : "Check access", systemImage: "mic.fill")
+                statusChip(title: "\(workspace.storageDiagnostics.draftCount) drafts", systemImage: "doc.text")
+            }
         }
     }
 
@@ -59,8 +67,7 @@ struct HomeView: View {
             }
             .buttonStyle(.bordered)
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shinsokuCard()
     }
 
     private var dictationCard: some View {
@@ -121,8 +128,7 @@ struct HomeView: View {
                 .buttonStyle(.bordered)
             }
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shinsokuCard()
     }
 
     private var storageCard: some View {
@@ -136,8 +142,7 @@ struct HomeView: View {
                     .foregroundStyle(workspace.storageDiagnostics.isUsingSharedDefaults ? Color.secondary : Color.red)
             }
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shinsokuCard()
     }
 
     private var draftsCard: some View {
@@ -170,8 +175,7 @@ struct HomeView: View {
                 }
             }
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shinsokuCard()
     }
 
     private var keyboardCard: some View {
@@ -193,8 +197,7 @@ struct HomeView: View {
                 setupStep(number: 3, text: "Switch to Shinsoku Keyboard in any text field, then insert the saved draft.")
             }
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shinsokuCard()
     }
 
     private func profileTitle(for id: String) -> String {
@@ -212,8 +215,24 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
         }
     }
+
+    private func statusChip(title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.secondarySystemBackground), in: Capsule())
+    }
 }
 
 extension Notification.Name {
     static let shinsokuOpenDrafts = Notification.Name("shinsokuOpenDrafts")
+}
+
+private extension View {
+    func shinsokuCard() -> some View {
+        padding(18)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
 }

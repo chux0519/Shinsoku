@@ -5,36 +5,29 @@ struct DraftsView: View {
     @State private var editingDraft: StoredDraft?
 
     var body: some View {
-        List {
-            if workspace.drafts.isEmpty {
-                ContentUnavailableView(
-                    "No drafts",
-                    systemImage: "waveform.badge.magnifyingglass",
-                    description: Text("Create a draft in the app, then insert it from the keyboard.")
-                )
-            } else {
-                ForEach(workspace.drafts) { draft in
-                    Button {
-                        editingDraft = draft
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(draft.text)
-                                .foregroundStyle(.primary)
-                                .lineLimit(4)
-                            Text("\(profileTitle(for: draft.profileID)) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+
+                if workspace.drafts.isEmpty {
+                    ContentUnavailableView(
+                        "No drafts",
+                        systemImage: "waveform.badge.magnifyingglass",
+                        description: Text("Create a draft in the app, then insert it from the keyboard.")
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 260)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                } else {
+                    VStack(spacing: 12) {
+                        ForEach(workspace.drafts) { draft in
+                            draftRow(for: draft)
                         }
                     }
-                    .buttonStyle(.plain)
-                }
-                .onDelete { indexSet in
-                    for index in indexSet {
-                        workspace.deleteDraft(id: workspace.drafts[index].id)
-                    }
-                }
+                }                
             }
+            .padding(20)
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Drafts")
         .toolbar {
             if !workspace.drafts.isEmpty {
@@ -44,14 +37,74 @@ struct DraftsView: View {
                     }
                 }
             }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Refresh") {
+                    workspace.refresh()
+                }
+            }
         }
         .sheet(item: $editingDraft) { draft in
             DraftEditorView(draft: draft)
                 .environmentObject(workspace)
         }
+        .onAppear {
+            workspace.refresh()
+        }
     }
 
     private func profileTitle(for id: String) -> String {
         VoiceProfile.defaults.first(where: { $0.id == id })?.title ?? id
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Draft library")
+                .font(.system(size: 30, weight: .semibold, design: .rounded))
+            Text("Edit, remove, or keep voice drafts ready for the keyboard extension.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func draftRow(for draft: StoredDraft) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(profileTitle(for: draft.profileID))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(draft.text)
+                        .foregroundStyle(.primary)
+                        .lineLimit(5)
+                }
+                Spacer()
+                Text(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    editingDraft = draft
+                } label: {
+                    Label("Edit", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    workspace.deleteDraft(id: draft.id)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .buttonStyle(.plain)
+            }
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.secondary)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
