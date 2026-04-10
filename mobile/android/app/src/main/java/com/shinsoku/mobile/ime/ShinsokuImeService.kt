@@ -301,17 +301,11 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     private fun showModeMenu(anchor: View) {
         PopupMenu(this, anchor).apply {
-            menu.add(0, 1, 0, VoiceInputProfiles.dictation.displayName)
-            menu.add(0, 2, 1, VoiceInputProfiles.chat.displayName)
-            menu.add(0, 3, 2, VoiceInputProfiles.review.displayName)
-            menu.add(0, 4, 3, VoiceInputProfiles.translateChineseToEnglish.displayName)
+            VoiceInputProfiles.builtIns.forEachIndexed { index, profile ->
+                menu.add(0, index + 1, index, profile.displayName)
+            }
             setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    1 -> applyProfile(VoiceInputProfiles.dictation)
-                    2 -> applyProfile(VoiceInputProfiles.chat)
-                    3 -> applyProfile(VoiceInputProfiles.review)
-                    4 -> applyProfile(VoiceInputProfiles.translateChineseToEnglish)
-                }
+                VoiceInputProfiles.builtInAt(item.itemId - 1)?.let(::applyProfile)
                 true
             }
             show()

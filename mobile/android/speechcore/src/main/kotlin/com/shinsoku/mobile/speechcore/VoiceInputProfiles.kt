@@ -59,6 +59,9 @@ object VoiceInputProfiles {
     fun builtInById(id: String?): VoiceInputProfile? =
         builtIns.firstOrNull { it.id == id }
 
+    fun builtInAt(index: Int): VoiceInputProfile? =
+        builtIns.getOrNull(index)
+
     fun identify(profile: VoiceInputProfile): VoiceInputProfile? =
         builtIns.firstOrNull {
                 it.autoCommit == profile.autoCommit &&
