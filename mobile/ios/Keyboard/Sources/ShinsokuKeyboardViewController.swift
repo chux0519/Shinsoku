@@ -270,14 +270,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     }
 
     private func openURL(_ url: URL) {
-        var responder: UIResponder? = self
-        while let current = responder {
-            if current.responds(to: Selector(("openURL:"))) {
-                current.perform(Selector(("openURL:")), with: url)
-                return
-            }
-            responder = current.next
-        }
+        extensionContext?.open(url) { _ in }
     }
 
     private func filledCapsuleConfiguration(title: String) -> UIButton.Configuration {
