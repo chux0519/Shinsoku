@@ -4,46 +4,109 @@ struct SettingsView: View {
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
 
     var body: some View {
-        Form {
-            Section("Runtime status") {
-                LabeledContent("Selected profile", value: workspace.selectedProfile.title)
-                LabeledContent("Saved drafts", value: "\(workspace.storageDiagnostics.draftCount)")
-                LabeledContent("Shared app group", value: workspace.storageDiagnostics.appGroupID)
-                LabeledContent("Shared storage") {
-                    Text(workspace.storageDiagnostics.isUsingSharedDefaults ? "Ready" : "Fallback")
-                        .foregroundStyle(workspace.storageDiagnostics.isUsingSharedDefaults ? Color.secondary : Color.red)
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                runtimeCard
+                workflowCard
+                setupCard
+                draftsCard
             }
-
-            Section("Workflow preset") {
-                Picker("Profile", selection: Binding(
-                    get: { workspace.selectedProfile },
-                    set: { workspace.selectProfile($0) }
-                )) {
-                    ForEach(VoiceProfile.defaults) { profile in
-                        Text(profile.title).tag(profile)
-                    }
-                }
-            }
-
-            Section("Shared drafts") {
-                Text("Drafts saved in the app are inserted by the keyboard extension with profile-aware suffix behavior.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button("Clear saved drafts", role: .destructive) {
-                    workspace.clearDrafts()
-                }
-            }
-
-            Section("Setup reminders") {
-                Text("Grant microphone and speech recognition access in the app first.")
-                Text("Enable Shinsoku Keyboard in Settings > General > Keyboard > Keyboards.")
-                Text("Allow Full Access if you want the keyboard extension to open the app and stay in sync with shared drafts.")
-            }
+            .padding(20)
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Settings")
         .onAppear {
             workspace.refresh()
         }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Settings")
+                .font(.system(size: 30, weight: .semibold, design: .rounded))
+            Text("Keep the app, shared drafts, and keyboard extension aligned.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var runtimeCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Runtime status")
+                .font(.headline)
+            LabeledContent("Selected profile", value: workspace.selectedProfile.title)
+            LabeledContent("Saved drafts", value: "\(workspace.storageDiagnostics.draftCount)")
+            LabeledContent("Shared app group", value: workspace.storageDiagnostics.appGroupID)
+            LabeledContent("Shared storage") {
+                Text(workspace.storageDiagnostics.isUsingSharedDefaults ? "Ready" : "Fallback")
+                    .foregroundStyle(workspace.storageDiagnostics.isUsingSharedDefaults ? Color.secondary : Color.red)
+            }
+        }
+        .shinsokuSettingsCard()
+    }
+
+    private var workflowCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Workflow preset")
+                .font(.headline)
+            Picker("Profile", selection: Binding(
+                get: { workspace.selectedProfile },
+                set: { workspace.selectProfile($0) }
+            )) {
+                ForEach(VoiceProfile.defaults) { profile in
+                    Text(profile.title).tag(profile)
+                }
+            }
+            .pickerStyle(.menu)
+            Text(workspace.selectedProfile.mode.summary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .shinsokuSettingsCard()
+    }
+
+    private var setupCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Setup reminders")
+                .font(.headline)
+            reminderRow(number: 1, text: "Grant microphone and speech recognition access in the app first.")
+            reminderRow(number: 2, text: "Enable Shinsoku Keyboard in Settings > General > Keyboard > Keyboards.")
+            reminderRow(number: 3, text: "Allow Full Access if you want the keyboard extension to open the app and stay in sync with shared drafts.")
+        }
+        .shinsokuSettingsCard()
+    }
+
+    private var draftsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Shared drafts")
+                .font(.headline)
+            Text("Drafts saved in the app are inserted by the keyboard extension with profile-aware suffix behavior.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button("Clear saved drafts", role: .destructive) {
+                workspace.clearDrafts()
+            }
+            .buttonStyle(.bordered)
+        }
+        .shinsokuSettingsCard()
+    }
+
+    private func reminderRow(number: Int, text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(number)")
+                .font(.footnote.weight(.semibold))
+                .frame(width: 22, height: 22)
+                .background(Color(.secondarySystemBackground), in: Circle())
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private extension View {
+    func shinsokuSettingsCard() -> some View {
+        padding(18)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
