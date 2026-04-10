@@ -11,6 +11,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private let insertButton = UIButton(type: .system)
     private let insertAndClearButton = UIButton(type: .system)
     private let openAppButton = UIButton(type: .system)
+    private let openSettingsButton = UIButton(type: .system)
     private let previousButton = UIButton(type: .system)
     private let nextDraftButton = UIButton(type: .system)
     private let refreshButton = UIButton(type: .system)
@@ -61,7 +62,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         statusLabel.textColor = .secondaryLabel
         statusLabel.numberOfLines = 2
 
-        latestDraftLabel.numberOfLines = 4
+        latestDraftLabel.numberOfLines = 5
         latestDraftLabel.font = .systemFont(ofSize: 17, weight: .regular)
         latestDraftLabel.text = "Open the Shinsoku app to create a draft."
         latestDraftLabel.backgroundColor = .secondarySystemBackground
@@ -89,8 +90,12 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         nextDraftButton.addTarget(self, action: #selector(showNextDraft), for: .touchUpInside)
 
         openAppButton.configuration = .tinted()
-        openAppButton.configuration?.title = "Open app"
+        openAppButton.configuration?.title = "Open drafts"
         openAppButton.addTarget(self, action: #selector(openContainerApp), for: .touchUpInside)
+
+        openSettingsButton.configuration = .tinted()
+        openSettingsButton.configuration?.title = "Settings"
+        openSettingsButton.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
 
         refreshButton.configuration = .tinted()
         refreshButton.configuration?.title = "Refresh"
@@ -121,7 +126,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         draftRow.distribution = .fillEqually
         stackView.addArrangedSubview(draftRow)
 
-        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, openAppButton, refreshButton])
+        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, openAppButton, openSettingsButton, refreshButton])
         utilityRow.axis = .horizontal
         utilityRow.spacing = 12
         utilityRow.distribution = .fillEqually
@@ -146,6 +151,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             nextDraftButton.heightAnchor.constraint(equalToConstant: 46),
             insertAndClearButton.heightAnchor.constraint(equalToConstant: 46),
             openAppButton.heightAnchor.constraint(equalToConstant: 46),
+            openSettingsButton.heightAnchor.constraint(equalToConstant: 46),
             refreshButton.heightAnchor.constraint(equalToConstant: 46),
             nextKeyboardButton.heightAnchor.constraint(equalToConstant: 46),
         ])
@@ -161,10 +167,13 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         currentDraftIndex = min(currentDraftIndex, max(drafts.count - 1, 0))
         statusLabel.text = diagnosticsStatusText(for: diagnostics)
         openAppButton.isEnabled = hasFullAccess
+        openSettingsButton.isEnabled = hasFullAccess
 
         guard let draft = drafts[safe: currentDraftIndex] else {
-            latestDraftLabel.text = "Open the Shinsoku app, dictate a phrase, then come back here to insert it."
-            metaLabel.text = "No shared drafts yet"
+            latestDraftLabel.text = hasFullAccess
+                ? "Open the Shinsoku app, dictate a phrase, save a draft, then come back here to insert it."
+                : "Enable Full Access for Shinsoku Keyboard, then create a draft in the app to keep the keyboard in sync."
+            metaLabel.text = hasFullAccess ? "No shared drafts yet" : "Full Access is off"
             insertButton.isEnabled = false
             insertAndClearButton.isEnabled = false
             previousButton.isEnabled = false
@@ -239,6 +248,12 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     @objc
     private func openContainerApp() {
         guard let url = URL(string: "shinsoku://drafts") else { return }
+        openURL(url)
+    }
+
+    @objc
+    private func openSettings() {
+        guard let url = URL(string: "shinsoku://settings") else { return }
         openURL(url)
     }
 
