@@ -45,8 +45,6 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         private const val TAG = "ShinsokuImeService"
     }
 
-    private var titleView: TextView? = null
-    private var subtitleView: TextView? = null
     private var micButton: Button? = null
     private var insertButton: Button? = null
     private var clearButton: Button? = null
@@ -93,8 +91,6 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         return try {
             val view = LayoutInflater.from(this).inflate(R.layout.input_view, null, false)
             applyImeSafeInsets(view)
-            titleView = view.findViewById(R.id.imeTitle)
-            subtitleView = view.findViewById(R.id.imeSubtitle)
             micButton = view.findViewById(R.id.micButton)
             insertButton = view.findViewById(R.id.insertButton)
             clearButton = view.findViewById(R.id.clearButton)
@@ -107,14 +103,13 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             val backspaceButton = view.findViewById<ImageButton>(R.id.backspaceButton)
             val enterButton = view.findViewById<ImageButton>(R.id.enterButton)
 
-            titleView?.text = getString(R.string.ime_title_idle)
-            subtitleView?.text = getString(R.string.ime_subtitle_ready)
             micButton?.setOnClickListener {
                 try {
                     controller?.onMicTapped()
                 } catch (error: Throwable) {
                     Log.e(TAG, "IME mic tap failed", error)
-                    titleView?.text = error.message ?: "Voice input failed to start."
+                    livePreviewView?.text = error.message ?: "Voice input failed to start."
+                    livePreviewView?.visibility = View.VISIBLE
                     micButton?.text = getString(R.string.ime_retry)
                     insertButton?.visibility = View.GONE
                     clearButton?.visibility = View.GONE
@@ -148,8 +143,6 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             view
         } catch (error: Throwable) {
             Log.e(TAG, "Failed to inflate IME view", error)
-            titleView = null
-            subtitleView = null
             micButton = null
             insertButton = null
             clearButton = null
@@ -188,8 +181,6 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
         when (state) {
             is VoiceInputUiState.Idle -> {
                 pendingDraftText = null
-                titleView?.text = getString(R.string.ime_title_idle)
-                subtitleView?.text = getString(R.string.ime_subtitle_ready)
                 micButton?.text = getString(R.string.ime_mic)
                 pendingActionsRow?.visibility = View.GONE
                 livePreviewView?.visibility = View.GONE
@@ -197,8 +188,6 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Preparing -> {
-                titleView?.text = getString(R.string.ime_title_preparing)
-                subtitleView?.text = getString(R.string.ime_subtitle_preparing)
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
                 livePreviewView?.text = getString(R.string.ime_live_preview_preparing)
@@ -207,8 +196,6 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Listening -> {
-                titleView?.text = getString(R.string.ime_title_listening)
-                subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
                 val partial = state.partialTranscript.ifBlank { getString(R.string.ime_live_preview_placeholder) }
@@ -218,19 +205,15 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Processing -> {
-                titleView?.text = getString(R.string.ime_title_processing)
-                subtitleView?.text = getString(R.string.ime_subtitle_processing)
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
-                livePreviewView?.text = getString(R.string.ime_title_processing)
+                livePreviewView?.text = getString(R.string.ime_subtitle_processing)
                 livePreviewView?.visibility = View.VISIBLE
                 bindModeButton(configStore.loadProfile())
             }
 
             is VoiceInputUiState.PendingCommit -> {
                 pendingDraftText = state.text
-                titleView?.text = currentProfileLabel()
-                subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_mic)
                 pendingActionsRow?.visibility = View.VISIBLE
                 livePreviewView?.text = state.text.trimEnd('\n', ' ')
@@ -240,11 +223,10 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
             is VoiceInputUiState.Error -> {
                 Log.e(TAG, "IME error: ${state.message}")
-                titleView?.text = state.message
-                subtitleView?.text = currentProfileLabel()
                 micButton?.text = getString(R.string.ime_retry)
                 pendingActionsRow?.visibility = View.GONE
-                livePreviewView?.visibility = View.GONE
+                livePreviewView?.text = state.message
+                livePreviewView?.visibility = View.VISIBLE
                 bindModeButton(configStore.loadProfile())
             }
         }
