@@ -28,6 +28,8 @@ private struct NativeBuiltinProfile: Decodable {
     let presetKind: String
     let id: String
     let displayName: String
+    let summary: String
+    let behaviorSummary: String
     let languageTag: String
     let autoCommit: Bool
     let commitSuffixMode: String
@@ -37,6 +39,8 @@ private struct NativeBuiltinProfile: Decodable {
         case presetKind = "preset_kind"
         case id
         case displayName = "display_name"
+        case summary
+        case behaviorSummary = "behavior_summary"
         case languageTag = "language_tag"
         case autoCommit = "auto_commit"
         case commitSuffixMode = "commit_suffix_mode"
@@ -73,10 +77,12 @@ enum NativeVoiceProfiles {
         return VoiceProfile(
             id: native.id,
             title: native.displayName,
+            summary: native.summary,
             mode: mode,
             languageTag: native.languageTag.isEmpty ? nil : native.languageTag,
             autoCommit: native.autoCommit,
             commitSuffixMode: VoiceCommitSuffixMode(rawValue: native.commitSuffixMode) ?? .space,
+            nativeBehaviorSummary: native.behaviorSummary,
             transform: VoiceTransformConfig(
                 enabled: native.transform.enabled,
                 mode: VoiceTransformMode(rawValue: native.transform.mode.lowercased()) ?? .cleanup,

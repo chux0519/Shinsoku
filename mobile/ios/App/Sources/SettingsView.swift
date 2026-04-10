@@ -63,7 +63,7 @@ struct SettingsView: View {
                 }
             }
             .pickerStyle(.menu)
-            Text(workspace.selectedProfile.mode.summary)
+            Text(workspace.selectedProfile.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Text(workspace.selectedProfile.behaviorSummary)

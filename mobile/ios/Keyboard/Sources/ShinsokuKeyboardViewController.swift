@@ -166,7 +166,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private func reloadDraft() {
         let profile = VoiceProfileStore.loadSelectedProfile()
         profileLabel.text = profile.title
-        profileButton.configuration?.title = "Mode: \(profile.mode.title)"
+        profileButton.configuration?.title = "Mode: \(profile.title)"
 
         drafts = DraftStore.loadDrafts()
         let diagnostics = DraftStore.diagnostics()

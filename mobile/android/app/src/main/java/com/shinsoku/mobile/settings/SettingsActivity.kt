@@ -33,12 +33,9 @@ class SettingsActivity : AppCompatActivity() {
         configStore = AndroidVoiceInputConfigStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
-        presetOptions = linkedMapOf(
-            getString(R.string.preset_dictation_title) to VoiceInputProfiles.dictation,
-            getString(R.string.preset_chat_title) to VoiceInputProfiles.chat,
-            getString(R.string.preset_review_title) to VoiceInputProfiles.review,
-            getString(R.string.preset_translate_zh_en_title) to VoiceInputProfiles.translateChineseToEnglish,
-        )
+        presetOptions = LinkedHashMap<String, VoiceInputProfile>().apply {
+            VoiceInputProfiles.builtIns.forEach { put(it.displayName, it) }
+        }
         providerOptions = linkedMapOf(
             getString(R.string.provider_android_system) to VoiceRecognitionProvider.AndroidSystem,
             getString(R.string.provider_openai_compatible) to VoiceRecognitionProvider.OpenAiCompatible,
@@ -177,17 +174,7 @@ class SettingsActivity : AppCompatActivity() {
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
-        binding.currentBehaviorSummaryText.text = getString(
-            R.string.behavior_summary_template,
-            if (profile.autoCommit) getString(R.string.behavior_auto_commit_on)
-            else getString(R.string.behavior_auto_commit_off),
-            when (profile.commitSuffixMode) {
-                CommitSuffixMode.None -> getString(R.string.commit_suffix_none)
-                CommitSuffixMode.Space -> getString(R.string.commit_suffix_space)
-                CommitSuffixMode.Newline -> getString(R.string.commit_suffix_newline)
-            },
-            profile.languageTag ?: getString(R.string.language_auto_label),
-        )
+        binding.currentBehaviorSummaryText.text = profile.behaviorSummary + " • " + (profile.languageTag ?: getString(R.string.language_auto_label))
         binding.providerStatusText.text = getString(
             R.string.provider_summary_template,
             providerLabel(providerConfig.activeRecognitionProvider),
@@ -230,29 +217,7 @@ class SettingsActivity : AppCompatActivity() {
             profile.transform.requestFormat == VoiceRefineRequestFormat.SystemAndUser
         binding.requestFormatSingleUserButton.isChecked =
             profile.transform.requestFormat == VoiceRefineRequestFormat.SingleUserMessage
-        binding.currentBehaviorSummaryText.text = getString(
-            com.shinsoku.mobile.R.string.behavior_summary_template,
-            if (profile.autoCommit) getString(com.shinsoku.mobile.R.string.behavior_auto_commit_on)
-            else getString(com.shinsoku.mobile.R.string.behavior_auto_commit_off),
-            when (profile.commitSuffixMode) {
-                CommitSuffixMode.None -> getString(com.shinsoku.mobile.R.string.commit_suffix_none)
-                CommitSuffixMode.Space -> getString(com.shinsoku.mobile.R.string.commit_suffix_space)
-                CommitSuffixMode.Newline -> getString(com.shinsoku.mobile.R.string.commit_suffix_newline)
-            },
-            profile.languageTag ?: getString(com.shinsoku.mobile.R.string.language_auto_label),
-        )
-        binding.recommendedPresetText.text = when {
-            profile.id == VoiceInputProfiles.review.id ->
-                getString(R.string.preset_review_summary)
-            profile.id == VoiceInputProfiles.chat.id ->
-                getString(R.string.preset_chat_summary)
-            profile.id == VoiceInputProfiles.translateChineseToEnglish.id ->
-                getString(R.string.preset_translate_zh_en_summary)
-            profile.id == VoiceInputProfiles.dictation.id ->
-                getString(R.string.preset_dictation_summary)
-            else ->
-                getString(R.string.preset_custom_summary)
-        }
+        binding.recommendedPresetText.text = profile.summary.ifBlank { getString(R.string.preset_custom_summary) }
 
         if (binding.openAiBaseUrlEdit.text?.toString() != providerConfig.openAiRecognition.baseUrl) {
             binding.openAiBaseUrlEdit.setText(providerConfig.openAiRecognition.baseUrl)

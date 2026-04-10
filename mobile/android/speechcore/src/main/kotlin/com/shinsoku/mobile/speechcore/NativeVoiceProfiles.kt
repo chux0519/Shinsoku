@@ -23,6 +23,8 @@ object NativeVoiceProfiles {
                         VoiceInputProfile(
                             id = item.optString("id"),
                             displayName = item.optString("display_name"),
+                            summary = item.optString("summary"),
+                            nativeBehaviorSummary = item.optString("behavior_summary"),
                             languageTag = item.optString("language_tag").ifBlank { null },
                             autoCommit = item.optBoolean("auto_commit", true),
                             commitSuffixMode = runCatching {

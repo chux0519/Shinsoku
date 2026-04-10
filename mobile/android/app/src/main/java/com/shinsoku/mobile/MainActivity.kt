@@ -62,12 +62,9 @@ class MainActivity : AppCompatActivity() {
         historyStore = AndroidVoiceInputHistoryStore(this)
         providerConfigStore = AndroidVoiceProviderConfigStore(this)
         runtimeConfigStore = AndroidVoiceRuntimeConfigStore(this)
-        presetOptions = linkedMapOf(
-            getString(R.string.preset_dictation_title) to VoiceInputProfiles.dictation,
-            getString(R.string.preset_chat_title) to VoiceInputProfiles.chat,
-            getString(R.string.preset_review_title) to VoiceInputProfiles.review,
-            getString(R.string.preset_translate_zh_en_title) to VoiceInputProfiles.translateChineseToEnglish,
-        )
+        presetOptions = LinkedHashMap<String, com.shinsoku.mobile.speechcore.VoiceInputProfile>().apply {
+            VoiceInputProfiles.builtIns.forEach { put(it.displayName, it) }
+        }
         binding.mainWorkflowPresetDropdown.setAdapter(
             ArrayAdapter(this, android.R.layout.simple_list_item_1, presetOptions.keys.toList()),
         )
@@ -136,16 +133,7 @@ class MainActivity : AppCompatActivity() {
         binding.keyboardSelectedStatusText.text = getString(
             if (imeStatus.selected) R.string.keyboard_selected_status else R.string.keyboard_not_selected_status,
         )
-        binding.behaviorSummaryText.text = getString(
-            R.string.behavior_summary_template,
-            if (profile.autoCommit) getString(R.string.behavior_auto_commit_on) else getString(R.string.behavior_auto_commit_off),
-            when (profile.commitSuffixMode) {
-                CommitSuffixMode.None -> getString(R.string.commit_suffix_none)
-                CommitSuffixMode.Space -> getString(R.string.commit_suffix_space)
-                CommitSuffixMode.Newline -> getString(R.string.commit_suffix_newline)
-            },
-            profile.languageTag ?: getString(R.string.language_auto_label),
-        ) + "\n" + when {
+        binding.behaviorSummaryText.text = profile.behaviorSummary + " • " + (profile.languageTag ?: getString(R.string.language_auto_label)) + "\n" + when {
             !profile.transform.enabled -> getString(R.string.transform_summary_disabled)
             profile.transform.mode == VoiceTransformMode.Cleanup -> getString(R.string.transform_summary_cleanup)
             profile.transform.mode == VoiceTransformMode.Translation -> getString(
@@ -176,13 +164,7 @@ class MainActivity : AppCompatActivity() {
                 TranscriptPostProcessingMode.ProviderAssisted -> getString(R.string.post_processing_provider_assisted)
             },
         ) + "\n" + providerStatus.detail
-        binding.mainPresetSummaryText.text = when (profile.id) {
-            VoiceInputProfiles.dictation.id -> getString(R.string.preset_dictation_summary)
-            VoiceInputProfiles.chat.id -> getString(R.string.preset_chat_summary)
-            VoiceInputProfiles.review.id -> getString(R.string.preset_review_summary)
-            VoiceInputProfiles.translateChineseToEnglish.id -> getString(R.string.preset_translate_zh_en_summary)
-            else -> getString(R.string.preset_custom_summary)
-        }
+        binding.mainPresetSummaryText.text = profile.summary.ifBlank { getString(R.string.preset_custom_summary) }
         binding.mainWorkflowPresetDropdown.setText(profile.displayName, false)
         val latestEntry = historyStore.listEntries(limit = 1).firstOrNull()
         binding.recentHistoryPreviewText.text = latestEntry?.text ?: getString(R.string.history_empty)

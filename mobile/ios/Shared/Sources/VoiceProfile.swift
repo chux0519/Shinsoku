@@ -112,15 +112,20 @@ enum VoiceCommitMode: String, CaseIterable, Identifiable, Hashable {
 struct VoiceProfile: Identifiable, Equatable, Hashable {
     let id: String
     let title: String
+    let summary: String
     let mode: VoiceCommitMode
     let languageTag: String?
     let autoCommit: Bool
     let commitSuffixMode: VoiceCommitSuffixMode
+    let nativeBehaviorSummary: String
     let transform: VoiceTransformConfig
 
     var commitSuffix: String { commitSuffixMode.suffix }
 
     var behaviorSummary: String {
+        if !nativeBehaviorSummary.isEmpty {
+            return nativeBehaviorSummary
+        }
         let commitDescription = autoCommit ? "Auto-insert on" : "Review before insert"
         return "\(commitDescription) · \(commitSuffixMode.title)"
     }
@@ -143,37 +148,45 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
         VoiceProfile(
             id: "dictation",
             title: "Dictation",
+            summary: "Speak and insert directly.",
             mode: .dictation,
             languageTag: nil,
             autoCommit: true,
             commitSuffixMode: .space,
+            nativeBehaviorSummary: "Auto-insert on · Append space",
             transform: VoiceTransformConfig()
         ),
         VoiceProfile(
             id: "chat",
             title: "Chat",
+            summary: "Speak and commit with a trailing newline.",
             mode: .chat,
             languageTag: nil,
             autoCommit: true,
             commitSuffixMode: .newline,
+            nativeBehaviorSummary: "Auto-insert on · Append newline",
             transform: VoiceTransformConfig()
         ),
         VoiceProfile(
             id: "review",
             title: "Review",
+            summary: "Hold results before inserting.",
             mode: .review,
             languageTag: nil,
             autoCommit: false,
             commitSuffixMode: .none,
+            nativeBehaviorSummary: "Review before insert · No suffix",
             transform: VoiceTransformConfig()
         ),
         VoiceProfile(
             id: "translate_zh_en",
             title: "Zh→En",
+            summary: "Transcribe first, then transform to English.",
             mode: .translateChineseToEnglish,
             languageTag: "zh-CN",
             autoCommit: true,
             commitSuffixMode: .space,
+            nativeBehaviorSummary: "Auto-insert on · Append space",
             transform: VoiceTransformConfig(
                 enabled: true,
                 mode: .translation,

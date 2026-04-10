@@ -79,7 +79,7 @@ struct DraftEditorView: View {
                 }
             }
             .pickerStyle(.menu)
-            Text(selectedProfile.mode.summary)
+            Text(selectedProfile.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Text(selectedProfile.behaviorSummary)

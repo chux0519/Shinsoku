@@ -5,6 +5,8 @@ object VoiceInputProfiles {
         VoiceInputProfile(
             id = "dictation",
             displayName = "Dictation",
+            summary = "Speak and insert directly.",
+            nativeBehaviorSummary = "Auto-insert on · Append space",
             autoCommit = true,
             commitSuffixMode = CommitSuffixMode.Space,
             languageTag = null,
@@ -12,6 +14,8 @@ object VoiceInputProfiles {
         VoiceInputProfile(
             id = "chat",
             displayName = "Chat",
+            summary = "Speak and commit with a trailing newline.",
+            nativeBehaviorSummary = "Auto-insert on · Append newline",
             autoCommit = true,
             commitSuffixMode = CommitSuffixMode.Newline,
             languageTag = null,
@@ -19,6 +23,8 @@ object VoiceInputProfiles {
         VoiceInputProfile(
             id = "review",
             displayName = "Review",
+            summary = "Hold results before inserting.",
+            nativeBehaviorSummary = "Review before insert · No suffix",
             autoCommit = false,
             commitSuffixMode = CommitSuffixMode.None,
             languageTag = null,
@@ -26,6 +32,8 @@ object VoiceInputProfiles {
         VoiceInputProfile(
             id = "translate_zh_en",
             displayName = "Zh→En",
+            summary = "Transcribe first, then transform to English.",
+            nativeBehaviorSummary = "Auto-insert on · Append space",
             autoCommit = true,
             commitSuffixMode = CommitSuffixMode.Space,
             languageTag = "zh-CN",
