@@ -1,41 +1,138 @@
 import SwiftUI
 
 struct HomeView: View {
-    @Binding var selectedProfile: VoiceProfile
+    @EnvironmentObject private var workspace: IOSVoiceWorkspace
+    @EnvironmentObject private var transcriber: SpeechTranscriber
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Shinsoku")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    Text("Native voice input for iPhone and iPad.")
-                        .foregroundStyle(.secondary)
-                }
-
-                profileCard
+                hero
+                permissionCard
+                dictationCard
+                draftsCard
                 keyboardCard
-                roadmapCard
             }
             .padding(20)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Shinsoku")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if transcriber.authorizationState == .unknown {
+                await transcriber.requestPermissions()
+            }
+            workspace.refresh()
+        }
     }
 
-    private var profileCard: some View {
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Shinsoku")
+                .font(.system(size: 34, weight: .semibold, design: .rounded))
+            Text("Speak in the app, then insert from the keyboard.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var permissionCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Current profile")
+            Text("Speech readiness")
                 .font(.headline)
-            Picker("Profile", selection: $selectedProfile) {
-                ForEach(VoiceProfile.defaults) { profile in
-                    Text(profile.title).tag(profile)
+            Text(transcriber.authorizationState.description)
+                .foregroundStyle(.secondary)
+            Button("Request permissions") {
+                Task {
+                    await transcriber.requestPermissions()
                 }
             }
-            .pickerStyle(.menu)
-            Text(selectedProfile.mode.summary)
-                .foregroundStyle(.secondary)
+            .buttonStyle(.bordered)
+        }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var dictationCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Current profile")
+                        .font(.headline)
+                    Text(workspace.selectedProfile.title)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Picker("Profile", selection: Binding(
+                    get: { workspace.selectedProfile },
+                    set: { workspace.selectProfile($0) }
+                )) {
+                    ForEach(VoiceProfile.defaults) { profile in
+                        Text(profile.title).tag(profile)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Text(transcriber.transcript.isEmpty ? "Transcript will appear here." : transcriber.transcript)
+                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+                .padding(16)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+            if let errorMessage = transcriber.errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            HStack(spacing: 12) {
+                Button(transcriber.isRecording ? "Stop" : "Start dictation") {
+                    if transcriber.isRecording {
+                        transcriber.stop()
+                    } else {
+                        transcriber.start(localeIdentifier: workspace.selectedProfile.languageTag)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Save draft") {
+                    workspace.saveDraft(transcriber.transcript)
+                }
+                .buttonStyle(.bordered)
+                .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button("Clear") {
+                    transcriber.stop(resetTranscript: true)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var draftsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Recent drafts")
+                .font(.headline)
+            if workspace.drafts.isEmpty {
+                Text("No saved drafts yet.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(workspace.drafts.prefix(5)) { draft in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(draft.text)
+                            .lineLimit(3)
+                        Text(profileTitle(for: draft.profileID))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                    if draft.id != workspace.drafts.prefix(5).last?.id {
+                        Divider()
+                    }
+                }
+            }
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -45,21 +142,14 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Keyboard extension")
                 .font(.headline)
-            Text("The keyboard shell is scaffolded and ready for iterative build-out. Voice capture, prompt execution, and native-core reuse will be layered in next.")
+            Text("Use the keyboard to insert the latest saved draft into the active editor. This is the practical iOS path while direct microphone dictation remains an app-owned flow.")
                 .foregroundStyle(.secondary)
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    private var roadmapCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Shared-core direction")
-                .font(.headline)
-            Text("Prompt rules, profile derivation, post-processing logic, and provider/runtime abstractions are intended to converge with the desktop and Android implementations instead of becoming a separate iOS-only stack.")
-                .foregroundStyle(.secondary)
-        }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    private func profileTitle(for id: String) -> String {
+        VoiceProfile.defaults.first(where: { $0.id == id })?.title ?? id
     }
 }

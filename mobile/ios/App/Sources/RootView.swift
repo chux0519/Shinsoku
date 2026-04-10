@@ -1,14 +1,14 @@
 import SwiftUI
 
 struct RootView: View {
-    @Binding var selectedProfile: VoiceProfile
+    @EnvironmentObject private var workspace: IOSVoiceWorkspace
 
     var body: some View {
         NavigationStack {
-            HomeView(selectedProfile: $selectedProfile)
+            HomeView()
                 .toolbar {
                     NavigationLink("Settings") {
-                        SettingsView(selectedProfile: $selectedProfile)
+                        SettingsView()
                     }
                 }
         }

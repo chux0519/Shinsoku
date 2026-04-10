@@ -18,12 +18,16 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Shinsoku
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
         INFOPLIST_KEY_NSMicrophoneUsageDescription: Shinsoku uses the microphone for voice input.
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Shinsoku uses speech recognition to transcribe voice drafts.
         INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
         SWIFT_VERSION: "5.10"
         GENERATE_INFOPLIST_FILE: "YES"
         SUPPORTS_MACCATALYST: "NO"
+        CODE_SIGN_ENTITLEMENTS: App/ShinsokuMobile.entitlements
     dependencies:
       - target: ShinsokuKeyboard
+      - sdk: Speech.framework
+      - sdk: AVFoundation.framework
   ShinsokuKeyboard:
     type: app-extension
     platform: iOS
@@ -42,3 +46,4 @@ targets:
         INFOPLIST_KEY_NSFullAccessUsageDescription: Shinsoku uses full access for network-backed voice input.
         INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
         SWIFT_VERSION: "5.10"
+        CODE_SIGN_ENTITLEMENTS: Keyboard/ShinsokuKeyboard.entitlements

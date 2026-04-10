@@ -1,22 +1,31 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Binding var selectedProfile: VoiceProfile
+    @EnvironmentObject private var workspace: IOSVoiceWorkspace
 
     var body: some View {
         Form {
             Section("Workflow preset") {
-                Picker("Profile", selection: $selectedProfile) {
+                Picker("Profile", selection: Binding(
+                    get: { workspace.selectedProfile },
+                    set: { workspace.selectProfile($0) }
+                )) {
                     ForEach(VoiceProfile.defaults) { profile in
                         Text(profile.title).tag(profile)
                     }
                 }
             }
 
+            Section("Shared drafts") {
+                Button("Clear saved drafts", role: .destructive) {
+                    workspace.clearDrafts()
+                }
+            }
+
             Section("Current direction") {
-                Text("Keep the UI native.")
-                Text("Share prompt/profile/runtime logic where it reduces drift.")
-                Text("Treat the keyboard extension as a product surface, not a debug shell.")
+                Text("Use the iOS app for recording and live transcript review.")
+                Text("Use the keyboard extension to insert recent drafts into the current editor.")
+                Text("Keep prompt/profile/runtime logic aligned with Android and desktop.")
             }
         }
         .navigationTitle("Settings")

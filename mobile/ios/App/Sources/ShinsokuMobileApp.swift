@@ -2,11 +2,14 @@ import SwiftUI
 
 @main
 struct ShinsokuMobileApp: App {
-    @State private var selectedProfile = VoiceProfile.defaults.first ?? .init(id: "dictation", title: "Dictation", mode: .dictation)
+    @StateObject private var workspace = IOSVoiceWorkspace()
+    @StateObject private var transcriber = SpeechTranscriber()
 
     var body: some Scene {
         WindowGroup {
-            RootView(selectedProfile: $selectedProfile)
+            RootView()
+                .environmentObject(workspace)
+                .environmentObject(transcriber)
         }
     }
 }

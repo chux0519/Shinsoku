@@ -1,6 +1,6 @@
 import Foundation
 
-enum VoiceCommitMode: String, CaseIterable, Identifiable {
+enum VoiceCommitMode: String, CaseIterable, Identifiable, Hashable {
     case dictation
     case chat
     case review
@@ -35,15 +35,16 @@ enum VoiceCommitMode: String, CaseIterable, Identifiable {
     }
 }
 
-struct VoiceProfile: Identifiable, Equatable {
+struct VoiceProfile: Identifiable, Equatable, Hashable {
     let id: String
     let title: String
     let mode: VoiceCommitMode
+    let languageTag: String?
 
     static let defaults: [VoiceProfile] = [
-        VoiceProfile(id: "dictation", title: "Dictation", mode: .dictation),
-        VoiceProfile(id: "chat", title: "Chat", mode: .chat),
-        VoiceProfile(id: "review", title: "Review", mode: .review),
-        VoiceProfile(id: "zh-en", title: "Chinese to English", mode: .translateChineseToEnglish),
+        VoiceProfile(id: "dictation", title: "Dictation", mode: .dictation, languageTag: nil),
+        VoiceProfile(id: "chat", title: "Chat", mode: .chat, languageTag: nil),
+        VoiceProfile(id: "review", title: "Review", mode: .review, languageTag: nil),
+        VoiceProfile(id: "zh-en", title: "Chinese to English", mode: .translateChineseToEnglish, languageTag: "zh-CN"),
     ]
 }
