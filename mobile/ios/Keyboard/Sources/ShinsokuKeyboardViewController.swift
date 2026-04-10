@@ -16,6 +16,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private let nextDraftButton = UIButton(type: .system)
     private let refreshButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
+    private let openHomeButton = UIButton(type: .system)
     private let stackView = UIStackView()
     private var drafts: [StoredDraft] = []
     private var currentDraftIndex = 0
@@ -66,47 +67,45 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         latestDraftLabel.font = .systemFont(ofSize: 17, weight: .regular)
         latestDraftLabel.text = "Open the Shinsoku app to create a draft."
         latestDraftLabel.backgroundColor = .secondarySystemBackground
-        latestDraftLabel.layer.cornerRadius = 16
+        latestDraftLabel.layer.cornerRadius = 18
         latestDraftLabel.layer.masksToBounds = true
+        latestDraftLabel.textAlignment = .left
+        latestDraftLabel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
-        profileButton.configuration = .tinted()
-        profileButton.configuration?.title = "Cycle profile"
+        profileButton.configuration = filledCapsuleConfiguration(title: "Cycle profile")
         profileButton.addTarget(self, action: #selector(cycleProfile), for: .touchUpInside)
 
-        previousButton.configuration = .tinted()
-        previousButton.configuration?.title = "Previous"
+        previousButton.configuration = outlineConfiguration(title: "Previous")
         previousButton.addTarget(self, action: #selector(showPreviousDraft), for: .touchUpInside)
 
-        insertButton.configuration = .filled()
-        insertButton.configuration?.title = "Insert"
+        insertButton.configuration = filledCapsuleConfiguration(title: "Insert")
         insertButton.addTarget(self, action: #selector(insertCurrentDraft), for: .touchUpInside)
 
-        insertAndClearButton.configuration = .tinted()
-        insertAndClearButton.configuration?.title = "Insert & remove"
+        insertAndClearButton.configuration = outlineConfiguration(title: "Insert & remove")
         insertAndClearButton.addTarget(self, action: #selector(insertAndRemoveCurrentDraft), for: .touchUpInside)
 
-        nextDraftButton.configuration = .tinted()
-        nextDraftButton.configuration?.title = "Next draft"
+        nextDraftButton.configuration = outlineConfiguration(title: "Next draft")
         nextDraftButton.addTarget(self, action: #selector(showNextDraft), for: .touchUpInside)
 
-        openAppButton.configuration = .tinted()
-        openAppButton.configuration?.title = "Open drafts"
+        openAppButton.configuration = outlineConfiguration(title: "Open drafts")
         openAppButton.addTarget(self, action: #selector(openContainerApp), for: .touchUpInside)
 
-        openSettingsButton.configuration = .tinted()
-        openSettingsButton.configuration?.title = "Settings"
+        openSettingsButton.configuration = outlineConfiguration(title: "Settings")
         openSettingsButton.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
 
-        refreshButton.configuration = .tinted()
-        refreshButton.configuration?.title = "Refresh"
+        refreshButton.configuration = outlineConfiguration(title: "Refresh")
         refreshButton.addTarget(self, action: #selector(refreshDrafts), for: .touchUpInside)
 
-        nextKeyboardButton.configuration = .tinted()
-        nextKeyboardButton.configuration?.title = "Next keyboard"
+        openHomeButton.configuration = outlineConfiguration(title: "Home")
+        openHomeButton.addTarget(self, action: #selector(openHome), for: .touchUpInside)
+
+        nextKeyboardButton.configuration = outlineConfiguration(title: "Next keyboard")
         nextKeyboardButton.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
 
         stackView.axis = .vertical
-        stackView.spacing = 12
+        stackView.spacing = 14
+        stackView.isLayoutMarginsRelativeArrangement = true
+        stackView.directionalLayoutMargins = .init(top: 18, leading: 18, bottom: 18, trailing: 18)
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(subtitleLabel)
 
@@ -122,39 +121,46 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
 
         let draftRow = UIStackView(arrangedSubviews: [previousButton, insertButton, nextDraftButton])
         draftRow.axis = .horizontal
-        draftRow.spacing = 12
+        draftRow.spacing = 10
         draftRow.distribution = .fillEqually
         stackView.addArrangedSubview(draftRow)
 
-        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, openAppButton, openSettingsButton, refreshButton])
+        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, openAppButton, openHomeButton])
         utilityRow.axis = .horizontal
-        utilityRow.spacing = 12
+        utilityRow.spacing = 10
         utilityRow.distribution = .fillEqually
         stackView.addArrangedSubview(utilityRow)
 
-        let keyboardRow = UIStackView(arrangedSubviews: [nextKeyboardButton])
+        let keyboardRow = UIStackView(arrangedSubviews: [openSettingsButton, refreshButton, nextKeyboardButton])
         keyboardRow.axis = .horizontal
-        keyboardRow.spacing = 12
+        keyboardRow.spacing = 10
         keyboardRow.distribution = .fillEqually
         stackView.addArrangedSubview(keyboardRow)
 
         view.addSubview(stackView)
 
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: view.topAnchor, constant: 18),
-            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
-            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
-            stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -18),
+            stackView.topAnchor.constraint(equalTo: view.topAnchor),
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             latestDraftLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 96),
-            previousButton.heightAnchor.constraint(equalToConstant: 46),
-            insertButton.heightAnchor.constraint(equalToConstant: 46),
-            nextDraftButton.heightAnchor.constraint(equalToConstant: 46),
-            insertAndClearButton.heightAnchor.constraint(equalToConstant: 46),
-            openAppButton.heightAnchor.constraint(equalToConstant: 46),
-            openSettingsButton.heightAnchor.constraint(equalToConstant: 46),
-            refreshButton.heightAnchor.constraint(equalToConstant: 46),
-            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 46),
+            previousButton.heightAnchor.constraint(equalToConstant: 42),
+            insertButton.heightAnchor.constraint(equalToConstant: 42),
+            nextDraftButton.heightAnchor.constraint(equalToConstant: 42),
+            insertAndClearButton.heightAnchor.constraint(equalToConstant: 42),
+            openAppButton.heightAnchor.constraint(equalToConstant: 42),
+            openHomeButton.heightAnchor.constraint(equalToConstant: 42),
+            openSettingsButton.heightAnchor.constraint(equalToConstant: 42),
+            refreshButton.heightAnchor.constraint(equalToConstant: 42),
+            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 42),
         ])
+
+        view.backgroundColor = .secondarySystemBackground
+        stackView.backgroundColor = .systemBackground
+        stackView.layer.cornerRadius = 22
+        stackView.layer.cornerCurve = .continuous
+        stackView.layer.masksToBounds = true
     }
 
     private func reloadDraft() {
@@ -257,6 +263,12 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         openURL(url)
     }
 
+    @objc
+    private func openHome() {
+        guard let url = URL(string: "shinsoku://home") else { return }
+        openURL(url)
+    }
+
     private func openURL(_ url: URL) {
         var responder: UIResponder? = self
         while let current = responder {
@@ -266,6 +278,22 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             }
             responder = current.next
         }
+    }
+
+    private func filledCapsuleConfiguration(title: String) -> UIButton.Configuration {
+        var configuration = UIButton.Configuration.filled()
+        configuration.title = title
+        configuration.cornerStyle = .capsule
+        configuration.baseBackgroundColor = .label
+        configuration.baseForegroundColor = .systemBackground
+        return configuration
+    }
+
+    private func outlineConfiguration(title: String) -> UIButton.Configuration {
+        var configuration = UIButton.Configuration.bordered()
+        configuration.title = title
+        configuration.cornerStyle = .capsule
+        return configuration
     }
 }
 
