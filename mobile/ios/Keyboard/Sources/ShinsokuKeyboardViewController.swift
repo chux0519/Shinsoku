@@ -8,6 +8,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     private let latestDraftLabel = UILabel()
     private let insertButton = UIButton(type: .system)
     private let insertAndClearButton = UIButton(type: .system)
+    private let openAppButton = UIButton(type: .system)
     private let previousButton = UIButton(type: .system)
     private let nextDraftButton = UIButton(type: .system)
     private let refreshButton = UIButton(type: .system)
@@ -72,6 +73,10 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         nextDraftButton.configuration?.title = "Next draft"
         nextDraftButton.addTarget(self, action: #selector(showNextDraft), for: .touchUpInside)
 
+        openAppButton.configuration = .tinted()
+        openAppButton.configuration?.title = "Open app"
+        openAppButton.addTarget(self, action: #selector(openContainerApp), for: .touchUpInside)
+
         refreshButton.configuration = .tinted()
         refreshButton.configuration?.title = "Refresh"
         refreshButton.addTarget(self, action: #selector(refreshDrafts), for: .touchUpInside)
@@ -94,16 +99,17 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
         draftRow.distribution = .fillEqually
         stackView.addArrangedSubview(draftRow)
 
-        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, refreshButton, nextKeyboardButton])
+        let utilityRow = UIStackView(arrangedSubviews: [insertAndClearButton, openAppButton, refreshButton])
         utilityRow.axis = .horizontal
         utilityRow.spacing = 12
         utilityRow.distribution = .fillEqually
         stackView.addArrangedSubview(utilityRow)
 
-        let buttonRow = utilityRow
-        buttonRow.axis = .horizontal
-        buttonRow.spacing = 12
-        buttonRow.distribution = .fillEqually
+        let keyboardRow = UIStackView(arrangedSubviews: [nextKeyboardButton])
+        keyboardRow.axis = .horizontal
+        keyboardRow.spacing = 12
+        keyboardRow.distribution = .fillEqually
+        stackView.addArrangedSubview(keyboardRow)
 
         view.addSubview(stackView)
 
@@ -116,6 +122,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             insertButton.heightAnchor.constraint(equalToConstant: 46),
             nextDraftButton.heightAnchor.constraint(equalToConstant: 46),
             insertAndClearButton.heightAnchor.constraint(equalToConstant: 46),
+            openAppButton.heightAnchor.constraint(equalToConstant: 46),
             refreshButton.heightAnchor.constraint(equalToConstant: 46),
             nextKeyboardButton.heightAnchor.constraint(equalToConstant: 46),
         ])
@@ -137,7 +144,7 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
             return
         }
         latestDraftLabel.text = draft.text
-        metaLabel.text = "\(profile.title) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))"
+        metaLabel.text = "\(profile.title) · \(currentDraftIndex + 1)/\(drafts.count) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))"
         insertButton.isEnabled = true
         insertAndClearButton.isEnabled = true
         previousButton.isEnabled = drafts.count > 1
@@ -178,6 +185,23 @@ final class ShinsokuKeyboardViewController: UIInputViewController {
     @objc
     private func refreshDrafts() {
         reloadDraft()
+    }
+
+    @objc
+    private func openContainerApp() {
+        guard let url = URL(string: "shinsoku://drafts") else { return }
+        openURL(url)
+    }
+
+    private func openURL(_ url: URL) {
+        var responder: UIResponder? = self
+        while let current = responder {
+            if current.responds(to: Selector(("openURL:"))) {
+                current.perform(Selector(("openURL:")), with: url)
+                return
+            }
+            responder = current.next
+        }
     }
 }
 

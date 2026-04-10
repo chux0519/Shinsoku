@@ -150,6 +150,15 @@ struct HomeView: View {
                 .font(.headline)
             Text("Insert from the keyboard with profile-aware suffix behavior. Dictation appends a space, chat appends a newline, and review inserts the text as-is.")
                 .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Setup")
+                    .font(.subheadline.weight(.semibold))
+                Text("1. Enable Shinsoku Keyboard in iOS keyboard settings.")
+                Text("2. Return here to dictate a phrase.")
+                Text("3. Switch to the Shinsoku keyboard and insert the saved draft.")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
