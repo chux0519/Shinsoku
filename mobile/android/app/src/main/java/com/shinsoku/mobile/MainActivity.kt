@@ -30,6 +30,7 @@ import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.speechcore.VoiceTransformMode
 import com.shinsoku.mobile.speechcore.VoiceInputUiState
 import com.shinsoku.mobile.speechcore.NativeVoiceTransformSummary
+import com.shinsoku.mobile.speechcore.NativeVoiceRuntimeMetadata
 import android.Manifest
 import android.content.pm.PackageManager
 import android.view.inputmethod.InputMethodManager
@@ -141,22 +142,17 @@ class MainActivity : AppCompatActivity() {
         val providerConfig = providerConfigStore.load()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
+        val runtimeMetadata = NativeVoiceRuntimeMetadata.describe(
+            providerConfig.activeRecognitionProvider,
+            runtimeConfig.postProcessingConfig.mode,
+        )
         binding.providerSummaryText.text = getString(
             R.string.provider_summary_template,
-            when (providerConfig.activeRecognitionProvider) {
-                VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_android_system)
-                VoiceRecognitionProvider.OpenAiCompatible -> getString(R.string.provider_openai_compatible)
-                VoiceRecognitionProvider.Soniox -> getString(R.string.provider_soniox)
-                VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
-            },
+            runtimeMetadata.providerLabel,
             providerStatus.summary,
         ) + "\n" + getString(
             R.string.post_processing_summary_template,
-            when (runtimeConfig.postProcessingConfig.mode) {
-                TranscriptPostProcessingMode.Disabled -> getString(R.string.post_processing_disabled)
-                TranscriptPostProcessingMode.LocalCleanup -> getString(R.string.post_processing_local_cleanup)
-                TranscriptPostProcessingMode.ProviderAssisted -> getString(R.string.post_processing_provider_assisted)
-            },
+            runtimeMetadata.postProcessingLabel,
         ) + "\n" + providerStatus.detail
         binding.mainPresetSummaryText.text = profile.summary.ifBlank { getString(R.string.preset_custom_summary) }
         binding.mainWorkflowPresetDropdown.setText(profile.displayName, false)
@@ -253,7 +249,10 @@ class MainActivity : AppCompatActivity() {
                 id = UUID.randomUUID().toString(),
                 text = commit.text,
                 committedAtEpochMillis = System.currentTimeMillis(),
-                provider = providerLabel(providerConfigStore.load().activeRecognitionProvider),
+                provider = NativeVoiceRuntimeMetadata.describe(
+                    providerConfigStore.load().activeRecognitionProvider,
+                    runtimeConfig.postProcessingConfig.mode,
+                ).providerLabel,
                 profileName = profile.displayName,
                 transformMode = profile.transform.mode.name,
                 postProcessingMode = runtimeConfig.postProcessingConfig.mode.name,
@@ -276,10 +275,4 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun providerLabel(provider: VoiceRecognitionProvider): String = when (provider) {
-        VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_android_system)
-        VoiceRecognitionProvider.OpenAiCompatible -> getString(R.string.provider_openai_compatible)
-        VoiceRecognitionProvider.Soniox -> getString(R.string.provider_soniox)
-        VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
-    }
 }

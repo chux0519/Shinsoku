@@ -19,6 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
                                     translationExtraInstructions:(NSString *)translationExtraInstructions;
 + (nullable NSString *)describeProfileBehaviorWithAutoCommit:(BOOL)autoCommit
                                            commitSuffixMode:(NSString *)commitSuffixMode;
++ (nullable NSArray<NSString *> *)describeProviderMetadataWithProviderName:(NSString *)providerName
+                                                       postProcessingMode:(NSString *)postProcessingMode;
 + (nullable NSArray<NSString *> *)buildTransformPromptForTranscript:(NSString *)rawTranscript
                                                            enabled:(BOOL)enabled
                                                               mode:(NSString *)mode

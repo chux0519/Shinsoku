@@ -14,6 +14,7 @@ import com.shinsoku.mobile.speechcore.VoiceInputProfiles
 import com.shinsoku.mobile.speechcore.VoiceRefineRequestFormat
 import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.speechcore.NativeVoiceTransformSummary
+import com.shinsoku.mobile.speechcore.NativeVoiceRuntimeMetadata
 import com.shinsoku.mobile.speechcore.VoiceTransformPromptBuilder
 import com.shinsoku.mobile.speechcore.VoiceTransformConfig
 import com.shinsoku.mobile.speechcore.VoiceTransformMode
@@ -38,15 +39,36 @@ class SettingsActivity : AppCompatActivity() {
             VoiceInputProfiles.builtIns.forEach { put(it.displayName, it) }
         }
         providerOptions = linkedMapOf(
-            getString(R.string.provider_android_system) to VoiceRecognitionProvider.AndroidSystem,
-            getString(R.string.provider_openai_compatible) to VoiceRecognitionProvider.OpenAiCompatible,
-            getString(R.string.provider_soniox) to VoiceRecognitionProvider.Soniox,
-            getString(R.string.provider_bailian) to VoiceRecognitionProvider.Bailian,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.AndroidSystem,
+                TranscriptPostProcessingMode.LocalCleanup,
+            ).providerLabel to VoiceRecognitionProvider.AndroidSystem,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.OpenAiCompatible,
+                TranscriptPostProcessingMode.LocalCleanup,
+            ).providerLabel to VoiceRecognitionProvider.OpenAiCompatible,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.Soniox,
+                TranscriptPostProcessingMode.LocalCleanup,
+            ).providerLabel to VoiceRecognitionProvider.Soniox,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.Bailian,
+                TranscriptPostProcessingMode.LocalCleanup,
+            ).providerLabel to VoiceRecognitionProvider.Bailian,
         )
         postProcessingOptions = linkedMapOf(
-            getString(R.string.post_processing_disabled) to TranscriptPostProcessingMode.Disabled,
-            getString(R.string.post_processing_local_cleanup_short) to TranscriptPostProcessingMode.LocalCleanup,
-            getString(R.string.post_processing_provider_assisted_short) to TranscriptPostProcessingMode.ProviderAssisted,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.AndroidSystem,
+                TranscriptPostProcessingMode.Disabled,
+            ).compactPostProcessingLabel to TranscriptPostProcessingMode.Disabled,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.AndroidSystem,
+                TranscriptPostProcessingMode.LocalCleanup,
+            ).compactPostProcessingLabel to TranscriptPostProcessingMode.LocalCleanup,
+            NativeVoiceRuntimeMetadata.describe(
+                VoiceRecognitionProvider.AndroidSystem,
+                TranscriptPostProcessingMode.ProviderAssisted,
+            ).compactPostProcessingLabel to TranscriptPostProcessingMode.ProviderAssisted,
         )
         binding.workflowPresetDropdown.setAdapter(
             ArrayAdapter(this, android.R.layout.simple_list_item_1, presetOptions.keys.toList()),
@@ -174,33 +196,23 @@ class SettingsActivity : AppCompatActivity() {
         val providerConfig = providerConfigStore.load()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
+        val runtimeMetadata = NativeVoiceRuntimeMetadata.describe(
+            providerConfig.activeRecognitionProvider,
+            runtimeConfig.postProcessingConfig.mode,
+        )
         binding.activeProfileText.text = getString(R.string.active_profile_template, profile.displayName)
         binding.currentBehaviorSummaryText.text = profile.behaviorSummary + " • " + (profile.languageTag ?: getString(R.string.language_auto_label))
         binding.providerStatusText.text = getString(
             R.string.provider_summary_template,
-            providerLabel(providerConfig.activeRecognitionProvider),
+            runtimeMetadata.providerLabel,
             providerStatus.summary,
         ) + "\n" + getString(
             R.string.post_processing_summary_template,
-            when (runtimeConfig.postProcessingConfig.mode) {
-                TranscriptPostProcessingMode.Disabled ->
-                    getString(R.string.post_processing_disabled)
-                TranscriptPostProcessingMode.LocalCleanup ->
-                    getString(R.string.post_processing_local_cleanup)
-                TranscriptPostProcessingMode.ProviderAssisted ->
-                    getString(R.string.post_processing_provider_assisted)
-            },
+            runtimeMetadata.postProcessingLabel,
         ) + "\n" + providerStatus.detail
         binding.workflowPresetDropdown.setText(profile.displayName, false)
-        binding.recognitionBackendDropdown.setText(providerLabel(providerConfig.activeRecognitionProvider), false)
-        binding.postProcessingDropdown.setText(
-            when (runtimeConfig.postProcessingConfig.mode) {
-                TranscriptPostProcessingMode.Disabled -> getString(R.string.post_processing_disabled)
-                TranscriptPostProcessingMode.LocalCleanup -> getString(R.string.post_processing_local_cleanup_short)
-                TranscriptPostProcessingMode.ProviderAssisted -> getString(R.string.post_processing_provider_assisted_short)
-            },
-            false,
-        )
+        binding.recognitionBackendDropdown.setText(runtimeMetadata.providerLabel, false)
+        binding.postProcessingDropdown.setText(runtimeMetadata.compactPostProcessingLabel, false)
         binding.autoCommitSwitch.isChecked = profile.autoCommit
         binding.appendTrailingSpaceSwitch.isChecked = profile.commitSuffixMode == CommitSuffixMode.Space
         val languageText = profile.languageTag.orEmpty()
@@ -338,13 +350,6 @@ class SettingsActivity : AppCompatActivity() {
             translationTargetCode = binding.translationTargetCodeEdit.text?.toString().orEmpty().trim().ifEmpty { "en" },
             translationExtraInstructions = binding.translationExtraInstructionsEdit.text?.toString().orEmpty().trim(),
         )
-    }
-
-    private fun providerLabel(provider: VoiceRecognitionProvider): String = when (provider) {
-        VoiceRecognitionProvider.AndroidSystem -> getString(R.string.provider_android_system)
-        VoiceRecognitionProvider.OpenAiCompatible -> getString(R.string.provider_openai_compatible)
-        VoiceRecognitionProvider.Soniox -> getString(R.string.provider_soniox)
-        VoiceRecognitionProvider.Bailian -> getString(R.string.provider_bailian)
     }
 
 }

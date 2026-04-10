@@ -1,8 +1,10 @@
 #import "NativeProfileBridge.h"
 
 #include "shinsoku/nativecore/c_api.h"
+#include "shinsoku/nativecore/provider_metadata.hpp"
 #include "shinsoku/nativecore/profile_presets.hpp"
 #include "shinsoku/nativecore/transform_prompt.hpp"
+#include "shinsoku/nativecore/runtime_derivation.hpp"
 
 @implementation NativeProfileBridge
 
@@ -67,6 +69,35 @@
         commitSuffixMode.UTF8String ?: ""
     );
     return [NSString stringWithUTF8String:summary.c_str()] ?: nil;
+}
+
++ (nullable NSArray<NSString *> *)describeProviderMetadataWithProviderName:(NSString *)providerName
+                                                       postProcessingMode:(NSString *)postProcessingMode {
+    using namespace shinsoku::nativecore;
+
+    RecognitionProvider provider = RecognitionProvider::AndroidSystem;
+    if ([providerName isEqualToString:@"OpenAiCompatible"]) {
+        provider = RecognitionProvider::OpenAiCompatible;
+    } else if ([providerName isEqualToString:@"Soniox"]) {
+        provider = RecognitionProvider::Soniox;
+    } else if ([providerName isEqualToString:@"Bailian"]) {
+        provider = RecognitionProvider::Bailian;
+    }
+
+    TranscriptPostProcessingMode mode = TranscriptPostProcessingMode::LocalCleanup;
+    if ([postProcessingMode isEqualToString:@"Disabled"]) {
+        mode = TranscriptPostProcessingMode::Disabled;
+    } else if ([postProcessingMode isEqualToString:@"ProviderAssisted"]) {
+        mode = TranscriptPostProcessingMode::ProviderAssisted;
+    }
+
+    NSString *providerLabel =
+        [NSString stringWithUTF8String:describe_provider_name(provider).c_str()] ?: @"";
+    NSString *postProcessingLabel =
+        [NSString stringWithUTF8String:describe_post_processing_mode(mode, false).c_str()] ?: @"";
+    NSString *compactPostProcessingLabel =
+        [NSString stringWithUTF8String:describe_post_processing_mode(mode, true).c_str()] ?: @"";
+    return @[providerLabel, postProcessingLabel, compactPostProcessingLabel];
 }
 
 + (nullable NSArray<NSString *> *)buildTransformPromptForTranscript:(NSString *)rawTranscript

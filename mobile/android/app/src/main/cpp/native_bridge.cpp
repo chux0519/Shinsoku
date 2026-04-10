@@ -5,6 +5,7 @@
 #include "shinsoku/nativecore/transcript_cleanup.hpp"
 #include "shinsoku/nativecore/transcript_commit_planner.hpp"
 #include "shinsoku/nativecore/runtime_derivation.hpp"
+#include "shinsoku/nativecore/provider_metadata.hpp"
 #include "shinsoku/nativecore/provider_diagnostics.hpp"
 #include "shinsoku/nativecore/profile_presets.hpp"
 #include "shinsoku/nativecore/transform_prompt.hpp"
@@ -104,6 +105,52 @@ Java_com_shinsoku_mobile_processing_NativeVoiceRuntime_resolvePostProcessingMode
         default:
             return to_java_string(env, "LocalCleanup");
     }
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_shinsoku_mobile_speechcore_NativeVoiceRuntimeMetadata_describeProviderMetadataNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jstring provider_name,
+    jstring post_processing_mode_name
+) {
+    const std::string provider_name_value = from_java_string(env, provider_name);
+    shinsoku::nativecore::RecognitionProvider provider = shinsoku::nativecore::RecognitionProvider::AndroidSystem;
+    if (provider_name_value == "OpenAiCompatible") {
+        provider = shinsoku::nativecore::RecognitionProvider::OpenAiCompatible;
+    } else if (provider_name_value == "Soniox") {
+        provider = shinsoku::nativecore::RecognitionProvider::Soniox;
+    } else if (provider_name_value == "Bailian") {
+        provider = shinsoku::nativecore::RecognitionProvider::Bailian;
+    }
+
+    const std::string mode_name_value = from_java_string(env, post_processing_mode_name);
+    shinsoku::nativecore::TranscriptPostProcessingMode mode =
+        shinsoku::nativecore::TranscriptPostProcessingMode::LocalCleanup;
+    if (mode_name_value == "Disabled") {
+        mode = shinsoku::nativecore::TranscriptPostProcessingMode::Disabled;
+    } else if (mode_name_value == "ProviderAssisted") {
+        mode = shinsoku::nativecore::TranscriptPostProcessingMode::ProviderAssisted;
+    }
+
+    jclass string_class = env->FindClass("java/lang/String");
+    jobjectArray output = env->NewObjectArray(3, string_class, nullptr);
+    env->SetObjectArrayElement(
+        output,
+        0,
+        to_java_string(env, shinsoku::nativecore::describe_provider_name(provider))
+    );
+    env->SetObjectArrayElement(
+        output,
+        1,
+        to_java_string(env, shinsoku::nativecore::describe_post_processing_mode(mode, false))
+    );
+    env->SetObjectArrayElement(
+        output,
+        2,
+        to_java_string(env, shinsoku::nativecore::describe_post_processing_mode(mode, true))
+    );
+    return output;
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
