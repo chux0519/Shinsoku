@@ -8,6 +8,7 @@ struct DraftsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                summaryCard
 
                 if workspace.drafts.isEmpty {
                     VStack(spacing: 16) {
@@ -72,6 +73,31 @@ struct DraftsView: View {
         }
     }
 
+    private var summaryCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Library status")
+                .font(.headline)
+            HStack(spacing: 10) {
+                summaryChip(title: "\(workspace.drafts.count) drafts")
+                summaryChip(title: workspace.selectedProfile.title)
+                summaryChip(title: workspace.storageDiagnostics.isUsingSharedDefaults ? "Shared ready" : "Fallback")
+            }
+            HStack(spacing: 12) {
+                Button("Open setup guide") {
+                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Go to Home") {
+                    NotificationCenter.default.post(name: .shinsokuOpenHome, object: nil)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
     private func draftRow(for draft: StoredDraft) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
@@ -112,5 +138,13 @@ struct DraftsView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func summaryChip(title: String) -> some View {
+        Text(title)
+            .font(.footnote.weight(.medium))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground), in: Capsule())
     }
 }

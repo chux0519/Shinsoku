@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
@@ -11,6 +12,7 @@ struct SettingsView: View {
                 runtimeCard
                 workflowCard
                 keyboardCard
+                linksCard
                 setupCard
                 draftsCard
             }
@@ -111,6 +113,26 @@ struct SettingsView: View {
                 workspace.clearDrafts()
             }
             .buttonStyle(.bordered)
+        }
+        .shinsokuSettingsCard()
+    }
+
+    private var linksCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Shortcuts")
+                .font(.headline)
+            HStack(spacing: 12) {
+                NavigationLink("Setup guide") {
+                    SetupGuideView()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Open iOS Settings") {
+                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                    UIApplication.shared.open(url)
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .shinsokuSettingsCard()
     }

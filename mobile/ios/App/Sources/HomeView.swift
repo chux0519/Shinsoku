@@ -9,6 +9,7 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 hero
+                setupFocusCard
                 quickActionsCard
                 checklistCard
                 permissionCard
@@ -29,6 +30,62 @@ struct HomeView: View {
             }
             workspace.refresh()
         }
+    }
+
+    private var setupFocusCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Next step")
+                .font(.headline)
+
+            if transcriber.authorizationState != .ready {
+                Text("Grant speech permissions first so the app can capture dictation and keep drafts ready for the keyboard.")
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Button("Request permissions") {
+                        Task { await transcriber.requestPermissions() }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    NavigationLink("Setup guide") {
+                        SetupGuideView()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else if workspace.storageDiagnostics.draftCount == 0 {
+                Text("Record a phrase and save your first draft. The keyboard extension inserts from these saved drafts.")
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Button("Start dictation") {
+                        if transcriber.isRecording {
+                            transcriber.stop()
+                        } else {
+                            transcriber.start(localeIdentifier: workspace.selectedProfile.languageTag)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    NavigationLink("Setup guide") {
+                        SetupGuideView()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                Text("Your app and keyboard are ready. Continue recording here or jump straight into saved drafts.")
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Button("Open drafts") {
+                        NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    NavigationLink("Setup guide") {
+                        SetupGuideView()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
+        .shinsokuCard()
     }
 
     private var hero: some View {
@@ -98,6 +155,9 @@ struct HomeView: View {
                 }
                 .buttonStyle(.bordered)
             }
+            Text("Use the app for capture and review, then switch to the keyboard only for insertion.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .shinsokuCard()
     }
