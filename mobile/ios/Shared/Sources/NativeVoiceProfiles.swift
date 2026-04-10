@@ -4,6 +4,25 @@ private struct NativeBuiltinProfile: Decodable {
     struct TransformConfig: Decodable {
         let enabled: Bool
         let mode: String
+        let requestFormat: String
+        let customPrompt: String
+        let translationSourceLanguage: String
+        let translationSourceCode: String
+        let translationTargetLanguage: String
+        let translationTargetCode: String
+        let translationExtraInstructions: String
+
+        enum CodingKeys: String, CodingKey {
+            case enabled
+            case mode
+            case requestFormat = "request_format"
+            case customPrompt = "custom_prompt"
+            case translationSourceLanguage = "translation_source_language"
+            case translationSourceCode = "translation_source_code"
+            case translationTargetLanguage = "translation_target_language"
+            case translationTargetCode = "translation_target_code"
+            case translationExtraInstructions = "translation_extra_instructions"
+        }
     }
 
     let presetKind: String
@@ -55,7 +74,18 @@ enum NativeVoiceProfiles {
             id: native.id,
             title: native.displayName,
             mode: mode,
-            languageTag: native.languageTag.isEmpty ? nil : native.languageTag
+            languageTag: native.languageTag.isEmpty ? nil : native.languageTag,
+            transform: VoiceTransformConfig(
+                enabled: native.transform.enabled,
+                mode: VoiceTransformMode(rawValue: native.transform.mode.lowercased()) ?? .cleanup,
+                requestFormat: VoiceRefineRequestFormat(rawValue: native.transform.requestFormat.lowercased()) ?? .systemAndUser,
+                customPrompt: native.transform.customPrompt,
+                translationSourceLanguage: native.transform.translationSourceLanguage,
+                translationSourceCode: native.transform.translationSourceCode,
+                translationTargetLanguage: native.transform.translationTargetLanguage,
+                translationTargetCode: native.transform.translationTargetCode,
+                translationExtraInstructions: native.transform.translationExtraInstructions
+            )
         )
     }
 }

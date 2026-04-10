@@ -66,6 +66,29 @@ struct SettingsView: View {
             Text(workspace.selectedProfile.mode.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            Divider()
+            Text("Transform prompt")
+                .font(.subheadline.weight(.semibold))
+            Text(workspace.selectedProfile.transformSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if let preview = NativeTransformPromptBuilder.build(
+                rawTranscript: workspace.selectedProfile.mode == .translateChineseToEnglish
+                    ? "你好，Shinsoku。"
+                    : "sample transcript",
+                transform: workspace.selectedProfile.transform
+            ) {
+                Text(preview.requestFormat == .singleUserMessage ? "Single prompt preview" : "System prompt preview")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(preview.displayPreview)
+                    .font(.footnote.monospaced())
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .textSelection(.enabled)
+            }
         }
         .shinsokuSettingsCard()
     }
