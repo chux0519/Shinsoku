@@ -217,6 +217,22 @@ Java_com_shinsoku_mobile_speechcore_NativeVoiceProfiles_identifyBuiltInProfileId
     );
 }
 
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_shinsoku_mobile_speechcore_NativeVoiceProfiles_describeProfileBehaviorNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jboolean auto_commit,
+    jstring commit_suffix_mode
+) {
+    return to_java_string(
+        env,
+        shinsoku::nativecore::describe_profile_behavior(
+            auto_commit == JNI_TRUE,
+            from_java_string(env, commit_suffix_mode)
+        )
+    );
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_shinsoku_mobile_speechcore_NativeVoiceTransformPromptBuilder_buildPromptPlanNative(
     JNIEnv* env,

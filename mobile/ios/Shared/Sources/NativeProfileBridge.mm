@@ -60,6 +60,15 @@
     return profileID.empty() ? nil : [NSString stringWithUTF8String:profileID.c_str()];
 }
 
++ (nullable NSString *)describeProfileBehaviorWithAutoCommit:(BOOL)autoCommit
+                                           commitSuffixMode:(NSString *)commitSuffixMode {
+    const auto summary = shinsoku::nativecore::describe_profile_behavior(
+        autoCommit,
+        commitSuffixMode.UTF8String ?: ""
+    );
+    return [NSString stringWithUTF8String:summary.c_str()] ?: nil;
+}
+
 + (nullable NSArray<NSString *> *)buildTransformPromptForTranscript:(NSString *)rawTranscript
                                                            enabled:(BOOL)enabled
                                                               mode:(NSString *)mode

@@ -27,5 +27,9 @@ std::string identify_builtin_profile_id(
     const std::string& language_tag,
     const TransformPromptConfig& transform
 );
+std::string describe_profile_behavior(
+    bool auto_commit,
+    const std::string& commit_suffix_mode
+);
 
 }  // namespace shinsoku::nativecore

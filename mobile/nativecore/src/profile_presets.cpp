@@ -169,4 +169,20 @@ std::string identify_builtin_profile_id(
     return {};
 }
 
+std::string describe_profile_behavior(
+    bool auto_commit,
+    const std::string& commit_suffix_mode
+) {
+    const std::string commit_description = auto_commit
+        ? "Auto-insert on"
+        : "Review before insert";
+    std::string suffix_description = "Append space";
+    if (commit_suffix_mode == "None") {
+        suffix_description = "No suffix";
+    } else if (commit_suffix_mode == "Newline") {
+        suffix_description = "Append newline";
+    }
+    return commit_description + " · " + suffix_description;
+}
+
 }  // namespace shinsoku::nativecore

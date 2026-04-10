@@ -126,8 +126,7 @@ struct VoiceProfile: Identifiable, Equatable, Hashable {
         if !nativeBehaviorSummary.isEmpty {
             return nativeBehaviorSummary
         }
-        let commitDescription = autoCommit ? "Auto-insert on" : "Review before insert"
-        return "\(commitDescription) · \(commitSuffixMode.title)"
+        return NativeVoiceProfiles.describeBehavior(self)
     }
 
     var transformSummary: String {

@@ -71,6 +71,20 @@ object NativeVoiceProfiles {
         }.getOrNull()?.ifBlank { null }
     }
 
+    fun describeBehavior(profile: VoiceInputProfile): String {
+        return runCatching {
+            describeProfileBehaviorNative(
+                autoCommit = profile.autoCommit,
+                commitSuffixMode = profile.commitSuffixMode.name,
+            )
+        }.getOrNull()?.ifBlank { null } ?: fallbackBehaviorSummary(profile)
+    }
+
+    private fun fallbackBehaviorSummary(profile: VoiceInputProfile): String {
+        val commitDescription = if (profile.autoCommit) "Auto-insert on" else "Review before insert"
+        return "$commitDescription · ${profile.commitSuffixMode.title}"
+    }
+
     private external fun builtinProfilesJsonNative(): String
     private external fun identifyBuiltInProfileIdNative(
         autoCommit: Boolean,
@@ -85,5 +99,9 @@ object NativeVoiceProfiles {
         translationTargetLanguage: String,
         translationTargetCode: String,
         translationExtraInstructions: String,
+    ): String
+    private external fun describeProfileBehaviorNative(
+        autoCommit: Boolean,
+        commitSuffixMode: String,
     ): String
 }

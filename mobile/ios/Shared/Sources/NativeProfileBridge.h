@@ -16,7 +16,9 @@ NS_ASSUME_NONNULL_BEGIN
                                         translationSourceCode:(NSString *)translationSourceCode
                                     translationTargetLanguage:(NSString *)translationTargetLanguage
                                         translationTargetCode:(NSString *)translationTargetCode
-                               translationExtraInstructions:(NSString *)translationExtraInstructions;
+                                    translationExtraInstructions:(NSString *)translationExtraInstructions;
++ (nullable NSString *)describeProfileBehaviorWithAutoCommit:(BOOL)autoCommit
+                                           commitSuffixMode:(NSString *)commitSuffixMode;
 + (nullable NSArray<NSString *> *)buildTransformPromptForTranscript:(NSString *)rawTranscript
                                                            enabled:(BOOL)enabled
                                                               mode:(NSString *)mode

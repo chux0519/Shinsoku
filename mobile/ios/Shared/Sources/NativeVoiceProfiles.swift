@@ -76,6 +76,21 @@ enum NativeVoiceProfiles {
         )
     }
 
+    static func describeBehavior(_ profile: VoiceProfile) -> String {
+        if let nativeSummary = NativeProfileBridge.describeProfileBehavior(
+            withAutoCommit: profile.autoCommit,
+            commitSuffixMode: profile.commitSuffixMode.rawValue
+        )?.trimmingCharacters(in: .whitespacesAndNewlines), !nativeSummary.isEmpty {
+            return nativeSummary
+        }
+        return fallbackBehaviorSummary(profile)
+    }
+
+    private static func fallbackBehaviorSummary(_ profile: VoiceProfile) -> String {
+        let commitDescription = profile.autoCommit ? "Auto-insert on" : "Review before insert"
+        return "\(commitDescription) · \(profile.commitSuffixMode.title)"
+    }
+
     private static func makeProfile(from native: NativeBuiltinProfile) -> VoiceProfile? {
         let mode: VoiceCommitMode
         switch native.presetKind {

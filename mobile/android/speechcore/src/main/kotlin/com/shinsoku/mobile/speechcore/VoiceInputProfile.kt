@@ -11,10 +11,7 @@ data class VoiceInputProfile(
     val transform: VoiceTransformConfig = VoiceTransformConfig(),
 ) {
     val behaviorSummary: String
-        get() = nativeBehaviorSummary.ifBlank {
-            val commitDescription = if (autoCommit) "Auto-insert on" else "Review before insert"
-            "$commitDescription · ${commitSuffixMode.title}"
-        }
+        get() = nativeBehaviorSummary.ifBlank { NativeVoiceProfiles.describeBehavior(this) }
 }
 
 enum class CommitSuffixMode {
