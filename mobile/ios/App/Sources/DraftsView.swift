@@ -12,11 +12,16 @@ struct DraftsView: View {
 
                 if workspace.drafts.isEmpty {
                     VStack(spacing: 16) {
-                        ContentUnavailableView(
-                            "No drafts",
-                            systemImage: "waveform.badge.magnifyingglass",
-                            description: Text("Create a draft in the app, then insert it from the keyboard.")
-                        )
+                        Image(systemName: "waveform.badge.magnifyingglass")
+                            .font(.system(size: 36, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        VStack(spacing: 8) {
+                            Text("No drafts")
+                                .font(.title3.weight(.semibold))
+                            Text("Create a draft in the app, then insert it from the keyboard.")
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
                         Button("Go to Home") {
                             NotificationCenter.default.post(name: .shinsokuOpenHome, object: nil)
                         }

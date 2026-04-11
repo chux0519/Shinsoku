@@ -62,7 +62,7 @@ struct RootView: View {
             selectedTab = .home
             workspace.refresh()
         }
-        .onChange(of: scenePhase) { _, newValue in
+        .onChange(of: scenePhase) { newValue in
             guard newValue == .active else { return }
             workspace.refresh()
             transcriber.refreshAuthorizationState()
