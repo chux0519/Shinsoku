@@ -245,18 +245,34 @@ if(WIN32)
 endif()
 
 if(WIN32)
-    find_file(SHINSOKU_QWINDOWS_PLUGIN
-        NAMES qwindows.dll qwindowsd.dll
+    find_file(SHINSOKU_QWINDOWS_PLUGIN_RELEASE
+        NAMES qwindows.dll
         HINTS
+            "${SHINSOKU_WINDOWS_VCPKG_INSTALLED_DIR}/Qt6/plugins/platforms"
             "${QT_INSTALL_PREFIX}/plugins/platforms"
             "${QT_HOST_PREFIX}/plugins/platforms"
             "${QT_VCPKG_PREFIX}/Qt6/plugins/platforms"
         REQUIRED
     )
+    find_file(SHINSOKU_QWINDOWS_PLUGIN_DEBUG
+        NAMES qwindowsd.dll qwindows.dll
+        HINTS
+            "${SHINSOKU_WINDOWS_VCPKG_INSTALLED_DIR}/debug/Qt6/plugins/platforms"
+            "${SHINSOKU_WINDOWS_VCPKG_INSTALLED_DIR}/Qt6/plugins/platforms"
+            "${QT_INSTALL_PREFIX}/debug/Qt6/plugins/platforms"
+            "${QT_INSTALL_PREFIX}/plugins/platforms"
+            "${QT_HOST_PREFIX}/plugins/platforms"
+            "${QT_VCPKG_PREFIX}/debug/Qt6/plugins/platforms"
+            "${QT_VCPKG_PREFIX}/Qt6/plugins/platforms"
+        REQUIRED
+    )
+    set(SHINSOKU_QWINDOWS_PLUGIN
+        "$<$<CONFIG:Debug>:${SHINSOKU_QWINDOWS_PLUGIN_DEBUG}>$<$<NOT:$<CONFIG:Debug>>:${SHINSOKU_QWINDOWS_PLUGIN_RELEASE}>"
+    )
     add_custom_command(TARGET shinsoku POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:shinsoku>/platforms"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${SHINSOKU_QWINDOWS_PLUGIN}"
+            ${SHINSOKU_QWINDOWS_PLUGIN}
             "$<TARGET_FILE_DIR:shinsoku>/platforms/"
         COMMENT "Copying Qt Windows platform plugin"
     )
