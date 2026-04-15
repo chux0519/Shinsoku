@@ -38,6 +38,7 @@ private:
                      int port,
                      std::string& errMsg,
                      const ix::CancellationRequest& isCancellationRequested);
+    bool configure_socket_timeouts(std::string& errMsg);
     bool establish_http_connect_tunnel(const std::string& host,
                                        int port,
                                        std::string& errMsg,

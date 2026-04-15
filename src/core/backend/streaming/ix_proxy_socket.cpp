@@ -15,14 +15,22 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <wincrypt.h>
+#include <winsock2.h>
 #elif defined(__APPLE__)
 #include <Security/SecCertificate.h>
 #include <Security/SecTrust.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#else
+#include <sys/socket.h>
+#include <sys/time.h>
 #endif
 
 namespace ohmytypeless {
 
 namespace {
+
+constexpr int kSocketIoTimeoutMs = 10000;
 
 bool ensure_ix_net_system_initialized() {
     static std::once_flag init_flag;
@@ -145,7 +153,48 @@ bool IxProxySocket::connect_raw(const std::string& host,
             transport_options_.proxy_host, transport_options_.proxy_port, errMsg, isCancellationRequested);
     }
 
-    return _sockfd != -1;
+    if (_sockfd == -1) {
+        return false;
+    }
+
+    return configure_socket_timeouts(errMsg);
+}
+
+bool IxProxySocket::configure_socket_timeouts(std::string& errMsg) {
+#ifdef _WIN32
+    const DWORD timeout_ms = kSocketIoTimeoutMs;
+    if (setsockopt(_sockfd,
+                   SOL_SOCKET,
+                   SO_RCVTIMEO,
+                   reinterpret_cast<const char*>(&timeout_ms),
+                   sizeof(timeout_ms)) != 0) {
+        errMsg = "Failed to configure socket receive timeout.";
+        return false;
+    }
+    if (setsockopt(_sockfd,
+                   SOL_SOCKET,
+                   SO_SNDTIMEO,
+                   reinterpret_cast<const char*>(&timeout_ms),
+                   sizeof(timeout_ms)) != 0) {
+        errMsg = "Failed to configure socket send timeout.";
+        return false;
+    }
+#else
+    const timeval timeout{
+        .tv_sec = kSocketIoTimeoutMs / 1000,
+        .tv_usec = (kSocketIoTimeoutMs % 1000) * 1000,
+    };
+    if (::setsockopt(_sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0) {
+        errMsg = "Failed to configure socket receive timeout.";
+        return false;
+    }
+    if (::setsockopt(_sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) != 0) {
+        errMsg = "Failed to configure socket send timeout.";
+        return false;
+    }
+#endif
+
+    return true;
 }
 
 bool IxProxySocket::establish_http_connect_tunnel(const std::string& host,

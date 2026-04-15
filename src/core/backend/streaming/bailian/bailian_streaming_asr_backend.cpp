@@ -26,6 +26,8 @@ namespace ohmytypeless {
 
 namespace {
 
+constexpr int kHandshakeTimeoutSeconds = 10;
+
 struct BailianSentenceState {
     std::string text;
     bool is_final = false;
@@ -47,6 +49,16 @@ std::string make_task_id() {
     std::ostringstream out;
     out << std::hex << now;
     return out.str();
+}
+
+std::string describe_handshake_failure(const std::string& url, const std::string& error) {
+    std::ostringstream message;
+    message << "Bailian websocket connection failed for " << url << ".";
+    if (!error.empty()) {
+        message << ' ' << error;
+    }
+    message << " Check that the endpoint scheme, host, port, and path are correct.";
+    return message.str();
 }
 
 class BailianStreamingAsrSession final : public StreamingAsrSession {
@@ -93,14 +105,6 @@ public:
             return;
         }
 
-        ix::SocketTLSOptions tls_options;
-        tls_options.tls = true;
-
-        transport_impl_.configure(ix::WebSocketPerMessageDeflateOptions(false), tls_options, true, -1);
-        transport_impl_.setOnCloseCallback([this](uint16_t, const std::string&, size_t, bool) {
-            emit_closed_once();
-        });
-
         std::string protocol;
         std::string host;
         std::string path;
@@ -112,6 +116,20 @@ public:
             }
             return;
         }
+        if (protocol != "ws" && protocol != "wss") {
+            if (callbacks_.on_error) {
+                callbacks_.on_error("Bailian WebSocket URL must start with ws:// or wss://.");
+            }
+            return;
+        }
+
+        ix::SocketTLSOptions tls_options;
+        tls_options.tls = (protocol == "wss");
+
+        transport_impl_.configure(ix::WebSocketPerMessageDeflateOptions(false), tls_options, true, -1);
+        transport_impl_.setOnCloseCallback([this](uint16_t, const std::string&, size_t, bool) {
+            emit_closed_once();
+        });
 
         transport_impl_._socket = std::make_unique<IxProxySocket>(tls_options, transport_);
         transport_impl_._perMessageDeflate = std::make_unique<ix::WebSocketPerMessageDeflate>();
@@ -126,10 +144,10 @@ public:
                                          transport_impl_._enablePerMessageDeflate);
 
         const ix::WebSocketInitResult status =
-            handshake.clientHandshake(config_.url, headers, protocol, host, path, port, 30);
+            handshake.clientHandshake(config_.url, headers, protocol, host, path, port, kHandshakeTimeoutSeconds);
         if (!status.success) {
             if (callbacks_.on_error) {
-                callbacks_.on_error(status.errorStr.empty() ? "Bailian websocket handshake failed." : status.errorStr);
+                callbacks_.on_error(describe_handshake_failure(config_.url, status.errorStr));
             }
             transport_impl_._socket.reset();
             return;

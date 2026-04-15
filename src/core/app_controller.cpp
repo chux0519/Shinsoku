@@ -1118,10 +1118,29 @@ void AppController::start_streaming_dictation() {
         ++streaming_final_update_count_;
     };
     callbacks.on_error = [this](std::string error) {
+        const QString error_text = QString::fromStdString(std::move(error));
         {
             std::lock_guard lock(streaming_mutex_);
-            streaming_error_text_ = QString::fromStdString(std::move(error));
+            streaming_error_text_ = error_text;
         }
+        QMetaObject::invokeMethod(
+            window_,
+            [window = window_, error_text]() {
+                window->set_status_text(QString("Streaming error: %1").arg(error_text));
+            },
+            Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            window_->settings_window(),
+            [settings = window_->settings_window(), error_text]() {
+                settings->set_status_text(QString("Streaming error: %1").arg(error_text));
+            },
+            Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            window_,
+            [hud = hud_, error_text]() {
+                hud->show_error(error_text);
+            },
+            Qt::QueuedConnection);
         streaming_condition_.notify_all();
     };
     callbacks.on_session_closed = [this]() {
