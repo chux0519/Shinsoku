@@ -1,13 +1,29 @@
 import Foundation
 
 enum ShinsokuSharedStorage {
-    static let appGroupID = "group.com.shinsoku.mobile"
+    static let appGroupID = "group.net.potafree.shinsoku"
     static let sharedDefaults = UserDefaults(suiteName: appGroupID)
     static let defaults = sharedDefaults ?? .standard
     static let isUsingFallbackDefaults = sharedDefaults == nil
 
-    fileprivate static let selectedProfileKey = "selectedProfileID"
-    fileprivate static let draftsKey = "drafts"
+    static let selectedProfileKey = "selectedProfileID"
+    static let draftsKey = "drafts"
+    static let requestedPostProcessingModeKey = "requestedPostProcessingMode"
+    static let activeRecognitionProviderKey = "activeRecognitionProvider"
+    static let openAiAsrBaseUrlKey = "openAiAsrBaseUrl"
+    static let openAiAsrApiKeyKey = "openAiAsrApiKey"
+    static let openAiAsrTranscriptionModelKey = "openAiAsrTranscriptionModel"
+    static let openAiAsrPostProcessingModelKey = "openAiAsrPostProcessingModel"
+    static let openAiPostBaseUrlKey = "openAiPostBaseUrl"
+    static let openAiPostApiKeyKey = "openAiPostApiKey"
+    static let openAiPostModelKey = "openAiPostModel"
+    static let sonioxUrlKey = "sonioxUrl"
+    static let sonioxApiKeyKey = "sonioxApiKey"
+    static let sonioxModelKey = "sonioxModel"
+    static let bailianRegionKey = "bailianRegion"
+    static let bailianUrlKey = "bailianUrl"
+    static let bailianApiKeyKey = "bailianApiKey"
+    static let bailianModelKey = "bailianModel"
 }
 
 struct SharedStorageDiagnostics {

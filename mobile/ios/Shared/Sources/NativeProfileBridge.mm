@@ -3,6 +3,7 @@
 #include "shinsoku/nativecore/c_api.h"
 #include "shinsoku/nativecore/provider_metadata.hpp"
 #include "shinsoku/nativecore/profile_presets.hpp"
+#include "shinsoku/nativecore/transcript_cleanup.hpp"
 #include "shinsoku/nativecore/transform_prompt.hpp"
 #include "shinsoku/nativecore/runtime_derivation.hpp"
 
@@ -100,6 +101,43 @@
     return @[providerLabel, postProcessingLabel, compactPostProcessingLabel];
 }
 
++ (nullable NSString *)resolvePostProcessingMode:(NSString *)requestedMode
+                              activeProviderName:(NSString *)activeProviderName
+                                    openAiApiKey:(NSString *)openAiApiKey {
+    using namespace shinsoku::nativecore;
+
+    RecognitionProvider provider = RecognitionProvider::AndroidSystem;
+    if ([activeProviderName isEqualToString:@"OpenAiCompatible"]) {
+        provider = RecognitionProvider::OpenAiCompatible;
+    } else if ([activeProviderName isEqualToString:@"Soniox"]) {
+        provider = RecognitionProvider::Soniox;
+    } else if ([activeProviderName isEqualToString:@"Bailian"]) {
+        provider = RecognitionProvider::Bailian;
+    }
+
+    TranscriptPostProcessingMode mode = TranscriptPostProcessingMode::LocalCleanup;
+    if ([requestedMode isEqualToString:@"Disabled"]) {
+        mode = TranscriptPostProcessingMode::Disabled;
+    } else if ([requestedMode isEqualToString:@"ProviderAssisted"]) {
+        mode = TranscriptPostProcessingMode::ProviderAssisted;
+    }
+
+    const auto resolved = resolve_post_processing_mode(
+        mode,
+        provider,
+        openAiApiKey.UTF8String ?: ""
+    );
+    switch (resolved) {
+        case TranscriptPostProcessingMode::Disabled:
+            return @"Disabled";
+        case TranscriptPostProcessingMode::ProviderAssisted:
+            return @"ProviderAssisted";
+        case TranscriptPostProcessingMode::LocalCleanup:
+        default:
+            return @"LocalCleanup";
+    }
+}
+
 + (nullable NSArray<NSString *> *)buildTransformPromptForTranscript:(NSString *)rawTranscript
                                                            enabled:(BOOL)enabled
                                                               mode:(NSString *)mode
@@ -174,6 +212,11 @@
 
     const auto summary = describe_transform_config(config);
     return [NSString stringWithUTF8String:summary.c_str()] ?: nil;
+}
+
++ (nullable NSString *)cleanupTranscript:(NSString *)rawTranscript {
+    const auto cleaned = shinsoku::nativecore::cleanup_transcript(rawTranscript.UTF8String ?: "");
+    return [NSString stringWithUTF8String:cleaned.c_str()] ?: nil;
 }
 
 @end

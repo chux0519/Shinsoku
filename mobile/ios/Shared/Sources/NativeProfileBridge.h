@@ -21,6 +21,9 @@ NS_ASSUME_NONNULL_BEGIN
                                            commitSuffixMode:(NSString *)commitSuffixMode;
 + (nullable NSArray<NSString *> *)describeProviderMetadataWithProviderName:(NSString *)providerName
                                                        postProcessingMode:(NSString *)postProcessingMode;
++ (nullable NSString *)resolvePostProcessingMode:(NSString *)requestedMode
+                              activeProviderName:(NSString *)activeProviderName
+                                    openAiApiKey:(NSString *)openAiApiKey;
 + (nullable NSArray<NSString *> *)buildTransformPromptForTranscript:(NSString *)rawTranscript
                                                            enabled:(BOOL)enabled
                                                               mode:(NSString *)mode
@@ -40,6 +43,7 @@ NS_ASSUME_NONNULL_BEGIN
                       translationTargetLanguage:(NSString *)translationTargetLanguage
                           translationTargetCode:(NSString *)translationTargetCode
                 translationExtraInstructions:(NSString *)translationExtraInstructions;
++ (nullable NSString *)cleanupTranscript:(NSString *)rawTranscript;
 
 @end
 

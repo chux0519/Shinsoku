@@ -59,7 +59,7 @@ struct HomeView: View {
                         if transcriber.isRecording {
                             transcriber.stop()
                         } else {
-                            transcriber.start(localeIdentifier: workspace.selectedProfile.languageTag)
+                            transcriber.start(profile: workspace.selectedProfile)
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -140,7 +140,7 @@ struct HomeView: View {
                     if transcriber.isRecording {
                         transcriber.stop()
                     } else {
-                        transcriber.start(localeIdentifier: workspace.selectedProfile.languageTag)
+                        transcriber.start(profile: workspace.selectedProfile)
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -217,6 +217,12 @@ struct HomeView: View {
                     .foregroundStyle(.red)
             }
 
+            if transcriber.isProcessing {
+                Text("Finishing transcript…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Text("\(workspace.selectedProfile.summary) \(workspace.selectedProfile.behaviorSummary)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -226,7 +232,7 @@ struct HomeView: View {
                     if transcriber.isRecording {
                         transcriber.stop()
                     } else {
-                        transcriber.start(localeIdentifier: workspace.selectedProfile.languageTag)
+                        transcriber.start(profile: workspace.selectedProfile)
                     }
                 }
                 .buttonStyle(.borderedProminent)

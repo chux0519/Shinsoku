@@ -5,11 +5,22 @@ final class IOSVoiceWorkspace: ObservableObject {
     @Published var selectedProfile: VoiceProfile = VoiceProfileStore.loadSelectedProfile()
     @Published var drafts: [StoredDraft] = DraftStore.loadDrafts()
     @Published var storageDiagnostics: SharedStorageDiagnostics = DraftStore.diagnostics()
+    @Published var providerConfig: VoiceProviderConfig = VoiceProviderConfigStore.loadProviderConfig()
+    @Published var requestedPostProcessingMode: TranscriptPostProcessingMode =
+        VoiceRuntimeConfigStore.loadRequestedPostProcessingMode()
+    @Published var effectivePostProcessingMode: TranscriptPostProcessingMode =
+        VoiceRuntimeConfigStore.loadRuntimeConfig().postProcessingConfig.mode
+    @Published var providerStatus: ProviderRuntimeStatus =
+        RecognitionProviderDiagnostics.status(VoiceProviderConfigStore.loadProviderConfig())
 
     func refresh() {
         selectedProfile = VoiceProfileStore.loadSelectedProfile()
         drafts = DraftStore.loadDrafts()
         storageDiagnostics = DraftStore.diagnostics()
+        providerConfig = VoiceProviderConfigStore.loadProviderConfig()
+        requestedPostProcessingMode = VoiceRuntimeConfigStore.loadRequestedPostProcessingMode()
+        effectivePostProcessingMode = VoiceRuntimeConfigStore.loadRuntimeConfig().postProcessingConfig.mode
+        providerStatus = RecognitionProviderDiagnostics.status(providerConfig)
     }
 
     func selectProfile(_ profile: VoiceProfile) {
@@ -34,6 +45,16 @@ final class IOSVoiceWorkspace: ObservableObject {
 
     func clearDrafts() {
         DraftStore.clear()
+        refresh()
+    }
+
+    func saveProviderConfig(_ config: VoiceProviderConfig) {
+        VoiceProviderConfigStore.saveProviderConfig(config)
+        refresh()
+    }
+
+    func saveRequestedPostProcessingMode(_ mode: TranscriptPostProcessingMode) {
+        VoiceRuntimeConfigStore.saveRequestedPostProcessingMode(mode)
         refresh()
     }
 
