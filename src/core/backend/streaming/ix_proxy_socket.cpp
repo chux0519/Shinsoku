@@ -13,9 +13,12 @@
 #include <stdexcept>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
 #include <windows.h>
 #include <wincrypt.h>
-#include <winsock2.h>
 #elif defined(__APPLE__)
 #include <Security/SecCertificate.h>
 #include <Security/SecTrust.h>
