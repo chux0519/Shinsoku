@@ -344,12 +344,20 @@ CGEventRef MacOSGlobalHotkey::handle_event(CGEventType type, CGEventRef event) {
 bool MacOSGlobalHotkey::ensure_event_tap() {
     const CGEventMask mask =
         CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp) | CGEventMaskBit(kCGEventFlagsChanged);
-    event_tap_ = CGEventTapCreate(kCGSessionEventTap,
+    event_tap_ = CGEventTapCreate(kCGHIDEventTap,
                                   kCGHeadInsertEventTap,
                                   kCGEventTapOptionDefault,
                                   mask,
                                   &MacOSGlobalHotkey::event_tap_callback,
                                   this);
+    if (event_tap_ == nullptr) {
+        event_tap_ = CGEventTapCreate(kCGSessionEventTap,
+                                      kCGHeadInsertEventTap,
+                                      kCGEventTapOptionDefault,
+                                      mask,
+                                      &MacOSGlobalHotkey::event_tap_callback,
+                                      this);
+    }
     if (event_tap_ == nullptr) {
         return false;
     }
