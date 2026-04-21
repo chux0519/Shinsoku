@@ -24,6 +24,7 @@
 #include <QSvgRenderer>
 #include <QStyle>
 #include <QSystemTrayIcon>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -390,7 +391,22 @@ void MainWindow::set_hotkey_passthrough_keys(const QString& hold_key_name, const
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
     Q_UNUSED(watched);
-    if (event == nullptr || (hold_qt_key_ == 0 && chord_qt_key_ == 0)) {
+    if (event == nullptr) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+#if defined(Q_OS_MACOS)
+    if (event->type() == QEvent::ApplicationActivate && !has_visible_app_window()) {
+        QTimer::singleShot(0, this, [this]() {
+            if (!has_visible_app_window()) {
+                present_main_window();
+            }
+        });
+        return QMainWindow::eventFilter(watched, event);
+    }
+#endif
+
+    if (hold_qt_key_ == 0 && chord_qt_key_ == 0) {
         return QMainWindow::eventFilter(watched, event);
     }
 
@@ -476,6 +492,12 @@ bool MainWindow::should_consume_hotkey_event(QKeyEvent* event) const {
     }
 
     return event->key() == hold_qt_key_;
+}
+
+bool MainWindow::has_visible_app_window() const {
+    return isVisible() || (settings_window_ != nullptr && settings_window_->isVisible()) ||
+           (history_window_ != nullptr && history_window_->isVisible()) ||
+           (meeting_window_ != nullptr && meeting_window_->isVisible());
 }
 
 void MainWindow::present_main_window() {
