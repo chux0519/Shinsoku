@@ -11,7 +11,6 @@
 class QAction;
 class QComboBox;
 class QLabel;
-class QMenu;
 class QPushButton;
 class QSystemTrayIcon;
 
@@ -67,7 +66,6 @@ private:
     QPushButton* record_button_ = nullptr;
     QPushButton* selection_command_button_ = nullptr;
     QSystemTrayIcon* tray_icon_ = nullptr;
-    QMenu* tray_menu_ = nullptr;
     QAction* tray_state_action_ = nullptr;
     SessionState tray_state_ = SessionState::Idle;
     QString tray_icon_theme_ = "auto";

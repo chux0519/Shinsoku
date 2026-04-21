@@ -623,11 +623,8 @@ void AppController::on_hold_started() {
         selection_command_upgrade_timer_->stop();
         // Double-press upgrade should only succeed when a real selection exists.
         // Clipboard-copy fallback can produce false positives on Wayland even
-        // when the target app has no active selection. macOS can allow the
-        // guarded fallback because Electron/WebView editors such as VS Code do
-        // not consistently expose editor selections through AX attributes.
-        const bool allow_clipboard_fallback = selection_->backend_name().startsWith("macos/");
-        const SelectionCaptureResult selection = selection_->capture_selection(allow_clipboard_fallback);
+        // when the target app has no active selection.
+        const SelectionCaptureResult selection = selection_->capture_selection(false);
         pending_selection_debug_info_ = selection.debug_info;
         if (selection.success && !selection.selected_text.trimmed().isEmpty()) {
             active_capture_mode_ = CaptureMode::SelectionCommand;
@@ -637,22 +634,7 @@ void AppController::on_hold_started() {
             return;
         }
 
-        if (audio_capture_ != nullptr && audio_capture_->is_recording()) {
-            try {
-                audio_capture_->stop();
-            } catch (...) {
-            }
-        }
-        cancel_streaming_session();
-        clipboard_->clear_paste_session();
-        active_capture_mode_ = CaptureMode::Dictation;
-        pending_capture_mode_ = CaptureMode::Dictation;
-        captured_selection_text_.reset();
-        const QString status = selection.debug_info.isEmpty()
-                                   ? "No selected text captured."
-                                   : QString("No selected text captured.\n%1").arg(selection.debug_info);
-        set_state(SessionState::Error, status);
-        window_->settings_window()->set_status_text(status);
+        selection_command_upgrade_timer_->start(static_cast<int>(kSelectionCommandWindow.count()));
         hud_->show_error("No selected text captured");
         return;
     }

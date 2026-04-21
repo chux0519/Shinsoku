@@ -33,6 +33,12 @@ The project is opinionated about that loop, but not about one single provider or
 
 Code lives under [src](/Volumes/ZT/repos/Shinsoku/src).
 
+Known limitation: desktop selection-command support is app-dependent. On macOS,
+native text fields and terminal text selection are expected to work better than
+Electron/Monaco editors such as VS Code, which may intercept modifier keys or
+not expose selected editor text reliably through Accessibility APIs. Prefer a
+non-conflicting hold key when testing editor integrations.
+
 ### Android
 
 - native IME

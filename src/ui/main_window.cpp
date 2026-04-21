@@ -9,7 +9,6 @@
 #include <QApplication>
 #include <QColor>
 #include <QComboBox>
-#include <QCursor>
 #include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -518,31 +517,27 @@ void MainWindow::setup_tray() {
     tray_icon_ = new QSystemTrayIcon(this);
     tray_icon_->setIcon(icon_from_svg(tray_icon_path_for(SessionState::Idle, tray_icon_theme_), 32));
 
-    tray_menu_ = new QMenu(this);
-    tray_menu_->setWindowFlag(Qt::FramelessWindowHint, true);
-    tray_menu_->setAttribute(Qt::WA_TranslucentBackground, true);
-    tray_menu_->setAttribute(Qt::WA_NoSystemBackground, true);
-    tray_state_action_ = tray_menu_->addAction("State: Idle");
+    auto* menu = new QMenu(this);
+    menu->setWindowFlag(Qt::FramelessWindowHint, true);
+    menu->setAttribute(Qt::WA_TranslucentBackground, true);
+    menu->setAttribute(Qt::WA_NoSystemBackground, true);
+    tray_state_action_ = menu->addAction("State: Idle");
     tray_state_action_->setEnabled(false);
 
-    tray_menu_->addSeparator();
-    tray_menu_->addAction("Show Main Window", this, [this]() { present_main_window(); });
-    tray_menu_->addAction("Show History", this, [this]() { emit show_history_requested(); });
-    tray_menu_->addAction("Settings", this, [this]() { emit show_settings_requested(); });
-    tray_menu_->addSeparator();
-    tray_menu_->addAction("Quit", this, [this]() { emit quit_requested(); });
+    menu->addSeparator();
+    menu->addAction("Show Main Window", this, [this]() { present_main_window(); });
+    menu->addAction("Show History", this, [this]() { emit show_history_requested(); });
+    menu->addAction("Settings", this, [this]() { emit show_settings_requested(); });
+    menu->addSeparator();
+    menu->addAction("Quit", this, [this]() { emit quit_requested(); });
 
-#if !defined(Q_OS_MACOS)
-    tray_icon_->setContextMenu(tray_menu_);
-#endif
+    tray_icon_->setContextMenu(menu);
     tray_icon_->show();
     refresh_tray_state(tray_state_);
 
     connect(tray_icon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
             present_main_window();
-        } else if (reason == QSystemTrayIcon::Context && tray_menu_ != nullptr) {
-            tray_menu_->popup(QCursor::pos());
         }
     });
 }

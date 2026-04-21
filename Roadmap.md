@@ -65,6 +65,10 @@ Update it when major work lands or priorities change.
 - app launches and builds with the native macOS backend set
 - main remaining work is real-hardware validation, permission UX polishing, and
   app-specific behavior classification
+- known limitation: VS Code / Electron editor selection command is unreliable
+  with Alt-based hold keys because the app can consume the modifier and the
+  Monaco editor does not consistently expose selection text through macOS
+  Accessibility APIs.
 
 ## Active Priorities
 
@@ -177,8 +181,9 @@ If work continues immediately, do this next:
 
 1. Validate macOS hold-to-talk and hands-free recording with both modifier keys
    and non-modifier keys.
-2. Validate macOS selection capture in Safari, Chrome, VS Code, Cursor, and a
-   native Cocoa text field, then classify failures by app behavior.
+2. Validate macOS selection capture in Safari, Chrome, Cursor, terminals, and a
+   native Cocoa text field. Treat VS Code / Electron editor support as a known
+   limitation until there is a dedicated integration strategy.
 3. Validate macOS auto paste and selection replacement in both standard
    `Cmd+V` targets and `Cmd+Shift+V` targets.
 4. Validate macOS system-audio capture on real devices and confirm whether the
