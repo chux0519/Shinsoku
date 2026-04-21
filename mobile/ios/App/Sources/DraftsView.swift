@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DraftsView: View {
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
@@ -9,50 +10,37 @@ struct DraftsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 summaryCard
-
-                if workspace.drafts.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "waveform.badge.magnifyingglass")
-                            .font(.system(size: 36, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        VStack(spacing: 8) {
-                            Text("No drafts")
-                                .font(.title3.weight(.semibold))
-                            Text("Create a draft in the app, then insert it from the keyboard.")
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        Button("Go to Home") {
-                            NotificationCenter.default.post(name: .shinsokuOpenHome, object: nil)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 260)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                } else {
-                    VStack(spacing: 12) {
-                        ForEach(workspace.drafts) { draft in
-                            draftRow(for: draft)
-                        }
-                    }
-                }                
+                draftList
             }
             .padding(20)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Drafts")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !workspace.drafts.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Clear all", role: .destructive) {
-                        workspace.clearDrafts()
-                    }
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    NotificationCenter.default.post(name: .shinsokuOpenHome, object: nil)
+                } label: {
+                    Label("Home", systemImage: "chevron.left")
                 }
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Refresh") {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
                     workspace.refresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .accessibilityLabel("Refresh drafts")
+
+                if !workspace.drafts.isEmpty {
+                    Button(role: .destructive) {
+                        workspace.clearDrafts()
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .accessibilityLabel("Clear all drafts")
                 }
             }
         }
@@ -65,54 +53,78 @@ struct DraftsView: View {
         }
     }
 
-    private func profileTitle(for id: String) -> String {
-        VoiceProfile.defaults.first(where: { $0.id == id })?.title ?? id
-    }
-
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Draft library")
                 .font(.system(size: 30, weight: .semibold, design: .rounded))
-            Text("Edit, remove, or keep voice drafts ready for the keyboard extension.")
+            Text("Review the app-generated drafts that the keyboard can insert into the active text field.")
                 .foregroundStyle(.secondary)
         }
     }
 
     private var summaryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Library status")
+            Text("Keyboard queue")
                 .font(.headline)
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 summaryChip(title: "\(workspace.drafts.count) drafts")
                 summaryChip(title: workspace.selectedProfile.title)
                 summaryChip(title: workspace.storageDiagnostics.isUsingSharedDefaults ? "Shared ready" : "Fallback")
             }
-            HStack(spacing: 12) {
-                Button("Open setup guide") {
-                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
-                }
-                .buttonStyle(.bordered)
+            Text("The newest draft appears first. Edit text here if recognition needs a small correction before inserting from the keyboard.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .shinsokuDraftCard()
+    }
 
-                Button("Go to Home") {
-                    NotificationCenter.default.post(name: .shinsokuOpenHome, object: nil)
+    @ViewBuilder
+    private var draftList: some View {
+        if workspace.drafts.isEmpty {
+            emptyState
+        } else {
+            VStack(spacing: 12) {
+                ForEach(workspace.drafts) { draft in
+                    draftRow(for: draft)
                 }
-                .buttonStyle(.bordered)
             }
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "waveform.badge.plus")
+                .font(.system(size: 38, weight: .medium))
+                .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                Text("No drafts yet")
+                    .font(.title3.weight(.semibold))
+                Text("Go back Home, record a phrase, then save it as a draft for keyboard insertion.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                NotificationCenter.default.post(name: .shinsokuOpenHome, object: nil)
+            } label: {
+                Label("Back to Home", systemImage: "chevron.left")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, minHeight: 260)
+        .shinsokuDraftCard()
     }
 
     private func draftRow(for draft: StoredDraft) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(profileTitle(for: draft.profileID))
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(draft.text)
                         .foregroundStyle(.primary)
-                        .lineLimit(5)
+                        .lineLimit(6)
+                        .textSelection(.enabled)
                 }
                 Spacer()
                 Text(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))
@@ -120,13 +132,18 @@ struct DraftsView: View {
                     .foregroundStyle(.tertiary)
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 16) {
                 Button {
                     editingDraft = draft
                 } label: {
                     Label("Edit", systemImage: "square.and.pencil")
                 }
-                .buttonStyle(.plain)
+
+                Button {
+                    UIPasteboard.general.string = draft.text
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
 
                 Spacer()
 
@@ -135,14 +152,17 @@ struct DraftsView: View {
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
-                .buttonStyle(.plain)
             }
             .font(.footnote.weight(.medium))
+            .buttonStyle(.plain)
             .foregroundStyle(.secondary)
         }
-        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shinsokuDraftCard()
+    }
+
+    private func profileTitle(for id: String) -> String {
+        VoiceProfile.defaults.first(where: { $0.id == id })?.title ?? id
     }
 
     private func summaryChip(title: String) -> some View {
@@ -151,5 +171,12 @@ struct DraftsView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(Color(.secondarySystemBackground), in: Capsule())
+    }
+}
+
+private extension View {
+    func shinsokuDraftCard() -> some View {
+        padding(18)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }

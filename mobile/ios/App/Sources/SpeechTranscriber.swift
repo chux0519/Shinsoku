@@ -1,4 +1,5 @@
 import AVFoundation
+import Darwin
 import Foundation
 import Speech
 
@@ -160,8 +161,10 @@ final class SpeechTranscriber: NSObject, ObservableObject {
             sonioxSession = nil
             isRecording = false
             if resetTranscript {
+                isProcessing = false
                 session?.cancel()
             } else {
+                isProcessing = true
                 session?.stop()
             }
         case .bailian:
@@ -169,8 +172,10 @@ final class SpeechTranscriber: NSObject, ObservableObject {
             bailianSession = nil
             isRecording = false
             if resetTranscript {
+                isProcessing = false
                 session?.cancel()
             } else {
+                isProcessing = true
                 session?.stop()
             }
         case .none:
@@ -270,6 +275,7 @@ final class SpeechTranscriber: NSObject, ObservableObject {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.isRecording = false
+                    self.isProcessing = false
                     self.sonioxSession = nil
                     self.finalizeTranscript(text, profile: profile)
                 }
@@ -277,6 +283,7 @@ final class SpeechTranscriber: NSObject, ObservableObject {
             onError: { [weak self] message in
                 Task { @MainActor [weak self] in
                     self?.isRecording = false
+                    self?.isProcessing = false
                     self?.sonioxSession = nil
                     self?.errorMessage = message
                 }
@@ -305,6 +312,7 @@ final class SpeechTranscriber: NSObject, ObservableObject {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.isRecording = false
+                    self.isProcessing = false
                     self.bailianSession = nil
                     self.finalizeTranscript(text, profile: profile)
                 }
@@ -312,6 +320,7 @@ final class SpeechTranscriber: NSObject, ObservableObject {
             onError: { [weak self] message in
                 Task { @MainActor [weak self] in
                     self?.isRecording = false
+                    self?.isProcessing = false
                     self?.bailianSession = nil
                     self?.errorMessage = message
                 }
@@ -420,10 +429,16 @@ private final class SystemSpeechSession {
             self?.request?.append(buffer)
         }
 
-        try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
-        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-        audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            audioEngine.prepare()
+            try audioEngine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            throw AudioRecordingErrorFormatter.error(from: error)
+        }
 
         task = recognizer.recognitionTask(with: request) { result, error in
             if let result {
@@ -475,10 +490,17 @@ private final class PCMBufferRecorder {
             self?.append(buffer: buffer, onChunk: onChunk)
         }
 
-        try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
-        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-        audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            audioEngine.prepare()
+            try audioEngine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            converter = nil
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            throw AudioRecordingErrorFormatter.error(from: error)
+        }
         isRunning = true
     }
 
@@ -565,6 +587,138 @@ private final class PCMBufferRecorder {
     }
 }
 
+private enum AudioRecordingErrorFormatter {
+    static func error(from error: Error) -> NSError {
+        let nsError = error as NSError
+        let code = UInt32(bitPattern: Int32(nsError.code))
+        let fourCC = fourCharacterCode(code)
+        var message = nsError.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        if message.isEmpty {
+            message = "Audio recording failed."
+        }
+
+        if fourCC == "!rec" {
+            message = "Microphone recording is not available in this context. iOS blocks custom keyboard extensions from accessing the device microphone; use the Shinsoku app to record, then insert the draft from the keyboard."
+        } else if !fourCC.isEmpty {
+            message += " (AudioSession \(fourCC))"
+        }
+
+        return NSError(domain: "SpeechTranscriber.AudioRecording", code: nsError.code, userInfo: [
+            NSLocalizedDescriptionKey: message
+        ])
+    }
+
+    private static func fourCharacterCode(_ code: UInt32) -> String {
+        let bytes = [
+            UInt8((code >> 24) & 0xff),
+            UInt8((code >> 16) & 0xff),
+            UInt8((code >> 8) & 0xff),
+            UInt8(code & 0xff),
+        ]
+        guard bytes.allSatisfy({ $0 >= 32 && $0 <= 126 }) else {
+            return ""
+        }
+        return String(bytes: bytes, encoding: .ascii) ?? ""
+    }
+}
+
+private final class AudioChunkRingBuffer {
+    private let maxBytes: Int
+    private var chunks: [Data] = []
+    private var byteCount = 0
+
+    init(maxBytes: Int) {
+        self.maxBytes = max(1, maxBytes)
+    }
+
+    func append(_ chunk: Data) {
+        guard !chunk.isEmpty else { return }
+        chunks.append(chunk)
+        byteCount += chunk.count
+        trimToCapacity()
+    }
+
+    func drain() -> [Data] {
+        let output = chunks
+        removeAll()
+        return output
+    }
+
+    func removeAll() {
+        chunks.removeAll(keepingCapacity: true)
+        byteCount = 0
+    }
+
+    private func trimToCapacity() {
+        while byteCount > maxBytes, !chunks.isEmpty {
+            byteCount -= chunks.removeFirst().count
+        }
+    }
+}
+
+private enum StreamingRecognitionConstants {
+    static let readyTimeoutSeconds: UInt64 = 10
+    static let pendingAudioBytes = 16_000 * 2 * 10
+}
+
+private enum RecognitionEndpointDebug {
+    static func describe(_ endpoint: String) -> String {
+        let trimmed = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed) else {
+            return "Endpoint: \(trimmed.isEmpty ? "(empty)" : trimmed)"
+        }
+
+        var parts = ["Endpoint: \(trimmed.isEmpty ? "(empty)" : trimmed)"]
+        if let host = url.host, !host.isEmpty {
+            parts.append("Host: \(host)")
+        }
+        if let scheme = url.scheme, !scheme.isEmpty {
+            parts.append("Scheme: \(scheme)")
+        }
+        return parts.joined(separator: " • ")
+    }
+
+    static func formatFailure(providerName: String, endpoint: String, error: Error) -> String {
+        let nsError = error as NSError
+        let message = nsError.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(providerName) request failed (\(type(of: error))): \(message.isEmpty ? "Unknown error." : message)\n\(describe(endpoint))"
+    }
+}
+
+private enum NetworkPreflight {
+    static func resolveEndpoint(_ endpoint: String) -> String {
+        let trimmed = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), let host = url.host, !host.isEmpty else {
+            return "Endpoint host could not be parsed.\n\(RecognitionEndpointDebug.describe(endpoint))"
+        }
+
+        var hints = addrinfo(
+            ai_flags: AI_DEFAULT,
+            ai_family: AF_UNSPEC,
+            ai_socktype: SOCK_STREAM,
+            ai_protocol: 0,
+            ai_addrlen: 0,
+            ai_canonname: nil,
+            ai_addr: nil,
+            ai_next: nil
+        )
+        var result: UnsafeMutablePointer<addrinfo>?
+        let code = getaddrinfo(host, nil, &hints, &result)
+        defer {
+            if let result {
+                freeaddrinfo(result)
+            }
+        }
+
+        guard code == 0 else {
+            let message = String(cString: gai_strerror(code))
+            return "DNS preflight failed (\(code)): \(message)\n\(RecognitionEndpointDebug.describe(endpoint))"
+        }
+
+        return "DNS resolved successfully.\n\(RecognitionEndpointDebug.describe(endpoint))"
+    }
+}
+
 private final class SonioxStreamingSession {
     private let profile: VoiceProfile
     private let config: SonioxProviderConfig
@@ -581,7 +735,8 @@ private final class SonioxStreamingSession {
     private var finalCandidateText = ""
     private var lastPartialText = ""
     private var streamReady = false
-    private var pendingAudio: [Data] = []
+    private var pendingAudio = AudioChunkRingBuffer(maxBytes: StreamingRecognitionConstants.pendingAudioBytes)
+    private var readyTimeoutTask: Task<Void, Never>?
     private let lock = NSLock()
 
     init(
@@ -618,6 +773,7 @@ private final class SonioxStreamingSession {
         onReady()
         socket = URLSession.shared.webSocketTask(with: url)
         socket?.resume()
+        scheduleReadyTimeout()
         receiveNext()
         Task {
             await sendStartMessage()
@@ -641,6 +797,8 @@ private final class SonioxStreamingSession {
             pendingAudio.removeAll()
             streamReady = false
         }
+        readyTimeoutTask?.cancel()
+        readyTimeoutTask = nil
         socket?.cancel(with: .normalClosure, reason: nil)
     }
 
@@ -658,7 +816,7 @@ private final class SonioxStreamingSession {
             do {
                 try await socket.send(.data(chunk))
             } catch {
-                fail("Failed to stream audio to Soniox: \(error.localizedDescription)")
+                fail(endpointFailure(error))
             }
         }
     }
@@ -684,7 +842,7 @@ private final class SonioxStreamingSession {
                     finalDelivered = true
                     onFinal(finalCandidateText)
                 } else if !finalDelivered {
-                    fail("Soniox connection failed: \(error.localizedDescription)")
+                    fail(endpointFailure(error))
                 }
             }
         }
@@ -736,8 +894,9 @@ private final class SonioxStreamingSession {
             try await socket?.send(.string(text))
             let state: ([Data], URLSessionWebSocketTask?, Bool) = withStateLock {
                 streamReady = true
-                let pending = pendingAudio
-                pendingAudio.removeAll()
+                readyTimeoutTask?.cancel()
+                readyTimeoutTask = nil
+                let pending = pendingAudio.drain()
                 return (pending, self.socket, finalized)
             }
             let pending = state.0
@@ -750,7 +909,7 @@ private final class SonioxStreamingSession {
                 await sendFinalize()
             }
         } catch {
-            fail("Failed to send Soniox start message: \(error.localizedDescription)")
+            fail(endpointFailure(error))
         }
     }
 
@@ -759,7 +918,7 @@ private final class SonioxStreamingSession {
             try await socket?.send(.string("{\"type\":\"finalize\"}"))
             try await socket?.send(.data(Data()))
         } catch {
-            fail("Failed to finalize Soniox stream: \(error.localizedDescription)")
+            fail(endpointFailure(error))
         }
     }
 
@@ -768,6 +927,29 @@ private final class SonioxStreamingSession {
             onError(message)
         }
         cancel()
+    }
+
+    private func scheduleReadyTimeout() {
+        readyTimeoutTask?.cancel()
+        readyTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: StreamingRecognitionConstants.readyTimeoutSeconds * 1_000_000_000)
+            guard let self else { return }
+            let shouldFail = self.withStateLock {
+                !self.streamReady && !self.finalized && !self.finalDelivered
+            }
+            if shouldFail {
+                self.fail(
+                    "Soniox stream did not become ready within \(StreamingRecognitionConstants.readyTimeoutSeconds)s.\n" +
+                    RecognitionEndpointDebug.describe(self.config.url) + "\n" +
+                    NetworkPreflight.resolveEndpoint(self.config.url)
+                )
+            }
+        }
+    }
+
+    private func endpointFailure(_ error: Error) -> String {
+        RecognitionEndpointDebug.formatFailure(providerName: "Soniox", endpoint: config.url, error: error) +
+            "\n" + NetworkPreflight.resolveEndpoint(config.url)
     }
 
     private func withStateLock<T>(_ body: () -> T) -> T {
@@ -791,7 +973,8 @@ private final class BailianStreamingSession {
     private var finalized = false
     private var finalDelivered = false
     private var streamReady = false
-    private var pendingAudio: [Data] = []
+    private var pendingAudio = AudioChunkRingBuffer(maxBytes: StreamingRecognitionConstants.pendingAudioBytes)
+    private var readyTimeoutTask: Task<Void, Never>?
     private let lock = NSLock()
 
     init(
@@ -828,6 +1011,7 @@ private final class BailianStreamingSession {
         onReady()
         socket = URLSession.shared.webSocketTask(with: request)
         socket?.resume()
+        scheduleReadyTimeout()
         receiveNext()
         Task {
             await sendRunTask()
@@ -851,6 +1035,8 @@ private final class BailianStreamingSession {
             pendingAudio.removeAll()
             streamReady = false
         }
+        readyTimeoutTask?.cancel()
+        readyTimeoutTask = nil
         socket?.cancel(with: .normalClosure, reason: nil)
     }
 
@@ -868,7 +1054,7 @@ private final class BailianStreamingSession {
             do {
                 try await socket.send(.data(chunk))
             } catch {
-                fail("Failed to stream audio to Bailian: \(error.localizedDescription)")
+                fail(endpointFailure(error))
             }
         }
     }
@@ -891,7 +1077,7 @@ private final class BailianStreamingSession {
                 receiveNext()
             } catch {
                 if !finalDelivered {
-                    fail("Bailian connection failed: \(error.localizedDescription)")
+                    fail(endpointFailure(error))
                 }
             }
         }
@@ -908,8 +1094,9 @@ private final class BailianStreamingSession {
         case .taskStarted:
             let state: ([Data], URLSessionWebSocketTask?, Bool) = withStateLock {
                 streamReady = true
-                let pending = pendingAudio
-                pendingAudio.removeAll()
+                readyTimeoutTask?.cancel()
+                readyTimeoutTask = nil
+                let pending = pendingAudio.drain()
                 return (pending, self.socket, finalized)
             }
             let pending = state.0
@@ -924,7 +1111,7 @@ private final class BailianStreamingSession {
                         await sendFinishTask()
                     }
                 } catch {
-                    fail("Failed to stream audio to Bailian: \(error.localizedDescription)")
+                    fail(endpointFailure(error))
                 }
             }
         case .partial(let text):
@@ -975,7 +1162,7 @@ private final class BailianStreamingSession {
             }
             try await socket?.send(.string(text))
         } catch {
-            fail("Failed to send Bailian run-task: \(error.localizedDescription)")
+            fail(endpointFailure(error))
         }
     }
 
@@ -999,7 +1186,7 @@ private final class BailianStreamingSession {
             }
             try await socket?.send(.string(text))
         } catch {
-            fail("Failed to finish Bailian task: \(error.localizedDescription)")
+            fail(endpointFailure(error))
         }
     }
 
@@ -1008,6 +1195,29 @@ private final class BailianStreamingSession {
             onError(message)
         }
         cancel()
+    }
+
+    private func scheduleReadyTimeout() {
+        readyTimeoutTask?.cancel()
+        readyTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: StreamingRecognitionConstants.readyTimeoutSeconds * 1_000_000_000)
+            guard let self else { return }
+            let shouldFail = self.withStateLock {
+                !self.streamReady && !self.finalized && !self.finalDelivered
+            }
+            if shouldFail {
+                self.fail(
+                    "Bailian stream did not become ready within \(StreamingRecognitionConstants.readyTimeoutSeconds)s.\n" +
+                    RecognitionEndpointDebug.describe(self.config.url) + "\n" +
+                    NetworkPreflight.resolveEndpoint(self.config.url)
+                )
+            }
+        }
+    }
+
+    private func endpointFailure(_ error: Error) -> String {
+        RecognitionEndpointDebug.formatFailure(providerName: "Bailian", endpoint: config.url, error: error) +
+            "\n" + NetworkPreflight.resolveEndpoint(config.url)
     }
 
     private func withStateLock<T>(_ body: () -> T) -> T {

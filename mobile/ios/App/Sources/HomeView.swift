@@ -5,24 +5,34 @@ struct HomeView: View {
     @EnvironmentObject private var workspace: IOSVoiceWorkspace
     @EnvironmentObject private var transcriber: SpeechTranscriber
 
+    private var hasTranscript: Bool {
+        !transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 hero
-                setupFocusCard
-                quickActionsCard
-                checklistCard
-                permissionCard
-                storageCard
                 dictationCard
-                keyboardCard
-                draftsCard
+                statusCard
+                recentDraftsCard
+                keyboardHandoffCard
             }
             .padding(20)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Shinsoku")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("Settings")
+            }
+        }
         .task {
             transcriber.refreshAuthorizationState()
             if transcriber.authorizationState == .unknown {
@@ -32,170 +42,36 @@ struct HomeView: View {
         }
     }
 
-    private var setupFocusCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Next step")
-                .font(.headline)
-
-            if transcriber.authorizationState != .ready {
-                Text("Grant speech permissions first so the app can capture dictation and keep drafts ready for the keyboard.")
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    Button("Request permissions") {
-                        Task { await transcriber.requestPermissions() }
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    NavigationLink("Setup guide") {
-                        SetupGuideView()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            } else if workspace.storageDiagnostics.draftCount == 0 {
-                Text("Record a phrase and save your first draft. The keyboard extension inserts from these saved drafts.")
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    Button("Start dictation") {
-                        if transcriber.isRecording {
-                            transcriber.stop()
-                        } else {
-                            transcriber.start(profile: workspace.selectedProfile)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    NavigationLink("Setup guide") {
-                        SetupGuideView()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            } else {
-                Text("Your app and keyboard are ready. Continue recording here or jump straight into saved drafts.")
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    Button("Open drafts") {
-                        NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    NavigationLink("Setup guide") {
-                        SetupGuideView()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-        }
-        .shinsokuCard()
-    }
-
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Shinsoku")
-                    .font(.system(size: 36, weight: .semibold, design: .rounded))
-                Text("Speak in the app, then insert from the keyboard.")
-                    .font(.title3.weight(.semibold))
-                Text("The app handles dictation and draft review. The keyboard stays focused on fast insertion into the current field.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Shinsoku")
+                .font(.system(size: 36, weight: .semibold, design: .rounded))
+            Text("Speak here. Insert from the keyboard.")
+                .font(.title3.weight(.semibold))
+            Text("iOS keeps dictation in the app and handoff in the keyboard extension. This mirrors Android's flow without fighting iOS input-method limits.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 statusChip(title: workspace.selectedProfile.title, systemImage: "slider.horizontal.3")
-                statusChip(title: transcriber.authorizationState == .ready ? "Speech ready" : "Check access", systemImage: "mic.fill")
+                statusChip(title: runtimeProviderLabel, systemImage: "antenna.radiowaves.left.and.right")
                 statusChip(title: "\(workspace.storageDiagnostics.draftCount) drafts", systemImage: "doc.text")
             }
         }
     }
 
-    private var permissionCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Speech readiness")
-                .font(.headline)
-            Text(transcriber.authorizationState.description)
-                .foregroundStyle(.secondary)
-            Button("Request permissions") {
-                Task {
-                    await transcriber.requestPermissions()
-                }
-            }
-            .buttonStyle(.bordered)
-
-            Button("Open app settings") {
-                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                UIApplication.shared.open(url)
-            }
-            .buttonStyle(.bordered)
-        }
-        .shinsokuCard()
-    }
-
-    private var quickActionsCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Quick actions")
-                .font(.headline)
-
-            HStack(spacing: 12) {
-                Button(transcriber.isRecording ? "Stop dictation" : "Start dictation") {
-                    if transcriber.isRecording {
-                        transcriber.stop()
-                    } else {
-                        transcriber.start(profile: workspace.selectedProfile)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Drafts") {
-                    NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
-                }
-                .buttonStyle(.bordered)
-
-                Button("Settings") {
-                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
-                }
-                .buttonStyle(.bordered)
-            }
-            Text("Use the app for capture and review, then switch to the keyboard only for insertion.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .shinsokuCard()
-    }
-
-    private var checklistCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Setup checklist")
-                .font(.headline)
-            checklistRow(
-                title: "Speech permissions",
-                detail: transcriber.authorizationState == .ready ? "Ready to record in the app." : "Grant microphone and speech access first.",
-                isComplete: transcriber.authorizationState == .ready
-            )
-            checklistRow(
-                title: "Draft saved",
-                detail: workspace.storageDiagnostics.draftCount > 0 ? "Keyboard can insert the latest draft." : "Save at least one draft from the app.",
-                isComplete: workspace.storageDiagnostics.draftCount > 0
-            )
-            checklistRow(
-                title: "Keyboard enabled",
-                detail: "Enable Shinsoku Keyboard in iOS Settings, then switch to it in any text field.",
-                isComplete: false
-            )
-        }
-        .shinsokuCard()
-    }
-
     private var dictationCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Current profile")
+                    Text("Voice lab")
                         .font(.headline)
-                    Text(workspace.selectedProfile.title)
+                    Text(workspace.selectedProfile.summary)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Picker("Profile", selection: Binding(
+                Picker("Preset", selection: Binding(
                     get: { workspace.selectedProfile },
                     set: { workspace.selectProfile($0) }
                 )) {
@@ -207,164 +83,171 @@ struct HomeView: View {
             }
 
             Text(transcriber.transcript.isEmpty ? "Transcript will appear here." : transcriber.transcript)
-                .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
                 .padding(16)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .textSelection(.enabled)
 
             if let errorMessage = transcriber.errorMessage {
                 Text(errorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
-            }
-
-            if transcriber.isProcessing {
-                Text("Finishing transcript…")
+            } else if transcriber.isProcessing {
+                Text("Finishing transcript...")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(workspace.selectedProfile.behaviorSummary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Text("\(workspace.selectedProfile.summary) \(workspace.selectedProfile.behaviorSummary)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 12) {
-                Button(transcriber.isRecording ? "Stop" : "Start dictation") {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                Button(transcriber.isRecording ? "Stop" : "Record") {
                     if transcriber.isRecording {
                         transcriber.stop()
                     } else {
                         transcriber.start(profile: workspace.selectedProfile)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(ShinsokuPrimaryButtonStyle())
 
-                Button("Save draft") {
+                Button("Save") {
                     workspace.saveDraft(transcriber.transcript)
                 }
-                .buttonStyle(.bordered)
-                .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(ShinsokuSecondaryButtonStyle())
+                .disabled(!hasTranscript)
 
                 Button("Copy") {
                     UIPasteboard.general.string = transcriber.transcript
                 }
-                .buttonStyle(.bordered)
-                .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(ShinsokuSecondaryButtonStyle())
+                .disabled(!hasTranscript)
 
                 Button("Clear") {
                     transcriber.stop(resetTranscript: true)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShinsokuSecondaryButtonStyle())
+                .disabled(!hasTranscript && !transcriber.isRecording)
             }
 
-            Button("Save and open drafts") {
+            Button {
                 workspace.saveDraft(transcriber.transcript)
                 NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+            } label: {
+                Label("Save and review in Drafts", systemImage: "arrow.right.doc.on.clipboard")
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(transcriber.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .buttonStyle(.bordered)
+            .disabled(!hasTranscript)
         }
         .shinsokuCard()
     }
 
-    private var storageCard: some View {
+    private var statusCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Shared draft state")
+            Text("Runtime")
                 .font(.headline)
-            LabeledContent("Saved drafts", value: "\(workspace.storageDiagnostics.draftCount)")
-            LabeledContent("Shared app group", value: workspace.storageDiagnostics.appGroupID)
-            LabeledContent("Storage mode") {
-                Text(workspace.storageDiagnostics.isUsingSharedDefaults ? "Ready" : "Fallback")
-                    .foregroundStyle(workspace.storageDiagnostics.isUsingSharedDefaults ? Color.secondary : Color.red)
+
+            statusRow(
+                title: "Speech access",
+                detail: transcriber.authorizationState.description,
+                isGood: transcriber.authorizationState == .ready
+            )
+            statusRow(
+                title: "Provider",
+                detail: "\(runtimeProviderLabel) - \(workspace.providerStatus.summary)",
+                isGood: workspace.providerStatus.ready
+            )
+            statusRow(
+                title: "Shared storage",
+                detail: workspace.storageDiagnostics.isUsingSharedDefaults ? "App and keyboard are sharing drafts." : "Fallback storage is active.",
+                isGood: workspace.storageDiagnostics.isUsingSharedDefaults
+            )
+
+            if transcriber.authorizationState != .ready {
+                Button("Request speech permissions") {
+                    Task { await transcriber.requestPermissions() }
+                }
+                .buttonStyle(ShinsokuPrimaryButtonStyle())
             }
         }
         .shinsokuCard()
     }
 
-    private var draftsCard: some View {
+    private var recentDraftsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Recent drafts")
                     .font(.headline)
                 Spacer()
-                NavigationLink("Manage") {
-                    DraftsView()
+                Button("View all") {
+                    NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
                 }
+                .buttonStyle(.bordered)
             }
+
             if workspace.drafts.isEmpty {
-                Text("No saved drafts yet.")
+                Text("No saved drafts yet. Record something above, then save it for keyboard insertion.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(workspace.drafts.prefix(3)) { draft in
+                ForEach(Array(workspace.drafts.prefix(3).enumerated()), id: \.element.id) { index, draft in
+                    if index > 0 {
+                        Divider()
+                    }
                     VStack(alignment: .leading, spacing: 6) {
                         Text(draft.text)
                             .lineLimit(3)
-                        Text("\(profileTitle(for: draft.profileID)) · \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))")
+                        Text("\(profileTitle(for: draft.profileID)) - \(DisplayFormatting.relativeTimestamp(for: draft.updatedAt))")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
-                    if draft.id != workspace.drafts.prefix(3).last?.id {
-                        Divider()
-                    }
+                    .padding(.vertical, 6)
                 }
             }
         }
         .shinsokuCard()
     }
 
-    private var keyboardCard: some View {
+    private var keyboardHandoffCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Keyboard extension")
-                    .font(.headline)
-                Spacer()
-                NavigationLink("Setup guide") {
-                    SetupGuideView()
-                }
-                .buttonStyle(.bordered)
-            }
-            Text("Insert from the keyboard with the currently selected profile. \(workspace.selectedProfile.behaviorSummary)")
+            Text("Keyboard handoff")
+                .font(.headline)
+            Text("Enable Shinsoku Keyboard and Full Access, then use it to insert drafts into any text field.")
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 8) {
-                setupStep(number: 1, text: "Enable Shinsoku Keyboard in iOS Settings > General > Keyboard > Keyboards.")
-                setupStep(number: 2, text: "Return here, dictate a phrase, and save it as a draft.")
-                setupStep(number: 3, text: "Switch to Shinsoku Keyboard in any text field, then insert the saved draft.")
-            }
-            HStack(spacing: 12) {
-                Button("Open Drafts") {
-                    NotificationCenter.default.post(name: .shinsokuOpenDrafts, object: nil)
+
+            HStack(spacing: 10) {
+                Button("Setup guide") {
+                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
                 }
                 .buttonStyle(.bordered)
 
-                Button("Open Settings") {
-                    NotificationCenter.default.post(name: .shinsokuOpenSettings, object: nil)
+                Button("Open iOS Settings") {
+                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                    UIApplication.shared.open(url)
                 }
                 .buttonStyle(.bordered)
             }
         }
         .shinsokuCard()
+    }
+
+    private var runtimeProviderLabel: String {
+        NativeRuntimeMetadata.describe(
+            providerName: workspace.providerConfig.activeRecognitionProvider.rawValue,
+            postProcessingMode: workspace.effectivePostProcessingMode.rawValue
+        ).providerLabel
     }
 
     private func profileTitle(for id: String) -> String {
         VoiceProfile.defaults.first(where: { $0.id == id })?.title ?? id
     }
 
-    private func setupStep(number: Int, text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("\(number)")
-                .font(.footnote.weight(.semibold))
-                .frame(width: 22, height: 22)
-                .background(Color(.secondarySystemBackground), in: Circle())
-            Text(text)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func checklistRow(title: String, detail: String, isComplete: Bool) -> some View {
+    private func statusRow(title: String, detail: String, isGood: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isComplete ? Color.green : Color.secondary)
+            Image(systemName: isGood ? "checkmark.circle.fill" : "exclamationmark.circle")
+                .foregroundStyle(isGood ? Color.green : Color.orange)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
@@ -382,6 +265,32 @@ struct HomeView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(Color(.secondarySystemBackground), in: Capsule())
+    }
+}
+
+private struct ShinsokuPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .foregroundStyle(Color(.systemBackground))
+            .background(Color.primary.opacity(configuration.isPressed ? 0.78 : 1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .opacity(configuration.isPressed ? 0.92 : 1)
+    }
+}
+
+private struct ShinsokuSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .foregroundStyle(.primary)
+            .background(Color.primary.opacity(configuration.isPressed ? 0.14 : 0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .opacity(isEnabled ? 1 : 0.38)
     }
 }
 

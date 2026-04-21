@@ -35,6 +35,7 @@ targets:
     platform: iOS
     sources:
       - path: Keyboard/Sources
+      - path: App/Sources/SpeechTranscriber.swift
       - path: Shared/Sources
       - path: ../nativecore/src
     settings:
@@ -53,6 +54,9 @@ targets:
         HEADER_SEARCH_PATHS:
           - $(SRCROOT)/../nativecore/include
         CLANG_CXX_LANGUAGE_STANDARD: gnu++20
+    dependencies:
+      - sdk: Speech.framework
+      - sdk: AVFoundation.framework
 schemes:
   ShinsokuMobile:
     build:

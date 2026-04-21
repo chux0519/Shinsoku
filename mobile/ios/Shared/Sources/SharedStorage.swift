@@ -24,6 +24,9 @@ enum ShinsokuSharedStorage {
     static let bailianUrlKey = "bailianUrl"
     static let bailianApiKeyKey = "bailianApiKey"
     static let bailianModelKey = "bailianModel"
+    static let flowSessionKey = "flowSession"
+    static let flowStartRequestKey = "flowStartRequest"
+    static let flowStopRequestKey = "flowStopRequest"
 }
 
 struct SharedStorageDiagnostics {
@@ -121,5 +124,116 @@ enum DraftStore {
             isUsingSharedDefaults: !ShinsokuSharedStorage.isUsingFallbackDefaults,
             draftCount: loadDrafts().count
         )
+    }
+}
+
+enum FlowSessionPhase: String, Codable {
+    case idle
+    case starting
+    case recording
+    case processing
+    case done
+    case failed
+}
+
+struct FlowSessionSnapshot: Codable, Equatable {
+    var id: UUID
+    var phase: FlowSessionPhase
+    var profileID: String
+    var partialText: String
+    var finalText: String
+    var errorMessage: String
+    var updatedAt: Date
+
+    static let idle = FlowSessionSnapshot(
+        id: UUID(),
+        phase: .idle,
+        profileID: VoiceProfile.defaults[0].id,
+        partialText: "",
+        finalText: "",
+        errorMessage: "",
+        updatedAt: .distantPast
+    )
+}
+
+struct FlowStartRequest: Codable, Equatable {
+    var id: UUID
+    var profileID: String
+    var createdAt: Date
+}
+
+struct FlowStopRequest: Codable, Equatable {
+    var sessionID: UUID
+    var createdAt: Date
+}
+
+enum FlowSessionStore {
+    private static let encoder = JSONEncoder()
+    private static let decoder = JSONDecoder()
+
+    static func loadSnapshot() -> FlowSessionSnapshot {
+        guard let data = ShinsokuSharedStorage.defaults.data(forKey: ShinsokuSharedStorage.flowSessionKey),
+              let snapshot = try? decoder.decode(FlowSessionSnapshot.self, from: data) else {
+            return .idle
+        }
+        return snapshot
+    }
+
+    static func saveSnapshot(_ snapshot: FlowSessionSnapshot) {
+        guard let data = try? encoder.encode(snapshot) else { return }
+        ShinsokuSharedStorage.defaults.set(data, forKey: ShinsokuSharedStorage.flowSessionKey)
+    }
+
+    static func requestStart(profileID: String) -> FlowStartRequest {
+        let request = FlowStartRequest(id: UUID(), profileID: profileID, createdAt: .now)
+        if let data = try? encoder.encode(request) {
+            ShinsokuSharedStorage.defaults.set(data, forKey: ShinsokuSharedStorage.flowStartRequestKey)
+        }
+        saveSnapshot(FlowSessionSnapshot(
+            id: request.id,
+            phase: .starting,
+            profileID: profileID,
+            partialText: "",
+            finalText: "",
+            errorMessage: "",
+            updatedAt: .now
+        ))
+        return request
+    }
+
+    static func loadStartRequest() -> FlowStartRequest? {
+        guard let data = ShinsokuSharedStorage.defaults.data(forKey: ShinsokuSharedStorage.flowStartRequestKey) else {
+            return nil
+        }
+        return try? decoder.decode(FlowStartRequest.self, from: data)
+    }
+
+    static func clearStartRequest(id: UUID) {
+        guard loadStartRequest()?.id == id else { return }
+        ShinsokuSharedStorage.defaults.removeObject(forKey: ShinsokuSharedStorage.flowStartRequestKey)
+    }
+
+    static func requestStop(sessionID: UUID) {
+        let request = FlowStopRequest(sessionID: sessionID, createdAt: .now)
+        guard let data = try? encoder.encode(request) else { return }
+        ShinsokuSharedStorage.defaults.set(data, forKey: ShinsokuSharedStorage.flowStopRequestKey)
+    }
+
+    static func loadStopRequest() -> FlowStopRequest? {
+        guard let data = ShinsokuSharedStorage.defaults.data(forKey: ShinsokuSharedStorage.flowStopRequestKey) else {
+            return nil
+        }
+        return try? decoder.decode(FlowStopRequest.self, from: data)
+    }
+
+    static func clearStopRequest(sessionID: UUID) {
+        guard loadStopRequest()?.sessionID == sessionID else { return }
+        ShinsokuSharedStorage.defaults.removeObject(forKey: ShinsokuSharedStorage.flowStopRequestKey)
+    }
+
+    static func reset() {
+        ShinsokuSharedStorage.defaults.removeObject(forKey: ShinsokuSharedStorage.flowStartRequestKey)
+        ShinsokuSharedStorage.defaults.removeObject(forKey: ShinsokuSharedStorage.flowStopRequestKey)
+        saveSnapshot(.idle)
     }
 }
