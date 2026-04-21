@@ -61,7 +61,7 @@ NSRect hud_frame_for_screen(NSScreen* screen, CGFloat width, CGFloat height, int
 
 CGFloat hud_width_for_text(const QString& text, bool persistent_state) {
     if (persistent_state) {
-        return 196.0;
+        return text == "Transcribing" ? 176.0 : 158.0;
     }
     if (text == "Copied") {
         return 108.0;
@@ -203,7 +203,7 @@ public:
         indicator_ = [[ShinsokuHudIndicatorView alloc] initWithFrame:NSMakeRect(13, 15, 16, 18)];
         [content addSubview:indicator_];
 
-        label_ = [[NSTextField alloc] initWithFrame:NSMakeRect(36, 16, 148, 24)];
+        label_ = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 16, 120, 24)];
         [label_ setBezeled:NO];
         [label_ setBordered:NO];
         [label_ setEditable:NO];
@@ -328,9 +328,11 @@ private:
         const CGFloat width = hud_width_for_text(text, is_persistent_state(text));
         const CGFloat height = 52.0;
         if (has_indicator) {
-            [indicator_ setFrame:NSMakeRect(13, 17, 16, 18)];
-            [label setFrame:NSMakeRect(36, 15, width - 47, 22)];
+            [indicator_ setFrame:NSMakeRect(22, 17, 20, 18)];
+            [label setAlignment:NSTextAlignmentLeft];
+            [label setFrame:NSMakeRect(52, 15, width - 72, 22)];
         } else {
+            [label setAlignment:NSTextAlignmentCenter];
             [label setFrame:NSMakeRect(16, 15, width - 32, 22)];
         }
 

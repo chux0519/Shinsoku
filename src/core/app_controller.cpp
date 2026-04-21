@@ -624,11 +624,20 @@ void AppController::on_hold_started() {
         // Double-press upgrade should only succeed when a real selection exists.
         // Clipboard-copy fallback can produce false positives on Wayland even
         // when the target app has no active selection. On macOS, however,
-        // Electron/WebView editors such as VS Code often require the clipboard
-        // fallback because their editor selection is not consistently exposed
-        // through AX selected-text attributes.
-        const bool allow_clipboard_fallback = selection_->backend_name().startsWith("macos/");
-        const SelectionCaptureResult selection = selection_->capture_selection(allow_clipboard_fallback);
+        // Electron/WebView editors such as VS Code often fail if we probe the
+        // selection at the instant of the second key press. Defer macOS capture
+        // until stop_recording(), where the existing selection-command path can
+        // use AX first and then the guarded clipboard fallback.
+        if (selection_->backend_name().startsWith("macos/")) {
+            active_capture_mode_ = CaptureMode::SelectionCommand;
+            captured_selection_text_.reset();
+            pending_selection_debug_info_ = "macOS selection capture deferred until recording stops.";
+            set_state(SessionState::Recording, "Listening for selected-text command.");
+            hud_->show_recording(true);
+            return;
+        }
+
+        const SelectionCaptureResult selection = selection_->capture_selection(false);
         pending_selection_debug_info_ = selection.debug_info;
         if (selection.success && !selection.selected_text.trimmed().isEmpty()) {
             active_capture_mode_ = CaptureMode::SelectionCommand;
