@@ -228,6 +228,91 @@ jobs:
           path: dist/Shinsoku-*-linux-x86_64.AppImage
           if-no-files-found: error
 
+  android_release:
+    name: Android Release
+    runs-on:
+      - self-hosted
+      - macOS
+      - ARM64
+    env:
+      RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref_name }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+
+      - name: Configure Java
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${JAVA_HOME:-}" && -d "/Applications/Android Studio.app/Contents/jbr/Contents/Home" ]]; then
+            echo "JAVA_HOME=/Applications/Android Studio.app/Contents/jbr/Contents/Home" >> "$GITHUB_ENV"
+            echo "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Validate Android runner environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v java
+          test -n "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}" || { echo "Set ANDROID_HOME or ANDROID_SDK_ROOT on the runner."; exit 1; }
+          android_sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          test -d "${android_sdk}/build-tools" || { echo "Android build-tools not found under ${android_sdk}."; exit 1; }
+
+      - name: Build APKs
+        shell: bash
+        working-directory: mobile/android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon assembleDebug assembleRelease
+
+      - name: Collect Android assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_REF_NAME#v}"
+          mkdir -p dist
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk "dist/Shinsoku-${version}-android-debug.apk"
+
+          unsigned_apk="mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          [[ -f "${unsigned_apk}" ]] || { echo "No unsigned release APK produced."; exit 1; }
+
+          if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]]; then
+            android_sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+            build_tools="$(find "${android_sdk}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
+            [[ -n "${build_tools}" ]] || { echo "No Android build-tools version found."; exit 1; }
+            keystore="$RUNNER_TEMP/shinsoku-release.keystore"
+            aligned_apk="dist/Shinsoku-${version}-android-release-aligned.apk"
+            signed_apk="dist/Shinsoku-${version}-android-release.apk"
+            printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore}"
+            "${build_tools}/zipalign" -f -p 4 "${unsigned_apk}" "${aligned_apk}"
+            key_password="${ANDROID_KEY_PASSWORD:-${ANDROID_KEYSTORE_PASSWORD}}"
+            "${build_tools}/apksigner" sign \
+              --ks "${keystore}" \
+              --ks-pass "pass:${ANDROID_KEYSTORE_PASSWORD}" \
+              --ks-key-alias "${ANDROID_KEY_ALIAS}" \
+              --key-pass "pass:${key_password}" \
+              --out "${signed_apk}" \
+              "${aligned_apk}"
+            "${build_tools}/apksigner" verify --print-certs "${signed_apk}"
+            rm -f "${aligned_apk}" "${keystore}"
+          else
+            cp "${unsigned_apk}" "dist/Shinsoku-${version}-android-release-unsigned.apk"
+            echo "Android signing secrets are incomplete; uploaded unsigned release APK plus debug APK."
+          fi
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: android-release
+          path: dist/Shinsoku-*-android-*.apk
+          if-no-files-found: error
+
   publish_release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
@@ -235,6 +320,7 @@ jobs:
       - macos_release
       - windows_release
       - linux_release
+      - android_release
     env:
       RELEASE_REF_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref_name }}
     steps:
@@ -246,7 +332,7 @@ jobs:
       - name: Flatten assets
         run: |
           mkdir -p upload
-          find release-assets -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' \) -exec cp {} upload/ \;
+          find release-assets -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.apk' \) -exec cp {} upload/ \;
           ls -lah upload
 
       - name: Create or update GitHub Release
