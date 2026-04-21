@@ -10,6 +10,8 @@
 
 #import <ApplicationServices/ApplicationServices.h>
 
+#include <QUuid>
+
 namespace ohmytypeless {
 
 namespace {
@@ -340,15 +342,21 @@ SelectionCaptureResult capture_via_copy_shortcut(QClipboard* clipboard, pid_t pi
     }
 
     const QString snapshot = clipboard->text(QClipboard::Clipboard);
+    const QString sentinel = QString("__shinsoku_selection_probe_%1__").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
     if (!macos_preflight_post_event_access() && !macos_request_post_event_access()) {
         debug_lines << macos_auto_paste_permission_reason();
         return SelectionCaptureResult{.success = false, .selected_text = {}, .debug_info = debug_lines.join('\n')};
     }
 
+    clipboard->setText(sentinel, QClipboard::Clipboard);
+    QCoreApplication::processEvents();
     macos_activate_process(pid, nullptr);
+    QThread::msleep(80);
+    QCoreApplication::processEvents();
 
     CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
     if (source == nullptr) {
+        clipboard->setText(snapshot, QClipboard::Clipboard);
         debug_lines << "copy fallback failed: could not create CGEventSource";
         return SelectionCaptureResult{.success = false, .selected_text = {}, .debug_info = debug_lines.join('\n')};
     }
@@ -367,12 +375,22 @@ SelectionCaptureResult capture_via_copy_shortcut(QClipboard* clipboard, pid_t pi
     }
     CFRelease(source);
 
-    QThread::msleep(120);
-    QCoreApplication::processEvents();
-    const QString copied = clipboard->text(QClipboard::Clipboard);
+    QString copied;
+    int waited_ms = 0;
+    for (int attempt = 0; attempt < 20; ++attempt) {
+        QThread::msleep(50);
+        waited_ms += 50;
+        QCoreApplication::processEvents();
+        const QString current = clipboard->text(QClipboard::Clipboard);
+        if (current != sentinel && !current.trimmed().isEmpty()) {
+            copied = current;
+            break;
+        }
+    }
     clipboard->setText(snapshot, QClipboard::Clipboard);
     QCoreApplication::processEvents();
 
+    debug_lines << QString("copy fallback waited_ms=%1").arg(waited_ms);
     debug_lines << QString("copy fallback length=%1").arg(copied.size());
     return SelectionCaptureResult{
         .success = !copied.trimmed().isEmpty(),
