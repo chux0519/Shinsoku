@@ -125,6 +125,37 @@ QString selected_text_from_element(AXUIElementRef element, QStringList* debug_li
         CFRelease(range_text);
     }
 
+    CFTypeRef marker_range = nullptr;
+    const AXError marker_range_error =
+        AXUIElementCopyAttributeValue(element, CFSTR("AXSelectedTextMarkerRange"), &marker_range);
+    append_debug(debug_lines, QString("AX %1 selected_text_marker_range error=%2").arg(label).arg(static_cast<int>(marker_range_error)));
+    if (marker_range_error != kAXErrorSuccess || marker_range == nullptr) {
+        if (marker_range != nullptr) {
+            CFRelease(marker_range);
+        }
+        return {};
+    }
+
+    CFTypeRef marker_range_text = nullptr;
+    const AXError string_for_marker_range_error =
+        AXUIElementCopyParameterizedAttributeValue(element, CFSTR("AXStringForTextMarkerRange"), marker_range, &marker_range_text);
+    append_debug(debug_lines,
+                 QString("AX %1 string_for_text_marker_range error=%2")
+                     .arg(label)
+                     .arg(static_cast<int>(string_for_marker_range_error)));
+    CFRelease(marker_range);
+    if (string_for_marker_range_error == kAXErrorSuccess && marker_range_text != nullptr &&
+        CFGetTypeID(marker_range_text) == CFStringGetTypeID()) {
+        const QString text = qstring_from_cf_string(static_cast<CFStringRef>(marker_range_text));
+        CFRelease(marker_range_text);
+        if (!text.isEmpty()) {
+            append_debug(debug_lines, QString("AX %1 marker_range_text length=%2").arg(label).arg(text.size()));
+            return text;
+        }
+    } else if (marker_range_text != nullptr) {
+        CFRelease(marker_range_text);
+    }
+
     return {};
 }
 
