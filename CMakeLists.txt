@@ -125,6 +125,7 @@ install(TARGETS shinsoku
 
 if(WIN32)
     target_sources(shinsoku PRIVATE
+        resources/windows/app.rc
         src/platform/windows/windows_clipboard_service.hpp
         src/platform/windows/windows_clipboard_service.cpp
         src/platform/windows/windows_global_hotkey.hpp
