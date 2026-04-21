@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -44,6 +45,7 @@ import java.util.UUID
 class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     companion object {
         private const val TAG = "ShinsokuImeService"
+        private const val BACKSPACE_REPEAT_INTERVAL_MS = 55L
     }
 
     private var micButton: Button? = null
@@ -61,6 +63,16 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private var pendingDraftText: String? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var backspaceRepeating = false
+    private val backspaceRepeatRunnable = object : Runnable {
+        override fun run() {
+            if (!backspaceRepeating) {
+                return
+            }
+            deletePreviousCharacter()
+            mainHandler.postDelayed(this, BACKSPACE_REPEAT_INTERVAL_MS)
+        }
+    }
     private val draftInsertReceiver = DraftInsertReceiver { editedText ->
         if (editedText.isBlank()) {
             controller?.discardPending()
@@ -135,7 +147,17 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 showMoreMenu(anchor)
             }
             backspaceButton.setOnClickListener {
-                currentInputConnection?.deleteSurroundingText(1, 0)
+                deletePreviousCharacter()
+            }
+            backspaceButton.setOnLongClickListener {
+                startBackspaceRepeat()
+                true
+            }
+            backspaceButton.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                    stopBackspaceRepeat()
+                }
+                false
             }
             enterButton.setOnClickListener {
                 currentInputConnection?.commitText("\n", 1)
@@ -158,6 +180,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        stopBackspaceRepeat()
         controller?.stop()
     }
 
@@ -168,6 +191,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     override fun onDestroy() {
+        stopBackspaceRepeat()
         controller?.destroy()
         controller = null
         unregisterReceiver(draftInsertReceiver)
@@ -295,7 +319,34 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     }
 
     private fun bindModeButton(profile: VoiceInputProfile) {
-        modeButton?.text = profile.displayName
+        modeButton?.text = compactProfileLabel(profile)
+    }
+
+    private fun compactProfileLabel(profile: VoiceInputProfile): String =
+        when (profile.id) {
+            "dictation" -> getString(R.string.ime_profile_dictation_short)
+            "chat" -> getString(R.string.ime_profile_chat_short)
+            "review" -> getString(R.string.ime_profile_review_short)
+            "translate_zh_en" -> getString(R.string.ime_profile_translate_short)
+            else -> profile.displayName.ifBlank { getString(R.string.ime_mode_button) }
+        }
+
+    private fun deletePreviousCharacter() {
+        currentInputConnection?.deleteSurroundingText(1, 0)
+    }
+
+    private fun startBackspaceRepeat() {
+        if (backspaceRepeating) {
+            return
+        }
+        backspaceRepeating = true
+        deletePreviousCharacter()
+        mainHandler.postDelayed(backspaceRepeatRunnable, BACKSPACE_REPEAT_INTERVAL_MS)
+    }
+
+    private fun stopBackspaceRepeat() {
+        backspaceRepeating = false
+        mainHandler.removeCallbacks(backspaceRepeatRunnable)
     }
 
     private fun showModeMenu(anchor: View) {

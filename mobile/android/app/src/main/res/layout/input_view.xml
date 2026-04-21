@@ -19,110 +19,117 @@
         android:paddingBottom="4dp">
 
         <LinearLayout
+            android:id="@+id/imeKeyboardRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/imeModeButton"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/imeLeftColumn"
+                android:layout_width="64dp"
+                android:layout_height="110dp"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/imeModeButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_ime_button_outline"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingLeft="4dp"
+                    android:paddingRight="4dp"
+                    android:text="@string/ime_mode_button"
+                    android:textAllCaps="false"
+                    android:textColor="@color/shinsoku_text"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/imeMoreButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_ime_button_outline"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingLeft="4dp"
+                    android:paddingRight="4dp"
+                    android:text="@string/ime_more"
+                    android:textAllCaps="false"
+                    android:textColor="@color/shinsoku_text"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/imeCenterColumn"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_ime_button_outline"
-                android:minWidth="0dp"
-                android:minHeight="28dp"
-                android:paddingLeft="8dp"
-                android:paddingTop="4dp"
-                android:paddingRight="8dp"
-                android:paddingBottom="4dp"
-                android:text="@string/ime_mode_button"
-                android:textAllCaps="false"
-                android:textSize="11sp"
-                android:textColor="@color/shinsoku_text" />
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <ImageButton
-                android:id="@+id/backspaceButton"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/bg_ime_button_outline"
-                android:contentDescription="@string/ime_delete"
-                android:paddingLeft="8dp"
-                android:paddingTop="5dp"
-                android:paddingRight="8dp"
-                android:paddingBottom="5dp"
-                android:src="@drawable/ic_ime_backspace"
-                android:tint="@color/shinsoku_text" />
+                <Button
+                    android:id="@+id/micButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:background="@drawable/bg_ime_button_primary_pill"
+                    android:minHeight="0dp"
+                    android:paddingLeft="12dp"
+                    android:paddingRight="12dp"
+                    android:text="@string/ime_mic"
+                    android:textAllCaps="false"
+                    android:textColor="@color/shinsoku_on_primary"
+                    android:textSize="15sp" />
 
-            <Button
-                android:id="@+id/spaceButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/bg_ime_button_outline"
-                android:minWidth="0dp"
-                android:minHeight="28dp"
-                android:paddingLeft="8dp"
-                android:paddingTop="4dp"
-                android:paddingRight="8dp"
-                android:paddingBottom="4dp"
-                android:text="@string/ime_space"
-                android:textAllCaps="false"
-                android:textSize="11sp"
-                android:textColor="@color/shinsoku_text" />
+                <Button
+                    android:id="@+id/spaceButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_ime_button_outline"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:text="@string/ime_space"
+                    android:textAllCaps="false"
+                    android:textColor="@color/shinsoku_text"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/enterButton"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/bg_ime_button_outline"
-                android:contentDescription="@string/ime_enter"
-                android:paddingLeft="8dp"
-                android:paddingTop="5dp"
-                android:paddingRight="8dp"
-                android:paddingBottom="5dp"
-                android:src="@drawable/ic_ime_enter"
-                android:tint="@color/shinsoku_text" />
+            <LinearLayout
+                android:id="@+id/imeRightColumn"
+                android:layout_width="54dp"
+                android:layout_height="110dp"
+                android:orientation="vertical">
 
-            <Button
-                android:id="@+id/imeMoreButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/bg_ime_button_outline"
-                android:minWidth="0dp"
-                android:minHeight="28dp"
-                android:paddingLeft="8dp"
-                android:paddingTop="4dp"
-                android:paddingRight="8dp"
-                android:paddingBottom="4dp"
-                android:text="@string/ime_more"
-                android:textAllCaps="false"
-                android:textSize="11sp"
-                android:textColor="@color/shinsoku_text" />
-        </LinearLayout>
+                <ImageButton
+                    android:id="@+id/backspaceButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_ime_button_outline"
+                    android:contentDescription="@string/ime_delete"
+                    android:padding="10dp"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_ime_backspace"
+                    android:tint="@color/shinsoku_text" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
-
-            <Button
-                android:id="@+id/micButton"
-                android:layout_width="148dp"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_ime_button_primary_pill"
-                android:minHeight="38dp"
-                android:paddingLeft="12dp"
-                android:paddingTop="7dp"
-                android:paddingRight="12dp"
-                android:paddingBottom="7dp"
-                android:textSize="13sp"
-                android:textColor="@color/shinsoku_on_primary"
-                android:text="@string/ime_mic" />
+                <ImageButton
+                    android:id="@+id/enterButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_ime_button_outline"
+                    android:contentDescription="@string/ime_enter"
+                    android:padding="10dp"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_ime_enter"
+                    android:tint="@color/shinsoku_text" />
+            </LinearLayout>
         </LinearLayout>
 
         <TextView
@@ -176,6 +183,7 @@
                     android:background="@drawable/bg_ime_button_outline"
                     android:minHeight="30dp"
                     android:text="@string/ime_clear"
+                    android:textAllCaps="false"
                     android:textColor="@color/shinsoku_text" />
 
                 <Button
@@ -187,6 +195,7 @@
                     android:background="@drawable/bg_ime_button_outline"
                     android:minHeight="30dp"
                     android:text="@string/ime_edit"
+                    android:textAllCaps="false"
                     android:textColor="@color/shinsoku_text" />
 
                 <Button
@@ -198,6 +207,7 @@
                     android:background="@drawable/bg_ime_button_tonal"
                     android:minHeight="30dp"
                     android:text="@string/ime_insert"
+                    android:textAllCaps="false"
                     android:textColor="@color/shinsoku_text" />
             </LinearLayout>
         </LinearLayout>

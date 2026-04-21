@@ -162,7 +162,7 @@
     <string name="draft_editor_hint">Draft transcript</string>
     <string name="draft_editor_cancel">Cancel</string>
     <string name="draft_editor_insert">Insert back</string>
-    <string name="ime_profile_dictation_short">Dictation</string>
+    <string name="ime_profile_dictation_short">Dict</string>
     <string name="ime_profile_chat_short">Chat</string>
     <string name="ime_profile_review_short">Review</string>
     <string name="ime_profile_translate_short">Zh→En</string>
