@@ -60,7 +60,6 @@ Code lives under [mobile/ios](/Volumes/ZT/repos/Shinsoku/mobile/ios).
 - [mobile/android](/Volumes/ZT/repos/Shinsoku/mobile/android): Android app + IME
 - [mobile/ios](/Volumes/ZT/repos/Shinsoku/mobile/ios): iOS app + keyboard extension scaffold
 - [mobile/nativecore](/Volumes/ZT/repos/Shinsoku/mobile/nativecore): shared native logic for mobile
-- [website](/Volumes/ZT/repos/Shinsoku/website): static product site
 
 ## Build
 
@@ -99,7 +98,7 @@ The product direction is simple:
 
 - native platform UI
 - shared prompt/profile/pipeline logic where it is worth reusing
-- shared brand language across desktop, Android, iOS, and web
+- shared brand language across desktop, Android, and iOS
 - black/white system-following themes instead of heavily branded chrome
 
 ## Collaboration
@@ -108,9 +107,3 @@ If you are continuing work in this repo, read:
 
 - [Roadmap.md](/Volumes/ZT/repos/Shinsoku/Roadmap.md)
 - [AGENT.md](/Volumes/ZT/repos/Shinsoku/AGENT.md)
-
-## Website
-
-A static landing page lives under [website](/Volumes/ZT/repos/Shinsoku/website).
-
-Open [website/index.html](/Volumes/ZT/repos/Shinsoku/website/index.html) locally in a browser, or deploy that directory as a static site.

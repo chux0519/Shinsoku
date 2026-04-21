@@ -868,10 +868,13 @@ void AppController::stop_recording() {
         selection_command_upgrade_timer_->stop();
     }
 
-    set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
-    hud_->show_transcribing();
     if (should_use_live_caption_window()) {
-        window_->meeting_window()->set_session_state(SessionState::Transcribing);
+        set_state(SessionState::Idle, "Live caption stopped.");
+        hud_->hide();
+        window_->meeting_window()->set_session_state(SessionState::Idle);
+    } else {
+        set_state(SessionState::Transcribing, "Recording stopped. Processing local audio.");
+        hud_->show_transcribing();
     }
 
     try {
@@ -1289,6 +1292,30 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         on_hotkey_failed(error_text);
         return;
     }
+
+    if (should_use_live_caption_window()) {
+        const QString text = final_text.trimmed();
+        if (!text.isEmpty()) {
+            window_->meeting_window()->append_transcript_segment(
+                QDateTime::currentDateTime().toString("HH:mm:ss"),
+                text);
+            history_store_->add_entry(text.toStdString(),
+                                      audio_path,
+                                      nlohmann::json{{"diagnostics", {{"pipeline", "live_caption"}}},
+                                                     {"streaming", streaming_meta.value("streaming", nlohmann::json::object())}});
+            load_history();
+        }
+        window_->meeting_window()->set_session_state(SessionState::Idle);
+        window_->meeting_window()->clear_live_text();
+        set_state(SessionState::Idle, text.isEmpty() ? "Live caption stopped." : "Live caption saved.");
+        hud_->hide();
+        clipboard_->clear_paste_session();
+        active_capture_mode_ = CaptureMode::Dictation;
+        captured_selection_text_.reset();
+        pending_selection_debug_info_.clear();
+        return;
+    }
+
     if (final_text.trimmed().isEmpty()) {
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
