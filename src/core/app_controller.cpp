@@ -127,6 +127,42 @@ std::string streaming_model_name(const AppConfig& config) {
     return {};
 }
 
+std::string endpoint_provider_name(const EndpointConfig& endpoint) {
+    if (endpoint.base_url.find("dashscope.aliyuncs.com") != std::string::npos ||
+        endpoint.base_url.find("dashscope-intl.aliyuncs.com") != std::string::npos) {
+        return "bailian";
+    }
+    return endpoint.provider.empty() ? "openai-compatible" : endpoint.provider;
+}
+
+nlohmann::json text_transform_diagnostics_json(const TextTransformDiagnostics& diagnostics) {
+    return {
+        {"provider", endpoint_provider_name(EndpointConfig{
+                         .provider = diagnostics.provider,
+                         .base_url = diagnostics.base_url,
+                         .api_key = "",
+                         .model = diagnostics.model,
+                     })},
+        {"base_url", diagnostics.base_url},
+        {"url", diagnostics.url},
+        {"model", diagnostics.model},
+        {"request_format", diagnostics.request_format},
+        {"http_status", diagnostics.http_status},
+        {"wall_ms", diagnostics.wall_ms},
+        {"curl_total_ms", diagnostics.curl_total_ms},
+        {"curl_name_lookup_ms", diagnostics.curl_name_lookup_ms},
+        {"curl_connect_ms", diagnostics.curl_connect_ms},
+        {"curl_tls_handshake_ms", diagnostics.curl_tls_handshake_ms},
+        {"curl_pretransfer_ms", diagnostics.curl_pretransfer_ms},
+        {"curl_starttransfer_ms", diagnostics.curl_starttransfer_ms},
+        {"request_bytes", diagnostics.request_bytes},
+        {"response_bytes", diagnostics.response_bytes},
+        {"user_content_chars", diagnostics.user_content_chars},
+        {"system_prompt_chars", diagnostics.system_prompt_chars},
+        {"output_chars", diagnostics.output_chars},
+    };
+}
+
 AudioCaptureMode audio_capture_mode_from_config(const AppConfig& config) {
     return config.audio.capture_mode == "system" ? AudioCaptureMode::SystemLoopback : AudioCaptureMode::Microphone;
 }
@@ -1415,12 +1451,16 @@ void AppController::transcribe_streaming_result_async(QString transcript,
                         .instruction = "refine",
                         .context = std::nullopt,
                     }, cancel_flag.get());
+                    const auto refine_http_diagnostics = refine_backend->last_diagnostics();
                     timing["refine_ms"] =
                         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - refine_start).count();
                     diagnostics["refine"] = {
-                        {"provider", config_snapshot.pipeline.refine.endpoint.provider},
+                        {"provider", endpoint_provider_name(config_snapshot.pipeline.refine.endpoint)},
                         {"model", config_snapshot.pipeline.refine.endpoint.model},
                     };
+                    if (refine_http_diagnostics.has_value()) {
+                        diagnostics["refine"]["http"] = text_transform_diagnostics_json(*refine_http_diagnostics);
+                    }
                 }
                 if (streaming_meta.contains("streaming")) {
                     diagnostics["streaming"] = streaming_meta["streaming"];
@@ -1794,13 +1834,17 @@ void AppController::transcribe_selection_command_async(TextTask task,
                         .context = std::optional<std::string>("Rewrite the selected text according to the spoken instruction."),
                     },
                     cancel_flag.get());
+                const auto transform_http_diagnostics = refine_backend->last_diagnostics();
                 timing["transform_ms"] =
                     std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - transform_start).count();
                 diagnostics["transform"] = nlohmann::json{
-                    {"provider", config_snapshot.pipeline.refine.endpoint.provider},
+                    {"provider", endpoint_provider_name(config_snapshot.pipeline.refine.endpoint)},
                     {"model", config_snapshot.pipeline.refine.endpoint.model},
                     {"instruction", instruction},
                 };
+                if (transform_http_diagnostics.has_value()) {
+                    diagnostics["transform"]["http"] = text_transform_diagnostics_json(*transform_http_diagnostics);
+                }
 
                 long long total_ms = 0;
                 for (auto it = timing.begin(); it != timing.end(); ++it) {
@@ -1908,13 +1952,17 @@ void AppController::transcribe_async(std::vector<float> samples, std::optional<s
                         .instruction = "refine",
                         .context = std::nullopt,
                     }, cancel_flag.get());
+                    const auto refine_http_diagnostics = refine_backend->last_diagnostics();
                     timing["refine_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(
                                               std::chrono::steady_clock::now() - refine_start)
                                               .count();
                     diagnostics["refine"] = nlohmann::json{
-                        {"provider", config_snapshot.pipeline.refine.endpoint.provider},
+                        {"provider", endpoint_provider_name(config_snapshot.pipeline.refine.endpoint)},
                         {"model", config_snapshot.pipeline.refine.endpoint.model},
                     };
+                    if (refine_http_diagnostics.has_value()) {
+                        diagnostics["refine"]["http"] = text_transform_diagnostics_json(*refine_http_diagnostics);
+                    }
                 }
 
                 long long total_ms = 0;

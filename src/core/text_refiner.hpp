@@ -16,6 +16,7 @@ public:
     std::string name() const override;
     std::string transform(const TextTransformRequest& request,
                           const std::atomic_bool* cancel_flag = nullptr) const override;
+    std::optional<TextTransformDiagnostics> last_diagnostics() const override;
     std::string refine(const std::string& text, const std::atomic_bool* cancel_flag = nullptr) const;
 
 private:
@@ -29,6 +30,7 @@ private:
     EndpointConfig fallback_api_;
     RefineStageConfig config_;
     CurlTransportOptions transport_options_;
+    mutable std::optional<TextTransformDiagnostics> last_diagnostics_;
 };
 
 }  // namespace ohmytypeless

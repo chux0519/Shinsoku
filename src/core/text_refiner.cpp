@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <chrono>
 
 namespace ohmytypeless {
 
@@ -72,6 +73,10 @@ TextRefiner::TextRefiner(AppConfig config)
 
 std::string TextRefiner::name() const {
     return config_.endpoint.provider.empty() ? "text_refine" : config_.endpoint.provider;
+}
+
+std::optional<TextTransformDiagnostics> TextRefiner::last_diagnostics() const {
+    return last_diagnostics_;
 }
 
 std::string TextRefiner::transform(const TextTransformRequest& request, const std::atomic_bool* cancel_flag) const {
@@ -179,8 +184,19 @@ std::string TextRefiner::request_completion(const std::string& user_content,
 
     std::string response_body;
     const std::string body_string = body.dump();
+    const std::string url = base_url + "/chat/completions";
 
-    curl_easy_setopt(curl.get(), CURLOPT_URL, (base_url + "/chat/completions").c_str());
+    TextTransformDiagnostics diagnostics;
+    diagnostics.provider = config_.endpoint.provider;
+    diagnostics.base_url = base_url;
+    diagnostics.url = url;
+    diagnostics.model = model;
+    diagnostics.request_format = config_.request_format;
+    diagnostics.request_bytes = body_string.size();
+    diagnostics.user_content_chars = user_content.size();
+    diagnostics.system_prompt_chars = system_prompt.size();
+
+    curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, &append_response);
     curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &response_body);
     curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
@@ -201,9 +217,36 @@ std::string TextRefiner::request_completion(const std::string& user_content,
     headers = curl_slist_append(headers, auth_header.c_str());
     curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, headers);
 
+    const auto request_started_at = std::chrono::steady_clock::now();
     const CURLcode result = curl_easy_perform(curl.get());
+    diagnostics.wall_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                              std::chrono::steady_clock::now() - request_started_at)
+                              .count();
     long http_status = 0;
     curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &http_status);
+    diagnostics.http_status = http_status;
+    diagnostics.response_bytes = response_body.size();
+
+    double seconds = 0.0;
+    if (curl_easy_getinfo(curl.get(), CURLINFO_TOTAL_TIME, &seconds) == CURLE_OK) {
+        diagnostics.curl_total_ms = seconds * 1000.0;
+    }
+    if (curl_easy_getinfo(curl.get(), CURLINFO_NAMELOOKUP_TIME, &seconds) == CURLE_OK) {
+        diagnostics.curl_name_lookup_ms = seconds * 1000.0;
+    }
+    if (curl_easy_getinfo(curl.get(), CURLINFO_CONNECT_TIME, &seconds) == CURLE_OK) {
+        diagnostics.curl_connect_ms = seconds * 1000.0;
+    }
+    if (curl_easy_getinfo(curl.get(), CURLINFO_APPCONNECT_TIME, &seconds) == CURLE_OK) {
+        diagnostics.curl_tls_handshake_ms = seconds * 1000.0;
+    }
+    if (curl_easy_getinfo(curl.get(), CURLINFO_PRETRANSFER_TIME, &seconds) == CURLE_OK) {
+        diagnostics.curl_pretransfer_ms = seconds * 1000.0;
+    }
+    if (curl_easy_getinfo(curl.get(), CURLINFO_STARTTRANSFER_TIME, &seconds) == CURLE_OK) {
+        diagnostics.curl_starttransfer_ms = seconds * 1000.0;
+    }
+    last_diagnostics_ = diagnostics;
     curl_slist_free_all(headers);
 
     if (result != CURLE_OK) {
@@ -241,7 +284,11 @@ std::string TextRefiner::request_completion(const std::string& user_content,
         throw std::runtime_error("text transform response missing message content");
     }
 
-    return choice["message"]["content"].get<std::string>();
+    std::string output = choice["message"]["content"].get<std::string>();
+    if (last_diagnostics_.has_value()) {
+        last_diagnostics_->output_chars = output.size();
+    }
+    return output;
 }
 
 std::string TextRefiner::build_user_prompt(const TextTransformRequest& request) const {
