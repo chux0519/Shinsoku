@@ -9,6 +9,7 @@ targets:
     platform: iOS
     sources:
       - path: App/Sources
+      - path: App/Assets.xcassets
       - path: Shared/Sources
       - path: ../nativecore/src
     settings:
