@@ -37,13 +37,17 @@
                     android:layout_height="0dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
                     android:paddingLeft="4dp"
                     android:paddingRight="4dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_mode_button"
                     android:textAllCaps="false"
                     android:textColor="@color/shinsoku_text"
+                    android:translationZ="0dp"
                     android:textSize="11sp" />
 
                 <Button
@@ -53,13 +57,17 @@
                     android:layout_marginTop="8dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
                     android:paddingLeft="4dp"
                     android:paddingRight="4dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_more"
                     android:textAllCaps="false"
                     android:textColor="@color/shinsoku_text"
+                    android:translationZ="0dp"
                     android:textSize="11sp" />
             </LinearLayout>
 
@@ -77,12 +85,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="64dp"
                     android:background="@drawable/bg_ime_button_primary_pill"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minHeight="0dp"
                     android:paddingLeft="12dp"
                     android:paddingRight="12dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_mic"
                     android:textAllCaps="false"
                     android:textColor="@color/shinsoku_on_primary"
+                    android:translationZ="0dp"
                     android:textSize="15sp" />
 
                 <Button
@@ -91,11 +103,15 @@
                     android:layout_height="38dp"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minWidth="0dp"
                     android:minHeight="0dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_space"
                     android:textAllCaps="false"
                     android:textColor="@color/shinsoku_text"
+                    android:translationZ="0dp"
                     android:textSize="12sp" />
             </LinearLayout>
 
@@ -111,11 +127,15 @@
                     android:layout_height="0dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
                     android:contentDescription="@string/ime_delete"
+                    android:elevation="0dp"
                     android:padding="10dp"
                     android:scaleType="center"
                     android:src="@drawable/ic_ime_backspace"
-                    android:tint="@color/shinsoku_text" />
+                    android:stateListAnimator="@null"
+                    android:tint="@color/shinsoku_text"
+                    android:translationZ="0dp" />
 
                 <ImageButton
                     android:id="@+id/enterButton"
@@ -124,11 +144,15 @@
                     android:layout_marginTop="8dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
                     android:contentDescription="@string/ime_enter"
+                    android:elevation="0dp"
                     android:padding="10dp"
                     android:scaleType="center"
                     android:src="@drawable/ic_ime_enter"
-                    android:tint="@color/shinsoku_text" />
+                    android:stateListAnimator="@null"
+                    android:tint="@color/shinsoku_text"
+                    android:translationZ="0dp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -181,9 +205,13 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minHeight="30dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_clear"
                     android:textAllCaps="false"
+                    android:translationZ="0dp"
                     android:textColor="@color/shinsoku_text" />
 
                 <Button
@@ -193,9 +221,13 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_outline"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minHeight="30dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_edit"
                     android:textAllCaps="false"
+                    android:translationZ="0dp"
                     android:textColor="@color/shinsoku_text" />
 
                 <Button
@@ -205,9 +237,13 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_ime_button_tonal"
+                    android:backgroundTint="@null"
+                    android:elevation="0dp"
                     android:minHeight="30dp"
+                    android:stateListAnimator="@null"
                     android:text="@string/ime_insert"
                     android:textAllCaps="false"
+                    android:translationZ="0dp"
                     android:textColor="@color/shinsoku_text" />
             </LinearLayout>
         </LinearLayout>
