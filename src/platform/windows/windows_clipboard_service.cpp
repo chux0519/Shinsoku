@@ -50,11 +50,6 @@ QString window_class_name(HWND hwnd) {
     return length > 0 ? QString::fromWCharArray(buffer, length) : "unknown";
 }
 
-bool supports_wm_paste(HWND hwnd) {
-    const QString class_name = window_class_name(hwnd);
-    return class_name == "Edit" || class_name.startsWith("RichEdit", Qt::CaseInsensitive);
-}
-
 QString window_title(HWND hwnd) {
     if (!is_valid_window(hwnd)) {
         return "n/a";
@@ -145,21 +140,6 @@ WindowTarget capture_foreground_target() {
     return target;
 }
 
-bool send_wm_paste(HWND hwnd) {
-    if (!is_valid_window(hwnd)) {
-        return false;
-    }
-
-    DWORD_PTR result = 0;
-    return ::SendMessageTimeoutW(hwnd,
-                                 WM_PASTE,
-                                 0,
-                                 0,
-                                 SMTO_ABORTIFHUNG | SMTO_BLOCK,
-                                 250,
-                                 &result) != 0;
-}
-
 bool activate_target_window(HWND hwnd, HWND focus) {
     if (!is_valid_window(hwnd)) {
         return false;
@@ -178,10 +158,6 @@ bool activate_target_window(HWND hwnd, HWND focus) {
     const bool attached_to_foreground = foreground_thread != 0 && foreground_thread != current_thread &&
                                         foreground_thread != target_thread &&
                                         ::AttachThreadInput(current_thread, foreground_thread, TRUE) != FALSE;
-
-    // Trigger the standard foreground-lock relaxation path before requesting activation.
-    send_key_event(VK_MENU, 0);
-    send_key_event(VK_MENU, KEYEVENTF_KEYUP);
 
     ::ShowWindow(hwnd, SW_SHOW);
     ::BringWindowToTop(hwnd);
@@ -309,16 +285,6 @@ bool WindowsClipboardService::paste_text_to_last_target(const QString& text, con
         lines << "paste target: none";
     }
 
-    if (supports_wm_paste(paste_hwnd)) {
-        if (send_wm_paste(paste_hwnd)) {
-            lines << QString("paste path: WM_PASTE to %1").arg(format_hwnd(paste_hwnd));
-            set_debug_info(lines.join('\n'));
-            return true;
-        }
-        lines << QString("paste path: WM_PASTE failed for %1").arg(format_hwnd(paste_hwnd));
-    } else {
-        lines << QString("paste path: WM_PASTE skipped for class=%1").arg(window_class_name(paste_hwnd));
-    }
     const bool sent_shortcut = send_paste_shortcut(paste_keys);
     lines << QString("paste path: SendInput result=%1").arg(sent_shortcut ? "true" : "false");
     set_debug_info(lines.join('\n'));
