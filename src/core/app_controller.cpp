@@ -623,8 +623,12 @@ void AppController::on_hold_started() {
         selection_command_upgrade_timer_->stop();
         // Double-press upgrade should only succeed when a real selection exists.
         // Clipboard-copy fallback can produce false positives on Wayland even
-        // when the target app has no active selection.
-        const SelectionCaptureResult selection = selection_->capture_selection(false);
+        // when the target app has no active selection. On macOS, however,
+        // Electron/WebView editors such as VS Code often require the clipboard
+        // fallback because their editor selection is not consistently exposed
+        // through AX selected-text attributes.
+        const bool allow_clipboard_fallback = selection_->backend_name().startsWith("macos/");
+        const SelectionCaptureResult selection = selection_->capture_selection(allow_clipboard_fallback);
         pending_selection_debug_info_ = selection.debug_info;
         if (selection.success && !selection.selected_text.trimmed().isEmpty()) {
             active_capture_mode_ = CaptureMode::SelectionCommand;
