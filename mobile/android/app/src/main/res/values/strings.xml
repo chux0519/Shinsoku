@@ -151,6 +151,7 @@
     <string name="ime_history">History</string>
     <string name="ime_open_app">Open app</string>
     <string name="ime_home">Home</string>
+    <string name="ime_diagnostics">Diagnostics</string>
     <string name="ime_more">More</string>
     <string name="ime_mode_button">Mode</string>
     <string name="ime_mic_hint">Tap once to speak. Stop when you are done.</string>

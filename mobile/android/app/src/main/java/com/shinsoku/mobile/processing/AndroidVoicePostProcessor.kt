@@ -1,11 +1,7 @@
 package com.shinsoku.mobile.processing
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
-import android.widget.Toast
-import com.shinsoku.mobile.R
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputProfile
@@ -33,7 +29,6 @@ class AndroidVoicePostProcessor(
         private const val POST_PROCESSING_MAX_TOKENS = 256
     }
 
-    private val appContext = context.applicationContext
     private val runtimeConfigStore = AndroidVoiceRuntimeConfigStore(context)
     private val executor = Executors.newSingleThreadExecutor()
     private val client = OkHttpClient.Builder()
@@ -58,10 +53,13 @@ class AndroidVoicePostProcessor(
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val providerConfig = runtimeConfig.providerConfig
         if (runtimeConfig.postProcessingConfig.mode != TranscriptPostProcessingMode.ProviderAssisted) {
+            PostProcessingDiagnostics.report("post_process=skipped mode=${runtimeConfig.postProcessingConfig.mode.name}")
             callback.onSuccess(cleaned)
             return
         }
         val promptPlan = VoiceTransformPromptBuilder.build(cleaned, profile)
+        val endpoint = providerConfig.openAiPostProcessing.baseUrl.trimEnd('/') + "/chat/completions"
+        val model = providerConfig.openAiPostProcessing.model.ifBlank { "gpt-5.4-nano" }
 
         executor.execute {
             runCatching {
@@ -72,6 +70,9 @@ class AndroidVoicePostProcessor(
                     model = providerConfig.openAiPostProcessing.model,
                 )
             }.onSuccess { refined ->
+                PostProcessingDiagnostics.report(
+                    "post_process=provider_assisted status=success endpoint=$endpoint model=$model format=${promptPlan.requestFormat.name}",
+                )
                 callback.onSuccess(refined.ifBlank { cleaned })
             }.onFailure { error ->
                 Log.w(
@@ -79,7 +80,11 @@ class AndroidVoicePostProcessor(
                     "Provider-assisted post-processing failed, falling back to local cleanup",
                     error,
                 )
-                showFallbackHint(error)
+                val reason = (error.message ?: error.javaClass.simpleName).replace('\n', ' ')
+                val reasonShort = fallbackReason(error) ?: "unknown"
+                PostProcessingDiagnostics.report(
+                    "post_process=provider_assisted status=fallback endpoint=$endpoint model=$model reason_short=$reasonShort reason=$reason",
+                )
                 callback.onSuccess(cleaned)
             }
         }
@@ -148,7 +153,10 @@ class AndroidVoicePostProcessor(
                     "ShinsokuPostProcess",
                     "Post-processing HTTP failure. code=${response.code} body=$body",
                 )
-                throw IOException(body.ifBlank { "OpenAI post-processing failed with ${response.code}." })
+                val compactBody = body.replace('\n', ' ').take(300)
+                throw IOException(
+                    "http=${response.code} body=${compactBody.ifBlank { "OpenAI post-processing failed with ${response.code}." }}",
+                )
             }
             Log.d(
                 "ShinsokuPostProcess",
@@ -164,22 +172,33 @@ class AndroidVoicePostProcessor(
         }
     }
 
-    private fun showFallbackHint(error: Throwable) {
-        val messageRes = if ((error.message ?: "").contains("timeout", ignoreCase = true)) {
-            R.string.post_processing_timeout_fallback
-        } else {
-            R.string.post_processing_failure_fallback
-        }
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(appContext, appContext.getString(messageRes), Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun isDashScopeCompatibleEndpoint(endpoint: String): Boolean {
         val uri = runCatching { URI(endpoint) }.getOrNull() ?: return false
         val host = uri.host?.lowercase().orEmpty()
         return host == "dashscope.aliyuncs.com" ||
             host == "dashscope-intl.aliyuncs.com" ||
             host == "dashscope-us.aliyuncs.com"
+    }
+
+    private fun fallbackReason(error: Throwable): String? {
+        val message = error.message.orEmpty()
+        if (message.contains("model_not_found", ignoreCase = true)) {
+            return "model_not_found"
+        }
+        if (message.contains("http=429", ignoreCase = true) ||
+            message.contains("\"code\":\"1302\"", ignoreCase = true)
+        ) {
+            return "rate_limited(429)"
+        }
+        if (message.contains("http=", ignoreCase = true)) {
+            val code = Regex("""http=(\d{3})""").find(message)?.groupValues?.getOrNull(1)
+            if (!code.isNullOrBlank()) {
+                return "http_$code"
+            }
+        }
+        if (message.contains("timeout", ignoreCase = true)) {
+            return "timeout"
+        }
+        return null
     }
 }

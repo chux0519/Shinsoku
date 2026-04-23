@@ -16,6 +16,7 @@ import com.shinsoku.mobile.history.HistoryActivity
 import com.shinsoku.mobile.ime.queryImeStatus
 import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
 import com.shinsoku.mobile.processing.NativeTranscriptCleanup
+import com.shinsoku.mobile.processing.PostProcessingDiagnostics
 import com.shinsoku.mobile.settings.SettingsActivity
 import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceProviderConfigStore
@@ -172,10 +173,11 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onCommitRequested(commit: VoiceInputCommit) {
                     runOnUiThread {
+                        val postProcessDetail = PostProcessingDiagnostics.consume()
                         val existing = binding.testEditor.text?.toString().orEmpty()
                         binding.testEditor.setText(existing + commit.text)
                         binding.testEditor.setSelection(binding.testEditor.text?.length ?: 0)
-                        appendHistory(commit)
+                        appendHistory(commit, postProcessDetail)
                         bindState()
                     }
                 }
@@ -241,7 +243,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun appendHistory(commit: VoiceInputCommit) {
+    private fun appendHistory(commit: VoiceInputCommit, postProcessDetail: String? = null) {
         val profile = configStore.loadProfile()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         historyStore.appendEntry(
@@ -269,6 +271,10 @@ class MainActivity : AppCompatActivity() {
                         append(profile.transform.translationSourceLanguage)
                         append(", target=")
                         append(profile.transform.translationTargetLanguage)
+                    }
+                    if (!postProcessDetail.isNullOrBlank()) {
+                        append(", ")
+                        append(postProcessDetail)
                     }
                 },
             ),

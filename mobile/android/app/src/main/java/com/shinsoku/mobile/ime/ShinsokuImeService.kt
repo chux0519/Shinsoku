@@ -15,6 +15,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import androidx.core.view.ViewCompat
@@ -29,6 +30,7 @@ import com.shinsoku.mobile.settings.AndroidVoiceInputConfigStore
 import com.shinsoku.mobile.settings.AndroidVoiceRuntimeConfigStore
 import com.shinsoku.mobile.speechcore.TranscriptCommitPlanner
 import com.shinsoku.mobile.speechcore.NativeVoiceRuntimeMetadata
+import com.shinsoku.mobile.speechcore.TranscriptPostProcessingMode
 import com.shinsoku.mobile.speechcore.VoiceInputCommit
 import com.shinsoku.mobile.speechcore.VoiceInputController
 import com.shinsoku.mobile.speechcore.VoiceInputControllerObserver
@@ -40,6 +42,7 @@ import com.shinsoku.mobile.speechcore.VoiceRecognitionProvider
 import com.shinsoku.mobile.speechcore.VoiceTransformMode
 import com.shinsoku.mobile.processing.AndroidVoicePostProcessor
 import com.shinsoku.mobile.processing.NativeTranscriptCleanup
+import com.shinsoku.mobile.processing.PostProcessingDiagnostics
 import java.util.UUID
 
 class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
@@ -62,6 +65,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
     private lateinit var runtimeConfigStore: AndroidVoiceRuntimeConfigStore
     private lateinit var historyStore: AndroidVoiceInputHistoryStore
     private var pendingDraftText: String? = null
+    private var stickyPreviewMessage: String? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var backspaceRepeating = false
     private val backspaceRepeatRunnable = object : Runnable {
@@ -208,11 +212,18 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                 pendingDraftText = null
                 micButton?.text = getString(R.string.ime_mic)
                 pendingActionsRow?.visibility = View.GONE
-                livePreviewView?.visibility = View.GONE
+                val sticky = stickyPreviewMessage
+                if (sticky.isNullOrBlank()) {
+                    livePreviewView?.visibility = View.GONE
+                } else {
+                    livePreviewView?.text = sticky
+                    livePreviewView?.visibility = View.VISIBLE
+                }
                 bindModeButton(configStore.loadProfile())
             }
 
             is VoiceInputUiState.Preparing -> {
+                stickyPreviewMessage = null
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
                 livePreviewView?.text = getString(R.string.ime_live_preview_preparing)
@@ -221,6 +232,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Listening -> {
+                stickyPreviewMessage = null
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
                 val partial = state.partialTranscript.ifBlank { getString(R.string.ime_live_preview_placeholder) }
@@ -230,6 +242,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Processing -> {
+                stickyPreviewMessage = null
                 micButton?.text = getString(R.string.ime_stop)
                 pendingActionsRow?.visibility = View.GONE
                 livePreviewView?.text = getString(R.string.ime_subtitle_processing)
@@ -238,6 +251,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.PendingCommit -> {
+                stickyPreviewMessage = null
                 pendingDraftText = state.text
                 micButton?.text = getString(R.string.ime_mic)
                 pendingActionsRow?.visibility = View.VISIBLE
@@ -247,6 +261,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             }
 
             is VoiceInputUiState.Error -> {
+                stickyPreviewMessage = null
                 Log.e(TAG, "IME error: ${state.message}")
                 micButton?.text = getString(R.string.ime_retry)
                 pendingActionsRow?.visibility = View.GONE
@@ -262,11 +277,13 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             mainHandler.post { onCommitRequested(commit) }
             return
         }
+        val postProcessDetail = PostProcessingDiagnostics.consume()
         currentInputConnection?.commitText(commit.text, 1)
-        appendHistory(commit.text)
+        appendHistory(commit.text, postProcessDetail)
+        maybeShowPostProcessNotice(postProcessDetail)
     }
 
-    private fun appendHistory(text: String) {
+    private fun appendHistory(text: String, postProcessDetail: String? = null) {
         val profile = configStore.loadProfile()
         val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
         val runtimeMetadata = NativeVoiceRuntimeMetadata.describe(
@@ -296,9 +313,35 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                         append(", target=")
                         append(profile.transform.translationTargetLanguage)
                     }
+                    if (!postProcessDetail.isNullOrBlank()) {
+                        append(", ")
+                        append(postProcessDetail)
+                    }
                 },
             ),
         )
+    }
+
+    private fun maybeShowPostProcessNotice(postProcessDetail: String?) {
+        if (postProcessDetail.isNullOrBlank()) {
+            stickyPreviewMessage = null
+            return
+        }
+        if (!postProcessDetail.contains("status=fallback")) {
+            stickyPreviewMessage = null
+            return
+        }
+        val shortReason = Regex("""reason_short=([^\s]+)""")
+            .find(postProcessDetail)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.ifBlank { null }
+            ?: "unknown"
+        val oneLine = "Post-process fallback: $shortReason. See History for details."
+        stickyPreviewMessage =
+            if (oneLine.length <= 96) oneLine else oneLine.take(93) + "..."
+        livePreviewView?.text = stickyPreviewMessage
+        livePreviewView?.visibility = View.VISIBLE
     }
 
     private fun rebuildController() {
@@ -314,6 +357,11 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
 
     private fun applyProfile(profile: VoiceInputProfile) {
         configStore.saveProfile(profile)
+        if (profile.id == "translate_zh_en" ||
+            (profile.transform.enabled && profile.transform.mode == VoiceTransformMode.Translation)
+        ) {
+            runtimeConfigStore.savePostProcessingMode(TranscriptPostProcessingMode.ProviderAssisted)
+        }
         rebuildController()
         onStateChanged(controller?.currentState() ?: VoiceInputUiState.Idle)
     }
@@ -396,6 +444,7 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
             menu.add(0, 2, 1, getString(R.string.ime_history))
             menu.add(0, 3, 2, getString(R.string.ime_open_app))
             menu.add(0, 4, 3, getString(R.string.ime_home))
+            menu.add(0, 5, 4, getString(R.string.ime_diagnostics))
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> startActivity(
@@ -419,11 +468,75 @@ class ShinsokuImeService : InputMethodService(), VoiceInputControllerObserver {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         },
                     )
+                    5 -> showImeDiagnostics()
                 }
                 true
             }
             show()
         }
+    }
+
+    private fun showImeDiagnostics() {
+        val profile = configStore.loadProfile()
+        val providerConfig = providerConfigStore.load()
+        val runtimeConfig = runtimeConfigStore.loadRuntimeConfig()
+        val runtimeMetadata = NativeVoiceRuntimeMetadata.describe(
+            providerConfig.activeRecognitionProvider,
+            runtimeConfig.postProcessingConfig.mode,
+        )
+        val requestedPostProcessingMode = getSharedPreferences("shinsoku_voice_runtime", MODE_PRIVATE)
+            .getString("post_processing_mode", TranscriptPostProcessingMode.ProviderAssisted.name)
+            ?: TranscriptPostProcessingMode.ProviderAssisted.name
+        val postBaseUrl = providerConfig.openAiPostProcessing.baseUrl.trim()
+        val postModel = providerConfig.openAiPostProcessing.model.trim()
+        val postApiKey = providerConfig.openAiPostProcessing.apiKey.trim()
+        val diagnostic = buildString {
+            append("IME Diagnostics")
+            append('\n')
+            append("profile.id=")
+            append(profile.id)
+            append('\n')
+            append("profile.name=")
+            append(profile.displayName)
+            append('\n')
+            append("language=")
+            append(profile.languageTag ?: "auto")
+            append('\n')
+            append("transform.enabled=")
+            append(profile.transform.enabled)
+            append('\n')
+            append("transform.mode=")
+            append(profile.transform.mode.name)
+            append('\n')
+            append("post.requested=")
+            append(requestedPostProcessingMode)
+            append('\n')
+            append("post.effective=")
+            append(runtimeConfig.postProcessingConfig.mode.name)
+            append('\n')
+            append("post.base_url_set=")
+            append(postBaseUrl.isNotEmpty())
+            append('\n')
+            append("post.model_set=")
+            append(postModel.isNotEmpty())
+            append('\n')
+            append("post.api_key_set=")
+            append(postApiKey.isNotEmpty())
+            append('\n')
+            append("provider.active=")
+            append(providerConfig.activeRecognitionProvider.name)
+            append('\n')
+            append("provider.label=")
+            append(runtimeMetadata.providerLabel)
+        }
+        Log.w(TAG, diagnostic)
+        Toast.makeText(
+            this,
+            "Diagnostics logged. post=${runtimeConfig.postProcessingConfig.mode.name}, transform=${profile.transform.mode.name}",
+            Toast.LENGTH_LONG,
+        ).show()
+        livePreviewView?.text = diagnostic
+        livePreviewView?.visibility = View.VISIBLE
     }
 
     private fun createFallbackInputView(error: Throwable): View {
