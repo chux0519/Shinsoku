@@ -5,9 +5,7 @@ Shinsoku is a cross-platform voice input product for desktop and mobile.
 Today the repository contains:
 
 - a Qt desktop app for Windows, macOS, and Linux
-- a native Android IME and mobile shell under [mobile/android](/Volumes/ZT/repos/Shinsoku/mobile/android)
-- an iOS scaffold under [mobile/ios](/Volumes/ZT/repos/Shinsoku/mobile/ios)
-- shared native/mobile core work that is moving repeated logic out of per-platform UI code
+- a Flutter mobile app for Android and iOS under [mobile](/Volumes/ZT/repos/Shinsoku/mobile)
 
 ## Product shape
 
@@ -39,33 +37,22 @@ Electron/Monaco editors such as VS Code, which may intercept modifier keys or
 not expose selected editor text reliably through Accessibility APIs. Prefer a
 non-conflicting hold key when testing editor integrations.
 
-### Android
+### Mobile
 
-- native IME
-- native launcher/settings shell
-- streaming and batch recognition backends
-- provider-assisted post-processing
-- on-device history
-- early shared-core reuse under [mobile/nativecore](/Volumes/ZT/repos/Shinsoku/mobile/nativecore)
+- Flutter shell for Android and iOS
+- record, drafts, and settings surfaces
+- profile-driven mobile workflow placeholders
+- simulated capture-to-draft flow
+- generated Android and iOS Flutter runners
 
-Code lives under [mobile/android](/Volumes/ZT/repos/Shinsoku/mobile/android).
-
-### iOS
-
-- SwiftUI app shell scaffold
-- keyboard extension scaffold
-- shared model layer prepared for future native/core reuse
-
-Code lives under [mobile/ios](/Volumes/ZT/repos/Shinsoku/mobile/ios).
+Code lives under [mobile](/Volumes/ZT/repos/Shinsoku/mobile).
 
 ## Repository layout
 
 - [src](/Volumes/ZT/repos/Shinsoku/src): desktop app
 - [resources](/Volumes/ZT/repos/Shinsoku/resources): shared brand/theme assets
 - [packaging](/Volumes/ZT/repos/Shinsoku/packaging): desktop packaging scripts
-- [mobile/android](/Volumes/ZT/repos/Shinsoku/mobile/android): Android app + IME
-- [mobile/ios](/Volumes/ZT/repos/Shinsoku/mobile/ios): iOS app + keyboard extension scaffold
-- [mobile/nativecore](/Volumes/ZT/repos/Shinsoku/mobile/nativecore): shared native logic for mobile
+- [mobile](/Volumes/ZT/repos/Shinsoku/mobile): Flutter mobile app and generated platform runners
 
 ## Build
 
@@ -82,27 +69,22 @@ cmake --build build --config Release --target shinsoku
 
 See [RELEASE.md](/Volumes/ZT/repos/Shinsoku/RELEASE.md) for packaging and release details.
 
-### Android
+### Mobile
 
 ```bash
-cd mobile/android
-./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+cd mobile
+flutter pub get
+flutter test
+flutter run
 ```
 
-Android details live in [mobile/android/README.md](/Volumes/ZT/repos/Shinsoku/mobile/android/README.md).
-
-### iOS
-
-The iOS project is scaffolded under [mobile/ios](/Volumes/ZT/repos/Shinsoku/mobile/ios) and is intended to be generated from `project.yml` with XcodeGen.
-
-See [mobile/ios/README.md](/Volumes/ZT/repos/Shinsoku/mobile/ios/README.md).
+Mobile details live in [mobile/README.md](/Volumes/ZT/repos/Shinsoku/mobile/README.md).
 
 ## Design direction
 
 The product direction is simple:
 
-- native platform UI
+- Qt desktop UI and Flutter mobile UI
 - shared prompt/profile/pipeline logic where it is worth reusing
 - shared brand language across desktop, Android, and iOS
 - black/white system-following themes instead of heavily branded chrome

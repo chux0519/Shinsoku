@@ -85,9 +85,8 @@ Update it when major work lands or priorities change.
    treating them as one generic bug.
 5. Keep Wayland Alt-key conflicts in the UX/documentation bucket, not as a
    low-level input-grab project.
-6. Prepare a mobile architecture split so Android and iOS work can reuse the
-   speech pipeline without dragging desktop UI and desktop platform services
-   into mobile code.
+6. Continue the Flutter mobile rewrite while keeping desktop Qt and platform
+   services out of the mobile UI layer.
 
 ## Mobile Direction
 
@@ -95,27 +94,25 @@ Update it when major work lands or priorities change.
 
 - do not treat mobile as a direct Qt port
 - do treat mobile as a new product surface built around speech input
-- prioritize Android first, because Android IME support is the closest match to
-  the desktop dictation workflow
-- treat iOS as a second phase with a stricter product scope
+- use Flutter for the shared Android/iOS product shell
+- treat platform keyboard or insertion features as native integration projects
+  layered behind the Flutter shell
 
 ### Recommended implementation split
 
-1. Shared core:
-   - provider/back-end abstractions
-   - streaming transport and auth config
-   - transform / refine pipeline
-   - profile and settings data model
-   - history / persistence schema where it is not desktop-UI-bound
-2. Android shell:
-   - Kotlin IME service
-   - native microphone capture and input-connection commit flow
-   - Android settings app for providers, profiles, permissions, and history
-3. iOS shell:
-   - Swift app first
-   - keyboard extension second
-   - keep the extension focused on voice-to-text insertion, not full desktop
-     parity
+1. Flutter app:
+   - record, drafts, and settings surfaces
+   - profile and provider configuration UI
+   - mobile history and local persistence
+   - shared Android/iOS navigation and state model
+2. Platform integration:
+   - microphone permission and audio capture plugins
+   - Android insertion / IME integration if the product returns to keyboard input
+   - iOS keyboard extension only if the Flutter app flow is not enough
+3. Shared logic:
+   - backend/provider config that is serialization-friendly
+   - transform/refine prompts that do not depend on Qt or desktop services
+   - persistence models that are not tied to desktop file paths
 
 ### What should be reused
 
@@ -135,45 +132,35 @@ Update it when major work lands or priorities change.
 
 ### Implementation order
 
-1. Extract a mobile-safe shared core from the current desktop code:
-   - remove Qt widget dependencies from reusable logic
-   - reduce reliance on desktop platform service abstractions inside shared
-     orchestration
-   - define a cleaner boundary for audio input, backend execution, and text
-     output
-2. Build Android IME MVP:
-   - hold / tap to dictate
-   - stream speech
-   - commit text into the active input field
-   - basic provider/profile selection
-3. Build Android companion settings app:
-   - provider setup
-   - profile editing
-   - history
-   - permission explanations
-4. Build iOS companion app:
-   - validate provider setup and mobile-safe shared core
-   - validate microphone and streaming UX
-5. Build iOS keyboard extension:
-   - minimal insertion flow first
-   - only add transform/profile complexity after the extension UX is stable
+1. Harden the Flutter shell:
+   - finish real state management and persistence
+   - replace simulated capture with platform microphone capture
+   - add provider setup and backend execution
+2. Add transcript workflows:
+   - streaming or batch ASR integration
+   - transform/profile application
+   - draft editing and history
+3. Decide platform insertion:
+   - Android IME or share-sheet style insertion
+   - iOS app-first insertion workflow or keyboard extension
+   - keep either path behind explicit platform integration boundaries
 
 ### Technology recommendation
 
-- Android IME: Kotlin
-- iOS app and keyboard extension: Swift
-- Flutter is acceptable for a future companion settings app, but not preferred
-  for the IME/keyboard shell itself
+- Mobile product shell: Flutter
+- Android runner: generated Flutter runner plus platform channels/plugins as
+  needed
+- iOS runner: generated Flutter runner plus platform channels/plugins as needed
 
 ### Guardrails for mobile work
 
 - do not start by porting the Qt desktop UI
-- do not bind the shared core to Flutter, Kotlin, or Swift UI frameworks
+- do not bind shared product logic tightly to Flutter widgets
 - do not let mobile product constraints leak back into desktop abstractions
   unless the abstraction genuinely improves both sides
 - do not promise desktop feature parity on mobile in the first phase
-- do not start iOS keyboard work before Android IME and shared-core extraction
-  have proven the architecture
+- do not reintroduce the deleted Kotlin/SwiftUI mobile implementations without
+  an explicit product decision
 
 ## Next Suggested Task
 

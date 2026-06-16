@@ -129,43 +129,43 @@ Expected direction:
 
 ### Android
 
-Not implemented yet.
+Implemented through the Flutter mobile app under `mobile/`.
 
 Expected direction:
 
-- treat Android as an input-method project, not a direct Qt port
-- build the IME shell in Kotlin
-- move reusable speech/backend/config logic into a mobile-safe shared core
-- keep audio capture, input-connection writes, permissions, and lifecycle in
-  native Android code
+- keep Android product UI in Flutter unless a platform feature requires a
+  plugin or platform channel
+- keep the generated Android runner small and focused on integration
+- do not reintroduce the deleted Kotlin IME implementation without an explicit
+  product decision
 
 Constraints:
 
 - do not try to reuse desktop Qt UI on Android
-- do not start with Flutter for the IME shell itself
-- expect the first Android milestone to be microphone dictation into the
-  current input field, not full parity with desktop features like tray, HUD, or
-  global hotkeys
+- expect real IME or input-connection work to require native integration beyond
+  the current Flutter shell
+- do not promise desktop feature parity on mobile in the first phase
 
 ### iOS
 
-Not implemented yet.
+Implemented through the Flutter mobile app under `mobile/`.
 
 Expected direction:
 
 - treat iOS as a separate product surface with stricter limits than Android
-- prefer a Swift native app plus a later keyboard extension, rather than
-  starting with the keyboard extension first
-- reuse only the shared speech/backend/config core where platform constraints
-  allow it
+- keep iOS product UI in Flutter unless a platform feature requires a plugin or
+  platform channel
+- keep the generated iOS runner small and focused on integration
+- do not reintroduce the deleted SwiftUI app or keyboard extension without an
+  explicit product decision
 
 Constraints:
 
 - do not assume desktop-style global capture or selection workflows exist
 - do not assume the iOS keyboard extension can carry the full desktop product
   model
-- treat iOS keyboard work as a second phase after Android IME and shared-core
-  extraction
+- expect keyboard-extension work to be a separate native integration project if
+  it returns
 
 ## Current Capability Snapshot
 
@@ -194,8 +194,7 @@ Constraints:
 
 - Linux X11 backend work
 - broader Linux system-audio runtime validation
-- Android input-method work
-- iOS app / keyboard work
+- real mobile speech backend and platform insertion integration
 
 ## Documentation Policy
 

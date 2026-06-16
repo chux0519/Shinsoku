@@ -10,4 +10,6 @@
 *.db
 vcpkg_installed
 scripts/
+!mobile/scripts/
+!mobile/scripts/**
 .DS_Store
