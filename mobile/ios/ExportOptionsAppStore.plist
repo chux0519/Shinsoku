@@ -10,6 +10,8 @@
 	<dict>
 		<key>net.potafree.shinsoku</key>
 		<string>Shinsoku App Store</string>
+		<key>net.potafree.shinsoku.keyboard</key>
+		<string>Shinsoku Keyboard App Store</string>
 	</dict>
 	<key>signingCertificate</key>
 	<string>Apple Distribution</string>

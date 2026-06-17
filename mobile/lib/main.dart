@@ -53,6 +53,21 @@ enum CaptureState { idle, listening, processing }
 
 enum CommitSuffix { none, space, newline }
 
+class KeyboardBridge {
+  static const MethodChannel _channel = MethodChannel(
+    'net.potafree.shinsoku/keyboard_bridge',
+  );
+
+  static Future<void> publishText(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+
+    await _channel.invokeMethod<void>('publishLatestText', {'text': trimmed});
+  }
+}
+
 class SmokeTestConfig {
   static const mode = String.fromEnvironment('SHINSOKU_SMOKE_TEST');
   static const sonioxApiKey = String.fromEnvironment('SONIOX_API_KEY');
@@ -79,7 +94,8 @@ class SmokeTestConfig {
   );
   static const bailianAsrAudioUrl = String.fromEnvironment(
     'BAILIAN_ASR_AUDIO_URL',
-    defaultValue: 'https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3',
+    defaultValue:
+        'https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3',
   );
   static const audioUrl = String.fromEnvironment(
     'SHINSOKU_SMOKE_AUDIO_URL',
@@ -330,10 +346,7 @@ class BailianSmokeStep {
 }
 
 class BailianSmokeTestResult {
-  const BailianSmokeTestResult({
-    required this.steps,
-    required this.transcript,
-  });
+  const BailianSmokeTestResult({required this.steps, required this.transcript});
 
   final List<BailianSmokeStep> steps;
   final String transcript;
@@ -434,10 +447,7 @@ class BailianSmokeTestRunner {
   }
 
   Future<BailianSmokeStep> _runChatStream(http.Client client) async {
-    final request = http.Request(
-      'POST',
-      _endpoint('/chat/completions'),
-    )
+    final request = http.Request('POST', _endpoint('/chat/completions'))
       ..headers.addAll(_jsonHeaders)
       ..body = jsonEncode({
         'model': textModel,
@@ -447,9 +457,9 @@ class BailianSmokeTestRunner {
         'stream': true,
         'temperature': 0,
       });
-    final response = await client.send(request).timeout(
-      const Duration(seconds: 45),
-    );
+    final response = await client
+        .send(request)
+        .timeout(const Duration(seconds: 45));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return BailianSmokeStep(
         name: 'Chat stream',
@@ -524,7 +534,7 @@ class BailianSmokeTestRunner {
     }, timeout: const Duration(seconds: 120));
     final content =
         (((response['choices'] as List?)?.firstOrNull as Map?)?['message']
-                as Map?)?['content'];
+            as Map?)?['content'];
     final text = content is String ? content.trim() : '';
     return (
       step: BailianSmokeStep(
@@ -581,8 +591,8 @@ class BailianSmokeTestRunner {
         if (event == 'result-generated') {
           final sentence =
               (((decoded['payload'] as Map?)?['output'] as Map?)?['sentence']
-                      as Map?) ??
-                  {};
+                  as Map?) ??
+              {};
           final id = sentence['sentence_id'];
           final text = sentence['text'];
           if (id is int && text is String && text.isNotEmpty) {
@@ -667,10 +677,7 @@ class BailianSmokeTestRunner {
   }
 
   Future<({BailianSmokeStep step, String text})>
-  _runEnglishToChinesePostProcess(
-    http.Client client,
-    String inputText,
-  ) async {
+  _runEnglishToChinesePostProcess(http.Client client, String inputText) async {
     final response = await _postJson(client, '/chat/completions', {
       'model': textModel,
       'messages': [
@@ -733,7 +740,10 @@ class BailianSmokeTestRunner {
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 90));
     } on TimeoutException catch (error) {
-      throw TimeoutException('Audio download timed out for $url', error.duration);
+      throw TimeoutException(
+        'Audio download timed out for $url',
+        error.duration,
+      );
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError('Audio download failed: HTTP ${response.statusCode}.');
@@ -876,15 +886,13 @@ class ProviderSettings {
   }) {
     return ProviderSettings(
       speechProvider: speechProvider ?? this.speechProvider,
-      textTransformEnabled:
-          textTransformEnabled ?? this.textTransformEnabled,
+      textTransformEnabled: textTransformEnabled ?? this.textTransformEnabled,
       bailianApiBase: bailianApiBase ?? this.bailianApiBase,
       bailianApiKey: bailianApiKey ?? this.bailianApiKey,
       bailianTextModel: bailianTextModel ?? this.bailianTextModel,
       bailianAsrModel: bailianAsrModel ?? this.bailianAsrModel,
       bailianRealtimeUrl: bailianRealtimeUrl ?? this.bailianRealtimeUrl,
-      bailianRealtimeModel:
-          bailianRealtimeModel ?? this.bailianRealtimeModel,
+      bailianRealtimeModel: bailianRealtimeModel ?? this.bailianRealtimeModel,
       sonioxApiKey: sonioxApiKey ?? this.sonioxApiKey,
       sonioxModel: sonioxModel ?? this.sonioxModel,
     );
@@ -1102,16 +1110,17 @@ class _MobileShellState extends State<MobileShell> {
       return;
     }
 
+    final draft = DraftEntry(
+      text: _sampleTranscriptFor(_activeProfile),
+      profileName: _activeProfile.name,
+      createdAt: DateTime.now(),
+    );
+
+    unawaited(KeyboardBridge.publishText(draft.text));
+
     setState(() {
       _captureState = CaptureState.idle;
-      _drafts.insert(
-        0,
-        DraftEntry(
-          text: _sampleTranscriptFor(_activeProfile),
-          profileName: _activeProfile.name,
-          createdAt: DateTime.now(),
-        ),
-      );
+      _drafts.insert(0, draft);
       _tabIndex = 1;
     });
   }
@@ -1209,14 +1218,13 @@ class _MobileShellState extends State<MobileShell> {
           transcript: result.transcript,
           finished: true,
         );
-        _drafts.insert(
-          0,
-          DraftEntry(
-            text: result.transcript,
-            profileName: 'Soniox',
-            createdAt: DateTime.now(),
-          ),
+        final draft = DraftEntry(
+          text: result.transcript,
+          profileName: 'Soniox',
+          createdAt: DateTime.now(),
         );
+        unawaited(KeyboardBridge.publishText(draft.text));
+        _drafts.insert(0, draft);
       });
     } catch (error) {
       if (!mounted) {
@@ -1241,7 +1249,8 @@ class _MobileShellState extends State<MobileShell> {
       _captureState = CaptureState.processing;
       _smokeTestStatus = const SmokeTestStatus(
         label: 'Real Bailian smoke test',
-        detail: 'Calling Bailian text, ASR, and realtime APIs from the iOS simulator.',
+        detail:
+            'Calling Bailian text, ASR, and realtime APIs from the iOS simulator.',
       );
     });
 
@@ -1273,14 +1282,13 @@ class _MobileShellState extends State<MobileShell> {
           finished: true,
         );
         if (result.transcript.isNotEmpty) {
-          _drafts.insert(
-            0,
-            DraftEntry(
-              text: result.transcript,
-              profileName: 'Bailian',
-              createdAt: DateTime.now(),
-            ),
+          final draft = DraftEntry(
+            text: result.transcript,
+            profileName: 'Bailian',
+            createdAt: DateTime.now(),
           );
+          unawaited(KeyboardBridge.publishText(draft.text));
+          _drafts.insert(0, draft);
         }
       });
     } catch (error) {
@@ -1647,7 +1655,8 @@ class SettingsView extends StatefulWidget {
   final ValueChanged<bool> onMicrophoneChanged;
   final ValueChanged<bool> onKeyboardChanged;
   final ValueChanged<bool> onCloudProcessingChanged;
-  final Future<void> Function(ProviderSettings settings) onProviderSettingsSaved;
+  final Future<void> Function(ProviderSettings settings)
+  onProviderSettingsSaved;
 
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -1735,16 +1744,16 @@ class _SettingsViewState extends State<SettingsView> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Provider settings saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Provider settings saved')));
     } catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $error')));
     }
   }
 
@@ -1776,7 +1785,9 @@ class _SettingsViewState extends State<SettingsView> {
                 onChanged: widget.onKeyboardChanged,
                 secondary: const Icon(Icons.keyboard_alt_outlined),
                 title: const Text('Keyboard insertion surface'),
-                subtitle: const Text('Placeholder for platform keyboard work'),
+                subtitle: const Text(
+                  'Use the iOS keyboard to paste the latest Shinsoku text',
+                ),
               ),
               const Divider(),
               SwitchListTile(
@@ -1835,7 +1846,9 @@ class _SettingsViewState extends State<SettingsView> {
                 },
                 secondary: const Icon(Icons.translate),
                 title: const Text('Text post-processing'),
-                subtitle: const Text('Use the text model for cleanup or translation'),
+                subtitle: const Text(
+                  'Use the text model for cleanup or translation',
+                ),
               ),
             ],
           ),
