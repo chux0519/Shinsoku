@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import 'package:web_socket_channel/io.dart';
 
 void main() {
@@ -136,6 +140,353 @@ class SonioxSmokeTestResult {
   final String transcript;
   final int bytesSent;
   final bool partial;
+}
+
+class RealTranscriptionResult {
+  const RealTranscriptionResult({
+    required this.text,
+    required this.provider,
+    required this.detail,
+  });
+
+  final String text;
+  final String provider;
+  final String detail;
+}
+
+class RealTranscriptionService {
+  RealTranscriptionService({required this.settings});
+
+  final ProviderSettings settings;
+
+  Future<RealTranscriptionResult> transcribe({
+    required Uint8List wavBytes,
+    required VoiceProfile profile,
+  }) async {
+    if (!settings.activeProviderConfigured) {
+      throw StateError(
+        'Provider credentials are missing. Save them in Settings first.',
+      );
+    }
+
+    final raw = switch (settings.speechProvider) {
+      'soniox' => await _transcribeWithSoniox(wavBytes),
+      _ => await _transcribeWithBailianRealtime(wavBytes),
+    };
+    var text = raw.text.trim();
+    if (text.isEmpty) {
+      throw StateError('${raw.provider} returned no transcript.');
+    }
+
+    if (settings.textTransformEnabled &&
+        settings.bailianApiKey.trim().isNotEmpty) {
+      text = await _postProcess(text, profile);
+    }
+
+    return RealTranscriptionResult(
+      text: _applySuffix(text, profile.commitSuffix),
+      provider: raw.provider,
+      detail: raw.detail,
+    );
+  }
+
+  Future<RealTranscriptionResult> _transcribeWithSoniox(Uint8List audio) async {
+    final channel = IOWebSocketChannel.connect(
+      Uri.parse('wss://stt-rt.soniox.com/transcribe-websocket'),
+    );
+    final transcript = StringBuffer();
+    final resultCompleter = Completer<RealTranscriptionResult>();
+    var latestTranscript = '';
+    var bytesSent = 0;
+
+    RealTranscriptionResult currentResult({required bool partial}) {
+      final finalTranscript = _cleanSonioxTranscript(transcript.toString());
+      final text = finalTranscript.isNotEmpty
+          ? finalTranscript
+          : _cleanSonioxTranscript(latestTranscript);
+      return RealTranscriptionResult(
+        text: text,
+        provider: 'Soniox',
+        detail: partial
+            ? 'Received realtime tokens after sending $bytesSent bytes.'
+            : 'Sent $bytesSent bytes and received a finished result.',
+      );
+    }
+
+    late final StreamSubscription<dynamic> subscription;
+    subscription = channel.stream.listen(
+      (message) {
+        if (message is! String) {
+          return;
+        }
+
+        final decoded = jsonDecode(message) as Map<String, dynamic>;
+        final errorMessage = decoded['error_message'];
+        if (errorMessage is String && errorMessage.isNotEmpty) {
+          if (!resultCompleter.isCompleted) {
+            final current = currentResult(partial: true);
+            if (current.text.isNotEmpty) {
+              resultCompleter.complete(current);
+            } else {
+              resultCompleter.completeError(StateError(errorMessage));
+            }
+          }
+          return;
+        }
+
+        final tokens = decoded['tokens'];
+        if (tokens is List) {
+          final latest = StringBuffer();
+          for (final token in tokens) {
+            if (token is! Map<String, dynamic>) {
+              continue;
+            }
+            final text = token['text'];
+            if (text is String) {
+              latest.write(text);
+              if (token['is_final'] == true) {
+                transcript.write(text);
+              }
+            }
+          }
+          if (latest.isNotEmpty) {
+            latestTranscript = latest.toString();
+          }
+        }
+
+        if (decoded['finished'] == true && !resultCompleter.isCompleted) {
+          resultCompleter.complete(currentResult(partial: false));
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!resultCompleter.isCompleted) {
+          resultCompleter.completeError(error, stackTrace);
+        }
+      },
+      onDone: () {
+        if (!resultCompleter.isCompleted) {
+          resultCompleter.complete(currentResult(partial: true));
+        }
+      },
+    );
+
+    try {
+      channel.sink.add(
+        jsonEncode({
+          'api_key': settings.sonioxApiKey,
+          'model': settings.sonioxModel,
+          'audio_format': 'wav',
+          'enable_endpoint_detection': true,
+          'max_endpoint_delay_ms': 900,
+          'client_reference_id': 'shinsoku-mobile-live-recording',
+        }),
+      );
+
+      const chunkSize = 8192;
+      for (var offset = 0; offset < audio.length; offset += chunkSize) {
+        final end = (offset + chunkSize).clamp(0, audio.length);
+        final chunk = audio.sublist(offset, end);
+        channel.sink.add(chunk);
+        bytesSent += chunk.length;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      channel.sink.add('');
+
+      return await resultCompleter.future.timeout(const Duration(seconds: 90));
+    } finally {
+      unawaited(subscription.cancel());
+      unawaited(channel.sink.close());
+    }
+  }
+
+  Future<RealTranscriptionResult> _transcribeWithBailianRealtime(
+    Uint8List wavBytes,
+  ) async {
+    final wav = _parseWavPcm16(wavBytes);
+    final taskId = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
+    final channel = IOWebSocketChannel.connect(
+      Uri.parse(settings.bailianRealtimeUrl),
+      headers: {
+        'Authorization': 'Bearer ${settings.bailianApiKey}',
+        'user-agent': 'Shinsoku-Mobile/1.0',
+      },
+    );
+
+    final started = Completer<void>();
+    final finished = Completer<void>();
+    final sentences = <int, String>{};
+    late final StreamSubscription<dynamic> subscription;
+    subscription = channel.stream.listen(
+      (message) {
+        if (message is! String) {
+          return;
+        }
+        final decoded = jsonDecode(message) as Map<String, dynamic>;
+        final header = decoded['header'] as Map<String, dynamic>? ?? {};
+        final event = header['event'];
+        if (event == 'task-failed') {
+          final error = StateError(
+            header['error_message']?.toString() ?? 'Bailian task failed.',
+          );
+          if (!started.isCompleted) {
+            started.completeError(error);
+          }
+          if (!finished.isCompleted) {
+            finished.completeError(error);
+          }
+          return;
+        }
+        if (event == 'task-started' && !started.isCompleted) {
+          started.complete();
+          return;
+        }
+        if (event == 'result-generated') {
+          final sentence =
+              (((decoded['payload'] as Map?)?['output'] as Map?)?['sentence']
+                  as Map?) ??
+              {};
+          final id = sentence['sentence_id'];
+          final text = sentence['text'];
+          if (id is int && text is String && text.isNotEmpty) {
+            sentences[id] = text;
+          }
+          return;
+        }
+        if (event == 'task-finished' && !finished.isCompleted) {
+          finished.complete();
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!started.isCompleted) {
+          started.completeError(error, stackTrace);
+        }
+        if (!finished.isCompleted) {
+          finished.completeError(error, stackTrace);
+        }
+      },
+      onDone: () {
+        if (!finished.isCompleted) {
+          finished.complete();
+        }
+      },
+    );
+
+    try {
+      channel.sink.add(
+        jsonEncode({
+          'header': {
+            'action': 'run-task',
+            'task_id': taskId,
+            'streaming': 'duplex',
+          },
+          'payload': {
+            'task_group': 'audio',
+            'task': 'asr',
+            'function': 'recognition',
+            'model': settings.bailianRealtimeModel,
+            'parameters': {'format': 'pcm', 'sample_rate': wav.sampleRate},
+            'input': <String, dynamic>{},
+          },
+        }),
+      );
+      await started.future.timeout(const Duration(seconds: 20));
+
+      final chunkSize = (wav.sampleRate * 2 * 0.1).round();
+      for (var offset = 0; offset < wav.pcm.length; offset += chunkSize) {
+        final end = (offset + chunkSize).clamp(0, wav.pcm.length);
+        channel.sink.add(wav.pcm.sublist(offset, end));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      channel.sink.add(
+        jsonEncode({
+          'header': {
+            'action': 'finish-task',
+            'task_id': taskId,
+            'streaming': 'duplex',
+          },
+          'payload': {'input': <String, dynamic>{}},
+        }),
+      );
+      await finished.future.timeout(const Duration(seconds: 45));
+    } finally {
+      unawaited(subscription.cancel());
+      unawaited(channel.sink.close());
+    }
+
+    final ordered = sentences.keys.toList()..sort();
+    final text = ordered.map((id) => sentences[id]!).join().trim();
+    return RealTranscriptionResult(
+      text: text,
+      provider: 'Bailian',
+      detail: 'Realtime ASR completed with ${wav.pcm.length} PCM bytes.',
+    );
+  }
+
+  Future<String> _postProcess(String transcript, VoiceProfile profile) async {
+    final client = http.Client();
+    try {
+      final response = await client
+          .post(
+            _bailianEndpoint('/chat/completions'),
+            headers: {
+              'Authorization': 'Bearer ${settings.bailianApiKey}',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'model': settings.bailianTextModel,
+              'messages': [
+                {
+                  'role': 'system',
+                  'content':
+                      'Clean up the transcript according to this intent: ${profile.intent}. Return only the final text.',
+                },
+                {'role': 'user', 'content': transcript},
+              ],
+              'temperature': 0,
+            }),
+          )
+          .timeout(const Duration(seconds: 45));
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final error = decoded['error'];
+        throw StateError(
+          error is Map && error['message'] is String
+              ? error['message'] as String
+              : 'HTTP ${response.statusCode}',
+        );
+      }
+      final content =
+          (((decoded['choices'] as List?)?.firstOrNull as Map?)?['message']
+                  as Map?)?['content']
+              as String?;
+      return content?.trim().isNotEmpty == true ? content!.trim() : transcript;
+    } finally {
+      client.close();
+    }
+  }
+
+  Uri _bailianEndpoint(String path) {
+    final base = settings.bailianApiBase.endsWith('/')
+        ? settings.bailianApiBase.substring(
+            0,
+            settings.bailianApiBase.length - 1,
+          )
+        : settings.bailianApiBase;
+    return Uri.parse('$base$path');
+  }
+
+  String _applySuffix(String text, CommitSuffix suffix) {
+    final trimmed = text.trim();
+    return switch (suffix) {
+      CommitSuffix.none => trimmed,
+      CommitSuffix.space => '$trimmed ',
+      CommitSuffix.newline => '$trimmed\n',
+    };
+  }
+
+  String _cleanSonioxTranscript(String value) {
+    return value.replaceAll('<fin>', '').trim();
+  }
 }
 
 class SonioxSmokeTestRunner {
@@ -832,6 +1183,37 @@ class _WavPcm16 {
   final Uint8List pcm;
 }
 
+_WavPcm16 _parseWavPcm16(Uint8List bytes) {
+  final data = ByteData.sublistView(bytes);
+  if (bytes.length < 44 ||
+      ascii.decode(bytes.sublist(0, 4)) != 'RIFF' ||
+      ascii.decode(bytes.sublist(8, 12)) != 'WAVE') {
+    throw StateError('Recorded audio must be a WAV file.');
+  }
+  final channels = data.getUint16(22, Endian.little);
+  final sampleRate = data.getUint32(24, Endian.little);
+  final bitsPerSample = data.getUint16(34, Endian.little);
+  if (channels != 1 || bitsPerSample != 16) {
+    throw StateError('Recorded audio must be mono PCM16 WAV.');
+  }
+
+  var offset = 12;
+  while (offset + 8 <= bytes.length) {
+    final id = ascii.decode(bytes.sublist(offset, offset + 4));
+    final size = data.getUint32(offset + 4, Endian.little);
+    final payloadStart = offset + 8;
+    final payloadEnd = payloadStart + size;
+    if (id == 'data') {
+      return _WavPcm16(
+        sampleRate: sampleRate,
+        pcm: bytes.sublist(payloadStart, payloadEnd.clamp(0, bytes.length)),
+      );
+    }
+    offset = payloadEnd + (size.isOdd ? 1 : 0);
+  }
+  throw StateError('WAV data chunk not found.');
+}
+
 class ProviderSettings {
   const ProviderSettings({
     required this.speechProvider,
@@ -850,14 +1232,32 @@ class ProviderSettings {
     return const ProviderSettings(
       speechProvider: 'bailian',
       textTransformEnabled: true,
-      bailianApiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      bailianApiKey: '',
-      bailianTextModel: 'qwen3.5-flash',
-      bailianAsrModel: 'qwen3-asr-flash',
-      bailianRealtimeUrl: 'wss://dashscope.aliyuncs.com/api-ws/v1/inference',
-      bailianRealtimeModel: 'fun-asr-realtime',
-      sonioxApiKey: '',
-      sonioxModel: 'stt-rt-v4',
+      bailianApiBase: String.fromEnvironment(
+        'BAILIAN_API_BASE',
+        defaultValue: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      ),
+      bailianApiKey: String.fromEnvironment('BAILIAN_API_KEY'),
+      bailianTextModel: String.fromEnvironment(
+        'BAILIAN_OPENAI_MODEL',
+        defaultValue: 'qwen3.5-flash',
+      ),
+      bailianAsrModel: String.fromEnvironment(
+        'BAILIAN_OPENAI_ASR_MODEL',
+        defaultValue: 'qwen3-asr-flash',
+      ),
+      bailianRealtimeUrl: String.fromEnvironment(
+        'BAILIAN_REALTIME_URL',
+        defaultValue: 'wss://dashscope.aliyuncs.com/api-ws/v1/inference',
+      ),
+      bailianRealtimeModel: String.fromEnvironment(
+        'BAILIAN_REALTIME_MODEL',
+        defaultValue: 'fun-asr-realtime',
+      ),
+      sonioxApiKey: String.fromEnvironment('SONIOX_API_KEY'),
+      sonioxModel: String.fromEnvironment(
+        'SONIOX_MODEL',
+        defaultValue: 'stt-rt-v4',
+      ),
     );
   }
 
@@ -1018,6 +1418,7 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   final ProviderSettingsStore _providerSettingsStore = ProviderSettingsStore();
+  final AudioRecorder _audioRecorder = AudioRecorder();
 
   final List<VoiceProfile> _profiles = const [
     VoiceProfile(
@@ -1040,30 +1441,19 @@ class _MobileShellState extends State<MobileShell> {
     ),
   ];
 
-  final List<DraftEntry> _drafts = [
-    DraftEntry(
-      text: 'Follow up with the release notes after the desktop build passes.',
-      profileName: 'Review',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 18)),
-    ),
-    DraftEntry(
-      text:
-          'The mobile rewrite should keep provider setup lightweight at first.',
-      profileName: 'Dictation',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-  ];
+  final List<DraftEntry> _drafts = [];
 
   int _tabIndex = 0;
   int _selectedProfileIndex = 0;
   CaptureState _captureState = CaptureState.idle;
-  bool _microphoneAllowed = true;
+  bool _microphoneAllowed = false;
   bool _keyboardExtensionEnabled = false;
   bool _cloudProcessingEnabled = false;
   bool _providerSettingsLoading = true;
   bool _providerSettingsSaving = false;
   ProviderSettings _providerSettings = ProviderSettings.defaults();
   SmokeTestStatus? _smokeTestStatus;
+  String? _recordingPath;
 
   VoiceProfile get _activeProfile => _profiles[_selectedProfileIndex];
 
@@ -1077,6 +1467,13 @@ class _MobileShellState extends State<MobileShell> {
       unawaited(_runBailianSmokeTest());
     }
     unawaited(_loadProviderSettings());
+    unawaited(_refreshMicrophonePermission());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_audioRecorder.dispose());
+    super.dispose();
   }
 
   void _selectTab(int index) {
@@ -1086,53 +1483,194 @@ class _MobileShellState extends State<MobileShell> {
   }
 
   Future<void> _toggleCapture() async {
-    if (!_microphoneAllowed) {
-      setState(() {
-        _tabIndex = 2;
-      });
-      return;
-    }
-
     if (_captureState == CaptureState.idle) {
+      await _startRecording();
+      return;
+    }
+
+    await _stopRecordingAndTranscribe();
+  }
+
+  Future<void> _startRecording() async {
+    final permission = await Permission.microphone.request();
+    final hasPermission = permission.isGranted || permission.isLimited;
+    if (!hasPermission) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        _captureState = CaptureState.listening;
+        _microphoneAllowed = false;
+        _tabIndex = 2;
+        _smokeTestStatus = const SmokeTestStatus(
+          label: 'Microphone permission required',
+          detail:
+              'Allow microphone access in iOS Settings, then try recording again.',
+          failed: true,
+          finished: true,
+        );
       });
       return;
     }
 
-    setState(() {
-      _captureState = CaptureState.processing;
-    });
+    final recorderReady = await _audioRecorder.hasPermission(request: false);
+    if (!recorderReady) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _microphoneAllowed = false;
+        _smokeTestStatus = const SmokeTestStatus(
+          label: 'Recording failed',
+          detail:
+              'Microphone permission was granted but the recorder is not ready.',
+          failed: true,
+          finished: true,
+        );
+      });
+      return;
+    }
 
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    if (!_providerSettings.activeProviderConfigured) {
+      setState(() {
+        _microphoneAllowed = true;
+        _tabIndex = 2;
+        _smokeTestStatus = const SmokeTestStatus(
+          label: 'Provider settings required',
+          detail: 'Save a Bailian or Soniox API key before recording.',
+          failed: true,
+          finished: true,
+        );
+      });
+      return;
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final path =
+        '${tempDir.path}/shinsoku-${DateTime.now().microsecondsSinceEpoch}.wav';
+    try {
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _captureState = CaptureState.idle;
+        _smokeTestStatus = SmokeTestStatus(
+          label: 'Recording failed',
+          detail: error.toString(),
+          failed: true,
+          finished: true,
+        );
+      });
+      return;
+    }
 
     if (!mounted) {
       return;
     }
 
-    final draft = DraftEntry(
-      text: _sampleTranscriptFor(_activeProfile),
-      profileName: _activeProfile.name,
-      createdAt: DateTime.now(),
-    );
-
-    unawaited(KeyboardBridge.publishText(draft.text));
-
     setState(() {
-      _captureState = CaptureState.idle;
-      _drafts.insert(0, draft);
-      _tabIndex = 1;
+      _microphoneAllowed = true;
+      _captureState = CaptureState.listening;
+      _recordingPath = path;
+      _smokeTestStatus = null;
     });
   }
 
-  String _sampleTranscriptFor(VoiceProfile profile) {
-    return switch (profile.name) {
-      'Chat' =>
-        'Can you send me the current build status when you have a minute?',
-      'Review' =>
-        'Draft captured for review before inserting into the active field.',
-      _ => 'Captured a clean mobile voice note with Shinsoku.',
-    };
+  Future<void> _stopRecordingAndTranscribe() async {
+    final path = await _audioRecorder.stop() ?? _recordingPath;
+    _recordingPath = null;
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _captureState = CaptureState.processing;
+      _smokeTestStatus = const SmokeTestStatus(
+        label: 'Transcribing recording',
+        detail: 'Uploading recorded audio to the selected provider.',
+      );
+    });
+
+    try {
+      if (path == null || !File(path).existsSync()) {
+        throw StateError('Recording file was not created.');
+      }
+      final audio = await File(path).readAsBytes();
+      if (audio.isEmpty) {
+        throw StateError('Recording file is empty.');
+      }
+
+      final result = await RealTranscriptionService(
+        settings: _providerSettings,
+      ).transcribe(wavBytes: audio, profile: _activeProfile);
+
+      final draft = DraftEntry(
+        text: result.text,
+        profileName: result.provider,
+        createdAt: DateTime.now(),
+      );
+      unawaited(KeyboardBridge.publishText(draft.text));
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _captureState = CaptureState.idle;
+        _drafts.insert(0, draft);
+        _tabIndex = 1;
+        _smokeTestStatus = SmokeTestStatus(
+          label: 'Recording transcribed',
+          detail: result.detail,
+          transcript: result.text,
+          finished: true,
+        );
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _captureState = CaptureState.idle;
+        _tabIndex = 0;
+        _smokeTestStatus = SmokeTestStatus(
+          label: 'Recording failed',
+          detail: error.toString(),
+          failed: true,
+          finished: true,
+        );
+      });
+    } finally {
+      if (path != null) {
+        unawaited(File(path).delete().catchError((_) => File(path)));
+      }
+    }
+  }
+
+  Future<void> _refreshMicrophonePermission() async {
+    final status = await Permission.microphone.status;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _microphoneAllowed = status.isGranted || status.isLimited;
+    });
+  }
+
+  Future<void> _handleMicrophoneSettingsPressed() async {
+    final status = await Permission.microphone.request();
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      await openAppSettings();
+    }
+    await _refreshMicrophonePermission();
   }
 
   void _deleteDraft(DraftEntry draft) {
@@ -1356,11 +1894,7 @@ class _MobileShellState extends State<MobileShell> {
               providerSettings: _providerSettings,
               providerSettingsLoading: _providerSettingsLoading,
               providerSettingsSaving: _providerSettingsSaving,
-              onMicrophoneChanged: (value) {
-                setState(() {
-                  _microphoneAllowed = value;
-                });
-              },
+              onMicrophonePressed: _handleMicrophoneSettingsPressed,
               onKeyboardChanged: (value) {
                 setState(() {
                   _keyboardExtensionEnabled = value;
@@ -1639,7 +2173,7 @@ class SettingsView extends StatefulWidget {
     required this.providerSettings,
     required this.providerSettingsLoading,
     required this.providerSettingsSaving,
-    required this.onMicrophoneChanged,
+    required this.onMicrophonePressed,
     required this.onKeyboardChanged,
     required this.onCloudProcessingChanged,
     required this.onProviderSettingsSaved,
@@ -1652,7 +2186,7 @@ class SettingsView extends StatefulWidget {
   final ProviderSettings providerSettings;
   final bool providerSettingsLoading;
   final bool providerSettingsSaving;
-  final ValueChanged<bool> onMicrophoneChanged;
+  final VoidCallback onMicrophonePressed;
   final ValueChanged<bool> onKeyboardChanged;
   final ValueChanged<bool> onCloudProcessingChanged;
   final Future<void> Function(ProviderSettings settings)
@@ -1774,10 +2308,14 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               SwitchListTile(
                 value: widget.microphoneAllowed,
-                onChanged: widget.onMicrophoneChanged,
+                onChanged: (_) => widget.onMicrophonePressed(),
                 secondary: const Icon(Icons.mic_none),
                 title: const Text('Microphone access'),
-                subtitle: const Text('Required for voice capture'),
+                subtitle: Text(
+                  widget.microphoneAllowed
+                      ? 'Allowed for voice capture'
+                      : 'Tap to request iOS microphone access',
+                ),
               ),
               const Divider(),
               SwitchListTile(

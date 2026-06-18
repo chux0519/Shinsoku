@@ -74,12 +74,12 @@
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		7E323D2419FCBF064405A892 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		7F9EA06BC14779ADB3CF71FE /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
+		854C232BEA4C653900C24483 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		8A6D120501B1C0D000000001 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
 		8A6D120601B1C0D000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A6D120701B1C0D000000001 /* ShinsokuKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShinsokuKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShinsokuKeyboard.entitlements; sourceTree = "<group>"; };
 		8A6D120901B1C0D000000001 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
-		854C232BEA4C653900C24483 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -93,18 +93,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		8A6D121301B1C0D000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EB1CF9000F007C117D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				4CEE46CAC37FEA5C4FB9AD35 /* Pods_Runner.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		8A6D121301B1C0D000000001 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -134,6 +134,16 @@
 				B1044C17DED9AB817672C967 /* Pods_RunnerTests.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8A6D120A01B1C0D000000001 /* ShinsokuKeyboard */ = {
+			isa = PBXGroup;
+			children = (
+				8A6D120501B1C0D000000001 /* KeyboardViewController.swift */,
+				8A6D120601B1C0D000000001 /* Info.plist */,
+				8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */,
+			);
+			path = ShinsokuKeyboard;
 			sourceTree = "<group>";
 		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
@@ -186,16 +196,6 @@
 			path = Runner;
 			sourceTree = "<group>";
 		};
-		8A6D120A01B1C0D000000001 /* ShinsokuKeyboard */ = {
-			isa = PBXGroup;
-			children = (
-				8A6D120501B1C0D000000001 /* KeyboardViewController.swift */,
-				8A6D120601B1C0D000000001 /* Info.plist */,
-				8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */,
-			);
-			path = ShinsokuKeyboard;
-			sourceTree = "<group>";
-		};
 		C410147CA7869066F23D0A56 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
@@ -232,30 +232,6 @@
 			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		97C146ED1CF9000F007C117D /* Runner */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
-			buildPhases = (
-				DBDA9802CB3824B8FBB99D26 /* [CP] Check Pods Manifest.lock */,
-				9740EEB61CF901F6004384FC /* Run Script */,
-				97C146EA1CF9000F007C117D /* Sources */,
-				97C146EB1CF9000F007C117D /* Frameworks */,
-				97C146EC1CF9000F007C117D /* Resources */,
-				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				8A6D120301B1C0D000000001 /* Embed App Extensions */,
-				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
-				DFC51C059DBD9755120F4C28 /* [CP] Embed Pods Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				8A6D121601B1C0D000000001 /* PBXTargetDependency */,
-			);
-			name = Runner;
-			productName = Runner;
-			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
-			productType = "com.apple.product-type.application";
-		};
 		8A6D121001B1C0D000000001 /* ShinsokuKeyboard */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8A6D121401B1C0D000000001 /* Build configuration list for PBXNativeTarget "ShinsokuKeyboard" */;
@@ -273,6 +249,31 @@
 			productReference = 8A6D120701B1C0D000000001 /* ShinsokuKeyboard.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		97C146ED1CF9000F007C117D /* Runner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
+			buildPhases = (
+				DBDA9802CB3824B8FBB99D26 /* [CP] Check Pods Manifest.lock */,
+				9740EEB61CF901F6004384FC /* Run Script */,
+				97C146EA1CF9000F007C117D /* Sources */,
+				97C146EB1CF9000F007C117D /* Frameworks */,
+				97C146EC1CF9000F007C117D /* Resources */,
+				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				8A6D120301B1C0D000000001 /* Embed App Extensions */,
+				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
+				DFC51C059DBD9755120F4C28 /* [CP] Embed Pods Frameworks */,
+				EBB118E7EEA6DFE1F23B590F /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8A6D121601B1C0D000000001 /* PBXTargetDependency */,
+			);
+			name = Runner;
+			productName = Runner;
+			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -287,12 +288,12 @@
 						CreatedOnToolsVersion = 14.0;
 						TestTargetID = 97C146ED1CF9000F007C117D;
 					};
+					8A6D121001B1C0D000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
 					97C146ED1CF9000F007C117D = {
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
-					};
-					8A6D121001B1C0D000000001 = {
-						CreatedOnToolsVersion = 15.0;
 					};
 				};
 			};
@@ -324,6 +325,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A6D121101B1C0D000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EC1CF9000F007C117D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -332,13 +340,6 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		8A6D121101B1C0D000000001 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -437,6 +438,23 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		EBB118E7EEA6DFE1F23B590F /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -448,20 +466,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A6D121201B1C0D000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A6D120101B1C0D000000001 /* KeyboardViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		8A6D121201B1C0D000000001 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				8A6D120101B1C0D000000001 /* KeyboardViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -559,7 +577,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -622,6 +640,82 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+			};
+			name = Profile;
+		};
+		8A6D121701B1C0D000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = DKSW9646HG;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8A6D121801B1C0D000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = DKSW9646HG;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		8A6D121901B1C0D000000001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = DKSW9646HG;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Profile;
 		};
@@ -743,7 +837,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -783,82 +877,6 @@
 			};
 			name = Release;
 		};
-		8A6D121701B1C0D000000001 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = DKSW9646HG;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		8A6D121801B1C0D000000001 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = DKSW9646HG;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		8A6D121901B1C0D000000001 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = DKSW9646HG;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Profile;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -868,6 +886,16 @@
 				331C8088294A63A400263BE5 /* Debug */,
 				331C8089294A63A400263BE5 /* Release */,
 				331C808A294A63A400263BE5 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A6D121401B1C0D000000001 /* Build configuration list for PBXNativeTarget "ShinsokuKeyboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A6D121701B1C0D000000001 /* Debug */,
+				8A6D121801B1C0D000000001 /* Release */,
+				8A6D121901B1C0D000000001 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -888,16 +916,6 @@
 				97C147061CF9000F007C117D /* Debug */,
 				97C147071CF9000F007C117D /* Release */,
 				249021D4217E4FDB00AE95B9 /* Profile */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		8A6D121401B1C0D000000001 /* Build configuration list for PBXNativeTarget "ShinsokuKeyboard" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				8A6D121701B1C0D000000001 /* Debug */,
-				8A6D121801B1C0D000000001 /* Release */,
-				8A6D121901B1C0D000000001 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
