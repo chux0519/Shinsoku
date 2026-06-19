@@ -82,7 +82,7 @@ class SmokeTestConfig {
   static const bailianApiKey = String.fromEnvironment('BAILIAN_API_KEY');
   static const bailianOpenAiModel = String.fromEnvironment(
     'BAILIAN_OPENAI_MODEL',
-    defaultValue: 'qwen3.5-flash',
+    defaultValue: 'qwen-flash',
   );
   static const bailianAsrModel = String.fromEnvironment(
     'BAILIAN_OPENAI_ASR_MODEL',
@@ -816,6 +816,7 @@ class RealTranscriptionService {
                 },
                 {'role': 'user', 'content': transcript},
               ],
+              'enable_thinking': false,
               'temperature': 0,
             }),
           )
@@ -1626,7 +1627,7 @@ class ProviderSettings {
       bailianApiKey: String.fromEnvironment('BAILIAN_API_KEY'),
       bailianTextModel: String.fromEnvironment(
         'BAILIAN_OPENAI_MODEL',
-        defaultValue: 'qwen3.5-flash',
+        defaultValue: 'qwen-flash',
       ),
       bailianAsrModel: String.fromEnvironment(
         'BAILIAN_OPENAI_ASR_MODEL',
