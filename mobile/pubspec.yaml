@@ -1,7 +1,7 @@
 name: shinsoku_mobile
 description: Flutter mobile shell for Shinsoku voice input.
 publish_to: 'none'
-version: 0.1.0+8
+version: 0.1.0+9
 
 environment:
   sdk: ^3.9.2

@@ -147,11 +147,20 @@ class RealTranscriptionResult {
     required this.text,
     required this.provider,
     required this.detail,
+    this.postProcessTimedOut = false,
   });
 
   final String text;
   final String provider;
   final String detail;
+  final bool postProcessTimedOut;
+}
+
+class _PostProcessResult {
+  const _PostProcessResult({required this.text, required this.timedOut});
+
+  final String text;
+  final bool timedOut;
 }
 
 class _BailianRealtimeTiming {
@@ -186,6 +195,9 @@ const _bailianRealtimeStreamBufferSize =
     _bailianRealtimeChannels *
     _bailianRealtimeBytesPerSample ~/
     10;
+const _postProcessTimeout = Duration(seconds: 8);
+const _bailianAsrModeRealtime = 'realtime';
+const _bailianAsrModeQwen = 'qwen';
 
 class _BailianRealtimeLiveSession {
   _BailianRealtimeLiveSession._({
@@ -390,30 +402,49 @@ class RealTranscriptionService {
     required Uint8List wavBytes,
     required VoiceProfile profile,
   }) async {
+    final wallWatch = Stopwatch()..start();
     if (!settings.activeProviderConfigured) {
       throw StateError(
         'Provider credentials are missing. Save them in Settings first.',
       );
     }
 
+    final rawWatch = Stopwatch()..start();
     final raw = switch (settings.speechProvider) {
       'soniox' => await _transcribeWithSoniox(wavBytes),
-      _ => await _transcribeWithBailianRealtime(wavBytes),
+      _ =>
+        settings.bailianAsrMode == _bailianAsrModeQwen
+            ? await _transcribeWithBailianQwenAsr(wavBytes)
+            : await _transcribeWithBailianRealtime(wavBytes),
     };
+    rawWatch.stop();
     var text = raw.text.trim();
     if (text.isEmpty) {
       throw StateError('${raw.provider} returned no transcript.');
     }
 
+    var detail = raw.detail;
+    var postProcessTimedOut = false;
     if (settings.textTransformEnabled &&
         settings.bailianApiKey.trim().isNotEmpty) {
-      text = await _postProcess(text, profile);
+      final postWatch = Stopwatch()..start();
+      final postProcessed = await _postProcess(text, profile);
+      postWatch.stop();
+      text = postProcessed.text;
+      postProcessTimedOut = postProcessed.timedOut;
+      detail =
+          '$detail postProcess=${postWatch.elapsedMilliseconds}ms'
+          '${postProcessed.timedOut ? " timeoutFallback=true" : ""}';
     }
+    wallWatch.stop();
 
     return RealTranscriptionResult(
       text: _applySuffix(text, profile.commitSuffix),
       provider: raw.provider,
-      detail: raw.detail,
+      detail:
+          '$detail raw=${rawWatch.elapsedMilliseconds}ms '
+          'serviceTotal=${wallWatch.elapsedMilliseconds}ms',
+      postProcessTimedOut: postProcessTimedOut,
     );
   }
 
@@ -421,21 +452,37 @@ class RealTranscriptionService {
     required _BailianRealtimeLiveSession session,
     required VoiceProfile profile,
   }) async {
+    final wallWatch = Stopwatch()..start();
+    final rawWatch = Stopwatch()..start();
     var raw = await session.finish();
+    rawWatch.stop();
     var text = raw.text.trim();
     if (text.isEmpty) {
       throw StateError('${raw.provider} returned no transcript.');
     }
 
+    var detail = raw.detail;
+    var postProcessTimedOut = false;
     if (settings.textTransformEnabled &&
         settings.bailianApiKey.trim().isNotEmpty) {
-      text = await _postProcess(text, profile);
+      final postWatch = Stopwatch()..start();
+      final postProcessed = await _postProcess(text, profile);
+      postWatch.stop();
+      text = postProcessed.text;
+      postProcessTimedOut = postProcessed.timedOut;
+      detail =
+          '$detail postProcess=${postWatch.elapsedMilliseconds}ms'
+          '${postProcessed.timedOut ? " timeoutFallback=true" : ""}';
     }
+    wallWatch.stop();
 
     return RealTranscriptionResult(
       text: _applySuffix(text, profile.commitSuffix),
       provider: raw.provider,
-      detail: raw.detail,
+      detail:
+          '$detail finishRaw=${rawWatch.elapsedMilliseconds}ms '
+          'serviceTotal=${wallWatch.elapsedMilliseconds}ms',
+      postProcessTimedOut: postProcessTimedOut,
     );
   }
 
@@ -688,7 +735,68 @@ class RealTranscriptionService {
     }
   }
 
-  Future<String> _postProcess(String transcript, VoiceProfile profile) async {
+  Future<RealTranscriptionResult> _transcribeWithBailianQwenAsr(
+    Uint8List wavBytes,
+  ) async {
+    final watch = Stopwatch()..start();
+    final client = http.Client();
+    try {
+      final dataUrl = 'data:audio/wav;base64,${base64Encode(wavBytes)}';
+      final response = await client
+          .post(
+            _bailianEndpoint('/chat/completions'),
+            headers: {
+              'Authorization': 'Bearer ${settings.bailianApiKey}',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'model': settings.bailianAsrModel,
+              'messages': [
+                {
+                  'role': 'user',
+                  'content': [
+                    {
+                      'type': 'input_audio',
+                      'input_audio': {'data': dataUrl},
+                    },
+                  ],
+                },
+              ],
+              'stream': false,
+              'asr_options': {'enable_itn': false},
+            }),
+          )
+          .timeout(const Duration(seconds: 45));
+      watch.stop();
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final error = decoded['error'];
+        throw StateError(
+          error is Map && error['message'] is String
+              ? error['message'] as String
+              : 'HTTP ${response.statusCode}',
+        );
+      }
+      final content =
+          (((decoded['choices'] as List?)?.firstOrNull as Map?)?['message']
+                  as Map?)?['content']
+              as String?;
+      return RealTranscriptionResult(
+        text: content?.trim() ?? '',
+        provider: 'Bailian Qwen-ASR',
+        detail:
+            'Qwen-ASR batch completed with ${wavBytes.length} WAV bytes '
+            '(total=${watch.elapsedMilliseconds}ms).',
+      );
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<_PostProcessResult> _postProcess(
+    String transcript,
+    VoiceProfile profile,
+  ) async {
     final client = http.Client();
     try {
       final response = await client
@@ -711,7 +819,7 @@ class RealTranscriptionService {
               'temperature': 0,
             }),
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(_postProcessTimeout);
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final error = decoded['error'];
@@ -725,7 +833,12 @@ class RealTranscriptionService {
           (((decoded['choices'] as List?)?.firstOrNull as Map?)?['message']
                   as Map?)?['content']
               as String?;
-      return content?.trim().isNotEmpty == true ? content!.trim() : transcript;
+      return _PostProcessResult(
+        text: content?.trim().isNotEmpty == true ? content!.trim() : transcript,
+        timedOut: false,
+      );
+    } on TimeoutException {
+      return _PostProcessResult(text: transcript, timedOut: true);
     } finally {
       client.close();
     }
@@ -1009,6 +1122,11 @@ class BailianSmokeTestRunner {
       if (asr.text.isNotEmpty) {
         transcript.writeln('Qwen-ASR: ${asr.text}');
       }
+      final localAsr = await _runQwenAsrDataUri(client);
+      steps.add(localAsr.step);
+      if (localAsr.text.isNotEmpty) {
+        transcript.writeln('Qwen-ASR local: ${localAsr.text}');
+      }
       final realtime = await _runRealtimeAsr(client);
       steps.add(realtime.step);
       if (realtime.text.isNotEmpty) {
@@ -1177,6 +1295,7 @@ class BailianSmokeTestRunner {
     final settings = ProviderSettings(
       speechProvider: 'bailian',
       textTransformEnabled: false,
+      bailianAsrMode: _bailianAsrModeRealtime,
       bailianApiBase: apiBase,
       bailianApiKey: apiKey,
       bailianTextModel: textModel,
@@ -1215,6 +1334,41 @@ class BailianSmokeTestRunner {
       await session.close();
       rethrow;
     }
+  }
+
+  Future<({BailianSmokeStep step, String text})> _runQwenAsrDataUri(
+    http.Client client,
+  ) async {
+    final audioBytes = await _downloadBytes(client, realtimeAudioUrl);
+    final dataUrl = 'data:audio/wav;base64,${base64Encode(audioBytes)}';
+    final response = await _postJson(client, '/chat/completions', {
+      'model': asrModel,
+      'messages': [
+        {
+          'role': 'user',
+          'content': [
+            {
+              'type': 'input_audio',
+              'input_audio': {'data': dataUrl},
+            },
+          ],
+        },
+      ],
+      'stream': false,
+      'asr_options': {'enable_itn': false},
+    }, timeout: const Duration(seconds: 120));
+    final content =
+        (((response['choices'] as List?)?.firstOrNull as Map?)?['message']
+            as Map?)?['content'];
+    final text = content is String ? content.trim() : '';
+    return (
+      step: BailianSmokeStep(
+        name: 'Qwen-ASR data URI',
+        passed: text.isNotEmpty,
+        detail: text.isEmpty ? 'empty transcript' : text,
+      ),
+      text: text,
+    );
   }
 
   Future<({BailianSmokeStep step, String text})>
@@ -1446,6 +1600,7 @@ class ProviderSettings {
   const ProviderSettings({
     required this.speechProvider,
     required this.textTransformEnabled,
+    required this.bailianAsrMode,
     required this.bailianApiBase,
     required this.bailianApiKey,
     required this.bailianTextModel,
@@ -1460,6 +1615,10 @@ class ProviderSettings {
     return const ProviderSettings(
       speechProvider: 'bailian',
       textTransformEnabled: true,
+      bailianAsrMode: String.fromEnvironment(
+        'BAILIAN_ASR_MODE',
+        defaultValue: _bailianAsrModeRealtime,
+      ),
       bailianApiBase: String.fromEnvironment(
         'BAILIAN_API_BASE',
         defaultValue: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -1491,6 +1650,7 @@ class ProviderSettings {
 
   final String speechProvider;
   final bool textTransformEnabled;
+  final String bailianAsrMode;
   final String bailianApiBase;
   final String bailianApiKey;
   final String bailianTextModel;
@@ -1503,6 +1663,7 @@ class ProviderSettings {
   ProviderSettings copyWith({
     String? speechProvider,
     bool? textTransformEnabled,
+    String? bailianAsrMode,
     String? bailianApiBase,
     String? bailianApiKey,
     String? bailianTextModel,
@@ -1515,6 +1676,7 @@ class ProviderSettings {
     return ProviderSettings(
       speechProvider: speechProvider ?? this.speechProvider,
       textTransformEnabled: textTransformEnabled ?? this.textTransformEnabled,
+      bailianAsrMode: bailianAsrMode ?? this.bailianAsrMode,
       bailianApiBase: bailianApiBase ?? this.bailianApiBase,
       bailianApiKey: bailianApiKey ?? this.bailianApiKey,
       bailianTextModel: bailianTextModel ?? this.bailianTextModel,
@@ -1565,6 +1727,10 @@ class ProviderSettingsStore {
         'textTransformEnabled',
         defaults.textTransformEnabled,
       ),
+      bailianAsrMode: await readString(
+        'bailianAsrMode',
+        defaults.bailianAsrMode,
+      ),
       bailianApiBase: await readString(
         'bailianApiBase',
         defaults.bailianApiBase,
@@ -1599,6 +1765,7 @@ class ProviderSettingsStore {
     await Future.wait([
       write('speechProvider', settings.speechProvider),
       write('textTransformEnabled', settings.textTransformEnabled.toString()),
+      write('bailianAsrMode', settings.bailianAsrMode),
       write('bailianApiBase', settings.bailianApiBase),
       write('bailianApiKey', settings.bailianApiKey),
       write('bailianTextModel', settings.bailianTextModel),
@@ -1784,7 +1951,10 @@ class _MobileShellState extends State<MobileShell> {
     _recordingStreamSubscription = null;
 
     try {
-      if (_providerSettings.speechProvider == 'soniox') {
+      final shouldStreamBailian =
+          _providerSettings.speechProvider == 'bailian' &&
+          _providerSettings.bailianAsrMode == _bailianAsrModeRealtime;
+      if (!shouldStreamBailian) {
         final tempDir = await getTemporaryDirectory();
         final path =
             '${tempDir.path}/shinsoku-${DateTime.now().microsecondsSinceEpoch}.wav';
@@ -1851,12 +2021,17 @@ class _MobileShellState extends State<MobileShell> {
   }
 
   Future<void> _stopRecordingAndTranscribe() async {
+    final stopTotalWatch = Stopwatch()..start();
     final liveSession = _bailianLiveSession;
     final streamSubscription = _recordingStreamSubscription;
     _bailianLiveSession = null;
     _recordingStreamSubscription = null;
+    final recorderStopWatch = Stopwatch()..start();
     final path = await _audioRecorder.stop() ?? _recordingPath;
+    recorderStopWatch.stop();
+    final streamCancelWatch = Stopwatch()..start();
     await streamSubscription?.cancel();
+    streamCancelWatch.stop();
     _recordingPath = null;
 
     if (!mounted) {
@@ -1876,6 +2051,7 @@ class _MobileShellState extends State<MobileShell> {
       _recordingStreamError = null;
       final service = RealTranscriptionService(settings: _providerSettings);
       late final RealTranscriptionResult result;
+      final transcribeWatch = Stopwatch()..start();
       if (liveSession != null) {
         if (streamError != null) {
           await liveSession.close();
@@ -1899,6 +2075,14 @@ class _MobileShellState extends State<MobileShell> {
           profile: _activeProfile,
         );
       }
+      transcribeWatch.stop();
+      stopTotalWatch.stop();
+      final finalDetail =
+          '${result.detail} appRecorderStop=${recorderStopWatch.elapsedMilliseconds}ms '
+          'appStreamCancel=${streamCancelWatch.elapsedMilliseconds}ms '
+          'appTranscribe=${transcribeWatch.elapsedMilliseconds}ms '
+          'appStopToDraft=${stopTotalWatch.elapsedMilliseconds}ms';
+      debugPrint('SHINSOKU_RECORDING_E2E $finalDetail');
 
       final draft = DraftEntry(
         text: result.text,
@@ -1916,7 +2100,7 @@ class _MobileShellState extends State<MobileShell> {
         _tabIndex = 1;
         _smokeTestStatus = SmokeTestStatus(
           label: 'Recording transcribed',
-          detail: result.detail,
+          detail: finalDetail,
           transcript: result.text,
           finished: true,
         );
@@ -2489,6 +2673,7 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   late String _speechProvider;
+  late String _bailianAsrMode;
   late bool _textTransformEnabled;
   bool _showBailianKey = false;
   bool _showSonioxKey = false;
@@ -2539,6 +2724,13 @@ class _SettingsViewState extends State<SettingsView> {
 
   void _applySettings(ProviderSettings settings) {
     _speechProvider = settings.speechProvider;
+    _bailianAsrMode =
+        {
+          _bailianAsrModeRealtime,
+          _bailianAsrModeQwen,
+        }.contains(settings.bailianAsrMode)
+        ? settings.bailianAsrMode
+        : _bailianAsrModeRealtime;
     _textTransformEnabled = settings.textTransformEnabled;
     _bailianBaseController.text = settings.bailianApiBase;
     _bailianKeyController.text = settings.bailianApiKey;
@@ -2554,6 +2746,7 @@ class _SettingsViewState extends State<SettingsView> {
     final settings = ProviderSettings(
       speechProvider: _speechProvider,
       textTransformEnabled: _textTransformEnabled,
+      bailianAsrMode: _bailianAsrMode,
       bailianApiBase: _bailianBaseController.text.trim(),
       bailianApiKey: _bailianKeyController.text.trim(),
       bailianTextModel: _bailianTextModelController.text.trim(),
@@ -2726,10 +2919,34 @@ class _SettingsViewState extends State<SettingsView> {
                 label: 'Text model',
               ),
               const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment<String>(
+                      value: _bailianAsrModeRealtime,
+                      label: Text('Streaming'),
+                      icon: Icon(Icons.podcasts),
+                    ),
+                    ButtonSegment<String>(
+                      value: _bailianAsrModeQwen,
+                      label: Text('Qwen-ASR'),
+                      icon: Icon(Icons.hearing),
+                    ),
+                  ],
+                  selected: {_bailianAsrMode},
+                  onSelectionChanged: (selection) {
+                    setState(() {
+                      _bailianAsrMode = selection.first;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
               ConfigTextField(
                 controller: _bailianAsrModelController,
                 icon: Icons.hearing,
-                label: 'Qwen-ASR model',
+                label: 'Qwen-ASR batch model',
               ),
               const SizedBox(height: 12),
               ConfigTextField(
@@ -2742,7 +2959,7 @@ class _SettingsViewState extends State<SettingsView> {
               ConfigTextField(
                 controller: _bailianRealtimeModelController,
                 icon: Icons.multitrack_audio,
-                label: 'Realtime ASR model',
+                label: 'Streaming ASR model',
               ),
             ],
           ),
