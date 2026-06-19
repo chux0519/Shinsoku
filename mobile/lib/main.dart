@@ -1106,34 +1106,7 @@ class BailianSmokeTestRunner {
   }
 
   _WavPcm16 _parseWavPcm16(Uint8List bytes) {
-    final data = ByteData.sublistView(bytes);
-    if (bytes.length < 44 ||
-        ascii.decode(bytes.sublist(0, 4)) != 'RIFF' ||
-        ascii.decode(bytes.sublist(8, 12)) != 'WAVE') {
-      throw StateError('Realtime ASR smoke audio must be a WAV file.');
-    }
-    final channels = data.getUint16(22, Endian.little);
-    final sampleRate = data.getUint32(24, Endian.little);
-    final bitsPerSample = data.getUint16(34, Endian.little);
-    if (channels != 1 || bitsPerSample != 16) {
-      throw StateError('Realtime ASR smoke audio must be mono PCM16 WAV.');
-    }
-
-    var offset = 12;
-    while (offset + 8 <= bytes.length) {
-      final id = ascii.decode(bytes.sublist(offset, offset + 4));
-      final size = data.getUint32(offset + 4, Endian.little);
-      final payloadStart = offset + 8;
-      final payloadEnd = payloadStart + size;
-      if (id == 'data') {
-        return _WavPcm16(
-          sampleRate: sampleRate,
-          pcm: bytes.sublist(payloadStart, payloadEnd.clamp(0, bytes.length)),
-        );
-      }
-      offset = payloadEnd + (size.isOdd ? 1 : 0);
-    }
-    throw StateError('WAV data chunk not found.');
+    return _parseWavPcm16Bytes(bytes, source: 'Realtime ASR smoke audio');
   }
 
   String _responseOutputText(Map<String, dynamic> response) {
@@ -1184,18 +1157,22 @@ class _WavPcm16 {
 }
 
 _WavPcm16 _parseWavPcm16(Uint8List bytes) {
+  return _parseWavPcm16Bytes(bytes, source: 'Recorded audio');
+}
+
+_WavPcm16 _parseWavPcm16Bytes(Uint8List bytes, {required String source}) {
   final data = ByteData.sublistView(bytes);
-  if (bytes.length < 44 ||
+  if (bytes.length < 12 ||
       ascii.decode(bytes.sublist(0, 4)) != 'RIFF' ||
       ascii.decode(bytes.sublist(8, 12)) != 'WAVE') {
-    throw StateError('Recorded audio must be a WAV file.');
+    throw StateError('$source must be a WAV file.');
   }
-  final channels = data.getUint16(22, Endian.little);
-  final sampleRate = data.getUint32(24, Endian.little);
-  final bitsPerSample = data.getUint16(34, Endian.little);
-  if (channels != 1 || bitsPerSample != 16) {
-    throw StateError('Recorded audio must be mono PCM16 WAV.');
-  }
+
+  int? audioFormat;
+  int? channels;
+  int? sampleRate;
+  int? bitsPerSample;
+  Uint8List? pcm;
 
   var offset = 12;
   while (offset + 8 <= bytes.length) {
@@ -1203,15 +1180,76 @@ _WavPcm16 _parseWavPcm16(Uint8List bytes) {
     final size = data.getUint32(offset + 4, Endian.little);
     final payloadStart = offset + 8;
     final payloadEnd = payloadStart + size;
+    if (payloadEnd > bytes.length) {
+      throw StateError('$source WAV chunk "$id" exceeds file length.');
+    }
+    if (id == 'fmt ') {
+      if (size < 16) {
+        throw StateError('$source WAV fmt chunk is too short.');
+      }
+      audioFormat = data.getUint16(payloadStart, Endian.little);
+      channels = data.getUint16(payloadStart + 2, Endian.little);
+      sampleRate = data.getUint32(payloadStart + 4, Endian.little);
+      bitsPerSample = data.getUint16(payloadStart + 14, Endian.little);
+    }
     if (id == 'data') {
-      return _WavPcm16(
-        sampleRate: sampleRate,
-        pcm: bytes.sublist(payloadStart, payloadEnd.clamp(0, bytes.length)),
-      );
+      pcm = bytes.sublist(payloadStart, payloadEnd);
     }
     offset = payloadEnd + (size.isOdd ? 1 : 0);
   }
-  throw StateError('WAV data chunk not found.');
+
+  if (audioFormat == null ||
+      channels == null ||
+      sampleRate == null ||
+      bitsPerSample == null) {
+    throw StateError('$source WAV fmt chunk not found.');
+  }
+  if (pcm == null) {
+    throw StateError('$source WAV data chunk not found.');
+  }
+  if (audioFormat != 1 && audioFormat != 0xfffe) {
+    throw StateError(
+      '$source WAV format $audioFormat is not PCM16 '
+      '(channels=$channels, sampleRate=$sampleRate, bits=$bitsPerSample).',
+    );
+  }
+  if (bitsPerSample != 16) {
+    throw StateError(
+      '$source WAV must be PCM16 '
+      '(channels=$channels, sampleRate=$sampleRate, bits=$bitsPerSample).',
+    );
+  }
+
+  final frameSize = channels * 2;
+  final alignedLength = pcm.length - (pcm.length % frameSize);
+  final alignedPcm = alignedLength == pcm.length
+      ? pcm
+      : Uint8List.sublistView(pcm, 0, alignedLength);
+  if (channels == 1) {
+    return _WavPcm16(sampleRate: sampleRate, pcm: alignedPcm);
+  }
+  if (channels == 2) {
+    return _WavPcm16(
+      sampleRate: sampleRate,
+      pcm: _downmixStereoPcm16(alignedPcm),
+    );
+  }
+  throw StateError(
+    '$source WAV has $channels channels; expected mono or stereo PCM16.',
+  );
+}
+
+Uint8List _downmixStereoPcm16(Uint8List stereoPcm) {
+  final input = ByteData.sublistView(stereoPcm);
+  final output = Uint8List((stereoPcm.length ~/ 4) * 2);
+  final outputData = ByteData.sublistView(output);
+  for (var frame = 0; frame < output.length ~/ 2; frame += 1) {
+    final stereoOffset = frame * 4;
+    final left = input.getInt16(stereoOffset, Endian.little);
+    final right = input.getInt16(stereoOffset + 2, Endian.little);
+    outputData.setInt16(frame * 2, (left + right) ~/ 2, Endian.little);
+  }
+  return output;
 }
 
 class ProviderSettings {
