@@ -2694,6 +2694,7 @@ class _SettingsViewState extends State<SettingsView> {
     _bailianBaseController = TextEditingController();
     _bailianKeyController = TextEditingController();
     _bailianTextModelController = TextEditingController();
+    _bailianTextModelController.addListener(_refreshPostProcessingModelLabel);
     _bailianAsrModelController = TextEditingController();
     _bailianRealtimeUrlController = TextEditingController();
     _bailianRealtimeModelController = TextEditingController();
@@ -2712,6 +2713,9 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   void dispose() {
+    _bailianTextModelController.removeListener(
+      _refreshPostProcessingModelLabel,
+    );
     _bailianBaseController.dispose();
     _bailianKeyController.dispose();
     _bailianTextModelController.dispose();
@@ -2721,6 +2725,12 @@ class _SettingsViewState extends State<SettingsView> {
     _sonioxKeyController.dispose();
     _sonioxModelController.dispose();
     super.dispose();
+  }
+
+  void _refreshPostProcessingModelLabel() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _applySettings(ProviderSettings settings) {
@@ -2869,8 +2879,8 @@ class _SettingsViewState extends State<SettingsView> {
                 },
                 secondary: const Icon(Icons.translate),
                 title: const Text('Text post-processing'),
-                subtitle: const Text(
-                  'Use the text model for cleanup or translation',
+                subtitle: Text(
+                  'Use ${_bailianTextModelController.text.trim().isEmpty ? "qwen-flash" : _bailianTextModelController.text.trim()} for cleanup or translation',
                 ),
               ),
             ],
@@ -2916,8 +2926,9 @@ class _SettingsViewState extends State<SettingsView> {
               const SizedBox(height: 12),
               ConfigTextField(
                 controller: _bailianTextModelController,
-                icon: Icons.text_fields,
-                label: 'Text model',
+                icon: Icons.auto_fix_high_outlined,
+                label: 'Post-processing OpenAI model',
+                helperText: 'Used only when Text post-processing is enabled',
               ),
               const SizedBox(height: 12),
               Align(
@@ -3038,6 +3049,7 @@ class ConfigTextField extends StatelessWidget {
     required this.controller,
     required this.icon,
     required this.label,
+    this.helperText,
     this.keyboardType,
     this.obscureText = false,
     this.trailing,
@@ -3047,6 +3059,7 @@ class ConfigTextField extends StatelessWidget {
   final TextEditingController controller;
   final IconData icon;
   final String label;
+  final String? helperText;
   final TextInputType? keyboardType;
   final bool obscureText;
   final Widget? trailing;
@@ -3064,6 +3077,7 @@ class ConfigTextField extends StatelessWidget {
         prefixIcon: Icon(icon),
         suffixIcon: trailing,
         labelText: label,
+        helperText: helperText,
       ),
     );
   }
