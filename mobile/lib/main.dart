@@ -811,8 +811,7 @@ class RealTranscriptionService {
               'messages': [
                 {
                   'role': 'system',
-                  'content':
-                      'Clean up the transcript according to this intent: ${profile.intent}. Return only the final text.',
+                  'content': '${profile.intent}\nReturn only the final text.',
                 },
                 {'role': 'user', 'content': transcript},
               ],
@@ -1781,16 +1780,134 @@ class ProviderSettingsStore {
 
 class VoiceProfile {
   const VoiceProfile({
+    required this.id,
     required this.name,
     required this.intent,
     required this.commitSuffix,
     required this.autoCommit,
   });
 
+  final String id;
   final String name;
   final String intent;
   final CommitSuffix commitSuffix;
   final bool autoCommit;
+
+  VoiceProfile copyWith({
+    String? id,
+    String? name,
+    String? intent,
+    CommitSuffix? commitSuffix,
+    bool? autoCommit,
+  }) {
+    return VoiceProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      intent: intent ?? this.intent,
+      commitSuffix: commitSuffix ?? this.commitSuffix,
+      autoCommit: autoCommit ?? this.autoCommit,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'intent': intent,
+      'commitSuffix': commitSuffix.name,
+      'autoCommit': autoCommit,
+    };
+  }
+
+  static VoiceProfile fromJson(Map<String, dynamic> json) {
+    final suffixName = json['commitSuffix'];
+    return VoiceProfile(
+      id: json['id'] is String && (json['id'] as String).trim().isNotEmpty
+          ? json['id'] as String
+          : DateTime.now().microsecondsSinceEpoch.toString(),
+      name: json['name'] is String && (json['name'] as String).trim().isNotEmpty
+          ? json['name'] as String
+          : 'Untitled',
+      intent: json['intent'] is String
+          ? json['intent'] as String
+          : _defaultVoiceProfiles.first.intent,
+      commitSuffix: CommitSuffix.values.firstWhere(
+        (suffix) => suffix.name == suffixName,
+        orElse: () => CommitSuffix.space,
+      ),
+      autoCommit: json['autoCommit'] is bool
+          ? json['autoCommit'] as bool
+          : true,
+    );
+  }
+}
+
+const _defaultVoiceProfiles = [
+  VoiceProfile(
+    id: 'dictation',
+    name: 'Dictation',
+    intent: 'Clean speech into natural prose',
+    commitSuffix: CommitSuffix.space,
+    autoCommit: true,
+  ),
+  VoiceProfile(
+    id: 'chat',
+    name: 'Chat',
+    intent: 'Make the text concise and conversational',
+    commitSuffix: CommitSuffix.newline,
+    autoCommit: true,
+  ),
+  VoiceProfile(
+    id: 'review',
+    name: 'Review',
+    intent: 'Hold transcript for manual review',
+    commitSuffix: CommitSuffix.none,
+    autoCommit: false,
+  ),
+  VoiceProfile(
+    id: 'zh_to_en',
+    name: 'ZH -> EN',
+    intent:
+        'Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.',
+    commitSuffix: CommitSuffix.space,
+    autoCommit: true,
+  ),
+];
+
+class VoiceProfileStore {
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+  static const _key = 'voice_profiles.v1';
+
+  Future<List<VoiceProfile>> load() async {
+    final raw = await _storage.read(key: _key);
+    if (raw == null || raw.trim().isEmpty) {
+      return List<VoiceProfile>.of(_defaultVoiceProfiles);
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return List<VoiceProfile>.of(_defaultVoiceProfiles);
+      }
+      final profiles = decoded
+          .whereType<Map>()
+          .map((item) => VoiceProfile.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+      return profiles.isEmpty
+          ? List<VoiceProfile>.of(_defaultVoiceProfiles)
+          : profiles;
+    } catch (_) {
+      return List<VoiceProfile>.of(_defaultVoiceProfiles);
+    }
+  }
+
+  Future<void> save(List<VoiceProfile> profiles) {
+    final payload = jsonEncode(
+      profiles.map((profile) => profile.toJson()).toList(),
+    );
+    return _storage.write(key: _key, value: payload);
+  }
 }
 
 class DraftEntry {
@@ -1814,29 +1931,10 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   final ProviderSettingsStore _providerSettingsStore = ProviderSettingsStore();
+  final VoiceProfileStore _voiceProfileStore = VoiceProfileStore();
   final AudioRecorder _audioRecorder = AudioRecorder();
 
-  final List<VoiceProfile> _profiles = const [
-    VoiceProfile(
-      name: 'Dictation',
-      intent: 'Clean speech into natural prose',
-      commitSuffix: CommitSuffix.space,
-      autoCommit: true,
-    ),
-    VoiceProfile(
-      name: 'Chat',
-      intent: 'Make the text concise and conversational',
-      commitSuffix: CommitSuffix.newline,
-      autoCommit: true,
-    ),
-    VoiceProfile(
-      name: 'Review',
-      intent: 'Hold transcript for manual review',
-      commitSuffix: CommitSuffix.none,
-      autoCommit: false,
-    ),
-  ];
-
+  List<VoiceProfile> _profiles = List<VoiceProfile>.of(_defaultVoiceProfiles);
   final List<DraftEntry> _drafts = [];
 
   int _tabIndex = 0;
@@ -1866,6 +1964,7 @@ class _MobileShellState extends State<MobileShell> {
       unawaited(_runBailianSmokeTest());
     }
     unawaited(_loadProviderSettings());
+    unawaited(_loadVoiceProfiles());
     unawaited(_refreshMicrophonePermission());
   }
 
@@ -2151,6 +2250,217 @@ class _MobileShellState extends State<MobileShell> {
     });
   }
 
+  Future<void> _loadVoiceProfiles() async {
+    final profiles = await _voiceProfileStore.load();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _profiles = profiles;
+      if (_selectedProfileIndex >= _profiles.length) {
+        _selectedProfileIndex = _profiles.length - 1;
+      }
+      if (_selectedProfileIndex < 0) {
+        _selectedProfileIndex = 0;
+      }
+    });
+  }
+
+  Future<void> _saveVoiceProfiles(List<VoiceProfile> profiles) async {
+    await _voiceProfileStore.save(profiles);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _profiles = profiles;
+      if (_selectedProfileIndex >= _profiles.length) {
+        _selectedProfileIndex = _profiles.length - 1;
+      }
+      if (_selectedProfileIndex < 0) {
+        _selectedProfileIndex = 0;
+      }
+    });
+  }
+
+  Future<void> _upsertVoiceProfile(VoiceProfile profile) async {
+    final profiles = List<VoiceProfile>.of(_profiles);
+    final index = profiles.indexWhere((item) => item.id == profile.id);
+    if (index >= 0) {
+      profiles[index] = profile;
+      await _saveVoiceProfiles(profiles);
+      return;
+    }
+    profiles.add(profile);
+    await _saveVoiceProfiles(profiles);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedProfileIndex = profiles.length - 1;
+    });
+  }
+
+  Future<void> _deleteVoiceProfile(VoiceProfile profile) async {
+    if (_profiles.length <= 1) {
+      return;
+    }
+    final profiles = _profiles.where((item) => item.id != profile.id).toList();
+    await _saveVoiceProfiles(profiles);
+  }
+
+  Future<void> _showVoiceProfileEditor({VoiceProfile? profile}) async {
+    final nameController = TextEditingController(text: profile?.name ?? '');
+    final intentController = TextEditingController(
+      text:
+          profile?.intent ??
+          'Clean up the transcript. Return only the final text.',
+    );
+    var commitSuffix = profile?.commitSuffix ?? CommitSuffix.space;
+    var autoCommit = profile?.autoCommit ?? true;
+    try {
+      final edited = await showDialog<VoiceProfile>(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(profile == null ? 'New profile' : 'Edit profile'),
+                content: SizedBox(
+                  width: 520,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelText: 'Profile name',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: intentController,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelText: 'Post-processing prompt',
+                            helperText:
+                                'Example: Translate Chinese speech into natural English.',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: SegmentedButton<CommitSuffix>(
+                            segments: const [
+                              ButtonSegment<CommitSuffix>(
+                                value: CommitSuffix.none,
+                                label: Text('None'),
+                              ),
+                              ButtonSegment<CommitSuffix>(
+                                value: CommitSuffix.space,
+                                label: Text('Space'),
+                              ),
+                              ButtonSegment<CommitSuffix>(
+                                value: CommitSuffix.newline,
+                                label: Text('New line'),
+                              ),
+                            ],
+                            selected: {commitSuffix},
+                            onSelectionChanged: (selection) {
+                              setDialogState(() {
+                                commitSuffix = selection.first;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: autoCommit,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              autoCommit = value;
+                            });
+                          },
+                          title: const Text('Auto commit'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final name = nameController.text.trim();
+                      final intent = intentController.text.trim();
+                      Navigator.of(context).pop(
+                        VoiceProfile(
+                          id:
+                              profile?.id ??
+                              'profile_${DateTime.now().microsecondsSinceEpoch}',
+                          name: name.isEmpty ? 'Untitled' : name,
+                          intent: intent.isEmpty
+                              ? 'Clean up the transcript. Return only the final text.'
+                              : intent,
+                          commitSuffix: commitSuffix,
+                          autoCommit: autoCommit,
+                        ),
+                      );
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      if (edited != null) {
+        await _upsertVoiceProfile(edited);
+      }
+    } finally {
+      nameController.dispose();
+      intentController.dispose();
+    }
+  }
+
+  Future<void> _confirmDeleteVoiceProfile(VoiceProfile profile) async {
+    if (_profiles.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keep at least one profile')),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete profile'),
+          content: Text('Delete "${profile.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      await _deleteVoiceProfile(profile);
+    }
+  }
+
   Future<void> _loadProviderSettings() async {
     try {
       final settings = await _providerSettingsStore.load();
@@ -2360,6 +2670,10 @@ class _MobileShellState extends State<MobileShell> {
                   _selectedProfileIndex = index;
                 });
               },
+              onProfileAdded: () => _showVoiceProfileEditor(),
+              onProfileEdited: (profile) =>
+                  _showVoiceProfileEditor(profile: profile),
+              onProfileDeleted: _confirmDeleteVoiceProfile,
               onCapturePressed: _toggleCapture,
             ),
             DraftsView(drafts: _drafts, onDelete: _deleteDraft),
@@ -2446,6 +2760,9 @@ class RecordView extends StatelessWidget {
     required this.microphoneAllowed,
     required this.smokeTestStatus,
     required this.onProfileSelected,
+    required this.onProfileAdded,
+    required this.onProfileEdited,
+    required this.onProfileDeleted,
     required this.onCapturePressed,
     super.key,
   });
@@ -2456,6 +2773,9 @@ class RecordView extends StatelessWidget {
   final bool microphoneAllowed;
   final SmokeTestStatus? smokeTestStatus;
   final ValueChanged<int> onProfileSelected;
+  final VoidCallback onProfileAdded;
+  final ValueChanged<VoiceProfile> onProfileEdited;
+  final ValueChanged<VoiceProfile> onProfileDeleted;
   final VoidCallback onCapturePressed;
 
   @override
@@ -2508,19 +2828,58 @@ class RecordView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        Text('Profile', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
-        SegmentedButton<int>(
-          segments: [
-            for (var index = 0; index < profiles.length; index += 1)
-              ButtonSegment<int>(
-                value: index,
-                label: Text(profiles[index].name),
-                icon: Icon(_profileIcon(profiles[index])),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Profile',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
+            ),
+            IconButton(
+              tooltip: 'Add profile',
+              onPressed: onProfileAdded,
+              icon: const Icon(Icons.add_circle_outline),
+            ),
+            IconButton(
+              tooltip: 'Edit selected profile',
+              onPressed: () => onProfileEdited(profile),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+            IconButton(
+              tooltip: 'Delete selected profile',
+              onPressed: profiles.length <= 1
+                  ? null
+                  : () => onProfileDeleted(profile),
+              icon: const Icon(Icons.delete_outline),
+            ),
           ],
-          selected: {selectedProfileIndex},
-          onSelectionChanged: (selection) => onProfileSelected(selection.first),
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var index = 0; index < profiles.length; index += 1) ...[
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_profileIcon(profiles[index]), size: 18),
+                        const SizedBox(width: 8),
+                        Flexible(child: Text(profiles[index].name)),
+                      ],
+                    ),
+                    selected: selectedProfileIndex == index,
+                    showCheckmark: false,
+                    onSelected: (_) => onProfileSelected(index),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         InfoPanel(
@@ -2528,8 +2887,13 @@ class RecordView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                profile.intent,
+                profile.name,
                 style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                profile.intent,
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 8),
               Wrap(
