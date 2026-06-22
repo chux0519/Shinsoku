@@ -1982,6 +1982,69 @@ class _MobileShellState extends State<MobileShell> {
     });
   }
 
+  bool _profileNeedsPostProcessing(VoiceProfile profile) {
+    return profile.id != 'review' && profile.intent.trim().isNotEmpty;
+  }
+
+  Future<void> _selectProfile(int index) async {
+    final profile = _profiles[index];
+    setState(() {
+      _selectedProfileIndex = index;
+    });
+    await _ensurePostProcessingForProfile(profile);
+  }
+
+  Future<void> _ensurePostProcessingForProfile(VoiceProfile profile) async {
+    if (!_profileNeedsPostProcessing(profile) ||
+        _providerSettings.textTransformEnabled) {
+      return;
+    }
+
+    final settings = _providerSettings.copyWith(textTransformEnabled: true);
+    try {
+      await _saveProviderSettings(settings);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Text post-processing enabled for ${profile.name}.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Post-processing setting was not saved: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _publishTextWithFeedback(
+    String text, {
+    required String message,
+  }) async {
+    try {
+      await KeyboardBridge.publishText(text);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Clipboard update failed: $error')),
+      );
+    }
+  }
+
   Future<void> _toggleCapture() async {
     if (_captureState == CaptureState.idle) {
       await _startRecording();
@@ -2189,8 +2252,6 @@ class _MobileShellState extends State<MobileShell> {
         profileName: result.provider,
         createdAt: DateTime.now(),
       );
-      unawaited(KeyboardBridge.publishText(draft.text));
-
       if (!mounted) {
         return;
       }
@@ -2205,6 +2266,10 @@ class _MobileShellState extends State<MobileShell> {
           finished: true,
         );
       });
+      await _publishTextWithFeedback(
+        draft.text,
+        message: 'Transcript copied to clipboard.',
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -2288,6 +2353,9 @@ class _MobileShellState extends State<MobileShell> {
     if (index >= 0) {
       profiles[index] = profile;
       await _saveVoiceProfiles(profiles);
+      if (index == _selectedProfileIndex) {
+        await _ensurePostProcessingForProfile(profile);
+      }
       return;
     }
     profiles.add(profile);
@@ -2298,6 +2366,7 @@ class _MobileShellState extends State<MobileShell> {
     setState(() {
       _selectedProfileIndex = profiles.length - 1;
     });
+    await _ensurePostProcessingForProfile(profile);
   }
 
   Future<void> _deleteVoiceProfile(VoiceProfile profile) async {
@@ -2353,6 +2422,7 @@ class _MobileShellState extends State<MobileShell> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: SegmentedButton<CommitSuffix>(
+                            showSelectedIcon: false,
                             segments: const [
                               ButtonSegment<CommitSuffix>(
                                 value: CommitSuffix.none,
@@ -2527,6 +2597,11 @@ class _MobileShellState extends State<MobileShell> {
         return;
       }
 
+      final draft = DraftEntry(
+        text: result.transcript,
+        profileName: 'Soniox',
+        createdAt: DateTime.now(),
+      );
       setState(() {
         _captureState = CaptureState.idle;
         _tabIndex = 0;
@@ -2538,14 +2613,12 @@ class _MobileShellState extends State<MobileShell> {
           transcript: result.transcript,
           finished: true,
         );
-        final draft = DraftEntry(
-          text: result.transcript,
-          profileName: 'Soniox',
-          createdAt: DateTime.now(),
-        );
-        unawaited(KeyboardBridge.publishText(draft.text));
         _drafts.insert(0, draft);
       });
+      await _publishTextWithFeedback(
+        draft.text,
+        message: 'Smoke test transcript copied to clipboard.',
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -2593,6 +2666,13 @@ class _MobileShellState extends State<MobileShell> {
         return;
       }
 
+      final draft = result.transcript.isNotEmpty
+          ? DraftEntry(
+              text: result.transcript,
+              profileName: 'Bailian',
+              createdAt: DateTime.now(),
+            )
+          : null;
       setState(() {
         _captureState = CaptureState.idle;
         _tabIndex = 0;
@@ -2604,16 +2684,16 @@ class _MobileShellState extends State<MobileShell> {
           transcript: result.transcript,
           finished: true,
         );
-        if (result.transcript.isNotEmpty) {
-          final draft = DraftEntry(
-            text: result.transcript,
-            profileName: 'Bailian',
-            createdAt: DateTime.now(),
-          );
-          unawaited(KeyboardBridge.publishText(draft.text));
+        if (draft != null) {
           _drafts.insert(0, draft);
         }
       });
+      if (draft != null) {
+        await _publishTextWithFeedback(
+          draft.text,
+          message: 'Smoke test transcript copied to clipboard.',
+        );
+      }
     } catch (error) {
       debugPrint('SHINSOKU_BAILIAN_E2E_FAIL $error');
       if (!mounted) {
@@ -2666,9 +2746,7 @@ class _MobileShellState extends State<MobileShell> {
               microphoneAllowed: _microphoneAllowed,
               smokeTestStatus: _smokeTestStatus,
               onProfileSelected: (index) {
-                setState(() {
-                  _selectedProfileIndex = index;
-                });
+                unawaited(_selectProfile(index));
               },
               onProfileAdded: () => _showVoiceProfileEditor(),
               onProfileEdited: (profile) =>
@@ -2676,7 +2754,14 @@ class _MobileShellState extends State<MobileShell> {
               onProfileDeleted: _confirmDeleteVoiceProfile,
               onCapturePressed: _toggleCapture,
             ),
-            DraftsView(drafts: _drafts, onDelete: _deleteDraft),
+            DraftsView(
+              drafts: _drafts,
+              onDelete: _deleteDraft,
+              onCopy: (draft) => _publishTextWithFeedback(
+                draft.text,
+                message: 'Draft copied to clipboard.',
+              ),
+            ),
             SettingsView(
               microphoneAllowed: _microphoneAllowed,
               keyboardExtensionEnabled: _keyboardExtensionEnabled,
@@ -2981,10 +3066,16 @@ class RecordView extends StatelessWidget {
 }
 
 class DraftsView extends StatelessWidget {
-  const DraftsView({required this.drafts, required this.onDelete, super.key});
+  const DraftsView({
+    required this.drafts,
+    required this.onDelete,
+    required this.onCopy,
+    super.key,
+  });
 
   final List<DraftEntry> drafts;
   final ValueChanged<DraftEntry> onDelete;
+  final ValueChanged<DraftEntry> onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -2997,7 +3088,11 @@ class DraftsView extends StatelessWidget {
           const InfoPanel(child: EmptyState())
         else
           for (final draft in drafts) ...[
-            DraftCard(draft: draft, onDelete: () => onDelete(draft)),
+            DraftCard(
+              draft: draft,
+              onDelete: () => onDelete(draft),
+              onCopy: () => onCopy(draft),
+            ),
             const SizedBox(height: 12),
           ],
       ],
@@ -3571,38 +3666,57 @@ class SmokeTestPanel extends StatelessWidget {
 }
 
 class DraftCard extends StatelessWidget {
-  const DraftCard({required this.draft, required this.onDelete, super.key});
+  const DraftCard({
+    required this.draft,
+    required this.onDelete,
+    required this.onCopy,
+    super.key,
+  });
 
   final DraftEntry draft;
   final VoidCallback onDelete;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return InfoPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Card(
+      color: Theme.of(context).colorScheme.surface,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onCopy,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              StatusChip(
-                icon: Icons.person_search_outlined,
-                label: draft.profileName,
+              Row(
+                children: [
+                  StatusChip(
+                    icon: Icons.person_search_outlined,
+                    label: draft.profileName,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Copy draft',
+                    onPressed: onCopy,
+                    icon: const Icon(Icons.content_copy_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete draft',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Delete draft',
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
-              ),
+              const SizedBox(height: 8),
+              Text(draft.text, style: textTheme.bodyLarge),
+              const SizedBox(height: 10),
+              Text(_relativeTime(draft.createdAt), style: textTheme.bodySmall),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(draft.text, style: textTheme.bodyLarge),
-          const SizedBox(height: 10),
-          Text(_relativeTime(draft.createdAt), style: textTheme.bodySmall),
-        ],
+        ),
       ),
     );
   }
