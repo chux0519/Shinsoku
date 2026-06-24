@@ -11,6 +11,10 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    if let launchURL = launchOptions?[.url] as? URL, launchURL.scheme == "shinsoku" {
+      pendingDeepLink = launchURL.absoluteString
+    }
+
     GeneratedPluginRegistrant.register(with: self)
 
     if let controller = window?.rootViewController as? FlutterViewController {
@@ -54,6 +58,12 @@ import UIKit
           result(FlutterMethodNotImplemented)
         }
       }
+
+      if let pendingDeepLink {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+          deepLink.invokeMethod("openURL", arguments: pendingDeepLink)
+        }
+      }
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -75,6 +85,16 @@ import UIKit
         binaryMessenger: controller.binaryMessenger
       )
       channel.invokeMethod("openURL", arguments: url.absoluteString)
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak controller] in
+        guard let self, self.pendingDeepLink == url.absoluteString, let controller else {
+          return
+        }
+        let channel = FlutterMethodChannel(
+          name: self.deepLinkChannel,
+          binaryMessenger: controller.binaryMessenger
+        )
+        channel.invokeMethod("openURL", arguments: url.absoluteString)
+      }
     }
     return true
   }

@@ -1,3 +1,4 @@
+import SwiftUI
 import UIKit
 
 final class KeyboardViewController: UIInputViewController {
@@ -133,10 +134,27 @@ final class KeyboardViewController: UIInputViewController {
         guard let url = URL(string: "shinsoku://dictation") else {
             return
         }
+        hint.text = "Opening Shinsoku to record."
+        if #available(iOS 14.0, *) {
+            EnvironmentValues().openURL(url) { [weak self] accepted in
+                if accepted {
+                    self?.hint.text = "Opening Shinsoku to record."
+                    return
+                }
+                self?.openWithExtensionContext(url)
+            }
+            return
+        }
+        openWithExtensionContext(url)
+    }
+
+    private func openWithExtensionContext(_ url: URL) {
         extensionContext?.open(url) { [weak self] completed in
-            self?.hint.text = completed
-                ? "Opening Shinsoku to record."
-                : "Open Shinsoku from the Home Screen, then return here to paste."
+            if completed {
+                self?.hint.text = "Opening Shinsoku to record."
+                return
+            }
+            self?.hint.text = "Open Shinsoku from the Home Screen, then return here to paste."
         }
     }
 }

@@ -1935,7 +1935,7 @@ class MobileShell extends StatefulWidget {
   State<MobileShell> createState() => _MobileShellState();
 }
 
-class _MobileShellState extends State<MobileShell> {
+class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   final ProviderSettingsStore _providerSettingsStore = ProviderSettingsStore();
   final VoiceProfileStore _voiceProfileStore = VoiceProfileStore();
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -1964,6 +1964,7 @@ class _MobileShellState extends State<MobileShell> {
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addObserver(this);
     DeepLinkBridge.channel.setMethodCallHandler(_handleDeepLinkMethodCall);
     unawaited(_consumeInitialDeepLink());
     if (SmokeTestConfig.mode == 'soniox') {
@@ -1978,11 +1979,19 @@ class _MobileShellState extends State<MobileShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     DeepLinkBridge.channel.setMethodCallHandler(null);
     unawaited(_recordingStreamSubscription?.cancel());
     unawaited(_bailianLiveSession?.close());
     unawaited(_audioRecorder.dispose());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_consumeInitialDeepLink());
+    }
   }
 
   Future<dynamic> _handleDeepLinkMethodCall(MethodCall call) async {
@@ -2221,6 +2230,7 @@ class _MobileShellState extends State<MobileShell> {
         return;
       }
       setState(() {
+        _microphoneAllowed = true;
         _captureState = CaptureState.idle;
         _smokeTestStatus = SmokeTestStatus(
           label: 'Recording failed',
