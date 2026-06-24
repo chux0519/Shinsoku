@@ -39,22 +39,31 @@ final class KeyboardViewController: UIInputViewController {
         header.addArrangedSubview(titleStack)
         header.addArrangedSubview(spacer)
 
-        let controls = UIStackView()
-        controls.axis = .horizontal
-        controls.spacing = 8
-        controls.distribution = .fillEqually
+        let primaryControls = UIStackView()
+        primaryControls.axis = .horizontal
+        primaryControls.spacing = 8
+        primaryControls.distribution = .fillEqually
 
-        controls.addArrangedSubview(makeButton(title: "Dictate", image: "mic.fill", action: #selector(openDictationApp)))
-        controls.addArrangedSubview(makeButton(title: "Paste", image: "text.cursor", action: #selector(pasteLatestText)))
-        controls.addArrangedSubview(makeButton(title: "Next", image: "globe", action: #selector(nextKeyboard)))
+        primaryControls.addArrangedSubview(makeButton(title: "Record", image: "mic.fill", action: #selector(openDictationApp), style: .primary))
+        primaryControls.addArrangedSubview(makeButton(title: "Paste", image: "doc.on.clipboard", action: #selector(pasteLatestText), style: .primary))
 
-        hint.text = "Open Shinsoku, record, then paste the latest text here."
+        let editingControls = UIStackView()
+        editingControls.axis = .horizontal
+        editingControls.spacing = 8
+        editingControls.distribution = .fillEqually
+
+        editingControls.addArrangedSubview(makeButton(title: "Return", image: "return", action: #selector(insertNewline), style: .secondary))
+        editingControls.addArrangedSubview(makeButton(title: "Delete", image: "delete.left", action: #selector(deleteBackward), style: .secondary))
+        editingControls.addArrangedSubview(makeButton(title: "Next", image: "globe", action: #selector(nextKeyboard), style: .secondary))
+
+        hint.text = "Record in Shinsoku, then paste the latest text here. Enable Full Access for clipboard paste."
         hint.font = .preferredFont(forTextStyle: .footnote)
         hint.textColor = .secondaryLabel
         hint.numberOfLines = 2
 
         stack.addArrangedSubview(header)
-        stack.addArrangedSubview(controls)
+        stack.addArrangedSubview(primaryControls)
+        stack.addArrangedSubview(editingControls)
         stack.addArrangedSubview(hint)
 
         view.addSubview(stack)
@@ -63,17 +72,30 @@ final class KeyboardViewController: UIInputViewController {
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 10),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -10),
-            controls.heightAnchor.constraint(equalToConstant: 44),
+            primaryControls.heightAnchor.constraint(equalToConstant: 44),
+            editingControls.heightAnchor.constraint(equalToConstant: 40),
         ])
     }
 
-    private func makeButton(title: String, image: String, action: Selector) -> UIButton {
+    private enum ButtonStyle {
+        case primary
+        case secondary
+    }
+
+    private func makeButton(title: String, image: String, action: Selector, style: ButtonStyle) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
         button.setImage(UIImage(systemName: image), for: .normal)
-        button.tintColor = .white
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = accentColor
+        switch style {
+        case .primary:
+            button.tintColor = .white
+            button.setTitleColor(.white, for: .normal)
+            button.backgroundColor = accentColor
+        case .secondary:
+            button.tintColor = accentColor
+            button.setTitleColor(.label, for: .normal)
+            button.backgroundColor = UIColor.secondarySystemGroupedBackground
+        }
         button.layer.cornerRadius = 8
         button.titleLabel?.font = .preferredFont(forTextStyle: .callout)
         button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
@@ -85,12 +107,22 @@ final class KeyboardViewController: UIInputViewController {
 
     @objc private func pasteLatestText() {
         guard let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-            hint.text = "No Shinsoku text is available yet."
+            hint.text = "No Shinsoku text is available. Record first and allow Full Access for clipboard paste."
             return
         }
 
-        textDocumentProxy.insertText(text + " ")
+        textDocumentProxy.insertText(text)
         hint.text = "Inserted latest Shinsoku text."
+    }
+
+    @objc private func insertNewline() {
+        textDocumentProxy.insertText("\n")
+        hint.text = "Inserted new line."
+    }
+
+    @objc private func deleteBackward() {
+        textDocumentProxy.deleteBackward()
+        hint.text = "Deleted one character."
     }
 
     @objc private func nextKeyboard() {
@@ -101,6 +133,10 @@ final class KeyboardViewController: UIInputViewController {
         guard let url = URL(string: "shinsoku://dictation") else {
             return
         }
-        extensionContext?.open(url, completionHandler: nil)
+        extensionContext?.open(url) { [weak self] completed in
+            self?.hint.text = completed
+                ? "Opening Shinsoku to record."
+                : "Open Shinsoku from the Home Screen, then return here to paste."
+        }
     }
 }

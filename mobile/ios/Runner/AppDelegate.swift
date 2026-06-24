@@ -4,6 +4,8 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   private let keyboardBridgeChannel = "net.potafree.shinsoku/keyboard_bridge"
+  private let deepLinkChannel = "net.potafree.shinsoku/deep_link"
+  private var pendingDeepLink: String?
 
   override func application(
     _ application: UIApplication,
@@ -38,8 +40,42 @@ import UIKit
           result(FlutterMethodNotImplemented)
         }
       }
+
+      let deepLink = FlutterMethodChannel(
+        name: deepLinkChannel,
+        binaryMessenger: controller.binaryMessenger
+      )
+      deepLink.setMethodCallHandler { [weak self] call, result in
+        switch call.method {
+        case "consumeInitialURL":
+          result(self?.pendingDeepLink)
+          self?.pendingDeepLink = nil
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    guard url.scheme == "shinsoku" else {
+      return super.application(app, open: url, options: options)
+    }
+
+    pendingDeepLink = url.absoluteString
+    if let controller = window?.rootViewController as? FlutterViewController {
+      let channel = FlutterMethodChannel(
+        name: deepLinkChannel,
+        binaryMessenger: controller.binaryMessenger
+      )
+      channel.invokeMethod("openURL", arguments: url.absoluteString)
+    }
+    return true
   }
 }

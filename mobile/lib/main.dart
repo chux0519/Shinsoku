@@ -72,6 +72,12 @@ class KeyboardBridge {
   }
 }
 
+class DeepLinkBridge {
+  static const MethodChannel channel = MethodChannel(
+    'net.potafree.shinsoku/deep_link',
+  );
+}
+
 class SmokeTestConfig {
   static const mode = String.fromEnvironment('SHINSOKU_SMOKE_TEST');
   static const sonioxApiKey = String.fromEnvironment('SONIOX_API_KEY');
@@ -1958,6 +1964,8 @@ class _MobileShellState extends State<MobileShell> {
   void initState() {
     super.initState();
 
+    DeepLinkBridge.channel.setMethodCallHandler(_handleDeepLinkMethodCall);
+    unawaited(_consumeInitialDeepLink());
     if (SmokeTestConfig.mode == 'soniox') {
       unawaited(_runSonioxSmokeTest());
     } else if (SmokeTestConfig.mode == 'bailian') {
@@ -1970,10 +1978,62 @@ class _MobileShellState extends State<MobileShell> {
 
   @override
   void dispose() {
+    DeepLinkBridge.channel.setMethodCallHandler(null);
     unawaited(_recordingStreamSubscription?.cancel());
     unawaited(_bailianLiveSession?.close());
     unawaited(_audioRecorder.dispose());
     super.dispose();
+  }
+
+  Future<dynamic> _handleDeepLinkMethodCall(MethodCall call) async {
+    if (call.method == 'openURL' && call.arguments is String) {
+      await _handleDeepLink(call.arguments as String);
+    }
+  }
+
+  Future<void> _consumeInitialDeepLink() async {
+    try {
+      final url = await DeepLinkBridge.channel.invokeMethod<String>(
+        'consumeInitialURL',
+      );
+      if (url != null) {
+        await _handleDeepLink(url);
+      }
+    } catch (_) {
+      // Deep links are best-effort; normal app launch should continue.
+    }
+  }
+
+  Future<void> _handleDeepLink(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'shinsoku') {
+      return;
+    }
+    if (uri.host == 'dictation' || uri.pathSegments.contains('dictation')) {
+      await _handleKeyboardRecordRequest();
+    }
+  }
+
+  Future<void> _handleKeyboardRecordRequest() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _tabIndex = 0;
+    });
+
+    if (_captureState != CaptureState.idle) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shinsoku is already recording.')),
+      );
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted || _captureState != CaptureState.idle) {
+      return;
+    }
+    await _startRecording();
   }
 
   void _selectTab(int index) {
@@ -3247,6 +3307,7 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final providerConfigured = switch (_speechProvider) {
       'soniox' => _sonioxKeyController.text.trim().isNotEmpty,
       _ => _bailianKeyController.text.trim().isNotEmpty,
@@ -3272,13 +3333,14 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
               ),
               const Divider(),
-              SwitchListTile(
-                value: widget.keyboardExtensionEnabled,
-                onChanged: widget.onKeyboardChanged,
-                secondary: const Icon(Icons.keyboard_alt_outlined),
-                title: const Text('Keyboard insertion surface'),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.keyboard_alt_outlined),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: openAppSettings,
+                title: const Text('Keyboard setup'),
                 subtitle: const Text(
-                  'Use the iOS keyboard to paste the latest Shinsoku text',
+                  'Add Shinsoku in iOS Keyboard settings and allow Full Access',
                 ),
               ),
               const Divider(),
@@ -3292,6 +3354,38 @@ class _SettingsViewState extends State<SettingsView> {
                       ? 'Provider credentials are saved'
                       : 'Save provider credentials before real transcription',
                 ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        InfoPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.keyboard_command_key, color: scheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Enable Shinsoku Keyboard',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                '1. Open iOS Settings > General > Keyboard > Keyboards.\n'
+                '2. Add Shinsoku as a third-party keyboard.\n'
+                '3. Turn on Allow Full Access so Paste can read the latest Shinsoku text.',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: openAppSettings,
+                icon: const Icon(Icons.settings_outlined),
+                label: const Text('Open iOS Settings'),
               ),
             ],
           ),
