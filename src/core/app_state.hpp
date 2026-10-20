@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -23,6 +24,14 @@ struct HistoryEntry {
     std::string text;
     nlohmann::json meta;
     std::optional<std::filesystem::path> audio_path;
+};
+
+struct HistoryQuery {
+    std::size_t limit = 50;
+    std::optional<std::int64_t> before_id;
+    std::optional<std::string> since_date;
+    std::optional<std::string> source_app;
+    std::optional<std::string> text_query;
 };
 
 }  // namespace ohmytypeless

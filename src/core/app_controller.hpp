@@ -6,9 +6,11 @@
 #include "core/backend/streaming_asr_backend.hpp"
 #include "core/backend/text_transform_backend.hpp"
 #include "core/history_store.hpp"
+#include "core/input/push_audio_source.hpp"
 #include "core/recording_store.hpp"
 #include "core/task_types.hpp"
 #include "platform/audio_capture_service.hpp"
+#include "platform/input_target_context.hpp"
 
 #include <QFutureWatcher>
 #include <QObject>
@@ -33,6 +35,9 @@ class HudPresenter;
 class MainWindow;
 class SelectionService;
 class AudioCaptureService;
+class PushAudioCaptureService;
+class NearbyRuntime;
+class DeviceAdapterRuntime;
 
 struct TranscriptionResult {
     quint64 job_id = 0;
@@ -64,8 +69,12 @@ public:
                   GlobalHotkey* hotkey,
                   HudPresenter* hud,
                   QObject* parent = nullptr);
+    ~AppController() override;
 
     void initialize();
+    void attach_push_audio_capture(PushAudioCaptureService* push_audio_capture);
+    void attach_nearby_runtime(NearbyRuntime* nearby_runtime);
+    void attach_device_adapter_runtime(DeviceAdapterRuntime* device_adapter_runtime);
 
 private slots:
     void toggle_recording();
@@ -86,6 +95,8 @@ private slots:
     void show_history_entry_details(qint64 id);
     void delete_history_entry(qint64 id, bool delete_audio_if_present);
     void load_older_history();
+    void on_nearby_pairing_requested();
+    void on_nearby_revoke_requested(const QString& client_id);
 
 private:
     void start_recording(SessionState mode);
@@ -118,12 +129,28 @@ private:
     void sync_platform_capability_ui();
     void refresh_capture_mode_ui();
     void rebuild_runtime_config();
+    void apply_nearby_runtime();
+    void refresh_nearby_settings();
+    void apply_device_adapter_runtime();
+    void refresh_device_adapter_settings();
+    QString select_runtime_profile_for_target(const InputTargetContext& target);
+    QString select_runtime_profile_for_push(const InputTargetContext& target, const PushAudioStreamInfo& stream);
+    void restore_manual_profile_runtime();
+    bool begin_push_audio_stream(const PushAudioStreamInfo& stream, QString* error);
+    void end_push_audio_stream(std::uint32_t stream_id, PushAudioStopReason reason);
+    void handle_device_adapter_button(const QString& action_id, const QString& event);
     void capture_hotkey_async(RecordedKeyResult::Target target);
     void finish_hotkey_capture(const RecordedKeyResult& result);
+    bool store_history_entry(const std::string& text,
+                             const std::optional<std::filesystem::path>& audio_path,
+                             const nlohmann::json& meta);
 
     MainWindow* window_ = nullptr;
     ClipboardService* clipboard_ = nullptr;
     AudioCaptureService* audio_capture_ = nullptr;
+    PushAudioCaptureService* push_audio_capture_ = nullptr;
+    NearbyRuntime* nearby_runtime_ = nullptr;
+    DeviceAdapterRuntime* device_adapter_runtime_ = nullptr;
     SelectionService* selection_ = nullptr;
     GlobalHotkey* hotkey_ = nullptr;
     HudPresenter* hud_ = nullptr;
@@ -147,8 +174,15 @@ private:
     CaptureMode active_capture_mode_ = CaptureMode::Dictation;
     std::optional<QString> captured_selection_text_;
     QString pending_selection_debug_info_;
+    InputTargetContext active_input_target_context_;
+    std::string active_history_profile_id_;
+    std::string active_history_profile_name_;
+    std::string active_history_profile_selection_ = "manual";
+    std::optional<PushAudioStreamInfo> pending_push_stream_;
+    std::optional<PushAudioStreamInfo> active_push_stream_;
     std::chrono::steady_clock::time_point recording_started_at_{};
     QTimer* selection_command_upgrade_timer_ = nullptr;
+    QTimer* nearby_status_timer_ = nullptr;
     std::unique_ptr<StreamingAsrSession> streaming_session_;
     std::thread streaming_connect_thread_;
     std::thread streaming_pump_thread_;
@@ -158,6 +192,7 @@ private:
     QString streaming_partial_text_;
     QString streaming_final_text_;
     QString streaming_error_text_;
+    quint64 streaming_generation_ = 0;
     bool streaming_closed_ = false;
     bool streaming_active_ = false;
     bool streaming_session_ready_ = false;

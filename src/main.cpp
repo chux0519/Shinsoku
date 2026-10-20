@@ -1,6 +1,9 @@
 #include "core/app_controller.hpp"
 #include "platform/linux/linux_pulseaudio_audio_capture_service.hpp"
 #include "platform/miniaudio_audio_capture_service.hpp"
+#include "platform/network/nearby_runtime.hpp"
+#include "platform/network/push_audio_capture_service.hpp"
+#include "platform/process/device_adapter_runtime.hpp"
 #include "platform/qt/qt_clipboard_service.hpp"
 #include "platform/qt/qt_global_hotkey.hpp"
 #include "platform/qt/qt_hud_presenter.hpp"
@@ -28,6 +31,7 @@
 #include "platform/windows/windows_selection_service.hpp"
 #elif defined(Q_OS_MACOS)
 #include "platform/macos/macos_audio_capture_service.hpp"
+#include "platform/macos/macos_bonjour_publisher.hpp"
 #include "platform/macos/macos_clipboard_service.hpp"
 #include "platform/macos/macos_global_hotkey.hpp"
 #include "platform/macos/macos_hud_presenter.hpp"
@@ -101,20 +105,32 @@ int main(int argc, char* argv[]) {
     ohmytypeless::QtGlobalHotkey hotkey;
 #endif
 #endif
+    ohmytypeless::PushAudioCaptureService push_audio_capture;
+    ohmytypeless::RoutedAudioCaptureService routed_audio_capture(audio_capture, push_audio_capture);
+#ifdef Q_OS_MACOS
+    ohmytypeless::NearbyRuntime nearby_runtime(
+        push_audio_capture, std::make_unique<ohmytypeless::MacOSBonjourPublisher>());
+#else
+    ohmytypeless::NearbyRuntime nearby_runtime(push_audio_capture);
+#endif
+    ohmytypeless::DeviceAdapterRuntime device_adapter_runtime(push_audio_capture);
 #ifdef Q_OS_LINUX
     ohmytypeless::AppController controller(&window,
                                            clipboard_impl.get(),
-                                           &audio_capture,
+                                           &routed_audio_capture,
                                            selection_impl.get(),
                                            hotkey_impl.get(),
                                            hud_impl.get());
 #elif defined(Q_OS_MACOS)
-    ohmytypeless::AppController controller(&window, &clipboard, &audio_capture, &selection, &hotkey, &hud);
+    ohmytypeless::AppController controller(&window, &clipboard, &routed_audio_capture, &selection, &hotkey, &hud);
 #else
     ohmytypeless::QtHudPresenter hud(&window);
-    ohmytypeless::AppController controller(&window, &clipboard, &audio_capture, &selection, &hotkey, &hud);
+    ohmytypeless::AppController controller(&window, &clipboard, &routed_audio_capture, &selection, &hotkey, &hud);
 #endif
 
+    controller.attach_push_audio_capture(&push_audio_capture);
+    controller.attach_nearby_runtime(&nearby_runtime);
+    controller.attach_device_adapter_runtime(&device_adapter_runtime);
     controller.initialize();
     window.show();
 

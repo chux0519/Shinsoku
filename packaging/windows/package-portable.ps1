@@ -3,6 +3,11 @@ param(
     [Parameter(Mandatory = $true)][string]$Version,
     [Parameter(Mandatory = $true)][string]$Config,
     [Parameter(Mandatory = $true)][string]$ExecutablePath,
+    [Parameter(Mandatory = $true)][string]$HistoryCliPath,
+    [Parameter(Mandatory = $true)][string]$HistoryMcpPath,
+    [Parameter(Mandatory = $true)][string]$HistorySkillPath,
+    [Parameter(Mandatory = $true)][string]$AdapterCheckPath,
+    [Parameter(Mandatory = $true)][string]$AdapterExamplePath,
     [Parameter(Mandatory = $true)][string]$WindeployQtPath,
     [Parameter(Mandatory = $true)][string]$VcpkgInstalledDir,
     [Parameter(Mandatory = $true)][string]$OutputDir
@@ -12,6 +17,26 @@ $ErrorActionPreference = "Stop"
 
 if (-not (Test-Path -LiteralPath $ExecutablePath)) {
     throw "Executable not found: $ExecutablePath"
+}
+
+if (-not (Test-Path -LiteralPath $HistoryCliPath)) {
+    throw "History CLI not found: $HistoryCliPath"
+}
+
+if (-not (Test-Path -LiteralPath $HistoryMcpPath)) {
+    throw "History MCP server not found: $HistoryMcpPath"
+}
+
+if (-not (Test-Path -LiteralPath (Join-Path $HistorySkillPath "SKILL.md"))) {
+    throw "History Skill not found: $HistorySkillPath"
+}
+
+if (-not (Test-Path -LiteralPath $AdapterCheckPath)) {
+    throw "Adapter checker not found: $AdapterCheckPath"
+}
+
+if (-not (Test-Path -LiteralPath $AdapterExamplePath)) {
+    throw "Adapter example not found: $AdapterExamplePath"
 }
 
 if (-not (Test-Path -LiteralPath $WindeployQtPath)) {
@@ -48,6 +73,15 @@ if (Test-Path -LiteralPath $stageRoot) {
 New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
 
 Copy-Item -LiteralPath $ExecutablePath -Destination (Join-Path $stageDir ([System.IO.Path]::GetFileName($ExecutablePath))) -Force
+Copy-Item -LiteralPath $HistoryCliPath -Destination (Join-Path $stageDir ([System.IO.Path]::GetFileName($HistoryCliPath))) -Force
+Copy-Item -LiteralPath $HistoryMcpPath -Destination (Join-Path $stageDir ([System.IO.Path]::GetFileName($HistoryMcpPath))) -Force
+Copy-Item -LiteralPath $AdapterCheckPath -Destination (Join-Path $stageDir ([System.IO.Path]::GetFileName($AdapterCheckPath))) -Force
+$skillsDir = Join-Path $stageDir "skills"
+New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
+Copy-Item -LiteralPath $HistorySkillPath -Destination (Join-Path $skillsDir "read-shinsoku-history") -Recurse -Force
+$adapterExamplesDir = Join-Path $stageDir "device-adapters\examples"
+New-Item -ItemType Directory -Force -Path $adapterExamplesDir | Out-Null
+Copy-Item -LiteralPath $AdapterExamplePath -Destination (Join-Path $adapterExamplesDir "synthetic_adapter.py") -Force
 
 $deployArgs = @(
     "--dir", $stageDir,
@@ -78,6 +112,15 @@ Shinsoku portable package
 
 Run:
   shinsoku.exe
+
+Read transcript history as JSON:
+  shinsoku-history.exe list --limit 20 --pretty
+
+Expose read-only history tools to a local MCP client:
+  shinsoku-history-mcp.exe
+
+Validate a third-party device adapter trace:
+  shinsoku-adapter-check.exe --trace trace.jsonl --require-audio --pretty
 
 Notes:
   - This is a portable build with bundled Qt and runtime dependencies.

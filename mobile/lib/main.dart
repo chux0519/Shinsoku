@@ -12,6 +12,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:web_socket_channel/io.dart';
 
+import 'nearby/nearby_microphone_view.dart';
+
 void main() {
   runApp(const ShinsokuMobileApp());
 }
@@ -1990,7 +1992,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     super.initState();
 
     _drafts = List<DraftEntry>.of(widget.initialDrafts);
-    _tabIndex = widget.initialTabIndex.clamp(0, 2);
+    _tabIndex = widget.initialTabIndex.clamp(0, 3);
 
     WidgetsBinding.instance.addObserver(this);
     DeepLinkBridge.channel.setMethodCallHandler(_handleDeepLinkMethodCall);
@@ -2857,6 +2859,11 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         label: 'Drafts',
       ),
       NavigationDestination(
+        icon: Icon(Icons.wifi_tethering),
+        selectedIcon: Icon(Icons.podcasts),
+        label: 'Desktop',
+      ),
+      NavigationDestination(
         icon: Icon(Icons.tune_outlined),
         selectedIcon: Icon(Icons.tune),
         label: 'Settings',
@@ -2892,6 +2899,19 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
                 draft.text,
                 message: 'Draft copied to clipboard.',
               ),
+            ),
+            NearbyMicrophoneView(
+              profiles: [
+                for (final profile in _profiles)
+                  NearbyProfileOption(
+                    id: switch (profile.id) {
+                      'dictation' => 'default',
+                      'zh_to_en' => 'zh-to-en',
+                      _ => profile.id,
+                    },
+                    label: profile.name,
+                  ),
+              ],
             ),
             SettingsView(
               microphoneAllowed: _microphoneAllowed,
@@ -2939,6 +2959,11 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
                         icon: Icon(Icons.description_outlined),
                         selectedIcon: Icon(Icons.description),
                         label: Text('Drafts'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(Icons.wifi_tethering),
+                        selectedIcon: Icon(Icons.podcasts),
+                        label: Text('Desktop'),
                       ),
                       NavigationRailDestination(
                         icon: Icon(Icons.tune_outlined),

@@ -372,7 +372,7 @@ bool MacOSAudioCaptureService::supports_capture_mode(AudioCaptureMode capture_mo
     if (capture_mode == AudioCaptureMode::Microphone) {
         return true;
     }
-    return screen_capture_kit_available();
+    return capture_mode == AudioCaptureMode::SystemLoopback && screen_capture_kit_available();
 }
 
 void MacOSAudioCaptureService::start(std::uint32_t sample_rate,
@@ -388,6 +388,10 @@ void MacOSAudioCaptureService::start(std::uint32_t sample_rate,
         microphone_delegate_.start(sample_rate, channels, device_id, capture_mode);
         recording_.store(true);
         return;
+    }
+
+    if (capture_mode != AudioCaptureMode::SystemLoopback) {
+        throw std::invalid_argument("unsupported macOS capture mode");
     }
 
     if (!supports_capture_mode(AudioCaptureMode::SystemLoopback)) {

@@ -150,9 +150,18 @@ struct ProfileConfig {
     std::string notes;
 };
 
+struct AppProfileRule {
+    bool enabled = true;
+    std::string app_id;
+    std::string app_name;
+    std::string profile_id;
+};
+
 struct ProfilesConfig {
     std::string active_profile_id = "default";
     std::vector<ProfileConfig> items;
+    bool auto_select_by_app = true;
+    std::vector<AppProfileRule> app_rules;
 };
 
 struct NetworkProxyConfig {
@@ -164,8 +173,19 @@ struct NetworkProxyConfig {
     std::string password;
 };
 
+struct NetworkNearbyConfig {
+    bool enabled = false;
+    int port = 39273;
+};
+
 struct NetworkConfig {
     NetworkProxyConfig proxy;
+    NetworkNearbyConfig nearby;
+};
+
+struct DeviceAdapterConfig {
+    bool enabled = false;
+    std::filesystem::path executable_path;
 };
 
 struct VadConfig {
@@ -200,6 +220,7 @@ struct AppConfig {
     OutputConfig output;
     ProfilesConfig profiles;
     NetworkConfig network;
+    DeviceAdapterConfig device_adapter;
     ProvidersConfig providers;
     VadConfig vad;
     ObservabilityConfig observability;

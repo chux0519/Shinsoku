@@ -16,6 +16,7 @@ public:
     void copy_text(const QString& text) override;
     bool paste_text_to_last_target(const QString& text, const QString& paste_keys) override;
     QString last_debug_info() const override;
+    InputTargetContext input_target_context() const override;
 
 private:
     void set_debug_info(const QString& text);
@@ -24,6 +25,7 @@ private:
     quintptr target_window_ = 0;
     quintptr target_focus_ = 0;
     unsigned long target_thread_id_ = 0;
+    InputTargetContext target_context_;
     QString last_debug_info_;
 };
 

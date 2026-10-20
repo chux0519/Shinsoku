@@ -64,6 +64,14 @@ std::string trim(std::string value) {
     return value.substr(begin, end - begin + 1U);
 }
 
+std::string normalize_app_id(std::string app_id) {
+    app_id = trim(std::move(app_id));
+    std::transform(app_id.begin(), app_id.end(), app_id.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+    return app_id;
+}
+
 std::string strip_comments(std::string line) {
     bool in_quotes = false;
     bool escaped = false;
@@ -353,6 +361,15 @@ void ensure_profiles(AppConfig& config) {
     if (!active_exists) {
         config.profiles.active_profile_id = fallback_active_id;
     }
+
+    for (auto& rule : config.profiles.app_rules) {
+        rule.app_id = normalize_app_id(std::move(rule.app_id));
+        rule.app_name = trim(std::move(rule.app_name));
+        rule.profile_id = trim(std::move(rule.profile_id));
+        if (rule.app_name.empty()) {
+            rule.app_name = rule.app_id;
+        }
+    }
 }
 
 float parse_float(const std::string& value, float fallback) {
@@ -464,6 +481,9 @@ AppConfig load_config(const AppConfigPaths& paths) {
     if (const auto value = get_value(sections, "profiles", "active_profile_id")) {
         config.profiles.active_profile_id = unquote(*value);
     }
+    if (const auto value = get_value(sections, "profiles", "auto_select_by_app")) {
+        config.profiles.auto_select_by_app = parse_bool(*value, config.profiles.auto_select_by_app);
+    }
     if (const auto value = get_value(sections, "network.proxy", "enabled")) {
         config.network.proxy.enabled = parse_bool(*value, config.network.proxy.enabled);
     }
@@ -481,6 +501,18 @@ AppConfig load_config(const AppConfigPaths& paths) {
     }
     if (const auto value = get_value(sections, "network.proxy", "password")) {
         config.network.proxy.password = unquote(*value);
+    }
+    if (const auto value = get_value(sections, "network.nearby", "enabled")) {
+        config.network.nearby.enabled = parse_bool(*value, config.network.nearby.enabled);
+    }
+    if (const auto value = get_value(sections, "network.nearby", "port")) {
+        config.network.nearby.port = parse_int(*value, config.network.nearby.port);
+    }
+    if (const auto value = get_value(sections, "device_adapter", "enabled")) {
+        config.device_adapter.enabled = parse_bool(*value, config.device_adapter.enabled);
+    }
+    if (const auto value = get_value(sections, "device_adapter", "executable_path")) {
+        config.device_adapter.executable_path = path_from_portable_string(unquote(*value));
     }
     if (const auto value = get_value(sections, "providers.soniox", "url")) {
         config.providers.soniox.url = unquote(*value);
@@ -613,6 +645,26 @@ AppConfig load_config(const AppConfigPaths& paths) {
         config.profiles.items.push_back(std::move(profile));
     }
 
+    for (const auto& [section_name, _] : sections) {
+        if (!section_name.starts_with("app_profile_rule.")) {
+            continue;
+        }
+        AppProfileRule rule;
+        if (const auto value = get_value(sections, section_name, "enabled")) {
+            rule.enabled = parse_bool(*value, rule.enabled);
+        }
+        if (const auto value = get_value(sections, section_name, "app_id")) {
+            rule.app_id = unquote(*value);
+        }
+        if (const auto value = get_value(sections, section_name, "app_name")) {
+            rule.app_name = unquote(*value);
+        }
+        if (const auto value = get_value(sections, section_name, "profile_id")) {
+            rule.profile_id = unquote(*value);
+        }
+        config.profiles.app_rules.push_back(std::move(rule));
+    }
+
     if (config.hotkey.hold_key.empty()) {
         config.hotkey.hold_key = defaults.hotkey.hold_key;
     }
@@ -658,6 +710,9 @@ AppConfig load_config(const AppConfigPaths& paths) {
     config.network.proxy.type = normalize_proxy_type(config.network.proxy.type);
     if (config.network.proxy.port <= 0) {
         config.network.proxy.port = defaults.network.proxy.port;
+    }
+    if (config.network.nearby.port <= 0 || config.network.nearby.port > 65535) {
+        config.network.nearby.port = defaults.network.nearby.port;
     }
     config.appearance.app_theme = normalize_app_theme(config.appearance.app_theme);
     config.appearance.tray_icon_theme = normalize_tray_icon_theme(config.appearance.tray_icon_theme);
@@ -714,7 +769,17 @@ void save_config(const AppConfig& config, const std::filesystem::path& config_pa
     output << "\n";
 
     output << "[profiles]\n";
-    output << "active_profile_id = \"" << escape_toml_string(config.profiles.active_profile_id) << "\"\n\n";
+    output << "active_profile_id = \"" << escape_toml_string(config.profiles.active_profile_id) << "\"\n";
+    output << "auto_select_by_app = " << (config.profiles.auto_select_by_app ? "true" : "false") << "\n\n";
+
+    for (std::size_t index = 0; index < config.profiles.app_rules.size(); ++index) {
+        const auto& rule = config.profiles.app_rules[index];
+        output << "[app_profile_rule.rule_" << (index + 1U) << "]\n";
+        output << "enabled = " << (rule.enabled ? "true" : "false") << "\n";
+        output << "app_id = \"" << escape_toml_string(normalize_app_id(rule.app_id)) << "\"\n";
+        output << "app_name = \"" << escape_toml_string(rule.app_name) << "\"\n";
+        output << "profile_id = \"" << escape_toml_string(rule.profile_id) << "\"\n\n";
+    }
 
     for (const auto& profile : config.profiles.items) {
         output << "[profile." << profile.id << "]\n";
@@ -753,6 +818,15 @@ void save_config(const AppConfig& config, const std::filesystem::path& config_pa
     output << "port = " << config.network.proxy.port << "\n";
     output << "username = \"" << escape_toml_string(config.network.proxy.username) << "\"\n";
     output << "password = \"" << escape_toml_string(config.network.proxy.password) << "\"\n\n";
+
+    output << "[network.nearby]\n";
+    output << "enabled = " << (config.network.nearby.enabled ? "true" : "false") << "\n";
+    output << "port = " << config.network.nearby.port << "\n\n";
+
+    output << "[device_adapter]\n";
+    output << "enabled = " << (config.device_adapter.enabled ? "true" : "false") << "\n";
+    output << "executable_path = \""
+           << escape_toml_string(path_to_portable_string(config.device_adapter.executable_path)) << "\"\n\n";
 
     output << "[providers.soniox]\n";
     output << "url = \"" << escape_toml_string(config.providers.soniox.url) << "\"\n";

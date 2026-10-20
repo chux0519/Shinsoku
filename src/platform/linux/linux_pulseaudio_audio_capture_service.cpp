@@ -164,7 +164,7 @@ bool LinuxPulseaudioAudioCaptureService::supports_capture_mode(AudioCaptureMode 
     if (capture_mode == AudioCaptureMode::Microphone) {
         return true;
     }
-    return true;
+    return capture_mode == AudioCaptureMode::SystemLoopback;
 }
 
 void LinuxPulseaudioAudioCaptureService::start(std::uint32_t sample_rate,
@@ -176,6 +176,10 @@ void LinuxPulseaudioAudioCaptureService::start(std::uint32_t sample_rate,
         microphone_delegate_.start(sample_rate, channels, device_id, capture_mode);
         recording_.store(true);
         return;
+    }
+
+    if (capture_mode != AudioCaptureMode::SystemLoopback) {
+        throw std::invalid_argument("unsupported PulseAudio capture mode");
     }
 
     {

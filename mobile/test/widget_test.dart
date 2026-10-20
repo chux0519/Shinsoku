@@ -97,4 +97,21 @@ void main() {
     expect(find.text('Settings'), findsWidgets);
     expect(find.text('Microphone access'), findsOneWidget);
   });
+
+  testWidgets('shows the pinned local desktop microphone workflow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ShinsokuMobileApp());
+
+    await tester.tap(find.byIcon(Icons.wifi_tethering));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Desktop Mic'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('nearby-discover-button')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('nearby-profile-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('nearby-record-button')), findsOneWidget);
+  });
 }

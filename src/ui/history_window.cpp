@@ -1,9 +1,13 @@
 #include "ui/history_window.hpp"
 
+#include <QDate>
+#include <QDateTime>
 #include <QFrame>
 #include <QFont>
 #include <QLabel>
 #include <QListWidget>
+#include <QLocale>
+#include <QTimeZone>
 #include <QMenu>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -83,6 +87,53 @@ QString build_preview(const HistoryEntry& entry) {
     return preview;
 }
 
+QString metadata_string(const HistoryEntry& entry, const char* object_key, const char* value_key) {
+    if (!entry.meta.is_object()) {
+        return {};
+    }
+    const auto object = entry.meta.find(object_key);
+    if (object == entry.meta.end() || !object->is_object()) {
+        return {};
+    }
+    const auto value = object->find(value_key);
+    return value != object->end() && value->is_string() ? QString::fromStdString(value->get<std::string>()) : QString{};
+}
+
+QDateTime entry_local_datetime(const HistoryEntry& entry) {
+    QDateTime created_at = QDateTime::fromString(QString::fromStdString(entry.created_at), "yyyy-MM-dd HH:mm:ss");
+    if (!created_at.isValid()) {
+        return {};
+    }
+    created_at.setTimeZone(QTimeZone::UTC);
+    return created_at.toLocalTime();
+}
+
+QString entry_date_key(const HistoryEntry& entry) {
+    const QDateTime created_at = entry_local_datetime(entry);
+    return created_at.isValid() ? created_at.date().toString(Qt::ISODate) : QString("Unknown date");
+}
+
+QString entry_header(const HistoryEntry& entry) {
+    const QDateTime created_at = entry_local_datetime(entry);
+    QStringList parts;
+    parts << (created_at.isValid() ? QLocale::system().toString(created_at.time(), QLocale::ShortFormat)
+                                  : QString::fromStdString(entry.created_at));
+
+    QString app_name = metadata_string(entry, "source", "app_name");
+    if (app_name.isEmpty()) {
+        app_name = metadata_string(entry, "source", "app_id");
+    }
+    if (!app_name.isEmpty()) {
+        parts << app_name;
+    }
+
+    const QString profile_name = metadata_string(entry, "profile", "name");
+    if (!profile_name.isEmpty()) {
+        parts << profile_name;
+    }
+    return parts.join("  |  ");
+}
+
 QWidget* build_item_widget(const HistoryEntry& entry, QWidget* parent) {
     auto* container = new QFrame(parent);
     container->setObjectName("entryCard");
@@ -90,7 +141,7 @@ QWidget* build_item_widget(const HistoryEntry& entry, QWidget* parent) {
     layout->setContentsMargins(16, 14, 16, 14);
     layout->setSpacing(6);
 
-    auto* header = new QLabel(QString("[%1]").arg(QString::fromStdString(entry.created_at)), container);
+    auto* header = new QLabel(entry_header(entry), container);
     header->setObjectName("entryHeader");
     QFont header_font = header->font();
     header_font.setBold(true);
@@ -153,14 +204,23 @@ HistoryWindow::HistoryWindow(QWidget* parent) : QWidget(parent) {
 
     connect(load_older_button_, &QPushButton::clicked, this, &HistoryWindow::load_older_requested);
     connect(list_, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+        if (!item->data(Qt::UserRole).isValid()) {
+            return;
+        }
         emit copy_entry_requested(item->data(Qt::UserRole).toLongLong());
     });
     connect(list_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
+        if (!item->data(Qt::UserRole).isValid()) {
+            return;
+        }
         emit show_details_requested(item->data(Qt::UserRole).toLongLong());
     });
     connect(list_, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
         auto* item = list_->itemAt(pos);
         if (item == nullptr) {
+            return;
+        }
+        if (!item->data(Qt::UserRole).isValid()) {
             return;
         }
 
@@ -183,6 +243,7 @@ HistoryWindow::HistoryWindow(QWidget* parent) : QWidget(parent) {
 
 void HistoryWindow::set_entries(const std::vector<HistoryEntry>& entries) {
     list_->clear();
+    last_date_group_.clear();
     append_entries(entries);
 }
 
@@ -197,6 +258,12 @@ void HistoryWindow::set_load_older_visible(bool visible) {
 }
 
 void HistoryWindow::append_entry(const HistoryEntry& entry) {
+    const QString date_key = entry_date_key(entry);
+    if (date_key != last_date_group_) {
+        append_date_group(date_key);
+        last_date_group_ = date_key;
+    }
+
     auto* item = new QListWidgetItem();
     item->setData(Qt::UserRole, entry.id);
     item->setData(Qt::UserRole + 1, entry.audio_path.has_value());
@@ -206,6 +273,23 @@ void HistoryWindow::append_entry(const HistoryEntry& entry) {
     item->setSizeHint(widget->sizeHint());
     list_->addItem(item);
     list_->setItemWidget(item, widget);
+}
+
+void HistoryWindow::append_date_group(const QString& date_key) {
+    QString label = date_key;
+    const QDate date = QDate::fromString(date_key, Qt::ISODate);
+    if (date.isValid()) {
+        label = QLocale::system().toString(date, QLocale::LongFormat);
+    }
+
+    auto* item = new QListWidgetItem();
+    item->setFlags(Qt::NoItemFlags);
+    auto* date_label = new QLabel(label, list_);
+    date_label->setObjectName("historyDateSeparator");
+    date_label->setContentsMargins(8, 10, 8, 4);
+    item->setSizeHint(date_label->sizeHint());
+    list_->addItem(item);
+    list_->setItemWidget(item, date_label);
 }
 
 }  // namespace ohmytypeless

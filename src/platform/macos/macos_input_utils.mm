@@ -2,6 +2,7 @@
 
 #import <AppKit/AppKit.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <Carbon/Carbon.h>
 
 #include <QStringList>
 
@@ -19,6 +20,24 @@ QString qstring_from_nsstring(NSString* value) {
 bool request_accessibility_access(bool prompt) {
     NSDictionary* options = @{(__bridge NSString*)kAXTrustedCheckOptionPrompt : @(prompt)};
     return AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
+}
+
+QString ax_string_attribute(AXUIElementRef element, CFStringRef attribute) {
+    if (element == nullptr) {
+        return {};
+    }
+
+    CFTypeRef value = nullptr;
+    if (AXUIElementCopyAttributeValue(element, attribute, &value) != kAXErrorSuccess || value == nullptr) {
+        return {};
+    }
+
+    QString result;
+    if (CFGetTypeID(value) == CFStringGetTypeID()) {
+        result = qstring_from_nsstring((__bridge NSString*)value);
+    }
+    CFRelease(value);
+    return result;
 }
 
 CGKeyCode paste_keycode_for_string(const QString& paste_keys, CGEventFlags* flags, QString* translated) {
@@ -152,6 +171,56 @@ bool macos_capture_frontmost_external_process(pid_t* pid, QString* debug_info) {
                      .arg(process_id)
                      .arg(qstring_from_nsstring(bundle_id)));
     return true;
+}
+
+InputTargetContext macos_input_target_context(pid_t pid) {
+    NSRunningApplication* app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+    if (app == nil) {
+        return {};
+    }
+
+    const QString app_id = qstring_from_nsstring(app.bundleIdentifier);
+    const QString app_name = qstring_from_nsstring(app.localizedName);
+    if (IsSecureEventInputEnabled()) {
+        return classify_input_target(app_id, app_name, "secure_event_input", true, true);
+    }
+    if (!macos_preflight_accessibility_access()) {
+        return classify_input_target(app_id, app_name, {}, false, false);
+    }
+
+    AXUIElementRef app_element = AXUIElementCreateApplication(pid);
+    if (app_element == nullptr) {
+        return classify_input_target(app_id, app_name, {}, false, false);
+    }
+
+    CFTypeRef focused_value = nullptr;
+    const AXError focused_error = AXUIElementCopyAttributeValue(app_element, kAXFocusedUIElementAttribute, &focused_value);
+    CFRelease(app_element);
+    if (focused_error != kAXErrorSuccess || focused_value == nullptr ||
+        CFGetTypeID(focused_value) != AXUIElementGetTypeID()) {
+        if (focused_value != nullptr) {
+            CFRelease(focused_value);
+        }
+        return classify_input_target(app_id, app_name, {}, false, false);
+    }
+
+    AXUIElementRef focused = static_cast<AXUIElementRef>(focused_value);
+    const QString role = ax_string_attribute(focused, kAXRoleAttribute);
+    const QString subrole = ax_string_attribute(focused, kAXSubroleAttribute);
+    const QString field_role = subrole.isEmpty() ? role : subrole;
+    const bool secure_field = role.contains("Secure", Qt::CaseInsensitive) ||
+                              subrole.contains("Secure", Qt::CaseInsensitive);
+    const QStringList hints = {
+        ax_string_attribute(focused, kAXRoleDescriptionAttribute),
+        ax_string_attribute(focused, kAXIdentifierAttribute),
+        ax_string_attribute(focused, kAXDescriptionAttribute),
+        ax_string_attribute(focused, kAXTitleAttribute),
+        ax_string_attribute(focused, CFSTR("AXPlaceholderValue")),
+        ax_string_attribute(focused, kAXHelpAttribute),
+    };
+    CFRelease(focused_value);
+
+    return classify_input_target(app_id, app_name, field_role, true, secure_field, hints);
 }
 
 bool macos_activate_process(pid_t pid, QString* debug_info) {

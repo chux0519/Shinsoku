@@ -15,6 +15,7 @@ struct AudioInputDevice {
 enum class AudioCaptureMode {
     Microphone,
     SystemLoopback,
+    NearbyRemote,
 };
 
 class AudioCaptureService {

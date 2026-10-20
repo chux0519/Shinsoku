@@ -10,8 +10,25 @@
 
 namespace ohmytypeless {
 
+enum class AppProfileMatchStatus {
+    Disabled,
+    AppUnavailable,
+    NoMatch,
+    Matched,
+    Conflict,
+    MissingProfile,
+};
+
+struct AppProfileMatch {
+    AppProfileMatchStatus status = AppProfileMatchStatus::NoMatch;
+    const AppProfileRule* rule = nullptr;
+    const ProfileConfig* profile = nullptr;
+};
+
 const ProfileConfig* find_profile_by_id(const ProfilesConfig& profiles, const std::string& profile_id);
 const ProfileConfig* active_profile(const AppConfig& config);
+std::string canonical_app_id(std::string app_id);
+AppProfileMatch resolve_app_profile(const AppConfig& config, const std::string& app_id);
 
 std::vector<std::pair<std::string, std::string>> profile_items(const AppConfig& config);
 std::string active_profile_display_name(const AppConfig& config);

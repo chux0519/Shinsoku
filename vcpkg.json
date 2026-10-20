@@ -3,7 +3,13 @@
   "version-string": "0.1.0",
   "dependencies": [
     "curl",
-    "ixwebsocket",
+    {
+      "name": "ixwebsocket",
+      "default-features": false,
+      "features": [
+        "openssl"
+      ]
+    },
     "mbedtls",
     "miniaudio",
     "nlohmann-json",

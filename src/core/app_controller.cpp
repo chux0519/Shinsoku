@@ -7,6 +7,9 @@
 #include "platform/global_hotkey.hpp"
 #include "platform/hotkey_names.hpp"
 #include "platform/hud_presenter.hpp"
+#include "platform/network/push_audio_capture_service.hpp"
+#include "platform/network/nearby_runtime.hpp"
+#include "platform/process/device_adapter_runtime.hpp"
 #include "platform/selection_service.hpp"
 #include "ui/app_theme.hpp"
 #include "ui/history_details_dialog.hpp"
@@ -20,6 +23,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QCheckBox>
+#include <QThread>
 #include <QtConcurrent/QtConcurrent>
 
 #include <algorithm>
@@ -27,6 +31,7 @@
 #include <cmath>
 #include <cstring>
 #include <exception>
+#include <set>
 #include <QStringList>
 #include <thread>
 
@@ -164,7 +169,13 @@ nlohmann::json text_transform_diagnostics_json(const TextTransformDiagnostics& d
 }
 
 AudioCaptureMode audio_capture_mode_from_config(const AppConfig& config) {
-    return config.audio.capture_mode == "system" ? AudioCaptureMode::SystemLoopback : AudioCaptureMode::Microphone;
+    if (config.audio.capture_mode == "system") {
+        return AudioCaptureMode::SystemLoopback;
+    }
+    if (config.audio.capture_mode == "nearby") {
+        return AudioCaptureMode::NearbyRemote;
+    }
+    return AudioCaptureMode::Microphone;
 }
 
 std::vector<std::pair<QString, QString>> profile_items_for_ui(const AppConfig& config) {
@@ -226,6 +237,126 @@ void AppController::rebuild_runtime_config() {
     runtime_config_ = derive_runtime_config(config_);
 }
 
+QString AppController::select_runtime_profile_for_target(const InputTargetContext& target) {
+    rebuild_runtime_config();
+    active_history_profile_selection_ = "manual";
+
+    const AppProfileMatch match = resolve_app_profile(config_, target.app_id.toStdString());
+    if (match.status == AppProfileMatchStatus::Matched && match.profile != nullptr) {
+        AppConfig effective_config = config_;
+        effective_config.profiles.active_profile_id = match.profile->id;
+        AppConfig effective_runtime = derive_runtime_config(effective_config);
+        if (effective_runtime.audio.capture_mode == "system" &&
+            (audio_capture_ == nullptr || !audio_capture_->supports_capture_mode(AudioCaptureMode::SystemLoopback))) {
+            return QString("Auto Profile '%1' needs system audio, which is unavailable. Using the manual Profile.")
+                .arg(QString::fromStdString(match.profile->name));
+        }
+
+        runtime_config_ = std::move(effective_runtime);
+        active_history_profile_selection_ = "automatic";
+        const QString app_name = target.app_name.trimmed().isEmpty() ? target.app_id : target.app_name;
+        return QString("Auto Profile: %1 for %2.")
+            .arg(QString::fromStdString(match.profile->name), app_name);
+    }
+
+    if (match.status == AppProfileMatchStatus::Conflict) {
+        return QString("Conflicting automatic Profile rules for %1. Using the manual Profile.")
+            .arg(target.app_id);
+    }
+    if (match.status == AppProfileMatchStatus::MissingProfile && match.rule != nullptr) {
+        return QString("Automatic rule for %1 points to a missing Profile. Using the manual Profile.")
+            .arg(target.app_id);
+    }
+    return {};
+}
+
+QString AppController::select_runtime_profile_for_push(const InputTargetContext& target,
+                                                       const PushAudioStreamInfo& stream) {
+    QString notice;
+    const ProfileConfig* requested_profile = stream.requested_profile_id.empty()
+                                                 ? nullptr
+                                                 : find_profile_by_id(config_.profiles, stream.requested_profile_id);
+    if (requested_profile != nullptr) {
+        AppConfig effective_config = config_;
+        effective_config.profiles.active_profile_id = requested_profile->id;
+        runtime_config_ = derive_runtime_config(effective_config);
+        active_history_profile_selection_ = "remote";
+        notice = QString("Remote Profile: %1.").arg(QString::fromStdString(requested_profile->name));
+    } else {
+        notice = select_runtime_profile_for_target(target);
+        if (!stream.requested_profile_id.empty()) {
+            const QString fallback = QString("Remote requested missing Profile '%1'; using the desktop fallback.")
+                                         .arg(QString::fromStdString(stream.requested_profile_id));
+            notice = notice.isEmpty() ? fallback : fallback + "\n" + notice;
+        }
+    }
+
+    runtime_config_.audio.capture_mode = "nearby";
+    runtime_config_.audio.input_device_id.clear();
+    runtime_config_.audio.sample_rate = kFixedSampleRate;
+    runtime_config_.audio.channels = kFixedChannelCount;
+    return notice;
+}
+
+void AppController::restore_manual_profile_runtime() {
+    rebuild_runtime_config();
+    asr_backend_ = make_asr_backend(runtime_config_);
+    streaming_asr_backend_ = make_streaming_asr_backend(runtime_config_);
+    refine_backend_ = make_refine_backend(runtime_config_);
+    active_history_profile_selection_ = "manual";
+    pending_push_stream_.reset();
+    active_push_stream_.reset();
+    if (window_ != nullptr && window_->meeting_window() != nullptr) {
+        window_->meeting_window()->set_profile_name(active_profile_name());
+    }
+}
+
+bool AppController::store_history_entry(const std::string& text,
+                                        const std::optional<std::filesystem::path>& audio_path,
+                                        const nlohmann::json& meta) {
+    if (active_input_target_context_.privacy == InputTargetPrivacy::Sensitive) {
+        if (audio_path.has_value()) {
+            std::error_code error;
+            std::filesystem::remove(*audio_path, error);
+        }
+        return false;
+    }
+
+    nlohmann::json enriched_meta = meta.is_object() ? meta : nlohmann::json::object();
+    nlohmann::json source = {
+        {"privacy", input_target_privacy_name(active_input_target_context_.privacy)},
+    };
+    if (!active_input_target_context_.app_id.isEmpty()) {
+        source["app_id"] = active_input_target_context_.app_id.toStdString();
+    }
+    if (!active_input_target_context_.app_name.isEmpty()) {
+        source["app_name"] = active_input_target_context_.app_name.toStdString();
+    }
+    if (!active_input_target_context_.field_role.isEmpty()) {
+        source["field_role"] = active_input_target_context_.field_role.toStdString();
+    }
+    if (!active_input_target_context_.privacy_reason.isEmpty()) {
+        source["privacy_reason"] = active_input_target_context_.privacy_reason.toStdString();
+    }
+    enriched_meta["source"] = std::move(source);
+    enriched_meta["profile"] = {
+        {"id", active_history_profile_id_},
+        {"name", active_history_profile_name_},
+        {"selection", active_history_profile_selection_},
+    };
+    if (active_push_stream_.has_value()) {
+        enriched_meta["remote_input"] = {
+            {"source_id", active_push_stream_->source_id},
+            {"source_name", active_push_stream_->source_name},
+            {"source_kind", active_push_stream_->source_kind},
+            {"stream_id", active_push_stream_->stream_id},
+        };
+    }
+
+    history_store_->add_entry(text, audio_path, enriched_meta);
+    return true;
+}
+
 AppController::AppController(MainWindow* window,
                              ClipboardService* clipboard,
                              AudioCaptureService* audio_capture,
@@ -258,6 +389,125 @@ AppController::AppController(MainWindow* window,
     });
 }
 
+AppController::~AppController() {
+    if (push_audio_capture_ != nullptr) {
+        push_audio_capture_->set_callbacks({});
+    }
+    if (nearby_runtime_ != nullptr) {
+        nearby_runtime_->stop();
+    }
+    if (device_adapter_runtime_ != nullptr) {
+        device_adapter_runtime_->stop();
+    }
+}
+
+void AppController::attach_push_audio_capture(PushAudioCaptureService* push_audio_capture) {
+    push_audio_capture_ = push_audio_capture;
+    if (push_audio_capture_ == nullptr) {
+        return;
+    }
+    push_audio_capture_->set_callbacks(PushAudioCaptureCallbacks{
+        .on_stream_started = [this](const PushAudioStreamInfo& stream, std::string* error) {
+            bool accepted = false;
+            QString error_text;
+            const auto start = [this, &stream, &accepted, &error_text]() {
+                accepted = begin_push_audio_stream(stream, &error_text);
+            };
+            if (QThread::currentThread() == thread()) {
+                start();
+            } else {
+                QMetaObject::invokeMethod(this, start, Qt::BlockingQueuedConnection);
+            }
+            if (!accepted && error != nullptr) {
+                *error = error_text.isEmpty() ? "the desktop rejected nearby audio" : error_text.toStdString();
+            }
+            return accepted;
+        },
+        .on_stream_stopped = [this](std::uint32_t stream_id, PushAudioStopReason reason) {
+            QMetaObject::invokeMethod(
+                this,
+                [this, stream_id, reason]() { end_push_audio_stream(stream_id, reason); },
+                Qt::QueuedConnection);
+        },
+    });
+}
+
+void AppController::attach_nearby_runtime(NearbyRuntime* nearby_runtime) {
+    nearby_runtime_ = nearby_runtime;
+}
+
+void AppController::attach_device_adapter_runtime(DeviceAdapterRuntime* device_adapter_runtime) {
+    device_adapter_runtime_ = device_adapter_runtime;
+    if (device_adapter_runtime_ != nullptr) {
+        connect(device_adapter_runtime_, &DeviceAdapterRuntime::status_changed, this, [this]() {
+            if (window_->settings_window()->isVisible()) {
+                refresh_device_adapter_settings();
+            }
+        });
+        connect(device_adapter_runtime_, &DeviceAdapterRuntime::button_event, this,
+                [this](const QString&, const QString& action_id, const QString& event) {
+            handle_device_adapter_button(action_id, event);
+        });
+    }
+}
+
+void AppController::handle_device_adapter_button(const QString& action_id, const QString& event) {
+    if (event != "down" || config_.profiles.items.empty()) {
+        return;
+    }
+    if (action_id.startsWith("profile.select:")) {
+        on_active_profile_changed(action_id.sliced(QString("profile.select:").size()));
+        return;
+    }
+    if (action_id != "profile.next" && action_id != "profile.previous") {
+        return;
+    }
+
+    const auto current = std::find_if(config_.profiles.items.cbegin(), config_.profiles.items.cend(),
+                                      [this](const ProfileConfig& profile) {
+        return profile.id == config_.profiles.active_profile_id;
+    });
+    std::size_t index = current == config_.profiles.items.cend()
+                            ? 0U
+                            : static_cast<std::size_t>(std::distance(config_.profiles.items.cbegin(), current));
+    if (action_id == "profile.next") {
+        index = (index + 1U) % config_.profiles.items.size();
+    } else {
+        index = (index + config_.profiles.items.size() - 1U) % config_.profiles.items.size();
+    }
+    on_active_profile_changed(QString::fromStdString(config_.profiles.items[index].id));
+}
+
+bool AppController::begin_push_audio_stream(const PushAudioStreamInfo& stream, QString* error) {
+    if (shutting_down_ || (state_ != SessionState::Idle && state_ != SessionState::Error)) {
+        if (error != nullptr) {
+            *error = "Shinsoku is already recording or processing another request.";
+        }
+        return false;
+    }
+    pending_push_stream_ = stream;
+    start_recording(SessionState::Recording);
+    const bool started = state_ == SessionState::Recording && active_push_stream_.has_value() &&
+                         active_push_stream_->stream_id == stream.stream_id;
+    if (!started) {
+        pending_push_stream_.reset();
+        if (error != nullptr && error->isEmpty()) {
+            *error = "Shinsoku could not start the nearby recording.";
+        }
+    }
+    return started;
+}
+
+void AppController::end_push_audio_stream(std::uint32_t stream_id, PushAudioStopReason reason) {
+    static_cast<void>(reason);
+    if (!active_push_stream_.has_value() || active_push_stream_->stream_id != stream_id) {
+        return;
+    }
+    if (state_ == SessionState::Recording || state_ == SessionState::HandsFree) {
+        stop_recording();
+    }
+}
+
 void AppController::initialize() {
     QString startup_warning;
     rebuild_runtime_config();
@@ -277,6 +527,7 @@ void AppController::initialize() {
     window_->settings_window()->set_hands_free_chord_key(QString::fromStdString(config_.hotkey.hands_free_chord_key));
     window_->settings_window()->set_selection_command_trigger(QString::fromStdString(config_.hotkey.selection_command_trigger));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+    window_->settings_window()->set_app_profile_rules(config_.profiles.auto_select_by_app, config_.profiles.app_rules);
     preview_profile_audio_devices_for_mode(QString::fromStdString(runtime_config_.audio.capture_mode));
     window_->settings_window()->set_save_recordings_enabled(config_.audio.save_recordings);
     window_->settings_window()->set_recordings_dir(display_path(config_.audio.recordings_dir));
@@ -290,6 +541,11 @@ void AppController::initialize() {
     window_->settings_window()->set_proxy_port(config_.network.proxy.port);
     window_->settings_window()->set_proxy_username(QString::fromStdString(config_.network.proxy.username));
     window_->settings_window()->set_proxy_password(QString::fromStdString(config_.network.proxy.password));
+    window_->settings_window()->set_nearby_enabled(config_.network.nearby.enabled);
+    window_->settings_window()->set_nearby_port(config_.network.nearby.port);
+    window_->settings_window()->set_device_adapter_enabled(config_.device_adapter.enabled);
+    window_->settings_window()->set_device_adapter_executable_path(
+        display_path(config_.device_adapter.executable_path));
     window_->settings_window()->set_asr_provider(QString::fromStdString(config_.pipeline.asr.provider));
     window_->settings_window()->set_asr_base_url(QString::fromStdString(config_.pipeline.asr.base_url));
     window_->settings_window()->set_asr_api_key(QString::fromStdString(config_.pipeline.asr.api_key));
@@ -341,6 +597,14 @@ void AppController::initialize() {
             &SettingsWindow::record_hands_free_chord_requested,
             this,
             &AppController::on_record_hands_free_chord_requested);
+    connect(window_->settings_window(),
+            &SettingsWindow::nearby_pairing_requested,
+            this,
+            &AppController::on_nearby_pairing_requested);
+    connect(window_->settings_window(),
+            &SettingsWindow::nearby_revoke_requested,
+            this,
+            &AppController::on_nearby_revoke_requested);
     connect(window_->history_window(), &HistoryWindow::copy_entry_requested, this, &AppController::copy_history_entry);
     connect(window_->history_window(), &HistoryWindow::show_details_requested, this, &AppController::show_history_entry_details);
     connect(window_->history_window(), &HistoryWindow::delete_entry_requested, this, &AppController::delete_history_entry);
@@ -355,6 +619,16 @@ void AppController::initialize() {
     connect(recorded_key_watcher_.get(), &QFutureWatcher<RecordedKeyResult>::finished, this, [this]() {
         finish_hotkey_capture(recorded_key_watcher_->result());
     });
+
+    nearby_status_timer_ = new QTimer(this);
+    nearby_status_timer_->setInterval(2000);
+    connect(nearby_status_timer_, &QTimer::timeout, this, [this]() {
+        if (window_->settings_window()->isVisible()) {
+            refresh_nearby_settings();
+            refresh_device_adapter_settings();
+        }
+    });
+    nearby_status_timer_->start();
 
     apply_settings();
 
@@ -408,6 +682,13 @@ void AppController::arm_selection_command() {
 }
 
 void AppController::apply_settings() {
+    if (state_ == SessionState::Recording || state_ == SessionState::HandsFree || state_ == SessionState::Transcribing) {
+        const QString status = "Finish the current recording before applying Settings.";
+        window_->settings_window()->set_status_text(status);
+        hud_->show_notice("Settings deferred");
+        return;
+    }
+
     const AppConfig defaults;
 
     config_.hotkey.hold_key = window_->settings_window()->hold_key().toStdString();
@@ -415,6 +696,8 @@ void AppController::apply_settings() {
     config_.hotkey.selection_command_trigger = window_->settings_window()->selection_command_trigger().toStdString();
     config_.profiles.active_profile_id = window_->settings_window()->active_profile_id().toStdString();
     config_.profiles.items = window_->settings_window()->profiles();
+    config_.profiles.auto_select_by_app = window_->settings_window()->auto_profile_selection_enabled();
+    config_.profiles.app_rules = window_->settings_window()->app_profile_rules();
     config_.audio.save_recordings = window_->settings_window()->save_recordings_enabled();
     if (!window_->settings_window()->recordings_dir().isEmpty()) {
         config_.audio.recordings_dir = std::filesystem::path(window_->settings_window()->recordings_dir().toStdWString());
@@ -429,6 +712,13 @@ void AppController::apply_settings() {
     config_.network.proxy.port = window_->settings_window()->proxy_port();
     config_.network.proxy.username = window_->settings_window()->proxy_username().toStdString();
     config_.network.proxy.password = window_->settings_window()->proxy_password().toStdString();
+    config_.network.nearby.enabled = window_->settings_window()->nearby_enabled();
+    config_.network.nearby.port = window_->settings_window()->nearby_port();
+    config_.device_adapter.enabled = window_->settings_window()->device_adapter_enabled();
+    const QString adapter_path = window_->settings_window()->device_adapter_executable_path();
+    config_.device_adapter.executable_path = adapter_path.isEmpty()
+                                                 ? std::filesystem::path{}
+                                                 : std::filesystem::path(adapter_path.toStdWString());
     config_.pipeline.asr.provider = window_->settings_window()->asr_provider().toStdString();
     config_.pipeline.asr.base_url = window_->settings_window()->asr_base_url().toStdString();
     config_.pipeline.asr.api_key = window_->settings_window()->asr_api_key().toStdString();
@@ -494,8 +784,11 @@ void AppController::apply_settings() {
     refine_backend_ = make_refine_backend(runtime_config_);
     hud_->apply_config(config_.hud);
     save_config(config_);
+    apply_nearby_runtime();
+    apply_device_adapter_runtime();
     window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
     window_->settings_window()->set_profiles(config_.profiles.items, QString::fromStdString(config_.profiles.active_profile_id));
+    window_->settings_window()->set_app_profile_rules(config_.profiles.auto_select_by_app, config_.profiles.app_rules);
     preview_profile_audio_devices_for_mode(QString::fromStdString(runtime_config_.audio.capture_mode));
     window_->set_hotkey_passthrough_keys(hotkey_->hold_key_name(), hotkey_->chord_key_name());
 
@@ -527,9 +820,128 @@ void AppController::show_history() {
 }
 
 void AppController::show_settings() {
+    refresh_nearby_settings();
+    refresh_device_adapter_settings();
     window_->settings_window()->show();
     window_->settings_window()->raise();
     window_->settings_window()->activateWindow();
+}
+
+void AppController::apply_device_adapter_runtime() {
+    if (device_adapter_runtime_ == nullptr) {
+        window_->settings_window()->set_device_adapter_runtime_status(
+            config_.device_adapter.enabled, false, false, {}, {}, {}, {},
+            config_.device_adapter.enabled ? "Device adapters are unavailable in this build." : QString{});
+        return;
+    }
+
+    try {
+        device_adapter_runtime_->apply({
+            .enabled = config_.device_adapter.enabled,
+            .executable_path = config_.device_adapter.executable_path,
+        });
+        refresh_device_adapter_settings();
+    } catch (const std::exception& exception) {
+        device_adapter_runtime_->stop();
+        refresh_device_adapter_settings();
+        window_->settings_window()->set_status_text(
+            QString("Device adapter failed to start: %1").arg(QString::fromUtf8(exception.what())));
+    }
+}
+
+void AppController::refresh_device_adapter_settings() {
+    if (device_adapter_runtime_ == nullptr) {
+        window_->settings_window()->set_device_adapter_runtime_status(false, false, false, {}, {}, {}, {});
+        return;
+    }
+    const DeviceAdapterRuntimeStatus status = device_adapter_runtime_->status();
+    QStringList permissions;
+    for (const std::string& permission : status.declared_permissions) {
+        permissions.push_back(QString::fromStdString(permission));
+    }
+    window_->settings_window()->set_device_adapter_runtime_status(
+        status.enabled,
+        status.running,
+        status.ready,
+        QString::fromStdString(status.adapter_name),
+        QString::fromStdString(status.adapter_version),
+        QString::fromStdString(status.connected_device_name),
+        permissions,
+        QString::fromStdString(status.last_error));
+}
+
+void AppController::apply_nearby_runtime() {
+    if (nearby_runtime_ == nullptr) {
+        window_->settings_window()->set_nearby_runtime_status(false, false, {}, 0);
+        if (config_.network.nearby.enabled) {
+            window_->settings_window()->set_status_text("Nearby microphone is unavailable in this build.");
+        }
+        return;
+    }
+
+    try {
+        nearby_runtime_->apply({
+            .enabled = config_.network.nearby.enabled,
+            .port = config_.network.nearby.port,
+            .service_name = "Shinsoku Desktop",
+            .storage_directory = config_.config_path.parent_path() / "nearby",
+        });
+        refresh_nearby_settings();
+    } catch (const std::exception& exception) {
+        nearby_runtime_->stop();
+        refresh_nearby_settings();
+        window_->settings_window()->set_status_text(
+            QString("Nearby microphone failed to start: %1").arg(QString::fromUtf8(exception.what())));
+    }
+}
+
+void AppController::refresh_nearby_settings() {
+    if (nearby_runtime_ == nullptr) {
+        window_->settings_window()->set_nearby_runtime_status(false, false, {}, 0);
+        window_->settings_window()->set_nearby_trusted_clients({});
+        return;
+    }
+
+    const NearbyRuntimeStatus status = nearby_runtime_->status();
+    window_->settings_window()->set_nearby_runtime_status(
+        status.running,
+        status.discoverable,
+        QString::fromStdString(status.service_name),
+        status.port,
+        QString::fromStdString(status.certificate_sha256));
+
+    QList<QPair<QString, QString>> clients;
+    for (const NearbyTrustedClient& client : nearby_runtime_->trusted_clients()) {
+        const QString name = QString::fromStdString(client.identity.display_name);
+        const QString kind = QString::fromStdString(client.identity.client_kind);
+        clients.push_back({QString::fromStdString(client.identity.client_id),
+                           kind.isEmpty() ? name : QString("%1 · %2").arg(name, kind)});
+    }
+    window_->settings_window()->set_nearby_trusted_clients(clients);
+}
+
+void AppController::on_nearby_pairing_requested() {
+    if (nearby_runtime_ == nullptr) {
+        return;
+    }
+    try {
+        const NearbyPairingOffer offer = nearby_runtime_->open_pairing(QDateTime::currentMSecsSinceEpoch());
+        window_->settings_window()->set_nearby_pairing_code(
+            QString::fromStdString(offer.display_code), offer.expires_at_ms);
+    } catch (const std::exception& exception) {
+        window_->settings_window()->set_status_text(
+            QString("Could not create a pairing code: %1").arg(QString::fromUtf8(exception.what())));
+    }
+}
+
+void AppController::on_nearby_revoke_requested(const QString& client_id) {
+    if (nearby_runtime_ == nullptr || client_id.isEmpty()) {
+        return;
+    }
+    if (!nearby_runtime_->revoke_client(client_id.toStdString())) {
+        window_->settings_window()->set_status_text("The selected Nearby device is no longer trusted.");
+    }
+    refresh_nearby_settings();
 }
 
 void AppController::on_record_hold_key_requested() {
@@ -542,6 +954,11 @@ void AppController::on_record_hands_free_chord_requested() {
 
 void AppController::on_active_profile_changed(const QString& profile_id) {
     if (profile_id.trimmed().isEmpty()) {
+        return;
+    }
+    if (state_ == SessionState::Recording || state_ == SessionState::HandsFree || state_ == SessionState::Transcribing) {
+        window_->set_profiles(profile_items_for_ui(config_), QString::fromStdString(config_.profiles.active_profile_id));
+        window_->set_status_text("Finish the current recording before changing the manual Profile.");
         return;
     }
 
@@ -585,6 +1002,15 @@ void AppController::quit_application() {
         return;
     }
     shutting_down_ = true;
+    if (push_audio_capture_ != nullptr) {
+        push_audio_capture_->set_callbacks({});
+    }
+    if (nearby_runtime_ != nullptr) {
+        nearby_runtime_->stop();
+    }
+    if (device_adapter_runtime_ != nullptr) {
+        device_adapter_runtime_->stop();
+    }
     if (selection_command_upgrade_timer_ != nullptr) {
         selection_command_upgrade_timer_->stop();
     }
@@ -830,9 +1256,31 @@ void AppController::start_recording(SessionState mode) {
     }
 
     try {
-        clipboard_->begin_paste_session();
         active_capture_mode_ = pending_capture_mode_;
         pending_capture_mode_ = CaptureMode::Dictation;
+        clipboard_->begin_paste_session();
+        const InputTargetContext target_context = clipboard_->input_target_context();
+        const bool push_recording = pending_push_stream_.has_value();
+        const QString profile_notice = push_recording
+                                           ? select_runtime_profile_for_push(target_context, *pending_push_stream_)
+                                           : select_runtime_profile_for_target(target_context);
+        active_history_profile_id_ = runtime_config_.profiles.active_profile_id;
+        active_history_profile_name_ = active_profile_display_name(runtime_config_);
+        asr_backend_ = make_asr_backend(runtime_config_);
+        streaming_asr_backend_ = make_streaming_asr_backend(runtime_config_);
+        refine_backend_ = make_refine_backend(runtime_config_);
+
+        if (should_use_live_caption_window()) {
+            clipboard_->clear_paste_session();
+            active_input_target_context_ = InputTargetContext{
+                .app_id = "system-audio",
+                .app_name = "System Audio",
+                .field_role = "system_audio",
+                .privacy = InputTargetPrivacy::Normal,
+            };
+        } else {
+            active_input_target_context_ = target_context;
+        }
         recording_started_at_ = std::chrono::steady_clock::now();
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
@@ -842,6 +1290,7 @@ void AppController::start_recording(SessionState mode) {
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
             pending_capture_mode_ = CaptureMode::Dictation;
+            restore_manual_profile_runtime();
             on_hotkey_failed(selection_command_unavailable_reason(selection_));
             return;
         }
@@ -863,6 +1312,7 @@ void AppController::start_recording(SessionState mode) {
             set_state(SessionState::Error, status);
             window_->settings_window()->set_status_text(status);
             hud_->show_error("No selected text captured");
+            restore_manual_profile_runtime();
             return;
         }
         const std::string device_id =
@@ -871,12 +1321,22 @@ void AppController::start_recording(SessionState mode) {
                               runtime_config_.audio.channels,
                               device_id,
                               audio_capture_mode_from_config(runtime_config_));
+        if (push_recording) {
+            active_push_stream_ = pending_push_stream_;
+            pending_push_stream_.reset();
+        }
         if (should_use_streaming_dictation()) {
             start_streaming_dictation();
         }
-        const QString status = active_capture_mode_ == CaptureMode::SelectionCommand
-                                   ? "Listening for selected-text command."
-                                   : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
+        QString status = push_recording
+                             ? QString("Nearby recording from %1.")
+                                   .arg(QString::fromStdString(active_push_stream_->source_name))
+                         : active_capture_mode_ == CaptureMode::SelectionCommand
+                             ? "Listening for selected-text command."
+                             : (mode == SessionState::HandsFree ? "Hands-free recording." : "Recording started.");
+        if (!profile_notice.isEmpty()) {
+            status += "\n" + profile_notice;
+        }
         set_state(mode, status);
         hud_->show_recording(active_capture_mode_ == CaptureMode::SelectionCommand);
         if (should_use_live_caption_window()) {
@@ -884,13 +1344,23 @@ void AppController::start_recording(SessionState mode) {
             window_->meeting_window()->raise();
             window_->meeting_window()->activateWindow();
             window_->meeting_window()->set_session_state(mode);
+            window_->meeting_window()->set_profile_name(active_profile_name());
             window_->meeting_window()->clear_live_text();
         }
     } catch (const std::exception& exception) {
+        cancel_streaming_session();
+        if (audio_capture_ != nullptr && audio_capture_->is_recording()) {
+            try {
+                audio_capture_->stop();
+            } catch (...) {
+            }
+        }
+        clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
         pending_capture_mode_ = CaptureMode::Dictation;
+        restore_manual_profile_runtime();
         on_hotkey_failed(QString::fromUtf8(exception.what()));
     }
 }
@@ -918,18 +1388,7 @@ void AppController::stop_recording() {
         const AudioAnalysis analysis = analyze_audio(samples, config_.vad);
         if (should_skip_transcription(analysis, config_.vad)) {
             if (streaming_session_ != nullptr) {
-                if (streaming_pump_cancel_flag_) {
-                    streaming_pump_cancel_flag_->store(true);
-                }
-                if (streaming_pump_thread_.joinable()) {
-                    streaming_pump_thread_.join();
-                }
-                if (streaming_connect_thread_.joinable()) {
-                    streaming_connect_thread_.join();
-                }
-                streaming_session_->cancel();
-                streaming_session_.reset();
-                streaming_active_ = false;
+                cancel_streaming_session();
             }
             set_state(SessionState::Idle, "No speech detected.");
             hud_->show_notice("No speech detected");
@@ -937,6 +1396,7 @@ void AppController::stop_recording() {
             active_capture_mode_ = CaptureMode::Dictation;
             captured_selection_text_.reset();
             pending_selection_debug_info_.clear();
+            restore_manual_profile_runtime();
             return;
         }
 
@@ -979,6 +1439,7 @@ void AppController::stop_recording() {
             hud_->show_error("No selected text captured");
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
+            restore_manual_profile_runtime();
             return;
         } else {
             captured_selection_text_.reset();
@@ -986,8 +1447,12 @@ void AppController::stop_recording() {
             transcribe_async(samples, audio_path);
         }
     } catch (const std::exception& exception) {
+        cancel_streaming_session();
+        clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
+        pending_selection_debug_info_.clear();
+        restore_manual_profile_runtime();
         on_hotkey_failed(QString::fromUtf8(exception.what()));
     }
 }
@@ -1008,15 +1473,16 @@ bool AppController::uses_system_audio_capture() const {
 }
 
 bool AppController::active_profile_is_live_caption() const {
-    return active_profile_uses_system_audio(config_);
+    return active_profile_uses_system_audio(runtime_config_);
 }
 
 bool AppController::should_use_live_caption_window() const {
-    return uses_system_audio_capture() || active_profile_is_live_caption();
+    return uses_system_audio_capture() ||
+           (runtime_config_.audio.capture_mode != "nearby" && active_profile_is_live_caption());
 }
 
 QString AppController::active_profile_name() const {
-    return QString::fromStdString(active_profile_display_name(config_));
+    return QString::fromStdString(active_profile_display_name(runtime_config_));
 }
 
 void AppController::enforce_platform_capabilities(QString* notice) {
@@ -1109,6 +1575,7 @@ void AppController::start_streaming_dictation() {
     streaming_final_update_count_ = 0;
     streaming_started_at_ = std::chrono::steady_clock::now();
     streaming_ready_at_.reset();
+    const quint64 generation = ++streaming_generation_;
     {
         std::lock_guard lock(streaming_mutex_);
         streaming_partial_text_.clear();
@@ -1129,37 +1596,52 @@ void AppController::start_streaming_dictation() {
         streaming_ready_at_ = std::chrono::steady_clock::now();
         streaming_condition_.notify_all();
     };
-    callbacks.on_partial_text = [this, live_caption_active](std::string text) {
+    callbacks.on_partial_text = [this, live_caption_active, generation](std::string text) {
         const QString partial = QString::fromStdString(std::move(text));
         {
             std::lock_guard lock(streaming_mutex_);
+            if (generation != streaming_generation_) {
+                return;
+            }
             streaming_partial_text_ = partial;
             ++streaming_partial_update_count_;
         }
         QMetaObject::invokeMethod(
             window_,
-            [window = window_, partial]() {
+            [this, window = window_, partial, generation]() {
+                if (generation != streaming_generation_) {
+                    return;
+                }
                 window->set_status_text(partial.isEmpty() ? "Streaming dictation..." : partial);
             },
             Qt::QueuedConnection);
         if (live_caption_active) {
             QMetaObject::invokeMethod(
                 window_->meeting_window(),
-                [meeting_window = window_->meeting_window(), partial]() {
+                [this, meeting_window = window_->meeting_window(), partial, generation]() {
+                    if (generation != streaming_generation_) {
+                        return;
+                    }
                     meeting_window->set_live_text(partial);
                 },
                 Qt::QueuedConnection);
         }
     };
-    callbacks.on_final_text = [this](std::string text) {
+    callbacks.on_final_text = [this, generation](std::string text) {
         std::lock_guard lock(streaming_mutex_);
+        if (generation != streaming_generation_) {
+            return;
+        }
         streaming_final_text_ = QString::fromStdString(std::move(text));
         ++streaming_final_update_count_;
     };
-    callbacks.on_error = [this](std::string error) {
+    callbacks.on_error = [this, generation](std::string error) {
         const QString error_text = QString::fromStdString(std::move(error));
         {
             std::lock_guard lock(streaming_mutex_);
+            if (generation != streaming_generation_) {
+                return;
+            }
             streaming_error_text_ = error_text;
         }
         QMetaObject::invokeMethod(
@@ -1182,9 +1664,12 @@ void AppController::start_streaming_dictation() {
             Qt::QueuedConnection);
         streaming_condition_.notify_all();
     };
-    callbacks.on_session_closed = [this]() {
+    callbacks.on_session_closed = [this, generation]() {
         {
             std::lock_guard lock(streaming_mutex_);
+            if (generation != streaming_generation_) {
+                return;
+            }
             streaming_closed_ = true;
         }
         streaming_condition_.notify_all();
@@ -1314,6 +1799,7 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         streaming_session_->cancel();
         streaming_session_.reset();
     }
+    ++streaming_generation_;
     streaming_active_ = false;
 
     if (!error_text.isEmpty()) {
@@ -1321,11 +1807,13 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
-        history_store_->add_entry(QString("Streaming transcription failed: %1").arg(error_text).toStdString(),
-                                  audio_path,
-                                  nlohmann::json{{"diagnostics", {{"error", error_text.toStdString()}}}, {"streaming", streaming_meta["streaming"]}});
+        store_history_entry(QString("Streaming transcription failed: %1").arg(error_text).toStdString(),
+                            audio_path,
+                            nlohmann::json{{"diagnostics", {{"error", error_text.toStdString()}}},
+                                           {"streaming", streaming_meta["streaming"]}});
         load_history();
         on_hotkey_failed(error_text);
+        restore_manual_profile_runtime();
         return;
     }
 
@@ -1335,10 +1823,10 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
             window_->meeting_window()->append_transcript_segment(
                 QDateTime::currentDateTime().toString("HH:mm:ss"),
                 text);
-            history_store_->add_entry(text.toStdString(),
-                                      audio_path,
-                                      nlohmann::json{{"diagnostics", {{"pipeline", "live_caption"}}},
-                                                     {"streaming", streaming_meta.value("streaming", nlohmann::json::object())}});
+            store_history_entry(text.toStdString(),
+                                audio_path,
+                                nlohmann::json{{"diagnostics", {{"pipeline", "live_caption"}}},
+                                               {"streaming", streaming_meta.value("streaming", nlohmann::json::object())}});
             load_history();
         }
         window_->meeting_window()->set_session_state(SessionState::Idle);
@@ -1349,6 +1837,7 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
+        restore_manual_profile_runtime();
         return;
     }
 
@@ -1357,11 +1846,13 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
-        history_store_->add_entry("Streaming transcription returned no text.",
-                                  audio_path,
-                                  nlohmann::json{{"diagnostics", {{"error", "Streaming transcription returned no text."}}}, {"streaming", streaming_meta["streaming"]}});
+        store_history_entry("Streaming transcription returned no text.",
+                            audio_path,
+                            nlohmann::json{{"diagnostics", {{"error", "Streaming transcription returned no text."}}},
+                                           {"streaming", streaming_meta["streaming"]}});
         load_history();
         on_hotkey_failed("Streaming transcription returned no text.");
+        restore_manual_profile_runtime();
         return;
     }
 
@@ -1377,12 +1868,13 @@ void AppController::stop_streaming_dictation(const std::vector<float>& samples,
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
             pending_selection_debug_info_.clear();
-            history_store_->add_entry("Selection command could not find selected text.",
-                                      audio_path,
-                                      nlohmann::json{{"diagnostics", {{"error", "Selection command could not find selected text."}}},
-                                                     {"streaming", streaming_meta["streaming"]}});
+            store_history_entry("Selection command could not find selected text.",
+                                audio_path,
+                                nlohmann::json{{"diagnostics", {{"error", "Selection command could not find selected text."}}},
+                                               {"streaming", streaming_meta["streaming"]}});
             load_history();
             on_hotkey_failed("No selected text captured.");
+            restore_manual_profile_runtime();
             return;
         }
         TextTask task;
@@ -1532,6 +2024,28 @@ void AppController::load_history() {
     }
     window_->update_history(history_);
     window_->history_window()->set_load_older_visible(history_.size() == kHistoryPageSize);
+
+    QList<QPair<QString, QString>> recent_apps;
+    std::set<std::string> seen_app_ids;
+    for (const auto& entry : history_) {
+        if (!entry.meta.is_object() || !entry.meta.contains("source") || !entry.meta["source"].is_object()) {
+            continue;
+        }
+        const auto& source = entry.meta["source"];
+        if (!source.contains("app_id") || !source["app_id"].is_string()) {
+            continue;
+        }
+        const std::string app_id = canonical_app_id(source["app_id"].get<std::string>());
+        if (app_id.empty() || app_id == "system-audio" || !seen_app_ids.insert(app_id).second) {
+            continue;
+        }
+        std::string app_name = app_id;
+        if (source.contains("app_name") && source["app_name"].is_string() && !source["app_name"].get<std::string>().empty()) {
+            app_name = source["app_name"].get<std::string>();
+        }
+        recent_apps.append({QString::fromStdString(app_id), QString::fromStdString(app_name)});
+    }
+    window_->settings_window()->set_recent_target_apps(recent_apps);
 }
 
 void AppController::preview_profile_audio_devices_for_mode(const QString& capture_mode) {
@@ -1610,6 +2124,7 @@ void AppController::cancel_active_transcription() {
 }
 
 void AppController::cancel_streaming_session() {
+    ++streaming_generation_;
     if (streaming_pump_cancel_flag_) {
         streaming_pump_cancel_flag_->store(true);
     }
@@ -1635,6 +2150,7 @@ void AppController::cancel_streaming_session() {
 }
 
 void AppController::discard_active_recording_for_shutdown() {
+    const bool was_live_caption = should_use_live_caption_window();
     cancel_streaming_session();
     if (audio_capture_ != nullptr && audio_capture_->is_recording()) {
         try {
@@ -1649,10 +2165,11 @@ void AppController::discard_active_recording_for_shutdown() {
     active_capture_mode_ = CaptureMode::Dictation;
     hud_->hide();
     set_state(SessionState::Idle, "Shutting down...");
-    if (should_use_live_caption_window()) {
+    if (was_live_caption) {
         window_->meeting_window()->set_session_state(SessionState::Idle);
         window_->meeting_window()->clear_live_text();
     }
+    restore_manual_profile_runtime();
 }
 
 void AppController::on_transcription_finished() {
@@ -1664,12 +2181,14 @@ void AppController::on_transcription_finished() {
     }
 
     active_transcription_job_id_ = 0;
+    const bool was_live_caption = should_use_live_caption_window();
 
         if (result.cancelled) {
             clipboard_->clear_paste_session();
             active_capture_mode_ = CaptureMode::Dictation;
             captured_selection_text_.reset();
             pending_selection_debug_info_.clear();
+            restore_manual_profile_runtime();
             if (shutting_down_) {
             QApplication::quit();
             return;
@@ -1677,7 +2196,7 @@ void AppController::on_transcription_finished() {
 
         set_state(SessionState::Idle, "Transcription cancelled.");
         hud_->hide();
-        if (should_use_live_caption_window()) {
+        if (was_live_caption) {
             window_->meeting_window()->set_session_state(SessionState::Idle);
             window_->meeting_window()->clear_live_text();
         }
@@ -1685,16 +2204,39 @@ void AppController::on_transcription_finished() {
     }
 
     if (!result.error_text.isEmpty()) {
-        history_store_->add_entry(QString("Transcription failed: %1").arg(result.error_text).toStdString(),
-                                  result.audio_path,
-                                  result.meta);
+        store_history_entry(QString("Transcription failed: %1").arg(result.error_text).toStdString(),
+                            result.audio_path,
+                            result.meta);
         load_history();
         clipboard_->clear_paste_session();
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
         on_hotkey_failed(result.error_text);
+        restore_manual_profile_runtime();
     } else {
+        if (was_live_caption) {
+            store_history_entry(result.text.toStdString(), result.audio_path, result.meta);
+            load_history();
+
+            set_state(SessionState::Idle, "Ready.");
+            window_->meeting_window()->set_session_state(SessionState::Idle);
+            window_->meeting_window()->append_transcript_segment(
+                QDateTime::currentDateTime().toString("HH:mm:ss"),
+                result.text);
+            window_->meeting_window()->clear_live_text();
+            hud_->hide();
+            clipboard_->clear_paste_session();
+            active_capture_mode_ = CaptureMode::Dictation;
+            captured_selection_text_.reset();
+            pending_selection_debug_info_.clear();
+            restore_manual_profile_runtime();
+            if (shutting_down_) {
+                QApplication::quit();
+            }
+            return;
+        }
+
         bool replaced_selection = false;
         QString replace_debug;
         if (active_capture_mode_ == CaptureMode::SelectionCommand) {
@@ -1710,17 +2252,11 @@ void AppController::on_transcription_finished() {
             auto_paste_debug = clipboard_->last_debug_info();
         }
 
-        history_store_->add_entry(result.text.toStdString(), result.audio_path, result.meta);
+        const bool history_saved = store_history_entry(result.text.toStdString(), result.audio_path, result.meta);
         load_history();
 
-        set_state(SessionState::Idle, "Ready.");
-        if (should_use_live_caption_window()) {
-            window_->meeting_window()->set_session_state(SessionState::Idle);
-            window_->meeting_window()->append_transcript_segment(
-                QDateTime::currentDateTime().toString("HH:mm:ss"),
-                result.text);
-            window_->meeting_window()->clear_live_text();
-        }
+        set_state(SessionState::Idle,
+                  history_saved ? "Ready." : "Ready. History was not saved for this sensitive field.");
 
         if (active_capture_mode_ == CaptureMode::SelectionCommand && !replaced_selection) {
             const QString status =
@@ -1733,6 +2269,8 @@ void AppController::on_transcription_finished() {
             window_->set_status_text(status);
             window_->settings_window()->set_status_text(status);
             hud_->show_error("Auto paste failed");
+        } else if (!history_saved) {
+            hud_->show_notice("History not saved");
         } else {
             hud_->hide();
         }
@@ -1740,6 +2278,7 @@ void AppController::on_transcription_finished() {
         active_capture_mode_ = CaptureMode::Dictation;
         captured_selection_text_.reset();
         pending_selection_debug_info_.clear();
+        restore_manual_profile_runtime();
     }
 
     if (shutting_down_) {

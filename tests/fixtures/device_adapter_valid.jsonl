@@ -1,0 +1,10 @@
+{"type":"adapter.hello","protocol_version":1,"adapter":{"id":"dev.shinsoku.example.synthetic","name":"Shinsoku Synthetic Adapter","version":"0.1.0","capabilities":["discover","connect","audio.pcm16","buttons","battery"],"permissions":[]}}
+{"type":"device.found","device":{"id":"synthetic-001","name":"Synthetic Remote","capabilities":["audio.pcm16","buttons","battery"],"battery_percent":100,"signal_dbm":-30}}
+{"type":"discovery.finished","device_count":1}
+{"type":"device.status","device_id":"synthetic-001","state":"connected"}
+{"type":"button","device_id":"synthetic-001","action_id":"profile.select:default","event":"down"}
+{"type":"button","device_id":"synthetic-001","action_id":"profile.select:default","event":"up"}
+{"type":"audio.start","stream_id":7,"device_id":"synthetic-001","profile_id":"default","format":{"encoding":"pcm16le","sample_rate_hz":16000,"channels":1}}
+{"type":"audio.chunk","stream_id":7,"sequence":0,"pcm16le_base64":"AIAAAP9/"}
+{"type":"audio.stop","stream_id":7,"reason":"completed","total_samples":3}
+{"type":"adapter.goodbye"}

@@ -37,6 +37,12 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Shinsoku uses the microphone to capture voice input.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Shinsoku uses your local network to find and connect to your Shinsoku desktop.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_shinsoku-mic._tcp</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UILaunchStoryboardName</key>

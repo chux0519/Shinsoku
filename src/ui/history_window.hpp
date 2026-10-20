@@ -2,6 +2,7 @@
 
 #include "core/app_state.hpp"
 
+#include <QString>
 #include <QWidget>
 
 #include <vector>
@@ -29,9 +30,11 @@ signals:
 
 private:
     void append_entry(const HistoryEntry& entry);
+    void append_date_group(const QString& date_key);
 
     QListWidget* list_ = nullptr;
     QPushButton* load_older_button_ = nullptr;
+    QString last_date_group_;
 };
 
 }  // namespace ohmytypeless

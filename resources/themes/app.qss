@@ -41,7 +41,7 @@ QScrollArea > QWidget > QWidget {
     font-size: 24px;
 }
 
-#heroBody, #headerBody, #historyBody, #entrySummary, #statusText {
+#heroBody, #headerBody, #appProfileRuleStatus, #historyBody, #entrySummary, #statusText {
     color: {{muted}};
 }
 
@@ -56,6 +56,12 @@ QScrollArea > QWidget > QWidget {
 
 #entryHeader, #summaryLabel {
     color: {{text}};
+    font-weight: 700;
+}
+
+#historyDateSeparator {
+    color: {{muted}};
+    font-size: 13px;
     font-weight: 700;
 }
 

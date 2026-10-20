@@ -12,9 +12,14 @@ struct sqlite3_stmt;
 
 namespace ohmytypeless {
 
+enum class HistoryOpenMode {
+    ReadWrite,
+    ReadOnly,
+};
+
 class HistoryStore {
 public:
-    explicit HistoryStore(const std::filesystem::path& db_path);
+    explicit HistoryStore(const std::filesystem::path& db_path, HistoryOpenMode mode = HistoryOpenMode::ReadWrite);
     ~HistoryStore();
 
     HistoryStore(const HistoryStore&) = delete;
@@ -27,14 +32,15 @@ public:
     std::optional<HistoryEntry> get_entry(std::int64_t id) const;
     std::vector<HistoryEntry> list_recent(std::size_t limit) const;
     std::vector<HistoryEntry> list_before_id(std::int64_t before_id, std::size_t limit) const;
+    std::vector<HistoryEntry> query(const HistoryQuery& query) const;
 
 private:
     void ensure_schema();
     bool has_column(const char* table_name, const char* column_name) const;
-    std::vector<HistoryEntry> list_with_query(const char* sql, std::int64_t id_arg, bool bind_id, std::size_t limit) const;
     std::optional<HistoryEntry> entry_from_current_row(sqlite3_stmt* stmt) const;
 
     sqlite3* db_ = nullptr;
+    HistoryOpenMode mode_ = HistoryOpenMode::ReadWrite;
     mutable std::mutex mutex_;
 };
 

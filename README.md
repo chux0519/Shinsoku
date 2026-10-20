@@ -39,11 +39,11 @@ non-conflicting hold key when testing editor integrations.
 
 ### Mobile
 
-- Flutter shell for Android and iOS
-- record, drafts, and settings surfaces
-- profile-driven mobile workflow placeholders
-- simulated capture-to-draft flow
-- generated Android and iOS Flutter runners
+- Flutter product shell for Android and iOS
+- real microphone capture, editable drafts, Profiles, and provider settings
+- Bailian batch/realtime and Soniox streaming transcription paths
+- iOS keyboard extension handoff
+- secure Nearby Desktop Mic client with local discovery and PCM streaming
 
 Code lives under [mobile](/Volumes/ZT/repos/Shinsoku/mobile).
 
@@ -68,6 +68,76 @@ cmake --build build --config Release --target shinsoku
 ```
 
 See [RELEASE.md](/Volumes/ZT/repos/Shinsoku/RELEASE.md) for packaging and release details.
+
+### Local history for agents
+
+Build the read-only JSON CLI and local MCP server with the desktop targets:
+
+```bash
+cmake --build build --config Debug --target shinsoku-history shinsoku-history-mcp
+./build/Debug/shinsoku-history list --since 2026-08-01 --limit 20 --pretty
+./build/Debug/shinsoku-history list --app Mail --query project --pretty
+./build/Debug/shinsoku-history get 42 --pretty
+```
+
+The default response omits diagnostic metadata and local recording paths. Use
+`--include-meta` or `--include-audio-path` only for explicit debugging tasks.
+The bundled `skills/read-shinsoku-history` skill gives agents the same guarded
+query workflow without direct SQLite access.
+
+For MCP hosts, register the packaged stdio server as a local command:
+
+```json
+{
+  "mcpServers": {
+    "shinsoku-history": {
+      "command": "/Applications/Shinsoku.app/Contents/MacOS/shinsoku-history-mcp"
+    }
+  }
+}
+```
+
+During development, use `build/Debug/shinsoku-history-mcp`. On Windows, point
+the host to `shinsoku-history-mcp.exe` in the portable package. The server
+supports legacy 2025 initialization and 2026-07-28 discovery, exposes only
+search/get tools, opens SQLite read-only per call, and never returns raw
+diagnostic metadata or recording paths. Pass `--database /path/history.sqlite3`
+only when intentionally reading a non-default Shinsoku database.
+
+### Nearby Desktop Mic
+
+The desktop can accept a private local-network microphone stream from the
+Flutter iPhone client. Enable it under `Settings > Network > Nearby
+Microphone`, create a two-digit pairing code, then open the mobile app's
+`Desktop` tab. The client discovers the desktop with Bonjour or accepts a
+manual WSS endpoint plus certificate fingerprint.
+
+Nearby is disabled by default. LAN transport is WSS-only, the client pins the
+exact advertised certificate fingerprint, the desktop stores only a verifier
+for the issued credential, and trusted devices can be revoked in Settings.
+Protocol and simulator E2E details are in
+[`docs/nearby-mobile-protocol.md`](docs/nearby-mobile-protocol.md).
+
+### Open Device Adapters
+
+Third-party hardware integrations can target the experimental Device Adapter
+v1 JSONL contract without linking against Shinsoku or entering its process. A
+packaged checker validates manifests, device/button events, strict PCM chunk
+ordering, and bounded mono PCM16 audio traces:
+
+```bash
+cmake --build build --config Debug --target shinsoku-adapter-check
+./build/Debug/shinsoku-adapter-check \
+  --trace tests/fixtures/device_adapter_valid.jsonl \
+  --require-audio --pretty
+```
+
+See [`docs/device-adapter-interface.md`](docs/device-adapter-interface.md) and
+the standard-library Python example under `examples/device-adapters/`.
+The desktop can run one explicitly selected executable from `Settings >
+Advanced > Device Adapter`; it displays the adapter's declared permissions and
+routes accepted PCM through the normal Profile pipeline. This child process is
+not an OS sandbox, so only select an adapter you trust.
 
 ### Mobile
 

@@ -18,14 +18,17 @@ void MacOSClipboardService::begin_paste_session() {
     pid_t pid = 0;
     if (macos_capture_frontmost_external_process(&pid, &debug_info)) {
         target_pid_ = pid;
+        target_context_ = macos_input_target_context(pid);
     } else {
         target_pid_ = 0;
+        target_context_ = {};
     }
     set_debug_info(debug_info);
 }
 
 void MacOSClipboardService::clear_paste_session() {
     target_pid_ = 0;
+    target_context_ = {};
     last_debug_info_.clear();
 }
 
@@ -62,6 +65,10 @@ bool MacOSClipboardService::paste_text_to_last_target(const QString& text, const
 
 QString MacOSClipboardService::last_debug_info() const {
     return last_debug_info_;
+}
+
+InputTargetContext MacOSClipboardService::input_target_context() const {
+    return target_context_;
 }
 
 void MacOSClipboardService::set_debug_info(const QString& text) {

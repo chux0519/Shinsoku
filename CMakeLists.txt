@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(Shinsoku VERSION 0.1.0 LANGUAGES C CXX)
 
+include(CTest)
 include(GNUInstallDirs)
 
 if(APPLE)
@@ -76,6 +77,15 @@ qt_add_executable(shinsoku
     src/core/curl_support.cpp
     src/core/history_store.hpp
     src/core/history_store.cpp
+    src/core/input/device_adapter_protocol.hpp
+    src/core/input/device_adapter_protocol.cpp
+    src/core/input/push_audio_source.hpp
+    src/core/nearby/nearby_connection.hpp
+    src/core/nearby/nearby_connection.cpp
+    src/core/nearby/nearby_protocol.hpp
+    src/core/nearby/nearby_protocol.cpp
+    src/core/nearby/nearby_tls_identity.hpp
+    src/core/nearby/nearby_tls_identity.cpp
     src/core/recording_store.hpp
     src/core/recording_store.cpp
     src/core/task_types.hpp
@@ -89,8 +99,19 @@ qt_add_executable(shinsoku
     src/platform/hotkey_names.hpp
     src/platform/hotkey_names.cpp
     src/platform/hud_presenter.hpp
+    src/platform/input_target_context.hpp
+    src/platform/input_target_context.cpp
     src/platform/miniaudio_audio_capture_service.hpp
     src/platform/miniaudio_audio_capture_service.cpp
+    src/platform/network/nearby_websocket_server.hpp
+    src/platform/network/nearby_websocket_server.cpp
+    src/platform/network/nearby_discovery_publisher.hpp
+    src/platform/network/nearby_runtime.hpp
+    src/platform/network/nearby_runtime.cpp
+    src/platform/network/push_audio_capture_service.hpp
+    src/platform/network/push_audio_capture_service.cpp
+    src/platform/process/device_adapter_runtime.hpp
+    src/platform/process/device_adapter_runtime.cpp
     src/platform/selection_service.hpp
     src/platform/qt/qt_clipboard_service.hpp
     src/platform/qt/qt_clipboard_service.cpp
@@ -113,6 +134,328 @@ qt_add_executable(shinsoku
     src/ui/history_window.hpp
     src/ui/history_window.cpp
 )
+target_compile_definitions(shinsoku PRIVATE SHINSOKU_VERSION="${PROJECT_VERSION}")
+
+add_executable(shinsoku-history
+    src/cli/history_cli.cpp
+    src/core/app_config.hpp
+    src/core/app_config.cpp
+    src/core/app_state.hpp
+    src/core/history_store.hpp
+    src/core/history_store.cpp
+    src/core/history_export.hpp
+    src/core/history_export.cpp
+    src/platform/hotkey_names.hpp
+    src/platform/hotkey_names.cpp
+)
+
+target_include_directories(shinsoku-history PRIVATE src)
+target_link_libraries(shinsoku-history PRIVATE
+    Qt6::Core
+    nlohmann_json::nlohmann_json
+    unofficial::sqlite3::sqlite3
+)
+
+install(TARGETS shinsoku-history
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+add_executable(shinsoku-history-mcp
+    src/cli/history_mcp.cpp
+    src/core/app_config.hpp
+    src/core/app_config.cpp
+    src/core/app_state.hpp
+    src/core/history_export.hpp
+    src/core/history_export.cpp
+    src/core/history_mcp_server.hpp
+    src/core/history_mcp_server.cpp
+    src/core/history_store.hpp
+    src/core/history_store.cpp
+    src/platform/hotkey_names.hpp
+    src/platform/hotkey_names.cpp
+)
+target_include_directories(shinsoku-history-mcp PRIVATE src)
+target_link_libraries(shinsoku-history-mcp PRIVATE
+    Qt6::Core
+    nlohmann_json::nlohmann_json
+    unofficial::sqlite3::sqlite3
+)
+install(TARGETS shinsoku-history-mcp
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(DIRECTORY skills/read-shinsoku-history
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/shinsoku/skills
+)
+
+add_executable(shinsoku-adapter-check
+    src/cli/device_adapter_check.cpp
+    src/core/input/device_adapter_protocol.hpp
+    src/core/input/device_adapter_protocol.cpp
+)
+target_include_directories(shinsoku-adapter-check PRIVATE src)
+target_link_libraries(shinsoku-adapter-check PRIVATE
+    MbedTLS::mbedcrypto
+    nlohmann_json::nlohmann_json
+)
+install(TARGETS shinsoku-adapter-check
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(FILES examples/device-adapters/synthetic_adapter.py
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/shinsoku/device-adapters/examples
+)
+
+if(BUILD_TESTING)
+    add_executable(history_store_tests
+        tests/history_store_test.cpp
+        src/core/app_state.hpp
+        src/core/history_store.hpp
+        src/core/history_store.cpp
+        src/platform/input_target_context.hpp
+        src/platform/input_target_context.cpp
+    )
+    target_include_directories(history_store_tests PRIVATE src)
+    target_link_libraries(history_store_tests PRIVATE
+        Qt6::Core
+        nlohmann_json::nlohmann_json
+        unofficial::sqlite3::sqlite3
+    )
+    add_test(NAME history_store_tests COMMAND history_store_tests)
+
+    add_executable(history_window_tests
+        tests/history_window_test.cpp
+        src/core/app_state.hpp
+        src/ui/history_window.hpp
+        src/ui/history_window.cpp
+    )
+    target_include_directories(history_window_tests PRIVATE src)
+    target_link_libraries(history_window_tests PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME history_window_tests COMMAND history_window_tests)
+
+    add_executable(app_profile_tests
+        tests/app_profile_test.cpp
+        src/core/app_config.hpp
+        src/core/app_config.cpp
+        src/core/runtime_profile.hpp
+        src/core/runtime_profile.cpp
+        src/platform/hotkey_names.hpp
+        src/platform/hotkey_names.cpp
+    )
+    target_include_directories(app_profile_tests PRIVATE src)
+    target_link_libraries(app_profile_tests PRIVATE
+        Qt6::Core
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME app_profile_tests COMMAND app_profile_tests)
+
+    add_executable(settings_window_tests
+        tests/settings_window_test.cpp
+        src/core/app_config.hpp
+        src/core/app_config.cpp
+        src/core/runtime_profile.hpp
+        src/core/runtime_profile.cpp
+        src/platform/hotkey_names.hpp
+        src/platform/hotkey_names.cpp
+        src/ui/settings_window.hpp
+        src/ui/settings_window.cpp
+    )
+    target_include_directories(settings_window_tests PRIVATE src)
+    target_link_libraries(settings_window_tests PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME settings_window_tests COMMAND settings_window_tests)
+
+    add_executable(history_mcp_server_tests
+        tests/history_mcp_server_test.cpp
+        src/core/app_state.hpp
+        src/core/history_export.hpp
+        src/core/history_export.cpp
+        src/core/history_mcp_server.hpp
+        src/core/history_mcp_server.cpp
+        src/core/history_store.hpp
+        src/core/history_store.cpp
+    )
+    target_include_directories(history_mcp_server_tests PRIVATE src)
+    target_link_libraries(history_mcp_server_tests PRIVATE
+        Qt6::Core
+        nlohmann_json::nlohmann_json
+        unofficial::sqlite3::sqlite3
+    )
+    add_test(NAME history_mcp_server_tests COMMAND history_mcp_server_tests)
+
+    add_executable(device_adapter_protocol_tests
+        tests/device_adapter_protocol_test.cpp
+        src/core/input/device_adapter_protocol.hpp
+        src/core/input/device_adapter_protocol.cpp
+    )
+    target_include_directories(device_adapter_protocol_tests PRIVATE src)
+    target_link_libraries(device_adapter_protocol_tests PRIVATE
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME device_adapter_protocol_tests COMMAND device_adapter_protocol_tests)
+    add_test(NAME device_adapter_check_trace
+        COMMAND shinsoku-adapter-check
+            --trace ${CMAKE_SOURCE_DIR}/tests/fixtures/device_adapter_valid.jsonl
+            --require-audio
+    )
+
+    add_executable(device_adapter_runtime_fixture
+        tests/support/device_adapter_runtime_fixture.cpp
+    )
+    target_link_libraries(device_adapter_runtime_fixture PRIVATE
+        nlohmann_json::nlohmann_json
+    )
+
+    add_executable(device_adapter_runtime_tests
+        tests/device_adapter_runtime_test.cpp
+        src/core/input/device_adapter_protocol.hpp
+        src/core/input/device_adapter_protocol.cpp
+        src/core/input/push_audio_source.hpp
+        src/platform/process/device_adapter_runtime.hpp
+        src/platform/process/device_adapter_runtime.cpp
+    )
+    target_include_directories(device_adapter_runtime_tests PRIVATE src)
+    target_link_libraries(device_adapter_runtime_tests PRIVATE
+        Qt6::Core
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME device_adapter_runtime_tests
+        COMMAND device_adapter_runtime_tests $<TARGET_FILE:device_adapter_runtime_fixture>
+    )
+
+    add_executable(nearby_protocol_tests
+        tests/nearby_protocol_test.cpp
+        src/core/input/push_audio_source.hpp
+        src/core/nearby/nearby_protocol.hpp
+        src/core/nearby/nearby_protocol.cpp
+    )
+    target_include_directories(nearby_protocol_tests PRIVATE src)
+    target_link_libraries(nearby_protocol_tests PRIVATE
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME nearby_protocol_tests COMMAND nearby_protocol_tests)
+
+    add_executable(nearby_websocket_server_tests
+        tests/nearby_websocket_server_test.cpp
+        src/core/input/push_audio_source.hpp
+        src/core/nearby/nearby_connection.hpp
+        src/core/nearby/nearby_connection.cpp
+        src/core/nearby/nearby_protocol.hpp
+        src/core/nearby/nearby_protocol.cpp
+        src/core/nearby/nearby_tls_identity.hpp
+        src/core/nearby/nearby_tls_identity.cpp
+        src/platform/network/nearby_websocket_server.hpp
+        src/platform/network/nearby_websocket_server.cpp
+    )
+    target_include_directories(nearby_websocket_server_tests PRIVATE src)
+    target_link_libraries(nearby_websocket_server_tests PRIVATE
+        ixwebsocket::ixwebsocket
+        MbedTLS::mbedx509
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME nearby_websocket_server_tests COMMAND nearby_websocket_server_tests)
+
+    add_executable(push_audio_capture_service_tests
+        tests/push_audio_capture_service_test.cpp
+        src/core/input/push_audio_source.hpp
+        src/core/nearby/nearby_protocol.hpp
+        src/core/nearby/nearby_protocol.cpp
+        src/platform/audio_capture_service.hpp
+        src/platform/network/push_audio_capture_service.hpp
+        src/platform/network/push_audio_capture_service.cpp
+    )
+    target_include_directories(push_audio_capture_service_tests PRIVATE src)
+    target_link_libraries(push_audio_capture_service_tests PRIVATE
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME push_audio_capture_service_tests COMMAND push_audio_capture_service_tests)
+
+    add_executable(nearby_tls_identity_tests
+        tests/nearby_tls_identity_test.cpp
+        src/core/nearby/nearby_tls_identity.hpp
+        src/core/nearby/nearby_tls_identity.cpp
+    )
+    target_include_directories(nearby_tls_identity_tests PRIVATE src)
+    target_link_libraries(nearby_tls_identity_tests PRIVATE
+        MbedTLS::mbedx509
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME nearby_tls_identity_tests COMMAND nearby_tls_identity_tests)
+
+    add_executable(nearby_runtime_tests
+        tests/nearby_runtime_test.cpp
+        src/core/input/push_audio_source.hpp
+        src/core/nearby/nearby_connection.hpp
+        src/core/nearby/nearby_connection.cpp
+        src/core/nearby/nearby_protocol.hpp
+        src/core/nearby/nearby_protocol.cpp
+        src/core/nearby/nearby_tls_identity.hpp
+        src/core/nearby/nearby_tls_identity.cpp
+        src/platform/network/nearby_discovery_publisher.hpp
+        src/platform/network/nearby_runtime.hpp
+        src/platform/network/nearby_runtime.cpp
+        src/platform/network/nearby_websocket_server.hpp
+        src/platform/network/nearby_websocket_server.cpp
+    )
+    target_include_directories(nearby_runtime_tests PRIVATE src)
+    target_link_libraries(nearby_runtime_tests PRIVATE
+        ixwebsocket::ixwebsocket
+        MbedTLS::mbedx509
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+    add_test(NAME nearby_runtime_tests COMMAND nearby_runtime_tests)
+
+    add_executable(nearby_server_fixture
+        tests/support/nearby_server_fixture.cpp
+        src/core/input/push_audio_source.hpp
+        src/core/nearby/nearby_connection.hpp
+        src/core/nearby/nearby_connection.cpp
+        src/core/nearby/nearby_protocol.hpp
+        src/core/nearby/nearby_protocol.cpp
+        src/core/nearby/nearby_tls_identity.hpp
+        src/core/nearby/nearby_tls_identity.cpp
+        src/platform/network/nearby_websocket_server.hpp
+        src/platform/network/nearby_websocket_server.cpp
+    )
+    target_include_directories(nearby_server_fixture PRIVATE src)
+    target_link_libraries(nearby_server_fixture PRIVATE
+        ixwebsocket::ixwebsocket
+        MbedTLS::mbedx509
+        MbedTLS::mbedcrypto
+        nlohmann_json::nlohmann_json
+    )
+
+    if(APPLE)
+        add_executable(macos_bonjour_publisher_tests
+            tests/macos_bonjour_publisher_test.cpp
+            src/platform/network/nearby_discovery_publisher.hpp
+            src/platform/macos/macos_bonjour_publisher.hpp
+            src/platform/macos/macos_bonjour_publisher.cpp
+        )
+        target_include_directories(macos_bonjour_publisher_tests PRIVATE src)
+        add_test(NAME macos_bonjour_publisher_tests COMMAND macos_bonjour_publisher_tests)
+    endif()
+
+    if(APPLE)
+        set_tests_properties(history_window_tests settings_window_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=cocoa")
+    elseif(UNIX)
+        set_tests_properties(history_window_tests settings_window_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
+endif()
 
 if(WIN32)
     set_target_properties(shinsoku PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -139,6 +482,8 @@ if(APPLE)
     target_sources(shinsoku PRIVATE
         src/platform/macos/macos_audio_capture_service.hpp
         src/platform/macos/macos_audio_capture_service.mm
+        src/platform/macos/macos_bonjour_publisher.hpp
+        src/platform/macos/macos_bonjour_publisher.cpp
         src/platform/macos/macos_clipboard_service.hpp
         src/platform/macos/macos_clipboard_service.mm
         src/platform/macos/macos_global_hotkey.hpp
@@ -291,10 +636,15 @@ if(WIN32)
             -Version "${PROJECT_VERSION}"
             -Config "$<CONFIG>"
             -ExecutablePath "$<TARGET_FILE:shinsoku>"
+            -HistoryCliPath "$<TARGET_FILE:shinsoku-history>"
+            -HistoryMcpPath "$<TARGET_FILE:shinsoku-history-mcp>"
+            -HistorySkillPath "${CMAKE_SOURCE_DIR}/skills/read-shinsoku-history"
+            -AdapterCheckPath "$<TARGET_FILE:shinsoku-adapter-check>"
+            -AdapterExamplePath "${CMAKE_SOURCE_DIR}/examples/device-adapters/synthetic_adapter.py"
             -WindeployQtPath "${SHINSOKU_WINDEPLOYQT}"
             -VcpkgInstalledDir "${SHINSOKU_WINDOWS_VCPKG_INSTALLED_DIR}"
             -OutputDir "${SHINSOKU_PACKAGE_OUTPUT_DIR}"
-        DEPENDS shinsoku
+        DEPENDS shinsoku shinsoku-history shinsoku-history-mcp shinsoku-adapter-check
         COMMENT "Packaging Windows portable zip"
         VERBATIM
     )
@@ -322,12 +672,17 @@ if(APPLE)
             --version "${PROJECT_VERSION}"
             --config "$<CONFIG>"
             --executable "$<TARGET_FILE:shinsoku>"
+            --history-cli "$<TARGET_FILE:shinsoku-history>"
+            --history-mcp "$<TARGET_FILE:shinsoku-history-mcp>"
+            --history-skill "${CMAKE_SOURCE_DIR}/skills/read-shinsoku-history"
+            --adapter-check "$<TARGET_FILE:shinsoku-adapter-check>"
+            --adapter-example "${CMAKE_SOURCE_DIR}/examples/device-adapters/synthetic_adapter.py"
             --macdeployqt "${SHINSOKU_MACDEPLOYQT}"
             --plist "${SHINSOKU_MACOS_INFO_PLIST}"
             --entitlements "${SHINSOKU_MACOS_ENTITLEMENTS}"
             --icon-svg "${CMAKE_SOURCE_DIR}/resources/icons/square-bolt.svg"
             --output-dir "${SHINSOKU_PACKAGE_OUTPUT_DIR}"
-        DEPENDS shinsoku
+        DEPENDS shinsoku shinsoku-history shinsoku-history-mcp shinsoku-adapter-check
         COMMENT "Packaging macOS app bundle and DMG"
         VERBATIM
     )

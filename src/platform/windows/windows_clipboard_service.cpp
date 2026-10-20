@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <iterator>
+#include <string>
 #include <thread>
 
 #define NOMINMAX
@@ -61,6 +62,51 @@ QString window_title(HWND hwnd) {
         return "(empty)";
     }
     return QString::fromWCharArray(buffer, length);
+}
+
+QString process_executable_name(HWND hwnd) {
+    DWORD process_id = 0;
+    if (!is_valid_window(hwnd) || ::GetWindowThreadProcessId(hwnd, &process_id) == 0 || process_id == 0) {
+        return {};
+    }
+
+    HANDLE process = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
+    if (process == nullptr) {
+        return {};
+    }
+
+    std::wstring path(32768, L'\0');
+    DWORD size = static_cast<DWORD>(path.size());
+    const BOOL queried = ::QueryFullProcessImageNameW(process, 0, path.data(), &size);
+    ::CloseHandle(process);
+    if (queried == FALSE || size == 0) {
+        return {};
+    }
+
+    path.resize(size);
+    const std::size_t separator = path.find_last_of(L"\\/");
+    const std::wstring filename = separator == std::wstring::npos ? path : path.substr(separator + 1);
+    return QString::fromStdWString(filename);
+}
+
+InputTargetContext input_context_for_target(HWND window, HWND focus) {
+    const QString executable = process_executable_name(window);
+    QString app_name = executable;
+    if (app_name.endsWith(".exe", Qt::CaseInsensitive)) {
+        app_name.chop(4);
+    }
+
+    const QString field_role = window_class_name(focus);
+    const bool field_available = is_valid_window(focus);
+    const LONG_PTR style = field_available ? ::GetWindowLongPtrW(focus, GWL_STYLE) : 0;
+    const bool native_password_field = field_role.compare("Edit", Qt::CaseInsensitive) == 0 &&
+                                       (style & ES_PASSWORD) != 0;
+    return classify_input_target(executable,
+                                 app_name,
+                                 field_role,
+                                 field_available,
+                                 native_password_field,
+                                 {window_title(focus)});
 }
 
 void send_key_event(WORD vk, DWORD flags) {
@@ -194,12 +240,14 @@ void WindowsClipboardService::begin_paste_session() {
         target_window_ = 0;
         target_focus_ = 0;
         target_thread_id_ = 0;
+        target_context_ = {};
         set_debug_info("begin session: foreground belongs to this process; no external target captured");
         return;
     }
     target_window_ = reinterpret_cast<quintptr>(target.window);
     target_focus_ = reinterpret_cast<quintptr>(target.focus);
     target_thread_id_ = target.thread_id;
+    target_context_ = input_context_for_target(target.window, target.focus);
 
     QStringList lines;
     lines << "begin session: captured external target"
@@ -215,6 +263,7 @@ void WindowsClipboardService::clear_paste_session() {
     target_window_ = 0;
     target_focus_ = 0;
     target_thread_id_ = 0;
+    target_context_ = {};
 }
 
 void WindowsClipboardService::copy_text(const QString& text) {
@@ -293,6 +342,10 @@ bool WindowsClipboardService::paste_text_to_last_target(const QString& text, con
 
 QString WindowsClipboardService::last_debug_info() const {
     return last_debug_info_;
+}
+
+InputTargetContext WindowsClipboardService::input_target_context() const {
+    return target_context_;
 }
 
 void WindowsClipboardService::set_debug_info(const QString& text) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/input_target_context.hpp"
+
 #include <QString>
 
 namespace ohmytypeless {
@@ -13,6 +15,9 @@ public:
     virtual void copy_text(const QString& text) = 0;
     virtual bool paste_text_to_last_target(const QString& text, const QString& paste_keys) = 0;
     virtual QString last_debug_info() const = 0;
+    virtual InputTargetContext input_target_context() const {
+        return {};
+    }
 };
 
 }  // namespace ohmytypeless

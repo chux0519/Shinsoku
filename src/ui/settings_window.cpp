@@ -1,12 +1,15 @@
 #include "ui/settings_window.hpp"
+#include "core/runtime_profile.hpp"
 #include "platform/hotkey_names.hpp"
 
 #include <algorithm>
+#include <set>
 
 #include <QCheckBox>
 #include <QAbstractItemView>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QDateTime>
 #include <QDoubleSpinBox>
 #include <QFrame>
 #include <QFormLayout>
@@ -24,7 +27,9 @@
 #include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QSpinBox>
+#include <QStyle>
 #include <QToolButton>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -462,6 +467,65 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     profiles_editor_layout->setContentsMargins(0, 0, 0, 0);
     profiles_editor_layout->setSpacing(16);
 
+    auto* app_profile_card = new QGroupBox("Automatic Profile Selection", profiles_editor_shell);
+    app_profile_card->setObjectName("sectionCard");
+    auto* app_profile_layout = new QVBoxLayout(app_profile_card);
+    app_profile_layout->setContentsMargins(22, 26, 22, 22);
+    app_profile_layout->setSpacing(12);
+
+    auto_profile_check_ = new QCheckBox("Choose a Profile from the focused application", app_profile_card);
+    auto_profile_check_->setObjectName("autoProfileCheck");
+    app_profile_layout->addWidget(auto_profile_check_);
+
+    app_profile_rule_list_ = new QListWidget(app_profile_card);
+    app_profile_rule_list_->setObjectName("appProfileRuleList");
+    app_profile_rule_list_->setMinimumHeight(132);
+    app_profile_rule_list_->setUniformItemSizes(true);
+    app_profile_layout->addWidget(app_profile_rule_list_);
+
+    auto* app_profile_rule_form = new QFormLayout();
+    app_profile_rule_form->setHorizontalSpacing(18);
+    app_profile_rule_form->setVerticalSpacing(10);
+    app_profile_rule_form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    app_profile_rule_app_combo_ = new QComboBox(app_profile_card);
+    app_profile_rule_app_combo_->setObjectName("appProfileRuleAppCombo");
+    app_profile_rule_app_combo_->setEditable(true);
+    app_profile_rule_app_combo_->setInsertPolicy(QComboBox::NoInsert);
+    app_profile_rule_app_combo_->setPlaceholderText("Bundle ID or executable name");
+    app_profile_rule_profile_combo_ = new QComboBox(app_profile_card);
+    app_profile_rule_profile_combo_->setObjectName("appProfileRuleProfileCombo");
+    app_profile_rule_enabled_check_ = new QCheckBox("Rule enabled", app_profile_card);
+    app_profile_rule_enabled_check_->setChecked(true);
+    configure_combo_popup(app_profile_rule_app_combo_, 16);
+    configure_combo_popup(app_profile_rule_profile_combo_, 16);
+    app_profile_rule_form->addRow("Application", app_profile_rule_app_combo_);
+    app_profile_rule_form->addRow("Profile", app_profile_rule_profile_combo_);
+    app_profile_rule_form->addRow("State", app_profile_rule_enabled_check_);
+    app_profile_layout->addLayout(app_profile_rule_form);
+
+    auto* app_profile_button_row = new QWidget(app_profile_card);
+    app_profile_button_row->setObjectName("inlineFieldRow");
+    auto* app_profile_button_layout = new QHBoxLayout(app_profile_button_row);
+    app_profile_button_layout->setContentsMargins(0, 0, 0, 0);
+    app_profile_button_layout->setSpacing(8);
+    app_profile_rule_add_button_ = new QPushButton("Add Rule", app_profile_button_row);
+    app_profile_rule_add_button_->setObjectName("appProfileRuleAddButton");
+    app_profile_rule_update_button_ = new QPushButton("Update", app_profile_button_row);
+    app_profile_rule_update_button_->setObjectName("appProfileRuleUpdateButton");
+    app_profile_rule_remove_button_ = new QPushButton("Remove", app_profile_button_row);
+    app_profile_rule_remove_button_->setObjectName("appProfileRuleRemoveButton");
+    app_profile_button_layout->addWidget(app_profile_rule_add_button_);
+    app_profile_button_layout->addWidget(app_profile_rule_update_button_);
+    app_profile_button_layout->addWidget(app_profile_rule_remove_button_);
+    app_profile_button_layout->addStretch();
+    app_profile_layout->addWidget(app_profile_button_row);
+
+    app_profile_rule_status_label_ = new QLabel(app_profile_card);
+    app_profile_rule_status_label_->setObjectName("appProfileRuleStatus");
+    app_profile_rule_status_label_->setWordWrap(true);
+    app_profile_layout->addWidget(app_profile_rule_status_label_);
+    profiles_editor_layout->addWidget(app_profile_card);
+
     auto* profile_editor_card = new QGroupBox("Selected Profile", profiles_editor_shell);
     profile_editor_card->setObjectName("sectionCard");
     auto* profile_editor_layout = new QVBoxLayout(profile_editor_card);
@@ -674,6 +738,65 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
                                                  this));
     insert_section_before_stretch(network_layout, network_section);
 
+    auto* nearby_section = new QGroupBox("Nearby Microphone", this);
+    nearby_section->setObjectName("sectionCard");
+    auto* nearby_layout = new QVBoxLayout(nearby_section);
+    nearby_layout->setContentsMargins(22, 26, 22, 22);
+    nearby_layout->setSpacing(12);
+
+    auto* nearby_form = new QFormLayout();
+    nearby_form->setHorizontalSpacing(18);
+    nearby_form->setVerticalSpacing(12);
+    nearby_form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    nearby_enabled_check_ = new QCheckBox("Enable on the local network", nearby_section);
+    nearby_enabled_check_->setObjectName("nearbyEnabledCheck");
+    nearby_port_spin_ = new QSpinBox(nearby_section);
+    nearby_port_spin_->setObjectName("nearbyPortSpin");
+    nearby_port_spin_->setRange(1024, 65535);
+    nearby_port_spin_->setValue(39273);
+    nearby_form->addRow("Enabled", nearby_enabled_check_);
+    nearby_form->addRow("Port", nearby_port_spin_);
+    nearby_layout->addLayout(nearby_form);
+
+    nearby_status_label_ = new QLabel("Not running", nearby_section);
+    nearby_status_label_->setObjectName("nearbyStatusLabel");
+    nearby_status_label_->setWordWrap(true);
+    nearby_status_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    nearby_layout->addWidget(nearby_status_label_);
+
+    auto* nearby_pair_row = new QWidget(nearby_section);
+    nearby_pair_row->setObjectName("inlineFieldRow");
+    auto* nearby_pair_layout = new QHBoxLayout(nearby_pair_row);
+    nearby_pair_layout->setContentsMargins(0, 0, 0, 0);
+    nearby_pair_layout->setSpacing(10);
+    nearby_pairing_code_label_ = new QLabel("Pairing code: --", nearby_pair_row);
+    nearby_pairing_code_label_->setObjectName("nearbyPairingCodeLabel");
+    nearby_pairing_code_label_->setMinimumHeight(34);
+    nearby_pairing_code_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    nearby_pair_button_ = new QPushButton("New Pairing Code", nearby_pair_row);
+    nearby_pair_button_->setObjectName("nearbyPairButton");
+    nearby_pair_button_->setEnabled(false);
+    nearby_pair_layout->addWidget(nearby_pairing_code_label_, 1);
+    nearby_pair_layout->addWidget(nearby_pair_button_);
+    nearby_layout->addWidget(nearby_pair_row);
+
+    auto* trusted_label = new QLabel("Trusted Devices", nearby_section);
+    trusted_label->setObjectName("headerEyebrow");
+    nearby_layout->addWidget(trusted_label);
+    nearby_trusted_client_list_ = new QListWidget(nearby_section);
+    nearby_trusted_client_list_->setObjectName("nearbyTrustedClientList");
+    nearby_trusted_client_list_->setMinimumHeight(112);
+    nearby_trusted_client_list_->setUniformItemSizes(true);
+    nearby_layout->addWidget(nearby_trusted_client_list_);
+    nearby_revoke_button_ = new QPushButton("Revoke", nearby_section);
+    nearby_revoke_button_->setObjectName("nearbyRevokeButton");
+    nearby_revoke_button_->setEnabled(false);
+    nearby_layout->addWidget(nearby_revoke_button_, 0, Qt::AlignLeft);
+    insert_section_before_stretch(network_layout, nearby_section);
+
+    nearby_pairing_timer_ = new QTimer(this);
+    nearby_pairing_timer_->setSingleShot(true);
+
     QFormLayout* vad_form = nullptr;
     auto* vad_section = make_section("Voice Activity Detection", this, &vad_form);
     vad_enabled_check_ = new QCheckBox("Skip silence-only recordings", vad_section);
@@ -702,6 +825,45 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
                                                  "advanced provider flags later.",
                                                  this));
     insert_section_before_stretch(advanced_layout, observability_section);
+
+    auto* adapter_section = new QGroupBox("Device Adapter (Experimental)", this);
+    adapter_section->setObjectName("sectionCard");
+    auto* adapter_layout = new QVBoxLayout(adapter_section);
+    adapter_layout->setContentsMargins(22, 26, 22, 22);
+    adapter_layout->setSpacing(12);
+    auto* adapter_form = new QFormLayout();
+    adapter_form->setHorizontalSpacing(18);
+    adapter_form->setVerticalSpacing(12);
+    adapter_form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    device_adapter_enabled_check_ = new QCheckBox("Run the selected adapter", adapter_section);
+    device_adapter_enabled_check_->setObjectName("deviceAdapterEnabledCheck");
+    auto* adapter_path_row = new QWidget(adapter_section);
+    auto* adapter_path_layout = new QHBoxLayout(adapter_path_row);
+    adapter_path_layout->setContentsMargins(0, 0, 0, 0);
+    adapter_path_layout->setSpacing(8);
+    device_adapter_path_edit_ = new QLineEdit(adapter_path_row);
+    device_adapter_path_edit_->setObjectName("deviceAdapterPathEdit");
+    device_adapter_path_edit_->setPlaceholderText("Absolute path to an adapter executable");
+    device_adapter_browse_button_ = new QToolButton(adapter_path_row);
+    device_adapter_browse_button_->setObjectName("deviceAdapterBrowseButton");
+    device_adapter_browse_button_->setIcon(style()->standardIcon(QStyle::SP_DirOpenIcon));
+    device_adapter_browse_button_->setToolTip("Choose adapter executable");
+    adapter_path_layout->addWidget(device_adapter_path_edit_, 1);
+    adapter_path_layout->addWidget(device_adapter_browse_button_);
+    adapter_form->addRow("Enabled", device_adapter_enabled_check_);
+    adapter_form->addRow("Executable", adapter_path_row);
+    adapter_layout->addLayout(adapter_form);
+    device_adapter_status_label_ = new QLabel("Disabled", adapter_section);
+    device_adapter_status_label_->setObjectName("deviceAdapterStatusLabel");
+    device_adapter_status_label_->setWordWrap(true);
+    device_adapter_status_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    adapter_layout->addWidget(device_adapter_status_label_);
+    auto* adapter_warning = new QLabel(
+        "Adapters run with your user account. Only select an executable you trust.", adapter_section);
+    adapter_warning->setObjectName("fieldHint");
+    adapter_warning->setWordWrap(true);
+    adapter_layout->addWidget(adapter_warning);
+    insert_section_before_stretch(advanced_layout, adapter_section);
 
     QFormLayout* hud_form = nullptr;
     auto* hud_section = make_section("HUD", this, &hud_form);
@@ -804,10 +966,31 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
     root_layout->addWidget(status_label_);
 
     connect(button, &QPushButton::clicked, this, &SettingsWindow::apply_clicked);
+    connect(nearby_pair_button_, &QPushButton::clicked, this, &SettingsWindow::nearby_pairing_requested);
+    connect(nearby_trusted_client_list_, &QListWidget::currentItemChanged, this,
+            [this](QListWidgetItem* current) {
+        nearby_revoke_button_->setEnabled(current != nullptr && nearby_pair_button_->isEnabled());
+    });
+    connect(nearby_revoke_button_, &QPushButton::clicked, this, [this]() {
+        const QListWidgetItem* item = nearby_trusted_client_list_->currentItem();
+        if (item != nullptr) {
+            emit nearby_revoke_requested(item->data(Qt::UserRole).toString());
+        }
+    });
+    connect(nearby_pairing_timer_, &QTimer::timeout, this, [this]() {
+        set_nearby_pairing_code({});
+    });
     connect(recordings_dir_button_, &QPushButton::clicked, this, [this]() {
         const QString selected = QFileDialog::getExistingDirectory(this, "Choose Recordings Directory", recordings_dir());
         if (!selected.isEmpty()) {
             recordings_dir_edit_->setText(selected);
+        }
+    });
+    connect(device_adapter_browse_button_, &QToolButton::clicked, this, [this]() {
+        const QString selected = QFileDialog::getOpenFileName(
+            this, "Choose Device Adapter", device_adapter_executable_path());
+        if (!selected.isEmpty()) {
+            device_adapter_path_edit_->setText(selected);
         }
     });
     connect(profile_input_source_combo_, &QComboBox::activated, this, [this](int) {
@@ -839,6 +1022,23 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
         load_profile_into_editor(row);
     });
+    connect(app_profile_rule_list_, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (!syncing_app_profile_rules_) {
+            load_app_profile_rule_into_editor(row);
+        }
+    });
+    connect(auto_profile_check_, &QCheckBox::toggled, this, [this](bool) {
+        refresh_app_profile_rule_status();
+    });
+    connect(app_profile_rule_add_button_, &QPushButton::clicked, this, [this]() {
+        add_or_update_app_profile_rule(false);
+    });
+    connect(app_profile_rule_update_button_, &QPushButton::clicked, this, [this]() {
+        add_or_update_app_profile_rule(true);
+    });
+    connect(app_profile_rule_remove_button_, &QPushButton::clicked, this, [this]() {
+        remove_selected_app_profile_rule();
+    });
     const auto duplicate_profile_at = [this](int row) {
         if (row < 0 || row >= static_cast<int>(profiles_.size())) {
             return;
@@ -851,6 +1051,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         copy.name += " Copy";
         profiles_.push_back(copy);
         refresh_profile_list();
+        refresh_app_profile_rule_profiles();
         profile_selector_combo_->setCurrentIndex(static_cast<int>(profiles_.size()) - 1);
     };
 
@@ -863,10 +1064,15 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         }
         const QString removed_id = QString::fromStdString(profiles_[static_cast<std::size_t>(row)].id);
         profiles_.erase(profiles_.begin() + row);
+        std::erase_if(app_profile_rules_, [&](const AppProfileRule& rule) {
+            return QString::fromStdString(rule.profile_id) == removed_id;
+        });
         if (active_profile_id_ == removed_id && !profiles_.empty()) {
             active_profile_id_ = QString::fromStdString(profiles_.front().id);
         }
         refresh_profile_list();
+        refresh_app_profile_rule_profiles();
+        refresh_app_profile_rule_list();
         profile_selector_combo_->setCurrentIndex(std::min(row, static_cast<int>(profiles_.size()) - 1));
     };
 
@@ -880,6 +1086,7 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QWidget(parent) {
         profiles_.push_back(profile);
         active_profile_id_ = QString::fromStdString(profile.id);
         refresh_profile_list();
+        refresh_app_profile_rule_profiles();
         profile_selector_combo_->setCurrentIndex(static_cast<int>(profiles_.size()) - 1);
     };
     connect(profile_actions_button_, &QPushButton::clicked, this, [this, create_profile, duplicate_profile_at, delete_profile_at]() {
@@ -1000,6 +1207,14 @@ std::vector<ProfileConfig> SettingsWindow::profiles() const {
     return snapshot;
 }
 
+bool SettingsWindow::auto_profile_selection_enabled() const {
+    return auto_profile_check_ != nullptr && auto_profile_check_->isChecked();
+}
+
+std::vector<AppProfileRule> SettingsWindow::app_profile_rules() const {
+    return app_profile_rules_;
+}
+
 bool SettingsWindow::save_recordings_enabled() const {
     return save_recordings_check_->isChecked();
 }
@@ -1046,6 +1261,22 @@ QString SettingsWindow::proxy_username() const {
 
 QString SettingsWindow::proxy_password() const {
     return proxy_password_edit_->text();
+}
+
+bool SettingsWindow::nearby_enabled() const {
+    return nearby_enabled_check_->isChecked();
+}
+
+int SettingsWindow::nearby_port() const {
+    return nearby_port_spin_->value();
+}
+
+bool SettingsWindow::device_adapter_enabled() const {
+    return device_adapter_enabled_check_->isChecked();
+}
+
+QString SettingsWindow::device_adapter_executable_path() const {
+    return device_adapter_path_edit_->text().trimmed();
 }
 
 QString SettingsWindow::asr_provider() const {
@@ -1167,6 +1398,44 @@ void SettingsWindow::set_profiles(const std::vector<ProfileConfig>& profiles, co
     }
     profile_selector_combo_->setCurrentIndex(active_index);
     load_profile_into_editor(active_index);
+    refresh_app_profile_rule_profiles();
+    refresh_app_profile_rule_list();
+}
+
+void SettingsWindow::set_app_profile_rules(bool enabled, const std::vector<AppProfileRule>& rules) {
+    app_profile_rules_ = rules;
+    auto_profile_check_->setChecked(enabled);
+    refresh_app_profile_rule_profiles();
+    refresh_app_profile_rule_list();
+    if (!app_profile_rules_.empty()) {
+        app_profile_rule_list_->setCurrentRow(0);
+    } else {
+        load_app_profile_rule_into_editor(-1);
+    }
+}
+
+void SettingsWindow::set_recent_target_apps(const QList<QPair<QString, QString>>& apps) {
+    recent_target_apps_ = apps;
+    QString current_id;
+    if (app_profile_rule_app_combo_ != nullptr) {
+        current_id = app_profile_rule_app_combo_->currentData().toString();
+        if (app_profile_rule_app_combo_->currentIndex() < 0 || current_id.isEmpty()) {
+            current_id = app_profile_rule_app_combo_->currentText().trimmed();
+        }
+    }
+    app_profile_rule_app_combo_->blockSignals(true);
+    app_profile_rule_app_combo_->clear();
+    for (const auto& [app_id, app_name] : recent_target_apps_) {
+        const QString display_name = app_name.trimmed().isEmpty() ? app_id : app_name;
+        app_profile_rule_app_combo_->addItem(QString("%1 - %2").arg(display_name, app_id), app_id);
+    }
+    const int current_index = app_profile_rule_app_combo_->findData(current_id);
+    if (current_index >= 0) {
+        app_profile_rule_app_combo_->setCurrentIndex(current_index);
+    } else if (!current_id.isEmpty()) {
+        app_profile_rule_app_combo_->setEditText(current_id);
+    }
+    app_profile_rule_app_combo_->blockSignals(false);
 }
 
 void SettingsWindow::set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id) {
@@ -1227,6 +1496,108 @@ void SettingsWindow::set_proxy_username(const QString& text) {
 
 void SettingsWindow::set_proxy_password(const QString& text) {
     proxy_password_edit_->setText(text);
+}
+
+void SettingsWindow::set_nearby_enabled(bool enabled) {
+    nearby_enabled_check_->setChecked(enabled);
+}
+
+void SettingsWindow::set_nearby_port(int value) {
+    nearby_port_spin_->setValue(value);
+}
+
+void SettingsWindow::set_nearby_runtime_status(bool running,
+                                               bool discoverable,
+                                               const QString& service_name,
+                                               int port,
+                                               const QString& certificate_fingerprint) {
+    nearby_pair_button_->setEnabled(running);
+    nearby_revoke_button_->setEnabled(running && nearby_trusted_client_list_->currentItem() != nullptr);
+    if (!running) {
+        nearby_status_label_->setText("Not running");
+        set_nearby_pairing_code({});
+        return;
+    }
+
+    const QString discovery = discoverable ? "Bonjour" : "manual discovery";
+    QString status = QString("%1 · WSS port %2 · %3").arg(service_name).arg(port).arg(discovery);
+    if (!certificate_fingerprint.isEmpty()) {
+        status += QString("\nCertificate SHA-256: %1").arg(certificate_fingerprint);
+    }
+    nearby_status_label_->setText(status);
+}
+
+void SettingsWindow::set_nearby_pairing_code(const QString& code, qint64 expires_at_ms) {
+    nearby_pairing_timer_->stop();
+    if (code.isEmpty()) {
+        nearby_pairing_code_label_->setText("Pairing code: --");
+        return;
+    }
+    nearby_pairing_code_label_->setText(QString("Pairing code: %1").arg(code));
+    const qint64 remaining_ms = expires_at_ms - QDateTime::currentMSecsSinceEpoch();
+    if (remaining_ms > 0) {
+        nearby_pairing_timer_->start(static_cast<int>(std::min<qint64>(remaining_ms, 2147483647)));
+    }
+}
+
+void SettingsWindow::set_nearby_trusted_clients(const QList<QPair<QString, QString>>& clients) {
+    const QString selected_id = nearby_trusted_client_list_->currentItem() != nullptr
+                                    ? nearby_trusted_client_list_->currentItem()->data(Qt::UserRole).toString()
+                                    : QString();
+    nearby_trusted_client_list_->clear();
+    for (const auto& [client_id, display_name] : clients) {
+        auto* item = new QListWidgetItem(display_name, nearby_trusted_client_list_);
+        item->setData(Qt::UserRole, client_id);
+        if (client_id == selected_id) {
+            nearby_trusted_client_list_->setCurrentItem(item);
+        }
+    }
+    nearby_revoke_button_->setEnabled(nearby_pair_button_->isEnabled() &&
+                                      nearby_trusted_client_list_->currentItem() != nullptr);
+}
+
+void SettingsWindow::set_device_adapter_enabled(bool enabled) {
+    device_adapter_enabled_check_->setChecked(enabled);
+}
+
+void SettingsWindow::set_device_adapter_executable_path(const QString& path) {
+    device_adapter_path_edit_->setText(path);
+}
+
+void SettingsWindow::set_device_adapter_runtime_status(bool enabled,
+                                                       bool running,
+                                                       bool ready,
+                                                       const QString& adapter_name,
+                                                       const QString& adapter_version,
+                                                       const QString& device_name,
+                                                       const QStringList& permissions,
+                                                       const QString& error) {
+    if (!error.isEmpty()) {
+        device_adapter_status_label_->setText(QString("Error: %1").arg(error));
+        return;
+    }
+    if (!enabled) {
+        device_adapter_status_label_->setText("Disabled");
+        return;
+    }
+    if (!running) {
+        device_adapter_status_label_->setText("Not running");
+        return;
+    }
+    if (!ready) {
+        device_adapter_status_label_->setText("Starting adapter...");
+        return;
+    }
+
+    QString status = adapter_version.isEmpty()
+                         ? adapter_name
+                         : QString("%1 %2").arg(adapter_name, adapter_version);
+    status += device_name.isEmpty() ? " · No connected device"
+                                    : QString(" · %1 connected").arg(device_name);
+    status += permissions.isEmpty()
+                  ? "\nDeclared permissions: none"
+                  : QString("\nDeclared permissions: %1").arg(permissions.join(", "));
+    device_adapter_status_label_->setText(status);
 }
 
 void SettingsWindow::set_asr_provider(const QString& text) {
@@ -1548,6 +1919,198 @@ void SettingsWindow::refresh_capability_dependent_controls() {
         const bool allow_paste_keys = auto_paste_available_ && profile_paste_check_->isChecked();
         profile_paste_keys_combo_->setEnabled(allow_paste_keys);
         profile_paste_keys_combo_->setToolTip(auto_paste_available_ ? QString() : auto_paste_reason_);
+    }
+}
+
+void SettingsWindow::refresh_app_profile_rule_list() {
+    if (app_profile_rule_list_ == nullptr) {
+        return;
+    }
+
+    const int previous_row = app_profile_rule_list_->currentRow();
+    syncing_app_profile_rules_ = true;
+    app_profile_rule_list_->clear();
+    for (const auto& rule : app_profile_rules_) {
+        const auto profile_it = std::find_if(profiles_.cbegin(), profiles_.cend(), [&](const ProfileConfig& profile) {
+            return profile.id == rule.profile_id;
+        });
+        const QString app_label = QString::fromStdString(rule.app_name.empty() ? rule.app_id : rule.app_name);
+        const QString app_id = QString::fromStdString(rule.app_id);
+        const QString profile_label = profile_it != profiles_.cend() ? QString::fromStdString(profile_it->name)
+                                                                     : QString("Missing Profile: %1").arg(QString::fromStdString(rule.profile_id));
+        QString label = QString("%1 (%2) -> %3").arg(app_label, app_id, profile_label);
+        if (!rule.enabled) {
+            label += " [Disabled]";
+        }
+        app_profile_rule_list_->addItem(label);
+    }
+
+    if (!app_profile_rules_.empty()) {
+        app_profile_rule_list_->setCurrentRow(std::clamp(previous_row, 0, static_cast<int>(app_profile_rules_.size()) - 1));
+    }
+    syncing_app_profile_rules_ = false;
+    if (!app_profile_rules_.empty()) {
+        load_app_profile_rule_into_editor(app_profile_rule_list_->currentRow());
+    } else {
+        load_app_profile_rule_into_editor(-1);
+    }
+    refresh_app_profile_rule_status();
+}
+
+void SettingsWindow::refresh_app_profile_rule_profiles() {
+    if (app_profile_rule_profile_combo_ == nullptr) {
+        return;
+    }
+    const QString current_profile_id = app_profile_rule_profile_combo_->currentData().toString();
+    app_profile_rule_profile_combo_->blockSignals(true);
+    app_profile_rule_profile_combo_->clear();
+    for (const auto& profile : profiles_) {
+        app_profile_rule_profile_combo_->addItem(profile_list_label(profile), QString::fromStdString(profile.id));
+    }
+    const int current_index = app_profile_rule_profile_combo_->findData(current_profile_id);
+    if (current_index >= 0) {
+        app_profile_rule_profile_combo_->setCurrentIndex(current_index);
+    }
+    app_profile_rule_profile_combo_->blockSignals(false);
+}
+
+void SettingsWindow::refresh_app_profile_rule_status() {
+    if (app_profile_rule_status_label_ == nullptr) {
+        return;
+    }
+    if (!auto_profile_selection_enabled()) {
+        app_profile_rule_status_label_->setText("Automatic selection is off. The manually selected Profile remains active.");
+        return;
+    }
+
+    std::set<std::string> enabled_app_ids;
+    int conflicts = 0;
+    for (const auto& rule : app_profile_rules_) {
+        if (!rule.enabled) {
+            continue;
+        }
+        const std::string app_id = canonical_app_id(rule.app_id);
+        const bool profile_exists = std::any_of(profiles_.cbegin(), profiles_.cend(), [&](const ProfileConfig& profile) {
+            return profile.id == rule.profile_id;
+        });
+        if (app_id.empty() || !enabled_app_ids.insert(app_id).second || !profile_exists) {
+            ++conflicts;
+        }
+    }
+
+    if (conflicts > 0) {
+        app_profile_rule_status_label_->setText(
+            QString("%1 invalid or conflicting rule(s). Those applications will use the manual Profile.").arg(conflicts));
+    } else if (app_profile_rules_.empty()) {
+        app_profile_rule_status_label_->setText("No application rules are configured. The manual Profile remains active.");
+    } else {
+        app_profile_rule_status_label_->setText("Exact application IDs are matched when a recording starts.");
+    }
+}
+
+void SettingsWindow::load_app_profile_rule_into_editor(int index) {
+    const bool valid = index >= 0 && index < static_cast<int>(app_profile_rules_.size());
+    app_profile_rule_update_button_->setEnabled(valid);
+    app_profile_rule_remove_button_->setEnabled(valid);
+    if (!valid) {
+        app_profile_rule_enabled_check_->setChecked(true);
+        return;
+    }
+
+    const AppProfileRule& rule = app_profile_rules_[static_cast<std::size_t>(index)];
+    const QString app_id = QString::fromStdString(rule.app_id);
+    int app_index = app_profile_rule_app_combo_->findData(app_id);
+    if (app_index < 0) {
+        const QString app_name = QString::fromStdString(rule.app_name.empty() ? rule.app_id : rule.app_name);
+        app_profile_rule_app_combo_->addItem(QString("%1 - %2").arg(app_name, app_id), app_id);
+        app_index = app_profile_rule_app_combo_->count() - 1;
+    }
+    app_profile_rule_app_combo_->setCurrentIndex(app_index);
+    const int profile_index = app_profile_rule_profile_combo_->findData(QString::fromStdString(rule.profile_id));
+    if (profile_index >= 0) {
+        app_profile_rule_profile_combo_->setCurrentIndex(profile_index);
+    }
+    app_profile_rule_enabled_check_->setChecked(rule.enabled);
+}
+
+void SettingsWindow::add_or_update_app_profile_rule(bool update_selected) {
+    int target_row = update_selected ? app_profile_rule_list_->currentRow() : -1;
+    if (update_selected && (target_row < 0 || target_row >= static_cast<int>(app_profile_rules_.size()))) {
+        app_profile_rule_status_label_->setText("Select a rule to update.");
+        return;
+    }
+
+    QString app_id = app_profile_rule_app_combo_->currentData().toString();
+    if (app_profile_rule_app_combo_->currentIndex() < 0 || app_id.isEmpty()) {
+        app_id = app_profile_rule_app_combo_->currentText();
+    }
+    app_id = QString::fromStdString(canonical_app_id(app_id.toStdString()));
+    const QString profile_id = app_profile_rule_profile_combo_->currentData().toString();
+    if (app_id.isEmpty() || profile_id.isEmpty()) {
+        app_profile_rule_status_label_->setText("Application ID and Profile are required.");
+        return;
+    }
+
+    QString app_name = app_id;
+    for (const auto& [recent_id, recent_name] : recent_target_apps_) {
+        if (canonical_app_id(recent_id.toStdString()) == app_id.toStdString()) {
+            app_name = recent_name.trimmed().isEmpty() ? app_id : recent_name.trimmed();
+            break;
+        }
+    }
+    if (update_selected && app_name == app_id) {
+        const auto& existing = app_profile_rules_[static_cast<std::size_t>(target_row)];
+        if (canonical_app_id(existing.app_id) == app_id.toStdString() && !existing.app_name.empty()) {
+            app_name = QString::fromStdString(existing.app_name);
+        }
+    }
+
+    if (update_selected) {
+        const auto duplicate = std::find_if(app_profile_rules_.cbegin(), app_profile_rules_.cend(), [&](const AppProfileRule& candidate) {
+            return &candidate != &app_profile_rules_[static_cast<std::size_t>(target_row)] &&
+                   canonical_app_id(candidate.app_id) == app_id.toStdString();
+        });
+        if (duplicate != app_profile_rules_.cend()) {
+            app_profile_rule_status_label_->setText("A rule already exists for this application. Select that rule instead.");
+            return;
+        }
+    }
+
+    AppProfileRule rule{
+        .enabled = app_profile_rule_enabled_check_->isChecked(),
+        .app_id = app_id.toStdString(),
+        .app_name = app_name.toStdString(),
+        .profile_id = profile_id.toStdString(),
+    };
+
+    if (!update_selected) {
+        const auto existing = std::find_if(app_profile_rules_.cbegin(), app_profile_rules_.cend(), [&](const AppProfileRule& candidate) {
+            return canonical_app_id(candidate.app_id) == rule.app_id;
+        });
+        if (existing != app_profile_rules_.cend()) {
+            target_row = static_cast<int>(std::distance(app_profile_rules_.cbegin(), existing));
+            app_profile_rules_[static_cast<std::size_t>(target_row)] = std::move(rule);
+        } else {
+            app_profile_rules_.push_back(std::move(rule));
+            target_row = static_cast<int>(app_profile_rules_.size()) - 1;
+        }
+    } else {
+        app_profile_rules_[static_cast<std::size_t>(target_row)] = std::move(rule);
+    }
+
+    refresh_app_profile_rule_list();
+    app_profile_rule_list_->setCurrentRow(target_row);
+}
+
+void SettingsWindow::remove_selected_app_profile_rule() {
+    const int row = app_profile_rule_list_->currentRow();
+    if (row < 0 || row >= static_cast<int>(app_profile_rules_.size())) {
+        return;
+    }
+    app_profile_rules_.erase(app_profile_rules_.begin() + row);
+    refresh_app_profile_rule_list();
+    if (!app_profile_rules_.empty()) {
+        app_profile_rule_list_->setCurrentRow(std::min(row, static_cast<int>(app_profile_rules_.size()) - 1));
     }
 }
 

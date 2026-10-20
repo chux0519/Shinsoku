@@ -1,0 +1,4 @@
+interface:
+  display_name: "Read Shinsoku History"
+  short_description: "Search local Shinsoku transcripts safely"
+  default_prompt: "Search my local Shinsoku transcript history and summarize the relevant entries."

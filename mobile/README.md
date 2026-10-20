@@ -9,6 +9,7 @@ codebase.
 - `android/`: generated Flutter Android runner
 - `ios/`: generated Flutter iOS runner
 - `test/`: widget tests for the mobile shell
+- `integration_test/`: real iOS simulator protocol and UI tests
 
 The previous Android Kotlin implementation, iOS SwiftUI implementation, and
 shared native mobile core have been removed. Platform-specific code should stay
@@ -19,23 +20,26 @@ native plugin or platform channel.
 
 - Material 3 mobile shell
 - responsive bottom navigation / navigation rail
-- record, drafts, and settings surfaces
-- profile selection for dictation, chat, and review workflows
-- simulated capture-to-draft flow
-- basic toggles for microphone, keyboard insertion, and cloud processing state
-
-The speech backend and real platform insertion flows are still placeholders.
+- real microphone recording, editable drafts, and provider settings
+- configurable Profiles and post-processing prompts
+- Bailian batch/realtime ASR and Soniox streaming ASR
+- iOS keyboard extension handoff and paste workflow
+- Nearby Desktop Mic with Bonjour or manual WSS discovery, exact certificate
+  pinning, secure long-term trust, Profile selection, and PCM16 streaming
 
 ## Development
 
 ```bash
 cd mobile
 flutter pub get
+flutter analyze
 flutter test
 flutter run -d "iPhone 16 Pro"
 ```
 
 Use `flutter devices` to list available simulators and devices.
+The Nearby simulator E2E command is documented in
+`../docs/nearby-mobile-protocol.md`.
 
 ## App Icons
 

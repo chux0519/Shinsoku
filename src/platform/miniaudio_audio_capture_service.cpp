@@ -98,6 +98,9 @@ bool MiniaudioAudioCaptureService::supports_capture_mode(AudioCaptureMode captur
     if (capture_mode == AudioCaptureMode::Microphone) {
         return true;
     }
+    if (capture_mode != AudioCaptureMode::SystemLoopback) {
+        return false;
+    }
 
 #if defined(_WIN32)
     return true;
@@ -110,6 +113,9 @@ void MiniaudioAudioCaptureService::start(std::uint32_t sample_rate,
                                          std::uint32_t channels,
                                          const std::string& device_id,
                                          AudioCaptureMode capture_mode) {
+    if (!supports_capture_mode(capture_mode)) {
+        throw std::invalid_argument("unsupported miniaudio capture mode");
+    }
     {
         std::scoped_lock lock(mutex_);
         if (recording_) {

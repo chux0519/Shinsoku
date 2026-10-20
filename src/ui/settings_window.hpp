@@ -5,6 +5,7 @@
 #include <QList>
 #include <QPair>
 #include <QPointer>
+#include <QStringList>
 #include <QWidget>
 
 class QCheckBox;
@@ -19,6 +20,7 @@ class QRadioButton;
 class QStackedWidget;
 class QSpinBox;
 class QToolButton;
+class QTimer;
 
 namespace ohmytypeless {
 
@@ -32,6 +34,8 @@ public:
     QString selection_command_trigger() const;
     QString active_profile_id() const;
     std::vector<ProfileConfig> profiles() const;
+    bool auto_profile_selection_enabled() const;
+    std::vector<AppProfileRule> app_profile_rules() const;
     bool save_recordings_enabled() const;
     QString recordings_dir() const;
     QString rotation_mode() const;
@@ -44,6 +48,10 @@ public:
     int proxy_port() const;
     QString proxy_username() const;
     QString proxy_password() const;
+    bool nearby_enabled() const;
+    int nearby_port() const;
+    bool device_adapter_enabled() const;
+    QString device_adapter_executable_path() const;
     QString asr_provider() const;
     QString asr_base_url() const;
     QString asr_api_key() const;
@@ -71,6 +79,8 @@ public:
     void set_hands_free_chord_key(const QString& text);
     void set_selection_command_trigger(const QString& text);
     void set_profiles(const std::vector<ProfileConfig>& profiles, const QString& active_profile_id);
+    void set_app_profile_rules(bool enabled, const std::vector<AppProfileRule>& rules);
+    void set_recent_target_apps(const QList<QPair<QString, QString>>& apps);
     void set_profile_audio_devices(const QList<QPair<QString, QString>>& devices, const QString& selected_device_id);
     void set_save_recordings_enabled(bool enabled);
     void set_recordings_dir(const QString& path);
@@ -84,6 +94,25 @@ public:
     void set_proxy_port(int value);
     void set_proxy_username(const QString& text);
     void set_proxy_password(const QString& text);
+    void set_nearby_enabled(bool enabled);
+    void set_nearby_port(int value);
+    void set_nearby_runtime_status(bool running,
+                                   bool discoverable,
+                                   const QString& service_name,
+                                   int port,
+                                   const QString& certificate_fingerprint = {});
+    void set_nearby_pairing_code(const QString& code, qint64 expires_at_ms = 0);
+    void set_nearby_trusted_clients(const QList<QPair<QString, QString>>& clients);
+    void set_device_adapter_enabled(bool enabled);
+    void set_device_adapter_executable_path(const QString& path);
+    void set_device_adapter_runtime_status(bool enabled,
+                                           bool running,
+                                           bool ready,
+                                           const QString& adapter_name,
+                                           const QString& adapter_version,
+                                           const QString& device_name,
+                                           const QStringList& permissions,
+                                           const QString& error = {});
     void set_asr_provider(const QString& text);
     void set_asr_base_url(const QString& text);
     void set_asr_api_key(const QString& text);
@@ -116,12 +145,20 @@ signals:
     void profile_audio_capture_mode_changed(const QString& mode);
     void record_hold_key_requested();
     void record_hands_free_chord_requested();
+    void nearby_pairing_requested();
+    void nearby_revoke_requested(const QString& client_id);
 
 private:
     QString build_profile_transform_prompt_preview() const;
     void refresh_profile_transform_ui();
     void refresh_capability_dependent_controls();
     void refresh_profile_list();
+    void refresh_app_profile_rule_list();
+    void refresh_app_profile_rule_profiles();
+    void refresh_app_profile_rule_status();
+    void load_app_profile_rule_into_editor(int index);
+    void add_or_update_app_profile_rule(bool update_selected);
+    void remove_selected_app_profile_rule();
     QString profile_list_label(const ProfileConfig& profile) const;
     void load_profile_into_editor(int index);
     void store_editor_into_profile(int index);
@@ -166,6 +203,15 @@ private:
     QCheckBox* profile_paste_check_ = nullptr;
     QComboBox* profile_paste_keys_combo_ = nullptr;
     QPlainTextEdit* profile_notes_edit_ = nullptr;
+    QCheckBox* auto_profile_check_ = nullptr;
+    QListWidget* app_profile_rule_list_ = nullptr;
+    QComboBox* app_profile_rule_app_combo_ = nullptr;
+    QComboBox* app_profile_rule_profile_combo_ = nullptr;
+    QCheckBox* app_profile_rule_enabled_check_ = nullptr;
+    QPushButton* app_profile_rule_add_button_ = nullptr;
+    QPushButton* app_profile_rule_update_button_ = nullptr;
+    QPushButton* app_profile_rule_remove_button_ = nullptr;
+    QLabel* app_profile_rule_status_label_ = nullptr;
     QCheckBox* save_recordings_check_ = nullptr;
     QLineEdit* recordings_dir_edit_ = nullptr;
     QPushButton* recordings_dir_button_ = nullptr;
@@ -179,6 +225,18 @@ private:
     QSpinBox* proxy_port_spin_ = nullptr;
     QLineEdit* proxy_username_edit_ = nullptr;
     QLineEdit* proxy_password_edit_ = nullptr;
+    QCheckBox* nearby_enabled_check_ = nullptr;
+    QSpinBox* nearby_port_spin_ = nullptr;
+    QLabel* nearby_status_label_ = nullptr;
+    QLabel* nearby_pairing_code_label_ = nullptr;
+    QPushButton* nearby_pair_button_ = nullptr;
+    QListWidget* nearby_trusted_client_list_ = nullptr;
+    QPushButton* nearby_revoke_button_ = nullptr;
+    QTimer* nearby_pairing_timer_ = nullptr;
+    QCheckBox* device_adapter_enabled_check_ = nullptr;
+    QLineEdit* device_adapter_path_edit_ = nullptr;
+    QToolButton* device_adapter_browse_button_ = nullptr;
+    QLabel* device_adapter_status_label_ = nullptr;
     QComboBox* asr_provider_combo_ = nullptr;
     QLineEdit* asr_base_url_edit_ = nullptr;
     QLineEdit* asr_api_key_edit_ = nullptr;
@@ -205,9 +263,12 @@ private:
     QSpinBox* hud_bottom_margin_spin_ = nullptr;
     QLabel* status_label_ = nullptr;
     std::vector<ProfileConfig> profiles_;
+    std::vector<AppProfileRule> app_profile_rules_;
+    QList<QPair<QString, QString>> recent_target_apps_;
     QString active_profile_id_;
     int profile_editor_index_ = -1;
     bool syncing_profiles_ = false;
+    bool syncing_app_profile_rules_ = false;
     bool global_hotkeys_available_ = true;
     bool auto_paste_available_ = true;
     bool system_audio_available_ = true;

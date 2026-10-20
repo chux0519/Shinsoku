@@ -6,6 +6,11 @@ APP_NAME=""
 VERSION=""
 CONFIG=""
 EXECUTABLE_PATH=""
+HISTORY_CLI_PATH=""
+HISTORY_MCP_PATH=""
+HISTORY_SKILL_PATH=""
+ADAPTER_CHECK_PATH=""
+ADAPTER_EXAMPLE_PATH=""
 MACDEPLOYQT_PATH=""
 PLIST_PATH=""
 ENTITLEMENTS_PATH=""
@@ -31,6 +36,26 @@ while [[ $# -gt 0 ]]; do
             ;;
         --executable)
             EXECUTABLE_PATH="$2"
+            shift 2
+            ;;
+        --history-cli)
+            HISTORY_CLI_PATH="$2"
+            shift 2
+            ;;
+        --history-mcp)
+            HISTORY_MCP_PATH="$2"
+            shift 2
+            ;;
+        --history-skill)
+            HISTORY_SKILL_PATH="$2"
+            shift 2
+            ;;
+        --adapter-check)
+            ADAPTER_CHECK_PATH="$2"
+            shift 2
+            ;;
+        --adapter-example)
+            ADAPTER_EXAMPLE_PATH="$2"
             shift 2
             ;;
         --macdeployqt)
@@ -72,13 +97,38 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$APP_NAME" || -z "$VERSION" || -z "$CONFIG" || -z "$EXECUTABLE_PATH" || -z "$MACDEPLOYQT_PATH" || -z "$PLIST_PATH" || -z "$OUTPUT_DIR" ]]; then
+if [[ -z "$APP_NAME" || -z "$VERSION" || -z "$CONFIG" || -z "$EXECUTABLE_PATH" || -z "$HISTORY_CLI_PATH" || -z "$HISTORY_MCP_PATH" || -z "$HISTORY_SKILL_PATH" || -z "$ADAPTER_CHECK_PATH" || -z "$ADAPTER_EXAMPLE_PATH" || -z "$MACDEPLOYQT_PATH" || -z "$PLIST_PATH" || -z "$OUTPUT_DIR" ]]; then
     echo "Missing required arguments." >&2
     exit 1
 fi
 
 if [[ ! -f "$EXECUTABLE_PATH" ]]; then
     echo "Executable not found: $EXECUTABLE_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$HISTORY_CLI_PATH" ]]; then
+    echo "History CLI not found: $HISTORY_CLI_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$HISTORY_MCP_PATH" ]]; then
+    echo "History MCP server not found: $HISTORY_MCP_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "${HISTORY_SKILL_PATH}/SKILL.md" ]]; then
+    echo "History Skill not found: $HISTORY_SKILL_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$ADAPTER_CHECK_PATH" ]]; then
+    echo "Adapter checker not found: $ADAPTER_CHECK_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$ADAPTER_EXAMPLE_PATH" ]]; then
+    echo "Adapter example not found: $ADAPTER_EXAMPLE_PATH" >&2
     exit 1
 fi
 
@@ -122,6 +172,16 @@ mkdir -p "$OUTPUT_DIR"
 
 cp "$EXECUTABLE_PATH" "${MACOS_DIR}/${APP_NAME}"
 chmod +x "${MACOS_DIR}/${APP_NAME}"
+cp "$HISTORY_CLI_PATH" "${MACOS_DIR}/shinsoku-history"
+chmod +x "${MACOS_DIR}/shinsoku-history"
+cp "$HISTORY_MCP_PATH" "${MACOS_DIR}/shinsoku-history-mcp"
+chmod +x "${MACOS_DIR}/shinsoku-history-mcp"
+cp "$ADAPTER_CHECK_PATH" "${MACOS_DIR}/shinsoku-adapter-check"
+chmod +x "${MACOS_DIR}/shinsoku-adapter-check"
+mkdir -p "${RESOURCES_DIR}/skills"
+cp -R "$HISTORY_SKILL_PATH" "${RESOURCES_DIR}/skills/read-shinsoku-history"
+mkdir -p "${RESOURCES_DIR}/device-adapters/examples"
+cp "$ADAPTER_EXAMPLE_PATH" "${RESOURCES_DIR}/device-adapters/examples/synthetic_adapter.py"
 cp "$PLIST_PATH" "${CONTENTS_DIR}/Info.plist"
 printf 'APPL????' > "${CONTENTS_DIR}/PkgInfo"
 
@@ -157,9 +217,23 @@ if [[ -n "$CODESIGN_IDENTITY" ]]; then
         executable_codesign_args+=(--entitlements "$ENTITLEMENTS_PATH")
     fi
     codesign "${executable_codesign_args[@]}" "${MACOS_DIR}/${APP_NAME}"
+    codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "${MACOS_DIR}/shinsoku-history"
+    codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "${MACOS_DIR}/shinsoku-history-mcp"
+    codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "${MACOS_DIR}/shinsoku-adapter-check"
     codesign --force --deep --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE_PATH"
-    codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH"
+else
+    executable_codesign_args=(--force --sign -)
+    if [[ -n "$ENTITLEMENTS_PATH" ]]; then
+        executable_codesign_args+=(--entitlements "$ENTITLEMENTS_PATH")
+    fi
+    codesign "${executable_codesign_args[@]}" "${MACOS_DIR}/${APP_NAME}"
+    codesign --force --sign - "${MACOS_DIR}/shinsoku-history"
+    codesign --force --sign - "${MACOS_DIR}/shinsoku-history-mcp"
+    codesign --force --sign - "${MACOS_DIR}/shinsoku-adapter-check"
+    codesign --force --deep --sign - "$APP_BUNDLE_PATH"
 fi
+
+codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH"
 
 cp -R "$APP_BUNDLE_PATH" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"

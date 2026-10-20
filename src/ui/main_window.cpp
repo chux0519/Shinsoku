@@ -302,6 +302,9 @@ void MainWindow::set_session_state(SessionState state) {
     if (tray_state_action_ != nullptr) {
         tray_state_action_->setText(text);
     }
+    if (profile_combo_ != nullptr) {
+        profile_combo_->setEnabled(state == SessionState::Idle || state == SessionState::Error);
+    }
 
     refresh_tray_state(state);
 }

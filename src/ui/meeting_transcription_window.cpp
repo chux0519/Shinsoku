@@ -84,6 +84,8 @@ MeetingTranscriptionWindow::MeetingTranscriptionWindow(QWidget* parent) : QWidge
     live_label->setObjectName("summaryLabel");
     live_view_ = new QPlainTextEdit(live_card);
     live_view_->setReadOnly(true);
+    live_view_->setFocusPolicy(Qt::NoFocus);
+    live_view_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     live_view_->setPlaceholderText("Live streaming partial text will appear here.");
     live_view_->setMinimumHeight(0);
     live_layout->addWidget(live_label);

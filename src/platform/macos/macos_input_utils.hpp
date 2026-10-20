@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/input_target_context.hpp"
+
 #include <QString>
 
 #include <sys/types.h>
@@ -20,6 +22,7 @@ QString macos_accessibility_permission_reason();
 pid_t macos_frontmost_process_id();
 bool macos_is_current_process(pid_t pid);
 bool macos_capture_frontmost_external_process(pid_t* pid, QString* debug_info);
+InputTargetContext macos_input_target_context(pid_t pid);
 bool macos_activate_process(pid_t pid, QString* debug_info);
 bool macos_send_paste_shortcut(pid_t pid, const QString& paste_keys, QString* debug_info);
 

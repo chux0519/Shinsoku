@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace ohmytypeless {
@@ -20,16 +21,48 @@ nlohmann::json parse_json_or_empty(const char* text) {
     return json;
 }
 
+std::string contains_pattern(const std::string& value) {
+    std::string pattern = "%";
+    pattern.reserve(value.size() + 2);
+    for (const char character : value) {
+        if (character == '%' || character == '_' || character == '\\') {
+            pattern.push_back('\\');
+        }
+        pattern.push_back(character);
+    }
+    pattern.push_back('%');
+    return pattern;
+}
+
 }  // namespace
 
-HistoryStore::HistoryStore(const std::filesystem::path& db_path) {
-    std::filesystem::create_directories(db_path.parent_path());
-
-    if (sqlite3_open(db_path.string().c_str(), &db_) != SQLITE_OK) {
-        throw std::runtime_error("failed to open sqlite database");
+HistoryStore::HistoryStore(const std::filesystem::path& db_path, HistoryOpenMode mode) : mode_(mode) {
+    if (mode_ == HistoryOpenMode::ReadWrite && !db_path.parent_path().empty()) {
+        std::filesystem::create_directories(db_path.parent_path());
     }
 
-    ensure_schema();
+    const int flags = mode_ == HistoryOpenMode::ReadOnly
+                          ? SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX
+                          : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
+    if (sqlite3_open_v2(db_path.string().c_str(), &db_, flags, nullptr) != SQLITE_OK) {
+        const std::string detail = db_ == nullptr ? std::string{} : sqlite3_errmsg(db_);
+        if (db_ != nullptr) {
+            sqlite3_close(db_);
+            db_ = nullptr;
+        }
+        throw std::runtime_error(detail.empty() ? "failed to open sqlite database"
+                                                : "failed to open sqlite database: " + detail);
+    }
+
+    if (mode_ == HistoryOpenMode::ReadWrite) {
+        try {
+            ensure_schema();
+        } catch (...) {
+            sqlite3_close(db_);
+            db_ = nullptr;
+            throw;
+        }
+    }
 }
 
 HistoryStore::~HistoryStore() {
@@ -42,6 +75,9 @@ HistoryStore::~HistoryStore() {
 void HistoryStore::add_entry(const std::string& text,
                              const std::optional<std::filesystem::path>& audio_path,
                              const nlohmann::json& meta) {
+    if (mode_ == HistoryOpenMode::ReadOnly) {
+        throw std::logic_error("history database is open read-only");
+    }
     std::scoped_lock lock(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
@@ -69,6 +105,9 @@ void HistoryStore::add_entry(const std::string& text,
 }
 
 void HistoryStore::delete_entry(std::int64_t id) {
+    if (mode_ == HistoryOpenMode::ReadOnly) {
+        throw std::logic_error("history database is open read-only");
+    }
     std::scoped_lock lock(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
@@ -106,16 +145,90 @@ std::optional<HistoryEntry> HistoryStore::get_entry(std::int64_t id) const {
 }
 
 std::vector<HistoryEntry> HistoryStore::list_recent(std::size_t limit) const {
-    return list_with_query("SELECT id, created_at, text, meta, audio_path FROM history ORDER BY id DESC LIMIT ?1", 0, false,
-                           limit);
+    HistoryQuery query_options;
+    query_options.limit = limit;
+    return query(query_options);
 }
 
 std::vector<HistoryEntry> HistoryStore::list_before_id(std::int64_t before_id, std::size_t limit) const {
-    return list_with_query(
-        "SELECT id, created_at, text, meta, audio_path FROM history WHERE id < ?1 ORDER BY id DESC LIMIT ?2",
-        before_id,
-        true,
-        limit);
+    HistoryQuery query_options;
+    query_options.limit = limit;
+    query_options.before_id = before_id;
+    return query(query_options);
+}
+
+std::vector<HistoryEntry> HistoryStore::query(const HistoryQuery& query_options) const {
+    if (query_options.limit == 0) {
+        return {};
+    }
+    std::scoped_lock lock(mutex_);
+
+    std::string sql = "SELECT id, created_at, text, meta, audio_path FROM history";
+    std::vector<std::string> conditions;
+    if (query_options.before_id.has_value()) {
+        conditions.emplace_back("id < ?");
+    }
+    if (query_options.since_date.has_value()) {
+        conditions.emplace_back("created_at >= datetime(?, 'utc')");
+    }
+    if (query_options.source_app.has_value()) {
+        conditions.emplace_back(
+            "(lower(coalesce(json_extract(meta, '$.source.app_id'), '')) LIKE lower(?) ESCAPE '\\' "
+            "OR lower(coalesce(json_extract(meta, '$.source.app_name'), '')) LIKE lower(?) ESCAPE '\\')");
+    }
+    if (query_options.text_query.has_value()) {
+        conditions.emplace_back("lower(text) LIKE lower(?) ESCAPE '\\'");
+    }
+    if (!conditions.empty()) {
+        sql += " WHERE ";
+        for (std::size_t index = 0; index < conditions.size(); ++index) {
+            if (index > 0) {
+                sql += " AND ";
+            }
+            sql += conditions[index];
+        }
+    }
+    sql += " ORDER BY id DESC LIMIT ?";
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        throw std::runtime_error("failed to prepare history query");
+    }
+
+    int bind_index = 1;
+    if (query_options.before_id.has_value()) {
+        sqlite3_bind_int64(stmt, bind_index++, static_cast<sqlite3_int64>(*query_options.before_id));
+    }
+    if (query_options.since_date.has_value()) {
+        const std::string since = *query_options.since_date + " 00:00:00";
+        sqlite3_bind_text(stmt, bind_index++, since.c_str(), static_cast<int>(since.size()), SQLITE_TRANSIENT);
+    }
+    if (query_options.source_app.has_value()) {
+        const std::string pattern = contains_pattern(*query_options.source_app);
+        sqlite3_bind_text(stmt, bind_index++, pattern.c_str(), static_cast<int>(pattern.size()), SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, bind_index++, pattern.c_str(), static_cast<int>(pattern.size()), SQLITE_TRANSIENT);
+    }
+    if (query_options.text_query.has_value()) {
+        const std::string pattern = contains_pattern(*query_options.text_query);
+        sqlite3_bind_text(stmt, bind_index++, pattern.c_str(), static_cast<int>(pattern.size()), SQLITE_TRANSIENT);
+    }
+    const std::size_t bounded_limit = std::min<std::size_t>(query_options.limit, 500);
+    sqlite3_bind_int64(stmt, bind_index, static_cast<sqlite3_int64>(bounded_limit));
+
+    std::vector<HistoryEntry> entries;
+    int step_result = SQLITE_ROW;
+    while ((step_result = sqlite3_step(stmt)) == SQLITE_ROW) {
+        if (auto entry = entry_from_current_row(stmt); entry.has_value()) {
+            entries.push_back(std::move(*entry));
+        }
+    }
+    if (step_result != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("failed to read history query results");
+    }
+
+    sqlite3_finalize(stmt);
+    return entries;
 }
 
 void HistoryStore::ensure_schema() {
@@ -154,6 +267,13 @@ void HistoryStore::ensure_schema() {
             nullptr,
             nullptr);
     }
+
+    if (sqlite3_exec(db_, "CREATE INDEX IF NOT EXISTS history_created_at_idx ON history(created_at)", nullptr, nullptr,
+                     &error_message) != SQLITE_OK) {
+        const std::string message = error_message == nullptr ? "failed to index history timestamps" : error_message;
+        sqlite3_free(error_message);
+        throw std::runtime_error(message);
+    }
 }
 
 bool HistoryStore::has_column(const char* table_name, const char* column_name) const {
@@ -176,36 +296,15 @@ bool HistoryStore::has_column(const char* table_name, const char* column_name) c
     return found;
 }
 
-std::vector<HistoryEntry> HistoryStore::list_with_query(const char* sql, std::int64_t id_arg, bool bind_id, std::size_t limit) const {
-    std::scoped_lock lock(mutex_);
-
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        throw std::runtime_error("failed to prepare history query");
-    }
-
-    int bind_index = 1;
-    if (bind_id) {
-        sqlite3_bind_int64(stmt, bind_index++, static_cast<sqlite3_int64>(id_arg));
-    }
-    sqlite3_bind_int64(stmt, bind_index, static_cast<sqlite3_int64>(limit));
-
-    std::vector<HistoryEntry> entries;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        if (auto entry = entry_from_current_row(stmt); entry.has_value()) {
-            entries.push_back(std::move(*entry));
-        }
-    }
-
-    sqlite3_finalize(stmt);
-    return entries;
-}
-
 std::optional<HistoryEntry> HistoryStore::entry_from_current_row(sqlite3_stmt* stmt) const {
     HistoryEntry entry;
     entry.id = static_cast<std::int64_t>(sqlite3_column_int64(stmt, 0));
-    entry.created_at = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-    entry.text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+    if (const auto* created_at = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)); created_at != nullptr) {
+        entry.created_at = created_at;
+    }
+    if (const auto* text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)); text != nullptr) {
+        entry.text = text;
+    }
     entry.meta = parse_json_or_empty(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
     if (sqlite3_column_type(stmt, 4) != SQLITE_NULL) {
         entry.audio_path = std::filesystem::path(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));

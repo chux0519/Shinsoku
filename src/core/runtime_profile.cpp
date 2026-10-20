@@ -1,6 +1,7 @@
 #include "core/runtime_profile.hpp"
 
 #include <algorithm>
+#include <cctype>
 
 namespace ohmytypeless {
 
@@ -13,6 +14,57 @@ const ProfileConfig* find_profile_by_id(const ProfilesConfig& profiles, const st
 
 const ProfileConfig* active_profile(const AppConfig& config) {
     return find_profile_by_id(config.profiles, config.profiles.active_profile_id);
+}
+
+std::string canonical_app_id(std::string app_id) {
+    const auto begin = app_id.find_first_not_of(" \t\r\n");
+    if (begin == std::string::npos) {
+        return {};
+    }
+    const auto end = app_id.find_last_not_of(" \t\r\n");
+    app_id = app_id.substr(begin, end - begin + 1U);
+    std::transform(app_id.begin(), app_id.end(), app_id.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+    return app_id;
+}
+
+AppProfileMatch resolve_app_profile(const AppConfig& config, const std::string& app_id) {
+    if (!config.profiles.auto_select_by_app) {
+        return {.status = AppProfileMatchStatus::Disabled};
+    }
+
+    const std::string canonical_id = canonical_app_id(app_id);
+    if (canonical_id.empty()) {
+        return {.status = AppProfileMatchStatus::AppUnavailable};
+    }
+
+    const AppProfileRule* matched_rule = nullptr;
+    for (const auto& rule : config.profiles.app_rules) {
+        if (!rule.enabled || canonical_app_id(rule.app_id) != canonical_id) {
+            continue;
+        }
+        if (matched_rule != nullptr) {
+            return {.status = AppProfileMatchStatus::Conflict};
+        }
+        matched_rule = &rule;
+    }
+
+    if (matched_rule == nullptr) {
+        return {.status = AppProfileMatchStatus::NoMatch};
+    }
+    const ProfileConfig* profile = find_profile_by_id(config.profiles, matched_rule->profile_id);
+    if (profile == nullptr) {
+        return {
+            .status = AppProfileMatchStatus::MissingProfile,
+            .rule = matched_rule,
+        };
+    }
+    return {
+        .status = AppProfileMatchStatus::Matched,
+        .rule = matched_rule,
+        .profile = profile,
+    };
 }
 
 std::vector<std::pair<std::string, std::string>> profile_items(const AppConfig& config) {
@@ -106,8 +158,10 @@ nlohmann::json capture_context_meta(const AppConfig& config) {
     };
     if (config.audio.capture_mode == "microphone") {
         input["device_id"] = config.audio.input_device_id;
-    } else {
+    } else if (config.audio.capture_mode == "system") {
         input["device"] = "default_system_output";
+    } else if (config.audio.capture_mode == "nearby") {
+        input["device"] = "nearby_remote";
     }
 
     return {
