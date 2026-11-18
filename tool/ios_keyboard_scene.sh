@@ -113,13 +113,15 @@ def from_section():
     for arch in ("arm64", "x86_64"):
         out = subprocess.run(["otool", "-arch", arch, "-X", "-s", "__TEXT", "__entitlements", binary],
                              capture_output=True, text=True).stdout
-        hexbytes = []
+        raw = b""
         for line in out.splitlines():
             parts = line.split("\t", 1)
             if len(parts) == 2:
-                hexbytes += parts[1].split()
-        if hexbytes:
-            return bytes(int(b, 16) for b in hexbytes)
+                # x86_64 prints single bytes; arm64 prints little-endian 32-bit words.
+                for token in parts[1].split():
+                    raw += bytes.fromhex(token) if len(token) == 2 else bytes.fromhex(token)[::-1]
+        if raw:
+            return raw
     return None
 def from_signature():
     out = subprocess.run(["codesign", "-d", "--entitlements", "-", "--xml", binary], capture_output=True).stdout
