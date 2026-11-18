@@ -231,3 +231,11 @@ const _nearbyProfiles = [
 
 /// Scenes also rendered at the Dynamic Type review size.
 const largeTextScenes = {'record-idle', 'settings'};
+
+/// Scenes also rendered on the inner display with a fake fold.
+const foldScenes = {
+  'record-idle',
+  'record-listening',
+  'drafts-list',
+  'settings',
+};

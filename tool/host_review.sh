@@ -4,7 +4,8 @@
 #   tool/host_review.sh <run> [scene,…] [theme,…] [device,…]
 # <run> is a path under build/ui-review/, e.g. ios-ui-01/round-01/u3-after.
 # Themes: dark,light. Devices: iphone, iphone-text200, duo-outer,
-# duo-inner-portrait, duo-inner-landscape. Empty filters mean all.
+# duo-inner-portrait, duo-inner-landscape, duo-inner-portrait-fold, duo-inner-landscape-fold (fake
+# centre fold; a few scenes). Empty filters mean all.
 # Output: build/ui-review/<run>/<device>/<scene>-<theme>.png (+ .json) and
 # build/ui-review/<run>/index.html. A full run starts from an empty folder.
 set -euo pipefail
@@ -30,7 +31,8 @@ tail -3 "$OUT/run.log"
 python3 - "$OUT" <<'PYINDEX'
 import collections, html, pathlib, sys
 out = pathlib.Path(sys.argv[1])
-order = ['iphone', 'iphone-text200', 'duo-outer', 'duo-inner-portrait', 'duo-inner-landscape']
+order = ['iphone', 'iphone-text200', 'duo-outer', 'duo-inner-portrait', 'duo-inner-portrait-fold',
+         'duo-inner-landscape', 'duo-inner-landscape-fold']
 scenes = collections.defaultdict(list)
 for path in sorted(out.glob('*/*.png')):
     scene, theme = path.stem.rsplit('-', 1)
@@ -41,7 +43,8 @@ parts = ['<!doctype html><meta charset="utf-8"><meta name="viewport" content="wi
          '<style>body{font:13px -apple-system,sans-serif;background:#1b1d1e;color:#ddd;margin:16px}'
          'section{margin-bottom:28px}div{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}'
          'figure{margin:0}img{height:480px;border:1px solid #444}figcaption{margin-top:4px;color:#aaa}</style>',
-         '<p>Host renders (tier A): host SF Pro, synthetic safe areas, no keyboard extension, no hinge. '
+         '<p>Host renders (tier A): host SF Pro, synthetic safe areas, no keyboard extension; *-fold = fake centre '
+         'hinge line (real fold regions are tier B). '
          f'{sum(len(v) for v in scenes.values())} images.</p>']
 for scene in sorted(scenes):
     parts.append(f'<section><h3>{html.escape(scene)}</h3><div>')
