@@ -1,160 +1,393 @@
 import SwiftUI
 import UIKit
 
+/// Shinsoku keyboard (DESIGN.md §6): status row, main row (Insert latest · Record · Delete), edit row
+/// (Space · Return). No title row, no scrolling, no settings.
 final class KeyboardViewController: UIInputViewController {
-    private let accentColor = UIColor(red: 0.0, green: 0.48, blue: 0.52, alpha: 1.0)
-    private let hint = UILabel()
+    private enum Status {
+        case ready
+        case latestReady
+        case noLatest
+        case needsFullAccess
+        case inserted
+        case opening
+        case openFailed
+
+        var symbol: String {
+            switch self {
+            case .ready, .noLatest: return "mic"
+            case .latestReady: return "text.badge.checkmark"
+            case .needsFullAccess, .openFailed: return "exclamationmark.triangle"
+            case .inserted: return "checkmark.circle"
+            case .opening: return "arrow.up.forward.app"
+            }
+        }
+
+        var text: String {
+            switch self {
+            case .ready: return "Ready"
+            case .latestReady: return "Latest text ready"
+            case .noLatest: return "No text yet — tap Record"
+            case .needsFullAccess: return "Turn on Full Access to insert"
+            case .inserted: return "Inserted"
+            case .opening: return "Opening Shinsoku…"
+            case .openFailed: return "Open Shinsoku from the Home Screen"
+            }
+        }
+
+        var tint: UIColor {
+            switch self {
+            case .needsFullAccess, .openFailed: return KeyboardTheme.warning
+            case .inserted: return KeyboardTheme.success
+            default: return KeyboardTheme.textSecondary
+            }
+        }
+    }
+
+    private let statusIcon = UIImageView()
+    private let statusLabel = UILabel()
+    private let globeKey = KeyboardKey(style: .raised, symbol: "globe", title: nil)
+    private let insertKey = KeyboardKey(style: .raised, symbol: "text.insert", title: "Insert", axis: .vertical)
+    private let recordKey = KeyboardKey(style: .accent, symbol: "mic.fill", title: "Record", axis: .vertical)
+    private let deleteKey = KeyboardKey(style: .raised, symbol: "delete.left", title: nil)
+    private let spaceKey = KeyboardKey(style: .raised, symbol: nil, title: "space")
+    private let returnKey = KeyboardKey(style: .raised, symbol: nil, title: "return")
+
+    private var heightConstraint: NSLayoutConstraint?
+    private var latestText: String?
+    private var latestChangeCount: Int?
+
+    private let deleteRepeater = KeyRepeater()
+    private let haptic = UIImpactFeedbackGenerator(style: .light)
+    private let insertFeedback = UINotificationFeedbackGenerator()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.systemGroupedBackground
-        buildKeyboard()
+        view.backgroundColor = KeyboardTheme.frame
+        buildLayout()
+        wireActions()
     }
 
-    private func buildKeyboard() {
-        let stack = UIStackView()
-        stack.axis = .vertical
-        stack.spacing = 10
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let header = UIStackView()
-        header.axis = .horizontal
-        header.alignment = .center
-        header.spacing = 8
-
-        let title = UILabel()
-        title.text = "Shinsoku"
-        title.font = .preferredFont(forTextStyle: .headline)
-        title.textColor = .label
-
-        let subtitle = UILabel()
-        subtitle.text = "Voice input"
-        subtitle.font = .preferredFont(forTextStyle: .caption1)
-        subtitle.textColor = .secondaryLabel
-
-        let titleStack = UIStackView(arrangedSubviews: [title, subtitle])
-        titleStack.axis = .vertical
-        titleStack.spacing = 1
-
-        let spacer = UIView()
-        header.addArrangedSubview(titleStack)
-        header.addArrangedSubview(spacer)
-
-        let primaryControls = UIStackView()
-        primaryControls.axis = .horizontal
-        primaryControls.spacing = 8
-        primaryControls.distribution = .fillEqually
-
-        primaryControls.addArrangedSubview(makeButton(title: "Record", image: "mic.fill", action: #selector(openDictationApp), style: .primary))
-        primaryControls.addArrangedSubview(makeButton(title: "Paste", image: "doc.on.clipboard", action: #selector(pasteLatestText), style: .primary))
-
-        let editingControls = UIStackView()
-        editingControls.axis = .horizontal
-        editingControls.spacing = 8
-        editingControls.distribution = .fillEqually
-
-        editingControls.addArrangedSubview(makeButton(title: "Return", image: "return", action: #selector(insertNewline), style: .secondary))
-        editingControls.addArrangedSubview(makeButton(title: "Delete", image: "delete.left", action: #selector(deleteBackward), style: .secondary))
-        editingControls.addArrangedSubview(makeButton(title: "Next", image: "globe", action: #selector(nextKeyboard), style: .secondary))
-
-        hint.text = "Record in Shinsoku, then paste the latest text here. Enable Full Access for clipboard paste."
-        hint.font = .preferredFont(forTextStyle: .footnote)
-        hint.textColor = .secondaryLabel
-        hint.numberOfLines = 2
-
-        stack.addArrangedSubview(header)
-        stack.addArrangedSubview(primaryControls)
-        stack.addArrangedSubview(editingControls)
-        stack.addArrangedSubview(hint)
-
-        view.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 10),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -10),
-            primaryControls.heightAnchor.constraint(equalToConstant: 44),
-            editingControls.heightAnchor.constraint(equalToConstant: 40),
-        ])
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        refreshState()
     }
 
-    private enum ButtonStyle {
-        case primary
-        case secondary
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        globeKey.isHidden = !needsInputModeSwitchKey
+        heightConstraint?.constant = Self.preferredHeight(for: view.bounds.size, traits: traitCollection)
     }
 
-    private func makeButton(title: String, image: String, action: Selector, style: ButtonStyle) -> UIButton {
-        let button = UIButton(type: .system)
-        button.setTitle(title, for: .normal)
-        button.setImage(UIImage(systemName: image), for: .normal)
-        switch style {
-        case .primary:
-            button.tintColor = .white
-            button.setTitleColor(.white, for: .normal)
-            button.backgroundColor = accentColor
-        case .secondary:
-            button.tintColor = accentColor
-            button.setTitleColor(.label, for: .normal)
-            button.backgroundColor = UIColor.secondarySystemGroupedBackground
+    override func textDidChange(_ textInput: UITextInput?) {
+        super.textDidChange(textInput)
+        updateReturnKey()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        deleteRepeater.stop()
+    }
+
+    // MARK: Layout
+
+    /// Matches the system keyboard: 216 pt on portrait phones (226 on wide ones), 176 in landscape.
+    private static func preferredHeight(for size: CGSize, traits: UITraitCollection) -> CGFloat {
+        if traits.verticalSizeClass == .compact {
+            return 176
         }
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .preferredFont(forTextStyle: .callout)
-        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
-        button.semanticContentAttribute = .forceLeftToRight
-        button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -4, bottom: 0, right: 4)
-        button.addTarget(self, action: action, for: .touchUpInside)
-        return button
+        return size.width >= 400 ? 226 : 216
     }
 
-    @objc private func pasteLatestText() {
-        guard let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-            hint.text = "No Shinsoku text is available. Record first and allow Full Access for clipboard paste."
+    private func buildLayout() {
+        let statusRow = UIStackView()
+        statusRow.axis = .horizontal
+        statusRow.alignment = .center
+        statusRow.spacing = 6
+        statusIcon.contentMode = .scaleAspectFit
+        statusIcon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+        statusIcon.setContentHuggingPriority(.required, for: .horizontal)
+        statusLabel.font = KeyboardTheme.statusFont
+        statusLabel.textColor = KeyboardTheme.textSecondary
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let statusSpacer = UIView()
+        statusSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        statusRow.addArrangedSubview(statusIcon)
+        statusRow.addArrangedSubview(statusLabel)
+        statusRow.addArrangedSubview(statusSpacer)
+        statusRow.addArrangedSubview(globeKey)
+        statusRow.isAccessibilityElement = false
+        statusLabel.accessibilityTraits = .updatesFrequently
+
+        let mainRow = UIStackView(arrangedSubviews: [insertKey, recordKey, deleteKey])
+        mainRow.axis = .horizontal
+        mainRow.spacing = KeyboardTheme.spacing
+        mainRow.alignment = .fill
+
+        let editRow = UIStackView(arrangedSubviews: [spaceKey, returnKey])
+        editRow.axis = .horizontal
+        editRow.spacing = KeyboardTheme.spacing
+        editRow.alignment = .fill
+
+        let column = UIStackView(arrangedSubviews: [statusRow, mainRow, editRow])
+        column.axis = .vertical
+        column.spacing = KeyboardTheme.spacing
+        column.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(column)
+
+        let margin = KeyboardTheme.margin
+        let height = view.heightAnchor.constraint(equalToConstant: 216)
+        height.priority = .defaultHigh + 1
+        heightConstraint = height
+
+        // Edit row prefers 48 pt (never below 40); the main row takes the rest (never below 56).
+        let editRowHeight = editRow.heightAnchor.constraint(equalToConstant: 48)
+        editRowHeight.priority = .defaultHigh
+
+        NSLayoutConstraint.activate([
+            height,
+            column.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: margin),
+            column.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -margin),
+            column.topAnchor.constraint(equalTo: view.topAnchor, constant: 4),
+            column.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -margin),
+
+            statusRow.heightAnchor.constraint(equalToConstant: KeyboardTheme.statusRowHeight),
+            globeKey.widthAnchor.constraint(equalToConstant: 44),
+            globeKey.heightAnchor.constraint(equalToConstant: KeyboardTheme.statusRowHeight),
+
+            mainRow.heightAnchor.constraint(greaterThanOrEqualToConstant: KeyboardTheme.minRecordHeight),
+            editRowHeight,
+            editRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 40),
+
+            // Record is the largest key; Insert and Delete share the rest.
+            recordKey.widthAnchor.constraint(equalTo: mainRow.widthAnchor, multiplier: 0.42),
+            insertKey.widthAnchor.constraint(equalTo: deleteKey.widthAnchor, multiplier: 1.4),
+
+            returnKey.widthAnchor.constraint(equalTo: editRow.widthAnchor, multiplier: 0.3),
+        ])
+
+        // The globe key sits in the 28 pt status row; extend its hit area to 44 pt.
+        globeKey.hitOutset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+
+        insertKey.accessibilityLabel = "Insert latest text"
+        recordKey.accessibilityLabel = "Record"
+        recordKey.accessibilityHint = "Opens Shinsoku to record"
+        deleteKey.accessibilityLabel = "Delete"
+        spaceKey.accessibilityLabel = "Space"
+        returnKey.accessibilityLabel = "Return"
+        globeKey.accessibilityLabel = "Next keyboard"
+        recordKey.setSymbol("mic.fill", pointSize: 22)
+        deleteKey.setSymbol("delete.left", pointSize: 20)
+    }
+
+    private func wireActions() {
+        insertKey.addTarget(self, action: #selector(insertLatestText), for: .touchUpInside)
+        recordKey.addTarget(self, action: #selector(recordTouchDown), for: .touchDown)
+        recordKey.addTarget(self, action: #selector(openDictationApp), for: .touchUpInside)
+        spaceKey.addTarget(self, action: #selector(insertSpace), for: .touchUpInside)
+        returnKey.addTarget(self, action: #selector(insertReturn), for: .touchUpInside)
+        globeKey.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
+
+        deleteKey.addTarget(self, action: #selector(deleteTouchDown), for: .touchDown)
+        deleteKey.addTarget(self, action: #selector(deleteTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        deleteRepeater.onTick = { [weak self] wordMode in
+            self?.deleteOnce(wordMode: wordMode)
+        }
+    }
+
+    // MARK: State
+
+    private func refreshState() {
+        updateReturnKey()
+        guard hasFullAccess else {
+            latestText = nil
+            latestChangeCount = nil
+            updateInsertKey()
+            setStatus(.needsFullAccess, announce: false)
             return
         }
+        loadLatestText()
+        updateInsertKey()
+        setStatus(latestText == nil ? .ready : .latestReady, announce: false)
+    }
 
+    /// Latest text source: the clipboard (Full Access only). Re-reads only when the pasteboard changed.
+    private func loadLatestText() {
+        let pasteboard = UIPasteboard.general
+        guard pasteboard.hasStrings else {
+            latestText = nil
+            latestChangeCount = pasteboard.changeCount
+            return
+        }
+        if latestChangeCount == pasteboard.changeCount, latestText != nil {
+            return
+        }
+        latestChangeCount = pasteboard.changeCount
+        let text = pasteboard.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        latestText = text.isEmpty ? nil : text
+    }
+
+    private func updateInsertKey() {
+        if let text = latestText {
+            insertKey.setDetail(Self.preview(of: text))
+            insertKey.isDimmed = false
+            insertKey.accessibilityValue = text
+        } else {
+            insertKey.setDetail(nil)
+            insertKey.isDimmed = true
+            insertKey.accessibilityValue = hasFullAccess ? "Nothing to insert" : "Needs Full Access"
+        }
+    }
+
+    /// First words of the latest text, on one line.
+    private static func preview(of text: String) -> String {
+        let words = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).prefix(4)
+        let joined = words.joined(separator: " ")
+        return joined.count > 24 ? String(joined.prefix(24)) + "…" : joined
+    }
+
+    private func updateReturnKey() {
+        let title: String
+        switch textDocumentProxy.returnKeyType ?? .default {
+        case .go: title = "go"
+        case .google, .yahoo, .search: title = "search"
+        case .join: title = "join"
+        case .next: title = "next"
+        case .route: title = "route"
+        case .send: title = "send"
+        case .done: title = "done"
+        case .emergencyCall: title = "call"
+        case .continue: title = "continue"
+        default: title = "return"
+        }
+        returnKey.setTitle(title)
+        returnKey.accessibilityLabel = title.capitalized
+    }
+
+    private func setStatus(_ newStatus: Status, announce: Bool = true) {
+        statusIcon.image = UIImage(systemName: newStatus.symbol)
+        statusIcon.tintColor = newStatus.tint
+        statusLabel.text = newStatus.text
+        if announce {
+            UIAccessibility.post(notification: .announcement, argument: newStatus.text)
+        }
+    }
+
+    // MARK: Actions
+
+    @objc private func insertLatestText() {
+        guard hasFullAccess else {
+            setStatus(.needsFullAccess)
+            return
+        }
+        loadLatestText()
+        updateInsertKey()
+        guard let text = latestText else {
+            setStatus(.noLatest)
+            return
+        }
         textDocumentProxy.insertText(text)
-        hint.text = "Inserted latest Shinsoku text."
+        insertFeedback.notificationOccurred(.success)
+        setStatus(.inserted)
     }
 
-    @objc private func insertNewline() {
+    @objc private func insertSpace() {
+        textDocumentProxy.insertText(" ")
+    }
+
+    @objc private func insertReturn() {
         textDocumentProxy.insertText("\n")
-        hint.text = "Inserted new line."
     }
 
-    @objc private func deleteBackward() {
-        textDocumentProxy.deleteBackward()
-        hint.text = "Deleted one character."
+    @objc private func deleteTouchDown() {
+        deleteOnce(wordMode: false)
+        deleteRepeater.start()
     }
 
-    @objc private func nextKeyboard() {
-        advanceToNextInputMode()
+    @objc private func deleteTouchUp() {
+        deleteRepeater.stop()
+    }
+
+    private func deleteOnce(wordMode: Bool) {
+        guard wordMode, let before = textDocumentProxy.documentContextBeforeInput, !before.isEmpty else {
+            textDocumentProxy.deleteBackward()
+            return
+        }
+        // Word mode: trailing whitespace plus the word before it.
+        var count = 0
+        var seenWord = false
+        for character in before.reversed() {
+            if character.isWhitespace || character.isNewline {
+                if seenWord { break }
+            } else {
+                seenWord = true
+            }
+            count += 1
+        }
+        for _ in 0..<max(count, 1) {
+            textDocumentProxy.deleteBackward()
+        }
+    }
+
+    @objc private func recordTouchDown() {
+        haptic.prepare()
+        haptic.impactOccurred()
     }
 
     @objc private func openDictationApp() {
         guard let url = URL(string: "shinsoku://dictation") else {
             return
         }
-        hint.text = "Opening Shinsoku to record."
-        if #available(iOS 14.0, *) {
-            EnvironmentValues().openURL(url) { [weak self] accepted in
-                if accepted {
-                    self?.hint.text = "Opening Shinsoku to record."
-                    return
-                }
+        setStatus(.opening)
+        // Same path as before the redesign: SwiftUI's openURL first, the extension context as fallback.
+        EnvironmentValues().openURL(url) { [weak self] accepted in
+            if !accepted {
                 self?.openWithExtensionContext(url)
             }
-            return
         }
-        openWithExtensionContext(url)
     }
 
     private func openWithExtensionContext(_ url: URL) {
         extensionContext?.open(url) { [weak self] completed in
-            if completed {
-                self?.hint.text = "Opening Shinsoku to record."
-                return
+            DispatchQueue.main.async {
+                if !completed {
+                    self?.setStatus(.openFailed)
+                }
             }
-            self?.hint.text = "Open Shinsoku from the Home Screen, then return here to paste."
         }
+    }
+}
+
+/// Delete repeat: first repeat after 0.4 s, then every 0.08 s; after 1.5 s of holding, deletes whole words.
+final class KeyRepeater {
+    var onTick: ((_ wordMode: Bool) -> Void)?
+    private var timer: Timer?
+    private var startedAt: Date?
+
+    func start() {
+        stop()
+        startedAt = Date()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
+            self?.beginRepeating()
+        }
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+        startedAt = nil
+    }
+
+    private func beginRepeating() {
+        tick()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    private func tick() {
+        guard let startedAt else { return }
+        onTick?(Date().timeIntervalSince(startedAt) >= 1.5)
     }
 }
