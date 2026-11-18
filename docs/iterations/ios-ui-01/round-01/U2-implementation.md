@@ -133,3 +133,30 @@ PROVISIONING_PROFILE_SPECIFIER=`) for the app, the extension and the test runner
 `SCENE_SIGN_ARGS`. KeyboardSceneTests already depends on Runner (`8A6D1229…`). If a
 hardware keyboard is connected in Simulator.app, the software keyboard stays hidden. Run it headless or turn
 that off.
+
+## Part 3 finding — Insert returns no text with Full Access + marker (investigation)
+Scene run (coordinator): marker visible ("Latest text ready"), but Insert → `UIPasteboard.general.string` empty
+→ "Nothing to paste". Changes for the next run:
+- `ClipboardReader` (in `KeyboardViewController.swift`) logs with `Logger(subsystem:
+  "net.potafree.shinsoku.keyboard", category: "clipboard")` on every Insert tap: hasFullAccess, changeCount,
+  hasStrings, types, numberOfItems, and what `string`, `value(forPasteboardType:)` (utf8 + plain),
+  `data(forPasteboardType: utf8)` and `items` return. It logs only nil / type / length, **never content**
+  (a password could be on the clipboard). It then takes the first non-empty of those sources.
+- Writers (`AppDelegate.publishLatestText` and the scene test) add a `public.plain-text` representation next
+  to `public.utf8-plain-text`.
+- If types are visible but no content comes back, the keyboard shows "Clipboard locked — long-press the
+  field, Paste" (warning colour), not "Nothing to paste".
+- The script saves `<out>/<look>-keyboard.log` (`simctl spawn log show --last 5m`, that subsystem).
+
+Hypothesis (most likely first):
+1. **Paste privacy (iOS 16+).** Types and markers are metadata and readable without consent; content written
+   by another app needs paste consent. A keyboard extension can't show the "Allow Paste" prompt, so the read
+   is denied silently: no banner, `string == nil`. That matches what we saw exactly. If the log shows
+   types=[…utf8…, marker] with every source nil, this is it. Then programmatic Insert from the clipboard can't
+   work in the keyboard, and the "Paste" key can't either. The real handoff would be an **App Group** (shared
+   container the app writes and the keyboard reads: entitlement on both targets + provisioning). That's a
+   user/coordinator decision; until then the UI says "Clipboard locked…".
+2. Type coercion: a Swift String under utf8 in `setItems` is not exposed through `.string`. The fallbacks and
+   the extra plain-text representation would fix it; the log would show source 1–4 succeeding.
+3. `.localOnly`: unlikely (it only affects Universal Clipboard); test by dropping it if 1 and 2 are ruled
+   out.

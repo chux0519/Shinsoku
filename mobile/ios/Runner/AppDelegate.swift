@@ -140,6 +140,7 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
           UIPasteboard.general.setItems(
             [[
               UTType.utf8PlainText.identifier: text,
+              UTType.plainText.identifier: text,
               "net.potafree.shinsoku.latest": Data(),
             ]],
             // Local only (no Universal Clipboard); no expiry, so the text stays pasteable as before.

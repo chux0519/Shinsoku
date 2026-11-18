@@ -15,6 +15,7 @@
 # Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png and FAIL-<step>.txt, the element
 # tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
+# <look>-keyboard.log: the extension's os_log (subsystem net.potafree.shinsoku.keyboard, last 5 min).
 # Signing: ad-hoc for the simulator by default (app, keyboard extension and test runner), so the extension
 # registers. Override with SCENE_SIGN_ARGS, e.g. SCENE_SIGN_ARGS='CODE_SIGNING_ALLOWED=NO'.
 # Install: xcodebuild test does not install the host app here, so the script installs the built Runner.app
@@ -150,6 +151,9 @@ for look in light dark; do
     STATUS=1
   fi
   grep "SCENE " "$OUT/$look.log" >"$OUT/$look-scene.txt" || true
+  xcrun simctl spawn "$UDID" log show --last 5m --info --debug --style compact \
+    --predicate 'subsystem == "net.potafree.shinsoku.keyboard"' >"$OUT/$look-keyboard.log" 2>&1 || true
+  echo "  keyboard log: $(grep -c "insert tap" "$OUT/$look-keyboard.log" || true) insert-tap lines -> $OUT/$look-keyboard.log"
   cat "$OUT/$look-scene.txt"
   if [[ -d $RESULT ]]; then
     export_phases "$RESULT" "$OUT/$look"

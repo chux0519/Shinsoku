@@ -1,5 +1,7 @@
+import OSLog
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// Shinsoku keyboard (DESIGN.md §6): status row, main row (Insert latest · Record · Delete), edit row
 /// (Space · Return). No title row, no scrolling, no settings.
@@ -8,6 +10,7 @@ final class KeyboardViewController: UIInputViewController {
         case ready
         case latestReady
         case noLatest
+        case clipboardBlocked
         case needsFullAccess
         case inserted
         case opening
@@ -18,6 +21,7 @@ final class KeyboardViewController: UIInputViewController {
             case .ready, .noLatest: return "mic"
             case .latestReady: return "text.badge.checkmark"
             case .needsFullAccess, .openFailed: return "exclamationmark.triangle"
+            case .clipboardBlocked: return "lock"
             case .inserted: return "checkmark.circle"
             case .opening: return "arrow.up.forward.app"
             }
@@ -28,6 +32,7 @@ final class KeyboardViewController: UIInputViewController {
             case .ready: return "Ready"
             case .latestReady: return "Latest text ready"
             case .noLatest: return "Nothing to paste — tap Record"
+            case .clipboardBlocked: return "Clipboard locked — long-press the field, Paste"
             case .needsFullAccess: return "Turn on Full Access to insert"
             case .inserted: return "Inserted"
             case .opening: return "Opening Shinsoku…"
@@ -37,7 +42,7 @@ final class KeyboardViewController: UIInputViewController {
 
         var tint: UIColor {
             switch self {
-            case .needsFullAccess, .openFailed: return KeyboardTheme.warning
+            case .needsFullAccess, .openFailed, .clipboardBlocked: return KeyboardTheme.warning
             case .inserted: return KeyboardTheme.success
             default: return KeyboardTheme.textSecondary
             }
@@ -273,11 +278,14 @@ final class KeyboardViewController: UIInputViewController {
             return
         }
         // The only place the clipboard content is read: an explicit tap on Insert / Paste.
-        let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !text.isEmpty else {
+        let pasteboard = UIPasteboard.general
+        let text = ClipboardReader.readText(from: pasteboard, hasFullAccess: hasFullAccess)
+        guard let text, !text.isEmpty else {
             checkLatestMarker()
             updateInsertKey()
-            setStatus(.noLatest)
+            // Types are visible but no content came back: the system withheld it (paste privacy), so say how
+            // to paste instead of claiming the clipboard is empty.
+            setStatus(pasteboard.hasStrings || hasLatestMarker ? .clipboardBlocked : .noLatest)
             return
         }
         textDocumentProxy.insertText(text)
@@ -382,5 +390,59 @@ final class KeyRepeater {
     private func tick() {
         guard let startedAt else { return }
         onTick?(Date().timeIntervalSince(startedAt) >= 1.5)
+    }
+}
+
+/// Reads text from the pasteboard (only on an explicit Insert/Paste tap) and logs what the extension can see.
+/// Logs never contain clipboard content: only types, counts, lengths and nil/non-nil.
+enum ClipboardReader {
+    static let log = Logger(subsystem: "net.potafree.shinsoku.keyboard", category: "clipboard")
+
+    static func readText(from pasteboard: UIPasteboard, hasFullAccess: Bool) -> String? {
+        let utf8 = UTType.utf8PlainText.identifier
+        let plain = UTType.plainText.identifier
+        let types = pasteboard.types
+        let string = pasteboard.string
+        let utf8Value = pasteboard.value(forPasteboardType: utf8)
+        let plainValue = pasteboard.value(forPasteboardType: plain)
+        let utf8Data = pasteboard.data(forPasteboardType: utf8)
+        let items = pasteboard.items
+        log.notice("""
+            insert tap: fullAccess=\(hasFullAccess) changeCount=\(pasteboard.changeCount) \
+            hasStrings=\(pasteboard.hasStrings) types=\(types, privacy: .public) \
+            numberOfItems=\(pasteboard.numberOfItems) string=\(describe(string), privacy: .public) \
+            value(utf8)=\(describe(utf8Value), privacy: .public) value(plain)=\(describe(plainValue), privacy: .public) \
+            data(utf8)=\(utf8Data.map { "\($0.count) bytes" } ?? "nil", privacy: .public) \
+            items=\(items.map { $0.mapValues { describe($0) } }.description, privacy: .public)
+            """)
+
+        let candidates: [String?] = [
+            string,
+            utf8Value as? String,
+            plainValue as? String,
+            utf8Data.flatMap { String(data: $0, encoding: .utf8) },
+            items.lazy.compactMap { item in
+                (item[utf8] ?? item[plain]).flatMap { value in
+                    (value as? String) ?? (value as? Data).flatMap { String(data: $0, encoding: .utf8) }
+                }
+            }.first,
+        ]
+        for (index, candidate) in candidates.enumerated() {
+            if let text = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+                log.notice("insert tap: text from source \(index) (\(text.count) chars)")
+                return text
+            }
+        }
+        log.notice("insert tap: no readable text")
+        return nil
+    }
+
+    private static func describe(_ value: Any?) -> String {
+        switch value {
+        case nil: return "nil"
+        case let text as String: return "String(\(text.count) chars)"
+        case let data as Data: return "Data(\(data.count) bytes)"
+        case let some?: return String(describing: type(of: some))
+        }
     }
 }

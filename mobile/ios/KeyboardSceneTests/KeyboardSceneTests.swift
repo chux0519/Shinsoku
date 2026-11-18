@@ -298,7 +298,11 @@ final class KeyboardSceneTests: XCTestCase {
     /// Same item shape as `AppDelegate.publishLatestText`.
     private func publishLatest(_ text: String) {
         UIPasteboard.general.setItems(
-            [[UTType.utf8PlainText.identifier: text, Self.markerType: Data()]],
+            [[
+                UTType.utf8PlainText.identifier: text,
+                UTType.plainText.identifier: text,
+                Self.markerType: Data(),
+            ]],
             options: [.localOnly: true]
         )
     }
