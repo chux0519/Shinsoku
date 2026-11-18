@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Tier-B keyboard scene (ios-ui-01 U2). Coordinator only: runs on a shared simulator that is ALREADY booted;
+# this script never boots, creates or shuts down simulators.
+#
+#   tool/ios_keyboard_scene.sh <UDID> <out-dir under build/>   # build, run light + dark, export PHASE PNGs
+#   tool/ios_keyboard_scene.sh --build-only                     # build-for-testing, generic simulator
+#
+# Run from a shell where `proxy_on; nvm use --lts` was done (flutter may fetch packages).
+# Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png, <look>.xcresult, <look>.log, <look>-scene.txt
+# (the SCENE lines: phases and any paste banner seen).
+# Signing: CODE_SIGNING_ALLOWED=NO by default; if the simulator refuses the unsigned extension or test runner,
+# rerun with SCENE_SIGN_ARGS='CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=' (ad-hoc).
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+MOBILE="$ROOT/mobile"
+DD="$ROOT/build/ios-keyboard-scene/DerivedData"
+read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-CODE_SIGNING_ALLOWED=NO}"
+
+usage() {
+  echo "usage: $0 <UDID> <out-dir under build/> | $0 --build-only" >&2
+  exit 2
+}
+
+BUILD_ONLY=0
+UDID=""
+OUT=""
+if [[ ${1:-} == --build-only ]]; then
+  BUILD_ONLY=1
+  DEST="generic/platform=iOS Simulator"
+else
+  [[ $# -eq 2 ]] || usage
+  UDID=$1
+  case "$2" in
+    build/*) OUT="$ROOT/$2" ;;
+    *) echo "out-dir must be a relative path under build/" >&2; exit 2 ;;
+  esac
+  if ! xcrun simctl list devices booted | grep -q "$UDID"; then
+    echo "simulator $UDID is not booted; boot it first (this script never boots one)" >&2
+    exit 2
+  fi
+  DEST="id=$UDID"
+fi
+
+cd "$ROOT"
+
+# Flutter regenerates tracked files (SwiftPM migration in the pbxproj/scheme, lockfiles, plists).
+# Restore every tracked file under mobile/ that was clean before and is modified after.
+DIRTY_BEFORE=$(git diff --name-only HEAD -- mobile | sort)
+ORIGINAL_LOOK=""
+cleanup() {
+  local now churn
+  now=$(git diff --name-only HEAD -- mobile | sort)
+  churn=$(comm -13 <(printf '%s\n' "$DIRTY_BEFORE") <(printf '%s\n' "$now") | sed '/^$/d' || true)
+  if [[ -n $churn ]]; then
+    echo "Restoring generated changes:"
+    printf '  %s\n' $churn
+    printf '%s\n' "$churn" | xargs git checkout HEAD --
+  fi
+  if [[ -n $ORIGINAL_LOOK && -n $UDID ]]; then
+    xcrun simctl ui "$UDID" appearance "$ORIGINAL_LOOK" || true
+  fi
+}
+trap cleanup EXIT
+
+echo "== flutter config (SwiftPM / pods)"
+(cd "$MOBILE" && nice -n 10 flutter build ios --simulator --debug --config-only)
+
+XCB=(xcodebuild -workspace "$MOBILE/ios/Runner.xcworkspace" -scheme Runner -configuration Debug
+  -sdk iphonesimulator -derivedDataPath "$DD" "${SIGN_ARGS[@]}")
+
+echo "== build-for-testing ($DEST)"
+mkdir -p "$(dirname "$DD")"
+BUILD_LOG="$(dirname "$DD")/build-for-testing.log"
+if ! nice -n 10 "${XCB[@]}" -destination "$DEST" build-for-testing >"$BUILD_LOG" 2>&1; then
+  grep -E "error:" "$BUILD_LOG" | sort -u | head -20 >&2 || true
+  echo "build-for-testing failed; full log: $BUILD_LOG" >&2
+  exit 1
+fi
+grep -E "warning: .*(ShinsokuKeyboard|KeyboardSceneTests)/" "$BUILD_LOG" | sort -u || true
+grep -E "\*\* TEST BUILD" "$BUILD_LOG" || true
+[[ $BUILD_ONLY -eq 1 ]] && exit 0
+
+export_phases() {
+  local result=$1 dest=$2 tmp
+  tmp=$(mktemp -d)
+  mkdir -p "$dest"
+  xcrun xcresulttool export attachments --path "$result" --output-path "$tmp" >/dev/null
+  python3 -I - "$tmp" "$dest" <<'PY'
+import json, os, re, shutil, sys
+src, dst = sys.argv[1:3]
+manifest = json.load(open(os.path.join(src, "manifest.json")))
+count = 0
+for test in manifest:
+    attachments = test.get("attachments", [])
+    if isinstance(attachments, dict):
+        attachments = [attachments]
+    for a in attachments:
+        m = re.match(r"(PHASE-\d+-[A-Za-z0-9-]+)", a.get("suggestedHumanReadableName", ""))
+        if m:
+            shutil.copyfile(os.path.join(src, a["exportedFileName"]), os.path.join(dst, m.group(1) + ".png"))
+            count += 1
+print(f"  {count} screenshots -> {dst}")
+PY
+  rm -rf "${tmp:?}"
+}
+
+mkdir -p "$OUT"
+ORIGINAL_LOOK=$(xcrun simctl ui "$UDID" appearance 2>/dev/null || echo "")
+STATUS=0
+for look in light dark; do
+  echo "== scene ($look)"
+  xcrun simctl ui "$UDID" appearance "$look"
+  RESULT="$OUT/$look.xcresult"
+  if [[ -e $RESULT ]]; then rm -rf "${RESULT:?}"; fi
+  if ! nice -n 10 "${XCB[@]}" -destination "$DEST" -only-testing:KeyboardSceneTests \
+      -resultBundlePath "$RESULT" test-without-building >"$OUT/$look.log" 2>&1; then
+    echo "  scene failed ($look); see $OUT/$look.log" >&2
+    STATUS=1
+  fi
+  grep "SCENE " "$OUT/$look.log" >"$OUT/$look-scene.txt" || true
+  cat "$OUT/$look-scene.txt"
+  if [[ -d $RESULT ]]; then
+    export_phases "$RESULT" "$OUT/$look"
+  fi
+done
+exit $STATUS
