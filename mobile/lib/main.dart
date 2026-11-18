@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:shinsoku_mobile/app/mobile_shell.dart';
+import 'package:shinsoku_mobile/platform/division_regions.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/theme.dart';
 
@@ -27,6 +28,8 @@ class ShinsokuMobileApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: buildSkTheme(Brightness.light),
       darkTheme: buildSkTheme(Brightness.dark),
+      // iPhone Duo fold → MediaQuery.displayFeatures for every route.
+      builder: (context, child) => DivisionRegions(child: child!),
       home: MobileShell(
         initialDrafts: initialDrafts,
         initialTabIndex: initialTabIndex,

@@ -1,10 +1,96 @@
 import Flutter
 import UIKit
 
+// iPhone Duo division regions (the fold), bridged to Dart as
+// `net.potafree.shinsoku/division_regions` (mobile/lib/platform/division_regions.dart).
+// Ported from Shinphony. The API exists from iOS 27.1 and the iOS 27 SDK
+// (Swift 6.4); older SDKs and OS versions report no regions.
+#if compiler(>=6.4)
+@available(iOS 27.1, *)
+private final class DivisionRegionObserver: UIView {
+  var onChange: (([CGRect]) -> Void)?
+  private var previous: [CGRect] = []
+  override class var requiresConstraintBasedLayout: Bool { true }
+
+  override func updateConstraints() {
+    let frames = reservedRegions(kind: .division)
+      .filter { $0.isActive && !$0.frame.isNull && !$0.frame.isEmpty }
+      .map(\.frame)
+      .filter { [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) }
+    if frames != previous {
+      previous = frames
+      onChange?(frames)
+    }
+    super.updateConstraints()
+  }
+}
+#endif
+
+private final class DivisionRegionStream: NSObject, FlutterStreamHandler {
+  /// The Flutter view the regions are measured in (the root controller's view).
+  var hostView: () -> UIView? = { nil }
+  private var sink: FlutterEventSink?
+  private weak var observer: UIView?
+  private var frames: [CGRect] = []
+
+  func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    sink = events
+    emit()
+    attach()
+    return nil
+  }
+
+  func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    sink = nil
+    observer?.removeFromSuperview()
+    observer = nil
+    frames = []
+    return nil
+  }
+
+  func attach() {
+    #if compiler(>=6.4)
+    guard sink != nil, #available(iOS 27.1, *), let host = hostView() else { return }
+    if observer?.superview === host { return }
+    observer?.removeFromSuperview()
+    if !frames.isEmpty {
+      frames = []
+      emit()
+    }
+    let view = DivisionRegionObserver(frame: .zero)
+    view.backgroundColor = .clear
+    view.isUserInteractionEnabled = false
+    view.isAccessibilityElement = false
+    view.accessibilityElementsHidden = true
+    view.translatesAutoresizingMaskIntoConstraints = false
+    view.onChange = { [weak self] frames in
+      guard let self else { return }
+      self.frames = Array(frames.prefix(8))
+      self.emit()
+    }
+    host.addSubview(view)
+    NSLayoutConstraint.activate([
+      view.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+      view.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+      view.topAnchor.constraint(equalTo: host.topAnchor),
+      view.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+    ])
+    observer = view
+    view.setNeedsUpdateConstraints()
+    #endif
+  }
+
+  private func emit() {
+    sink?(frames.map { ["left": $0.minX, "top": $0.minY, "width": $0.width, "height": $0.height] })
+  }
+}
+
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   private let keyboardBridgeChannel = "net.potafree.shinsoku/keyboard_bridge"
   private let deepLinkChannel = "net.potafree.shinsoku/deep_link"
+  private let divisionRegionStream = DivisionRegionStream()
+  private var divisionRegionChannel: FlutterEventChannel?
   private var pendingDeepLink: String?
 
   override func application(
@@ -59,6 +145,16 @@ import UIKit
         }
       }
 
+      divisionRegionStream.hostView = { [weak self] in
+        (self?.window?.rootViewController as? FlutterViewController)?.view
+      }
+      let divisionRegions = FlutterEventChannel(
+        name: "net.potafree.shinsoku/division_regions",
+        binaryMessenger: controller.binaryMessenger
+      )
+      divisionRegions.setStreamHandler(divisionRegionStream)
+      divisionRegionChannel = divisionRegions
+
       if let pendingDeepLink {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
           deepLink.invokeMethod("openURL", arguments: pendingDeepLink)
@@ -67,6 +163,11 @@ import UIKit
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+    divisionRegionStream.attach()
   }
 
   override func application(
