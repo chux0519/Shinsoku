@@ -27,7 +27,7 @@ final class KeyboardViewController: UIInputViewController {
             switch self {
             case .ready: return "Ready"
             case .latestReady: return "Latest text ready"
-            case .noLatest: return "No text yet — tap Record"
+            case .noLatest: return "Nothing to paste — tap Record"
             case .needsFullAccess: return "Turn on Full Access to insert"
             case .inserted: return "Inserted"
             case .opening: return "Opening Shinsoku…"
@@ -54,8 +54,7 @@ final class KeyboardViewController: UIInputViewController {
     private let returnKey = KeyboardKey(style: .raised, symbol: nil, title: "return")
 
     private var heightConstraint: NSLayoutConstraint?
-    private var latestText: String?
-    private var latestChangeCount: Int?
+    private var hasLatestMarker = false
 
     private let deleteRepeater = KeyRepeater()
     private let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -201,50 +200,42 @@ final class KeyboardViewController: UIInputViewController {
     private func refreshState() {
         updateReturnKey()
         guard hasFullAccess else {
-            latestText = nil
-            latestChangeCount = nil
+            hasLatestMarker = false
             updateInsertKey()
             setStatus(.needsFullAccess, announce: false)
             return
         }
-        loadLatestText()
+        checkLatestMarker()
         updateInsertKey()
-        setStatus(latestText == nil ? .ready : .latestReady, announce: false)
+        setStatus(hasLatestMarker ? .latestReady : .ready, announce: false)
     }
 
-    /// Latest text source: the clipboard (Full Access only). Re-reads only when the pasteboard changed.
-    private func loadLatestText() {
-        let pasteboard = UIPasteboard.general
-        guard pasteboard.hasStrings else {
-            latestText = nil
-            latestChangeCount = pasteboard.changeCount
-            return
-        }
-        if latestChangeCount == pasteboard.changeCount, latestText != nil {
-            return
-        }
-        latestChangeCount = pasteboard.changeCount
-        let text = pasteboard.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        latestText = text.isEmpty ? nil : text
+    /// Pasteboard type the app adds next to the text it publishes (see `AppDelegate.publishLatestText`).
+    private static let latestMarkerType = "net.potafree.shinsoku.latest"
+
+    /// Metadata check only: never reads the clipboard content (no paste banner, nothing displayed).
+    private func checkLatestMarker() {
+        hasLatestMarker = UIPasteboard.general.contains(pasteboardTypes: [Self.latestMarkerType])
     }
 
     private func updateInsertKey() {
-        if let text = latestText {
-            insertKey.setDetail(Self.preview(of: text))
-            insertKey.isDimmed = false
-            insertKey.accessibilityValue = text
+        insertKey.isDimmed = !hasFullAccess
+        if !hasFullAccess {
+            insertKey.setTitle("Insert")
+            insertKey.setSymbol("text.insert")
+            insertKey.accessibilityLabel = "Insert latest text"
+            insertKey.accessibilityValue = "Needs Full Access"
+        } else if hasLatestMarker {
+            insertKey.setTitle("Insert")
+            insertKey.setSymbol("text.insert")
+            insertKey.accessibilityLabel = "Insert latest text"
+            insertKey.accessibilityValue = "Shinsoku text"
         } else {
-            insertKey.setDetail(nil)
-            insertKey.isDimmed = true
-            insertKey.accessibilityValue = hasFullAccess ? "Nothing to insert" : "Needs Full Access"
+            insertKey.setTitle("Paste")
+            insertKey.setSymbol("doc.on.clipboard")
+            insertKey.accessibilityLabel = "Paste"
+            insertKey.accessibilityValue = nil
         }
-    }
-
-    /// First words of the latest text, on one line.
-    private static func preview(of text: String) -> String {
-        let words = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).prefix(4)
-        let joined = words.joined(separator: " ")
-        return joined.count > 24 ? String(joined.prefix(24)) + "…" : joined
     }
 
     private func updateReturnKey() {
@@ -281,9 +272,11 @@ final class KeyboardViewController: UIInputViewController {
             setStatus(.needsFullAccess)
             return
         }
-        loadLatestText()
-        updateInsertKey()
-        guard let text = latestText else {
+        // The only place the clipboard content is read: an explicit tap on Insert / Paste.
+        let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty else {
+            checkLatestMarker()
+            updateInsertKey()
             setStatus(.noLatest)
             return
         }

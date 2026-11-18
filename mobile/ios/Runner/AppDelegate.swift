@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UniformTypeIdentifiers
 
 // iPhone Duo division regions (the fold), bridged to Dart as
 // `net.potafree.shinsoku/division_regions` (mobile/lib/platform/division_regions.dart).
@@ -135,7 +136,17 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
             return
           }
 
-          UIPasteboard.general.string = text
+          // The marker type lets the keyboard see "Shinsoku text is ready" without reading the content.
+          UIPasteboard.general.setItems(
+            [[
+              UTType.utf8PlainText.identifier: text,
+              "net.potafree.shinsoku.latest": Data(),
+            ]],
+            options: [
+              .localOnly: true,
+              .expirationDate: Date().addingTimeInterval(10 * 60),
+            ]
+          )
           result(nil)
         default:
           result(FlutterMethodNotImplemented)
