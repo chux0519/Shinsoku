@@ -66,6 +66,9 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = KeyboardTheme.frame
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(hostDidBecomeActive), name: .NSExtensionHostDidBecomeActive, object: nil
+        )
         buildLayout()
         wireActions()
     }
@@ -73,6 +76,12 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         refreshState(reason: "viewWillAppear")
+    }
+
+    /// When the user comes back to the host app, the keyboard can stay on screen without a new
+    /// viewWillAppear; re-read the App Group then too (the reason is logged).
+    @objc private func hostDidBecomeActive() {
+        refreshState(reason: "hostDidBecomeActive")
     }
 
     override func viewWillLayoutSubviews() {

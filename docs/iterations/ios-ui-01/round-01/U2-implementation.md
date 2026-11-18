@@ -199,3 +199,17 @@ The keyboard can't read clipboard content, so the latest text now goes through a
 portal, enable it for both App IDs (`net.potafree.shinsoku` and `net.potafree.shinsoku.keyboard`), and
 regenerate the provisioning profiles. Automatic-signing device builds fail until that's done. The coordinator
 asks the user before touching the portal.
+
+### Seed diagnostics (after the run that failed at status-latest-ready)
+- AppDelegate logs `Logger(subsystem: "net.potafree.shinsoku.app", category: "latest")`:
+  - `scene args: count reset seedLength` (DEBUG; read from `ProcessInfo.processInfo.arguments` before the
+    Flutter engine starts).
+  - `scene reset: synchronize`.
+  - `publish: suite keys length synchronize readBack` (always; never the text).
+- Verified: the seed code is compiled into the Debug build (`Runner.app/Runner.debug.dylib` contains
+  `ShinsokuSceneSeedLatest`).
+- Test: after launching Runner it waits for a window plus 2 s and takes `PHASE-xx-runner-reset` /
+  `runner-seed` screenshots, then goes back to Safari.
+- Keyboard: re-reads the group on `viewWillAppear` and on `NSExtensionHostDidBecomeActive`, because the
+  keyboard can stay on screen across the app switch. Each state log line says which trigger fired.
+- Script: saves `<look>-app.log` next to `<look>-keyboard.log`.
