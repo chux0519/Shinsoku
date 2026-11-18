@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/main.dart';
+import 'package:shinsoku_mobile/services/drafts.dart';
 
 void main() {
   testWidgets('shows the Shinsoku mobile record surface', (tester) async {
