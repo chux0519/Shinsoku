@@ -8,7 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/app/bridges.dart';
-import 'package:shinsoku_mobile/features/common/widgets.dart';
+import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
@@ -918,148 +918,73 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final destinations = const [
-      NavigationDestination(
-        icon: Icon(Icons.mic_none),
-        selectedIcon: Icon(Icons.mic),
-        label: 'Record',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.description_outlined),
-        selectedIcon: Icon(Icons.description),
-        label: 'Drafts',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.wifi_tethering),
-        selectedIcon: Icon(Icons.podcasts),
-        label: 'Desktop',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.tune_outlined),
-        selectedIcon: Icon(Icons.tune),
-        label: 'Settings',
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 760;
-        final body = IndexedStack(
-          index: _tabIndex,
-          children: [
-            RecordView(
-              profiles: _profiles,
-              selectedProfileIndex: _selectedProfileIndex,
-              captureState: _captureState,
-              microphoneAllowed: _microphoneAllowed,
-              smokeTestStatus: _smokeTestStatus,
-              onProfileSelected: (index) {
-                unawaited(_selectProfile(index));
-              },
-              onProfileAdded: () => _showVoiceProfileEditor(),
-              onProfileEdited: (profile) =>
-                  _showVoiceProfileEditor(profile: profile),
-              onProfileDeleted: _confirmDeleteVoiceProfile,
-              onCapturePressed: _toggleCapture,
-            ),
-            DraftsView(
-              drafts: _drafts,
-              onDelete: _deleteDraft,
-              onEdit: _showDraftEditor,
-              onCopy: (draft) => _publishTextWithFeedback(
-                draft.text,
-                message: 'Draft copied to clipboard.',
-              ),
-            ),
-            NearbyMicrophoneView(
-              profiles: [
-                for (final profile in _profiles)
-                  NearbyProfileOption(
-                    id: switch (profile.id) {
-                      'dictation' => 'default',
-                      'zh_to_en' => 'zh-to-en',
-                      _ => profile.id,
-                    },
-                    label: profile.name,
-                  ),
-              ],
-            ),
-            SettingsView(
-              microphoneAllowed: _microphoneAllowed,
-              keyboardExtensionEnabled: _keyboardExtensionEnabled,
-              cloudProcessingEnabled: _cloudProcessingEnabled,
-              providerSettings: _providerSettings,
-              providerSettingsLoading: _providerSettingsLoading,
-              providerSettingsSaving: _providerSettingsSaving,
-              onMicrophonePressed: _handleMicrophoneSettingsPressed,
-              onKeyboardChanged: (value) {
-                setState(() {
-                  _keyboardExtensionEnabled = value;
-                });
-              },
-              onCloudProcessingChanged: (value) {
-                setState(() {
-                  _cloudProcessingEnabled = value;
-                });
-              },
-              onProviderSettingsSaved: _saveProviderSettings,
-            ),
-          ],
-        );
-
-        if (wide) {
-          return Scaffold(
-            body: SafeArea(
-              child: Row(
-                children: [
-                  NavigationRail(
-                    selectedIndex: _tabIndex,
-                    onDestinationSelected: _selectTab,
-                    labelType: NavigationRailLabelType.all,
-                    leading: const Padding(
-                      padding: EdgeInsets.only(top: 12, bottom: 18),
-                      child: ShinsokuMark(),
-                    ),
-                    destinations: const [
-                      NavigationRailDestination(
-                        icon: Icon(Icons.mic_none),
-                        selectedIcon: Icon(Icons.mic),
-                        label: Text('Record'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.description_outlined),
-                        selectedIcon: Icon(Icons.description),
-                        label: Text('Drafts'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.wifi_tethering),
-                        selectedIcon: Icon(Icons.podcasts),
-                        label: Text('Desktop'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.tune_outlined),
-                        selectedIcon: Icon(Icons.tune),
-                        label: Text('Settings'),
-                      ),
-                    ],
-                  ),
-                  const VerticalDivider(width: 1),
-                  Expanded(child: body),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Scaffold(
-          body: SafeArea(child: body),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _tabIndex,
-            onDestinationSelected: _selectTab,
-            destinations: destinations,
+    final body = IndexedStack(
+      index: _tabIndex,
+      children: [
+        RecordView(
+          profiles: _profiles,
+          selectedProfileIndex: _selectedProfileIndex,
+          captureState: _captureState,
+          microphoneAllowed: _microphoneAllowed,
+          smokeTestStatus: _smokeTestStatus,
+          onProfileSelected: (index) {
+            unawaited(_selectProfile(index));
+          },
+          onProfileAdded: () => _showVoiceProfileEditor(),
+          onProfileEdited: (profile) =>
+              _showVoiceProfileEditor(profile: profile),
+          onProfileDeleted: _confirmDeleteVoiceProfile,
+          onCapturePressed: _toggleCapture,
+        ),
+        DraftsView(
+          drafts: _drafts,
+          onDelete: _deleteDraft,
+          onEdit: _showDraftEditor,
+          onCopy: (draft) => _publishTextWithFeedback(
+            draft.text,
+            message: 'Draft copied to clipboard.',
           ),
-        );
-      },
+        ),
+        NearbyMicrophoneView(
+          profiles: [
+            for (final profile in _profiles)
+              NearbyProfileOption(
+                id: switch (profile.id) {
+                  'dictation' => 'default',
+                  'zh_to_en' => 'zh-to-en',
+                  _ => profile.id,
+                },
+                label: profile.name,
+              ),
+          ],
+        ),
+        SettingsView(
+          microphoneAllowed: _microphoneAllowed,
+          keyboardExtensionEnabled: _keyboardExtensionEnabled,
+          cloudProcessingEnabled: _cloudProcessingEnabled,
+          providerSettings: _providerSettings,
+          providerSettingsLoading: _providerSettingsLoading,
+          providerSettingsSaving: _providerSettingsSaving,
+          onMicrophonePressed: _handleMicrophoneSettingsPressed,
+          onKeyboardChanged: (value) {
+            setState(() {
+              _keyboardExtensionEnabled = value;
+            });
+          },
+          onCloudProcessingChanged: (value) {
+            setState(() {
+              _cloudProcessingEnabled = value;
+            });
+          },
+          onProviderSettingsSaved: _saveProviderSettings,
+        ),
+      ],
+    );
+
+    return ShellScaffold(
+      tabIndex: _tabIndex,
+      onTabSelected: _selectTab,
+      body: body,
     );
   }
 }
