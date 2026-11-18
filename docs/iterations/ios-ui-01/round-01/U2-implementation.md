@@ -213,3 +213,35 @@ asks the user before touching the portal.
 - Keyboard: re-reads the group on `viewWillAppear` and on `NSExtensionHostDidBecomeActive`, because the
   keyboard can stay on screen across the app switch. Each state log line says which trigger fired.
 - Script: saves `<look>-app.log` next to `<look>-keyboard.log`.
+
+## UIScene migration (P0: Runner crashed at launch with the iOS 27 SDK)
+Crash: `EXC_BREAKPOINT` in `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`, so the seed never
+ran. This follows Flutter 3.47.9's own template (`FlutterSceneDelegate` + `FlutterImplicitEngineDelegate`):
+- `Runner/Info.plist`: `UIApplicationSceneManifest` (one `UIWindowScene`, configuration "flutter",
+  `$(PRODUCT_MODULE_NAME).SceneDelegate`, storyboard Main). `Runner/SceneDelegate.swift` (new, added to
+  the Runner target, IDs `8A6D122E/2F…`): `class SceneDelegate: FlutterSceneDelegate {}`.
+- `AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate`. `didFinishLaunching` only runs the
+  DEBUG scene seed (before the engine) and calls super. Nothing uses `window`/`rootViewController` any more.
+- `didInitializeImplicitFlutterEngine` → `GeneratedPluginRegistrant.register(with: pluginRegistry)` +
+  **`registerChannels(_:)` — the single place where Shinsoku's channels are registered**, on the
+  registrar `ShinsokuHost`:
+  - `keyboard_bridge` (`publishLatestText`), unchanged.
+  - `deep_link` via `DeepLinkRouter`, a Flutter scene delegate (`registrar.addSceneDelegate`). Same
+    protocol as before: `consumeInitialURL`, plus `openURL` after 0.4 s on a cold launch, or immediately
+    plus one retry after 0.4 s while running. The cold-launch URL arrives through Flutter's replay of the
+    scene connection options to scene delegates added during engine setup (checked in the engine source,
+    `FlutterSceneLifeCycle.mm`). Warm URLs arrive through `scene(_:openURLContexts:)`. It returns true for
+    `shinsoku://`, so Flutter's own deep-link routing stays out, as before.
+  - **U4 division regions** via `DivisionRegionHook`, a scene delegate wrapping U4's unchanged
+    `DivisionRegionStream`. It calls `register(with:)` once the FlutterViewController is available (the
+    registrar's `viewController`, else the scene's root view controller on the replayed connection or
+    `sceneDidBecomeActive`). It calls `attach()` on every `sceneDidBecomeActive`; before the migration
+    that was `applicationDidBecomeActive`, which isn't delivered to scene-based apps.
+- Rebased onto `origin/main` with U4 (PR #6). U4's `DivisionRegionStream` code is kept verbatim at the top of
+  `AppDelegate.swift`.
+- Builds: `--build-only` under Xcode 27.2 **and** 26.0.1 (`with-xcode.sh`): TEST BUILD SUCCEEDED; no
+  warnings in AppDelegate/SceneDelegate/extension/tests (the Flutter `rootViewController` deprecation
+  warning is gone).
+- To check on the simulator (tier B): Runner launches without the crash; `shinsoku://dictation` reaches Dart
+  on a cold launch and while running; on Duo, division regions still arrive after launch and after
+  fold/unfold; the scene's seed step now writes (app log `publish: … readBack=true`).
