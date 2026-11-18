@@ -1,20 +1,58 @@
+import 'dart:math' as math;
+import 'dart:ui' show DisplayFeature, DisplayFeatureType;
+
 import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
-/// App chrome around the tab bodies: a bottom tab bar on compact widths, a
-/// side bar on wide ones. Stateless, so host renders can wrap any screen in
-/// it. (The iPhone Duo two-pane layout is U4.)
-class ShellScaffold extends StatelessWidget {
+/// App chrome around the four pages (Record, Drafts, Desktop, Settings),
+/// chosen from the constraints, never from the device model.
+///
+/// * **Compact** (either side < [regularExtent]: iPhone, iPhone Duo folded,
+///   the inner display in Split View): one page at a time, bottom tab bar.
+/// * **Regular** (both sides ≥ [regularExtent]: iPhone Duo inner display):
+///   two panes split at the fold (DESIGN §6). Record stays in one pane; the
+///   other pane shows Drafts, Desktop or Settings, picked with a switcher at
+///   its top edge. Side by side when the fold is vertical (book, or landscape
+///   when flat); stacked when it is horizontal (tabletop, or portrait when
+///   flat), with Record in the lower half (content up, controls down).
+///
+/// Each page keeps its element (and so its state) across compact ↔ regular
+/// switches: pages sit under [GlobalKey]s that move between the layouts.
+/// Recording state itself lives above this widget, in `MobileShell`.
+class ShellScaffold extends StatefulWidget {
   const ShellScaffold({
     required this.tabIndex,
     required this.onTabSelected,
-    required this.body,
+    required this.pages,
+    this.secondaryIndex = 1,
     super.key,
-  });
+  }) : assert(pages.length == 4),
+       assert(secondaryIndex >= 1 && secondaryIndex < 4);
 
+  /// The page shown on compact widths (0 = Record).
   final int tabIndex;
+
+  /// The page in the second pane on regular widths (1–3).
+  final int secondaryIndex;
+
+  /// Called with a page index from the tab bar or the pane switcher.
   final ValueChanged<int> onTabSelected;
-  final Widget body;
+
+  /// Record, Drafts, Desktop, Settings — in [tabs] order.
+  final List<Widget> pages;
+
+  /// Both window sides at least this wide → two panes (Material's
+  /// compact/medium boundary; on iPhone Duo it matches the regular × regular
+  /// size class of the inner display, 951 × 669).
+  static const double regularExtent = 600;
+
+  /// A pane narrower than this falls back to the compact layout (an
+  /// off-centre fold that would leave a sliver).
+  static const double minPaneExtent = 280;
+
+  /// Minimum space kept free around the fold, centred on it (iPhone Duo kit:
+  /// 24 pt pane gap inner display; the real region is used when wider).
+  static const double foldGap = 24;
 
   static const tabs = [
     SkTabItem(icon: Icons.mic_none, selectedIcon: Icons.mic, label: 'Record'),
@@ -35,31 +73,263 @@ class ShellScaffold extends StatelessWidget {
     ),
   ];
 
+  /// The two-pane split for a window of [size] with [features] (window
+  /// coordinates), or null for the compact layout.
+  static PaneSplit? splitFor(Size size, List<DisplayFeature> features) {
+    if (size.width < regularExtent || size.height < regularExtent) return null;
+    final window = Offset.zero & size;
+    Rect? fold;
+    for (final feature in features) {
+      if (feature.type == DisplayFeatureType.cutout) continue;
+      final b = feature.bounds;
+      final vertical = b.height > b.width;
+      // Only a fold that crosses the whole window divides it.
+      final crosses = vertical
+          ? b.top <= 1 && b.bottom >= size.height - 1
+          : b.left <= 1 && b.right >= size.width - 1;
+      final inside = vertical
+          ? b.left >= 0 && b.right <= size.width
+          : b.top >= 0 && b.bottom <= size.height;
+      if (crosses && inside) {
+        fold = b.intersect(window);
+        break;
+      }
+    }
+    final sideBySide = fold != null
+        ? fold.height > fold.width
+        : size.width >= size.height;
+    final extent = sideBySide ? size.width : size.height;
+    final (double start, double end) = fold == null
+        ? (extent / 2, extent / 2)
+        : sideBySide
+        ? (fold.left, fold.right)
+        : (fold.top, fold.bottom);
+    final pad = math.max(0.0, (foldGap - (end - start)) / 2);
+    final split = PaneSplit(
+      sideBySide: sideBySide,
+      firstEnd: start - pad,
+      secondStart: end + pad,
+      extent: extent,
+      fromFold: fold != null,
+    );
+    if (split.firstEnd < minPaneExtent ||
+        extent - split.secondStart < minPaneExtent) {
+      return null;
+    }
+    return split;
+  }
+
+  @override
+  State<ShellScaffold> createState() => _ShellScaffoldState();
+}
+
+/// Where the two panes meet. Offsets are along the split axis, in window
+/// coordinates: the first pane is `[0, firstEnd]`, the second
+/// `[secondStart, extent]`; nothing is drawn in between but a hairline.
+@immutable
+class PaneSplit {
+  const PaneSplit({
+    required this.sideBySide,
+    required this.firstEnd,
+    required this.secondStart,
+    required this.extent,
+    required this.fromFold,
+  });
+
+  /// Left | right (vertical fold) rather than top / bottom.
+  final bool sideBySide;
+  final double firstEnd;
+  final double secondStart;
+  final double extent;
+
+  /// Placed at a reported fold rather than at the centre.
+  final bool fromFold;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PaneSplit &&
+      other.sideBySide == sideBySide &&
+      other.firstEnd == firstEnd &&
+      other.secondStart == secondStart &&
+      other.extent == extent &&
+      other.fromFold == fromFold;
+
+  @override
+  int get hashCode =>
+      Object.hash(sideBySide, firstEnd, secondStart, extent, fromFold);
+
+  @override
+  String toString() =>
+      'PaneSplit(${sideBySide ? 'side by side' : 'stacked'}, '
+      '$firstEnd–$secondStart of $extent${fromFold ? ', fold' : ''})';
+}
+
+class _ShellScaffoldState extends State<ShellScaffold> {
+  // One key per page: the page subtree moves between layouts without being
+  // rebuilt from scratch (scroll positions, Nearby connection, form fields).
+  final _pageKeys = List.generate(4, (i) => GlobalKey(debugLabel: 'page $i'));
+
+  Widget _page(int i, {required bool visible}) => KeyedSubtree(
+    key: _pageKeys[i],
+    // Hidden pages keep their state but not their animations.
+    child: TickerMode(enabled: visible, child: widget.pages[i]),
+  );
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Scaffold(
-            body: Row(
+        final split = ShellScaffold.splitFor(
+          constraints.biggest,
+          MediaQuery.displayFeaturesOf(context),
+        );
+        return split == null ? _compact() : _regular(context, split);
+      },
+    );
+  }
+
+  Widget _compact() {
+    return Scaffold(
+      body: SafeArea(
+        child: IndexedStack(
+          index: widget.tabIndex,
+          children: [
+            for (var i = 0; i < 4; i++) _page(i, visible: i == widget.tabIndex),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SkTabBar(
+        items: ShellScaffold.tabs,
+        selectedIndex: widget.tabIndex,
+        onSelected: widget.onTabSelected,
+      ),
+    );
+  }
+
+  Widget _regular(BuildContext context, PaneSplit split) {
+    final c = SkColors.of(context);
+    final record = _page(0, visible: true);
+    final secondary = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PaneSwitcher(
+          selected: widget.secondaryIndex,
+          onSelected: widget.onTabSelected,
+        ),
+        Expanded(
+          child: SkTitledByChrome(
+            child: IndexedStack(
+              index: widget.secondaryIndex - 1,
               children: [
-                SkTabBar(
-                  items: tabs,
-                  selectedIndex: tabIndex,
-                  onSelected: onTabSelected,
-                  vertical: true,
-                ),
-                Expanded(child: SafeArea(left: false, child: body)),
+                for (var i = 1; i < 4; i++)
+                  _page(i, visible: i == widget.secondaryIndex),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+    // Side by side: Record left, the switchable pane right (tools on the
+    // trailing side, where iPhone Duo also puts its vertical bar). Stacked:
+    // the switchable pane up, Record and its button in the lower half.
+    final (Widget first, Widget second) = split.sideBySide
+        ? (record, secondary)
+        : (secondary, record);
+    final gap = split.secondStart - split.firstEnd;
+    final seam = split.sideBySide
+        ? Center(
+            child: Container(width: SkShape.hairline, color: c.hairline),
+          )
+        : Center(
+            child: Container(height: SkShape.hairline, color: c.hairline),
           );
-        }
-        return Scaffold(
-          body: SafeArea(child: body),
-          bottomNavigationBar: SkTabBar(
-            items: tabs,
-            selectedIndex: tabIndex,
-            onSelected: onTabSelected,
+    return Scaffold(
+      body: Flex(
+        direction: split.sideBySide ? Axis.horizontal : Axis.vertical,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: split.sideBySide ? split.firstEnd : null,
+            height: split.sideBySide ? null : split.firstEnd,
+            child: _Pane(
+              key: const ValueKey('pane-first'),
+              sideBySide: split.sideBySide,
+              first: true,
+              child: first,
+            ),
+          ),
+          // The fold: nothing interactive or text-bearing here.
+          SizedBox(
+            width: split.sideBySide ? gap : null,
+            height: split.sideBySide ? null : gap,
+            child: ExcludeSemantics(child: seam),
+          ),
+          Expanded(
+            child: _Pane(
+              key: const ValueKey('pane-second'),
+              sideBySide: split.sideBySide,
+              first: false,
+              child: second,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One pane: it keeps the safe insets of the window edges it touches and
+/// drops the others, so a trailing bar inset (iPhone Duo landscape) or a top
+/// / bottom bar inset (portrait) lands only on the pane that meets it.
+class _Pane extends StatelessWidget {
+  const _Pane({
+    required this.sideBySide,
+    required this.first,
+    required this.child,
+    super.key,
+  });
+
+  final bool sideBySide;
+  final bool first;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return MediaQuery.removePadding(
+      context: context,
+      removeLeft: sideBySide && !first,
+      removeRight: sideBySide && first,
+      removeTop: !sideBySide && !first,
+      removeBottom: !sideBySide && first,
+      child: SafeArea(child: child),
+    );
+  }
+}
+
+/// The second pane's own top switcher (Drafts / Desktop / Settings).
+class _PaneSwitcher extends StatelessWidget {
+  const _PaneSwitcher({required this.selected, required this.onSelected});
+
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final insets = skPageInsets(context, constraints.maxWidth);
+        return Padding(
+          padding: insets.copyWith(top: SkSpace.s, bottom: SkSpace.s),
+          child: SkSegmented<int>(
+            key: const ValueKey('pane-switcher'),
+            semanticLabel: 'Pane',
+            segments: [
+              for (var i = 1; i < 4; i++)
+                // Labels only: three icons + labels do not fit a ~380 pt pane.
+                SkSegment(value: i, label: ShellScaffold.tabs[i].label),
+            ],
+            selected: selected,
+            onChanged: onSelected,
           ),
         );
       },

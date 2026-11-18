@@ -49,8 +49,36 @@ List<DraftEntry> sampleDrafts() => [
   ),
 ];
 
-Widget _tab(int index, Widget body) =>
-    ShellScaffold(tabIndex: index, onTabSelected: (_) {}, body: body);
+/// The real shell with all four pages, [index] selected (and shown in the
+/// second pane on regular widths). [record] / [drafts] replace the defaults.
+Widget _tab(int index, {Widget? record, Widget? drafts, Widget? nearby}) =>
+    ShellScaffold(
+      tabIndex: index,
+      secondaryIndex: index == 0 ? 1 : index,
+      onTabSelected: (_) {},
+      pages: [
+        record ?? _recordView(),
+        drafts ?? _draftsView(sampleDrafts()),
+        nearby ?? const NearbyMicrophoneView(profiles: _nearbyProfiles),
+        _settingsView(),
+      ],
+    );
+
+Widget _recordView({
+  CaptureState state = CaptureState.idle,
+  bool microphoneAllowed = true,
+  SmokeTestStatus? status,
+}) => RecordView(
+  profiles: defaultVoiceProfiles,
+  selectedProfileIndex: 0,
+  captureState: state,
+  microphoneAllowed: microphoneAllowed,
+  smokeTestStatus: status,
+  onProfileSelected: (_) {},
+  onCapturePressed: () {},
+  onOpenMicrophoneSettings: () {},
+  onOpenSettings: () {},
+);
 
 Widget _record({
   CaptureState state = CaptureState.idle,
@@ -58,39 +86,39 @@ Widget _record({
   SmokeTestStatus? status,
 }) => _tab(
   0,
-  RecordView(
-    profiles: defaultVoiceProfiles,
-    selectedProfileIndex: 0,
-    captureState: state,
+  record: _recordView(
+    state: state,
     microphoneAllowed: microphoneAllowed,
-    smokeTestStatus: status,
-    onProfileSelected: (_) {},
-    onCapturePressed: () {},
-    onOpenMicrophoneSettings: () {},
-    onOpenSettings: () {},
+    status: status,
   ),
 );
 
-Widget _settings() => _tab(
-  3,
-  SettingsView(
-    microphoneAllowed: true,
-    keyboardExtensionEnabled: false,
-    cloudProcessingEnabled: true,
-    providerSettings: ProviderSettings.defaults().copyWith(
-      bailianApiKey: 'example-key-0000',
-    ),
-    providerSettingsLoading: false,
-    providerSettingsSaving: false,
-    onMicrophonePressed: () {},
-    onKeyboardChanged: (_) {},
-    onCloudProcessingChanged: (_) {},
-    onProviderSettingsSaved: (_) async {},
-    profiles: defaultVoiceProfiles,
-    onProfileAdded: () {},
-    onProfileOpened: (_) {},
-  ),
+Widget _draftsView(List<DraftEntry> drafts) => DraftsView(
+  drafts: drafts,
+  onDelete: (_) {},
+  onEdit: (_) {},
+  onCopy: (_) {},
 );
+
+Widget _settingsView() => SettingsView(
+  microphoneAllowed: true,
+  keyboardExtensionEnabled: false,
+  cloudProcessingEnabled: true,
+  providerSettings: ProviderSettings.defaults().copyWith(
+    bailianApiKey: 'example-key-0000',
+  ),
+  providerSettingsLoading: false,
+  providerSettingsSaving: false,
+  onMicrophonePressed: () {},
+  onKeyboardChanged: (_) {},
+  onCloudProcessingChanged: (_) {},
+  onProviderSettingsSaved: (_) async {},
+  profiles: defaultVoiceProfiles,
+  onProfileAdded: () {},
+  onProfileOpened: (_) {},
+);
+
+Widget _settings() => _tab(3);
 
 const _dictation = VoiceProfile(
   id: 'dictation',
@@ -160,24 +188,8 @@ final scenes = <String, SceneBuilder>{
       fix: StatusFix.microphone,
     ),
   ),
-  'drafts-empty': () => _tab(
-    1,
-    DraftsView(
-      drafts: const [],
-      onDelete: (_) {},
-      onEdit: (_) {},
-      onCopy: (_) {},
-    ),
-  ),
-  'drafts-list': () => _tab(
-    1,
-    DraftsView(
-      drafts: sampleDrafts(),
-      onDelete: (_) {},
-      onEdit: (_) {},
-      onCopy: (_) {},
-    ),
-  ),
+  'drafts-empty': () => _tab(1, drafts: _draftsView(const [])),
+  'drafts-list': () => _tab(1),
   'draft-editor': () => DraftEditorScreen(draft: sampleDrafts().first),
   'settings': _settings,
   'keyboard-setup': () => KeyboardSetupView(onOpenSettings: () async => true),
@@ -185,11 +197,10 @@ final scenes = <String, SceneBuilder>{
     _settings(),
     const ProfileEditorSheet(profile: _dictation, canDelete: true),
   ),
-  'nearby': () =>
-      _tab(2, const NearbyMicrophoneView(profiles: _nearbyProfiles)),
+  'nearby': () => _tab(2),
   'nearby-pair': () => _tab(
     2,
-    const NearbyMicrophoneView(
+    nearby: const NearbyMicrophoneView(
       profiles: _nearbyProfiles,
       initialDesktops: [
         NearbyDesktop(

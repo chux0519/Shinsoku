@@ -26,6 +26,19 @@ abstract final class SkLayout {
   static const double maxContentWidth = 600;
 }
 
+/// Marks pages whose surrounding chrome already names them (the iPhone Duo
+/// pane switcher). An [SkPage] with only a title then drops its header
+/// instead of repeating the switcher's label.
+class SkTitledByChrome extends InheritedWidget {
+  const SkTitledByChrome({required super.child, super.key});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SkTitledByChrome>() != null;
+
+  @override
+  bool updateShouldNotify(SkTitledByChrome oldWidget) => false;
+}
+
 /// A scrolling single-column page: header, then [children], laid out from the
 /// constraints (no device-size guesses).
 class SkPage extends StatelessWidget {
@@ -50,6 +63,11 @@ class SkPage extends StatelessWidget {
       builder: (context, constraints) {
         final insets = skPageInsets(context, constraints.maxWidth);
         final safe = MediaQuery.paddingOf(context);
+        final showHeader =
+            title != null &&
+            (subtitle != null ||
+                trailing.isNotEmpty ||
+                !SkTitledByChrome.of(context));
         return ListView(
           controller: controller,
           padding: insets.copyWith(
@@ -57,7 +75,7 @@ class SkPage extends StatelessWidget {
             bottom: safe.bottom + SkSpace.xl,
           ),
           children: [
-            if (title != null)
+            if (showHeader)
               SkPageHeader(
                 title: title!,
                 subtitle: subtitle,

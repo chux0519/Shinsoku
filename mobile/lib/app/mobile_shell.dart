@@ -44,6 +44,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   late final List<DraftEntry> _drafts;
 
   late int _tabIndex;
+
+  /// The page in the second pane on regular widths (1–3); follows the last
+  /// non-Record page picked anywhere.
+  int _secondaryTab = 1;
   int _selectedProfileIndex = 0;
   CaptureState _captureState = CaptureState.idle;
   bool _microphoneAllowed = false;
@@ -66,6 +70,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
     _drafts = List<DraftEntry>.of(widget.initialDrafts);
     _tabIndex = widget.initialTabIndex.clamp(0, 3);
+    if (_tabIndex > 0) _secondaryTab = _tabIndex;
 
     WidgetsBinding.instance.addObserver(this);
     DeepLinkBridge.channel.setMethodCallHandler(_handleDeepLinkMethodCall);
@@ -151,6 +156,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   void _selectTab(int index) {
     setState(() {
       _tabIndex = index;
+      if (index > 0) _secondaryTab = index;
     });
   }
 
@@ -824,7 +830,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = <Widget>[
+    final pages = <Widget>[
       RecordView(
         profiles: _profiles,
         selectedProfileIndex: _selectedProfileIndex,
@@ -887,15 +893,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
     return ShellScaffold(
       tabIndex: _tabIndex,
+      secondaryIndex: _secondaryTab,
       onTabSelected: _selectTab,
-      body: IndexedStack(
-        index: _tabIndex,
-        children: [
-          // Hidden tabs keep their state but not their animations.
-          for (var i = 0; i < tabs.length; i++)
-            TickerMode(enabled: i == _tabIndex, child: tabs[i]),
-        ],
-      ),
+      pages: pages,
     );
   }
 }
