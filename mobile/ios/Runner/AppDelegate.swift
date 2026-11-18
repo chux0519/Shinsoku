@@ -98,12 +98,14 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
   }
 }
 
+/// App lifecycle with UIScene adoption (required by the iOS 27 SDK; Flutter's `FlutterSceneDelegate` owns the
+/// window, see `SceneDelegate.swift`). There is no root view controller at launch any more: everything that
+/// needs the Flutter engine is set up in `didInitializeImplicitFlutterEngine` → `registerChannels(_:)`.
 @main
-@objc class AppDelegate: FlutterAppDelegate {
-  private let keyboardBridgeChannel = "net.potafree.shinsoku/keyboard_bridge"
-  private let deepLinkChannel = "net.potafree.shinsoku/deep_link"
-  private let divisionRegionStream = DivisionRegionStream()
-  private var pendingDeepLink: String?
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  /// Retained here: Flutter keeps scene delegates weakly.
+  private var deepLinks: DeepLinkRouter?
+  private var divisionRegions: DivisionRegionHook?
 
   /// Shared with the keyboard extension (both targets carry this App Group).
   static let appGroup = "group.net.potafree.shinsoku"
@@ -164,102 +166,159 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    if let launchURL = launchOptions?[.url] as? URL, launchURL.scheme == "shinsoku" {
-      pendingDeepLink = launchURL.absoluteString
-    }
-
 #if DEBUG
     Self.applySceneLaunchArguments()
 #endif
-
-    GeneratedPluginRegistrant.register(with: self)
-
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(
-        name: keyboardBridgeChannel,
-        binaryMessenger: controller.binaryMessenger
-      )
-      channel.setMethodCallHandler { call, result in
-        switch call.method {
-        case "publishLatestText":
-          guard
-            let arguments = call.arguments as? [String: Any],
-            let text = arguments["text"] as? String,
-            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-          else {
-            result(FlutterError(
-              code: "invalid-arguments",
-              message: "Missing latest text.",
-              details: nil
-            ))
-            return
-          }
-
-          AppDelegate.publishLatestText(text)
-          result(nil)
-        default:
-          result(FlutterMethodNotImplemented)
-        }
-      }
-
-      let deepLink = FlutterMethodChannel(
-        name: deepLinkChannel,
-        binaryMessenger: controller.binaryMessenger
-      )
-      deepLink.setMethodCallHandler { [weak self] call, result in
-        switch call.method {
-        case "consumeInitialURL":
-          result(self?.pendingDeepLink)
-          self?.pendingDeepLink = nil
-        default:
-          result(FlutterMethodNotImplemented)
-        }
-      }
-
-      divisionRegionStream.register(with: controller)
-
-      if let pendingDeepLink {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-          deepLink.invokeMethod("openURL", arguments: pendingDeepLink)
-        }
-      }
-    }
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  override func applicationDidBecomeActive(_ application: UIApplication) {
-    super.applicationDidBecomeActive(application)
-    divisionRegionStream.attach()
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    registerChannels(engineBridge.pluginRegistry)
   }
 
-  override func application(
-    _ app: UIApplication,
-    open url: URL,
-    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
-  ) -> Bool {
-    guard url.scheme == "shinsoku" else {
-      return super.application(app, open: url, options: options)
+  /// The one place where Shinsoku's own platform channels are registered: keyboard bridge, deep links,
+  /// division regions (U4). Add new channels here.
+  private func registerChannels(_ registry: FlutterPluginRegistry) {
+    guard let registrar = registry.registrar(forPlugin: "ShinsokuHost") else {
+      Self.log.error("registerChannels: no registrar")
+      return
     }
+    let messenger = registrar.messenger()
 
-    pendingDeepLink = url.absoluteString
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(
-        name: deepLinkChannel,
-        binaryMessenger: controller.binaryMessenger
-      )
-      channel.invokeMethod("openURL", arguments: url.absoluteString)
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak controller] in
-        guard let self, self.pendingDeepLink == url.absoluteString, let controller else {
+    let keyboardBridge = FlutterMethodChannel(
+      name: "net.potafree.shinsoku/keyboard_bridge",
+      binaryMessenger: messenger
+    )
+    keyboardBridge.setMethodCallHandler { call, result in
+      switch call.method {
+      case "publishLatestText":
+        guard
+          let arguments = call.arguments as? [String: Any],
+          let text = arguments["text"] as? String,
+          !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+          result(FlutterError(
+            code: "invalid-arguments",
+            message: "Missing latest text.",
+            details: nil
+          ))
           return
         }
-        let channel = FlutterMethodChannel(
-          name: self.deepLinkChannel,
-          binaryMessenger: controller.binaryMessenger
-        )
-        channel.invokeMethod("openURL", arguments: url.absoluteString)
+        AppDelegate.publishLatestText(text)
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
       }
     }
+
+    let router = DeepLinkRouter(messenger: messenger)
+    registrar.addSceneDelegate(router)
+    deepLinks = router
+
+    let regions = DivisionRegionHook(registrar: registrar)
+    registrar.addSceneDelegate(regions)
+    divisionRegions = regions
+  }
+}
+
+/// Connects U4's `DivisionRegionStream` under scenes. `register(with:)` needs the FlutterViewController, which
+/// may not be attached yet when the implicit engine initializes: register as soon as it is (now, or when
+/// Flutter replays the scene connection, at the latest when the scene becomes active), and `attach()` on
+/// every `sceneDidBecomeActive` (was `applicationDidBecomeActive` before the scene migration).
+final class DivisionRegionHook: NSObject, FlutterSceneLifeCycleDelegate {
+  private let stream = DivisionRegionStream()
+  private weak var registrar: FlutterPluginRegistrar?
+  private var registered = false
+
+  init(registrar: FlutterPluginRegistrar) {
+    self.registrar = registrar
+    super.init()
+    registerIfPossible(nil)
+  }
+
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions?
+  ) -> Bool {
+    registerIfPossible(scene)
+    return false
+  }
+
+  func sceneDidBecomeActive(_ scene: UIScene) {
+    registerIfPossible(scene)
+    stream.attach()
+  }
+
+  private func registerIfPossible(_ scene: UIScene?) {
+    guard !registered else { return }
+    let fromRegistrar = registrar?.viewController as? FlutterViewController
+    let fromScene = (scene as? UIWindowScene)?.windows.first?.rootViewController as? FlutterViewController
+    guard let controller = fromRegistrar ?? fromScene else { return }
+    stream.register(with: controller)
+    registered = true
+  }
+}
+
+/// `shinsoku://` links → Dart over `net.potafree.shinsoku/deep_link`, same protocol as before the scene
+/// migration: Dart calls `consumeInitialURL` for the launch link; the host also invokes `openURL` (after
+/// 0.4 s on a cold launch; immediately plus one retry after 0.4 s while running, until Dart consumed it).
+/// Returning true keeps Flutter's own deep-link routing out of these links, as before.
+final class DeepLinkRouter: NSObject, FlutterSceneLifeCycleDelegate {
+  private static let scheme = "shinsoku"
+  private let channel: FlutterMethodChannel
+  private var pendingDeepLink: String?
+
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(name: "net.potafree.shinsoku/deep_link", binaryMessenger: messenger)
+    super.init()
+    channel.setMethodCallHandler { [weak self] call, result in
+      switch call.method {
+      case "consumeInitialURL":
+        result(self?.pendingDeepLink)
+        self?.pendingDeepLink = nil
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  /// Cold launch: Flutter replays the connection options to scene delegates added during engine setup.
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions?
+  ) -> Bool {
+    guard let url = Self.shinsokuURL(in: connectionOptions?.urlContexts ?? []) else {
+      return false
+    }
+    let link = url.absoluteString
+    pendingDeepLink = link
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+      self?.channel.invokeMethod("openURL", arguments: link)
+    }
     return true
+  }
+
+  /// Link opened while the app runs or is suspended.
+  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) -> Bool {
+    guard let url = Self.shinsokuURL(in: URLContexts) else {
+      return false
+    }
+    let link = url.absoluteString
+    pendingDeepLink = link
+    channel.invokeMethod("openURL", arguments: link)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+      guard let self, self.pendingDeepLink == link else {
+        return
+      }
+      self.channel.invokeMethod("openURL", arguments: link)
+    }
+    return true
+  }
+
+  private static func shinsokuURL(in contexts: Set<UIOpenURLContext>) -> URL? {
+    contexts.first { $0.url.scheme == scheme }?.url
   }
 }
