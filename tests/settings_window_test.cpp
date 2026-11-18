@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
         window.set_nearby_pairing_code("42", QDateTime::currentMSecsSinceEpoch() + 120000);
         require(nearby_pairing_code->text().contains("42"), "the active pairing code must be visible");
 
-        window.set_nearby_trusted_clients({{"ios-client", "Yongsheng's iPhone · ios"}});
+        window.set_nearby_trusted_clients({{"ios-client", "Example iPhone · ios"}});
         require(nearby_clients->count() == 1, "trusted Nearby devices must be listed");
         nearby_clients->setCurrentRow(0);
         require(nearby_revoke->isEnabled(), "selecting a trusted device must enable revocation");

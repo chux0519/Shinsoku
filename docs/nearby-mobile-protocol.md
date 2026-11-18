@@ -83,7 +83,7 @@ must be validated. Control messages are limited to 16 KiB.
   "protocol_version": 1,
   "client": {
     "id": "stable-client-generated-id",
-    "name": "Yongsheng's iPhone",
+    "name": "Example iPhone",
     "kind": "iphone"
   }
 }

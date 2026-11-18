@@ -31,7 +31,7 @@ if [[ -z "$path_d" ]]; then
 fi
 
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"' EXIT
+trap 'rm -rf "${tmp_dir:?}"' EXIT
 
 prepared_svg="$tmp_dir/shinsoku-app-icon.svg"
 cat >"$prepared_svg" <<SVG
@@ -61,7 +61,7 @@ make_png() {
   sips -s format png "$flattened" --out "$output" >/dev/null
 }
 
-rm -rf "$ios_icon_dir"
+rm -rf "${ios_icon_dir:?}"
 mkdir -p "$ios_icon_dir"
 
 make_png 40 "$ios_icon_dir/Icon-App-20x20@2x.png"

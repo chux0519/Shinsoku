@@ -166,7 +166,7 @@ RESOURCES_DIR="${CONTENTS_DIR}/Resources"
 DMG_ROOT="${STAGE_ROOT}/dmg-root"
 DMG_PATH="${OUTPUT_DIR}/${PACKAGE_ROOT_NAME}.dmg"
 
-rm -rf "$STAGE_ROOT"
+rm -rf "${STAGE_ROOT:?}"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$DMG_ROOT"
 mkdir -p "$OUTPUT_DIR"
 
@@ -202,7 +202,7 @@ if [[ -n "$ICON_SVG_PATH" && -f "$ICON_SVG_PATH" ]] && command -v qlmanage >/dev
         iconutil -c icns "$ICONSET_DIR" -o "${RESOURCES_DIR}/Shinsoku.icns"
     fi
 
-    rm -rf "$ICON_TMP_DIR"
+    rm -rf "${ICON_TMP_DIR:?}"
 fi
 
 deploy_args=("$APP_BUNDLE_PATH" -always-overwrite -verbose=2)

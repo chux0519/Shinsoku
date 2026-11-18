@@ -59,7 +59,7 @@ Set these repository-level values before running the workflow.
 
 - `MACOS_VCPKG_ROOT`
   - absolute path to the `vcpkg` checkout on the self-hosted Mac mini
-  - example: `/Users/yongsheng/repos/vcpkg`
+  - example: `~/repos/vcpkg`
 - `LINUX_VCPKG_ROOT`
   - absolute path to the `vcpkg` checkout on the self-hosted Linux runner
   - example: `/data/vcpkg`

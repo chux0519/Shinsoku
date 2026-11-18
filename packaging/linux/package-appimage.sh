@@ -109,7 +109,7 @@ INSTALL_PREFIX="$APPDIR/usr"
 INSTALLED_EXECUTABLE="$INSTALL_PREFIX/bin/shinsoku"
 
 cleanup() {
-    rm -rf "$STAGE_ROOT"
+    rm -rf "${STAGE_ROOT:?}"
 }
 trap cleanup EXIT
 
