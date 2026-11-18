@@ -3,3 +3,13 @@
 - In progress: none. Next: coordinator review and merge; U3 can build `lib/ui/` on this layout.
 - Open decisions: none.
 - Verify: `cd mobile && flutter analyze`, `bash tool/test_diff.sh`, `python3 tool/review_lint.py`.
+
+# STATE: U3 (round-01)
+- Done: tokens + theme, component layer, tier-A host renders, Record / Drafts + editor / Settings (+ keyboard
+  setup, profile sheet) / Nearby / shell migrated, R03, audit. Details: U3-implementation.md, U3-audit.md.
+- In progress: none. Next: coordinator review of PR #5 and the renders; then U4 (Duo two-pane) builds on
+  `ShellScaffold` / `SkTabBar` / `skPageInsets`.
+- Open decisions: the "design conflicts" table in U3-audit.md (frame vs raised for sections, drafts row lines,
+  extra components for §5).
+- Verify: `cd mobile && flutter analyze`, `bash tool/test_diff.sh`, `python3 tool/review_lint.py`,
+  `tool/host_review.sh ios-ui-01/round-01/u3-after` → `build/ui-review/ios-ui-01/round-01/u3-after/index.html`.
