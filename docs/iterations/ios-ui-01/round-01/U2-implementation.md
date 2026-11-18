@@ -72,3 +72,42 @@ VoiceOver labels: "Insert latest text" (value "Shinsoku text", or "Needs Full Ac
 - Side effect of the round 2 handoff: published text leaves the clipboard after 10 minutes and no longer goes
   to Universal Clipboard (`.localOnly`). If users rely on pasting it elsewhere later, App Groups would be the
   cleaner handoff (needs entitlements + provisioning; coordinator/user decision).
+
+## Part 3 — tier-B scene harness (`e0090bb`)
+Files: `mobile/ios/KeyboardSceneTests/KeyboardSceneTests.swift` (new XCUITest target `KeyboardSceneTests`, host
+Runner, iOS 16.4+, IDs `8A6D1220…122D`, testable in `Runner.xcscheme`, not parallelizable) and
+`tool/ios_keyboard_scene.sh`.
+
+**Command (coordinator, simulator already booted, in a shell after `proxy_on; nvm use --lts`):**
+
+    xcrun simctl list devices booted     # make sure no other project's simulator is up
+    tool/ios_keyboard_scene.sh 9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/ios-ui-01/round-02/iphone-17/keyboard
+
+The script never boots or shuts down a simulator. It runs `flutter build ios --simulator --debug --config-only`
+and `xcodebuild build-for-testing` (`CODE_SIGNING_ALLOWED=NO`, `nice -n 10`, DerivedData in
+`build/ios-keyboard-scene/`). Then, for `light` and `dark` (`xcrun simctl ui <UDID> appearance`), it runs
+`test-without-building -only-testing:KeyboardSceneTests`. It restores the original appearance and checks out
+any tracked file under `mobile/` that Flutter regenerated (only files that were clean before the run).
+Output per look: `<out>/<look>/PHASE-xx-<name>.png`, `<look>.xcresult`, `<look>.log`, `<look>-scene.txt`
+(SCENE lines: phases + paste-banner result). Exit code 1 if either run failed (screenshots up to the failure
+are still exported). Build check only: `tool/ios_keyboard_scene.sh --build-only` (generic simulator).
+
+Phases: 01 keyboard-added → 02 full-access-off → 03 no-full-access → 04 edit-keys (Return, Space, Delete)
+→ 05 delete-hold (2 s; asserts the field is empty) → 06 full-access-on → 07 latest-ready (marker item written
+by the test, same shape as AppDelegate; asserts "Latest text ready" + Insert key) → 08 inserted (asserts the
+field contains the text) → 09 paste (plain text, asserts the "Paste" key). Any "Allow Paste" / "pasted from"
+UI gets an extra `PHASE-xx-paste-banner-<where>` shot and a SCENE log line. It is recorded, not a failure.
+
+Idempotent: the keyboard is only added if missing; Full Access is set to the wanted value, accepting the
+"Allow" alert. Settings is relaunched and walked back to its root first.
+
+Text field: Safari, a `data:` page with one textarea, opened with `XCUIApplication.open(url)`; fallback:
+typed into the address bar after switching to the system keyboard. Not an app field: the app's free text
+fields need a recorded draft or edit persisted provider settings, and U3 moves them.
+
+Unverified until the first run (fix in place if they break): Settings labels on iOS 27 ("General", "Keyboard",
+"Keyboards", "Add New Keyboard…", "Allow Full Access"); the globe button's label ("Next keyboard"); Safari
+accepting an externally opened `data:` URL; whether the simulator loads the unsigned extension. If it doesn't,
+rerun with `SCENE_SIGN_ARGS='CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM='` (ad-hoc). If a
+hardware keyboard is connected in Simulator.app, the software keyboard stays hidden. Run it headless or turn
+that off.
