@@ -98,7 +98,7 @@ Add New Keyboard / Allow Full Access. It skips matches inside the navigation bar
 and if it's still not hittable, taps the centre of its frame.
 
 The script never boots or shuts down a simulator. It runs `flutter build ios --simulator --debug --config-only`
-and `xcodebuild build-for-testing` (`CODE_SIGNING_ALLOWED=NO`, `nice -n 10`, DerivedData in
+and `xcodebuild build-for-testing` (ad-hoc signing, `nice -n 10`, DerivedData in
 `build/ios-keyboard-scene/`). Then, for `light` and `dark` (`xcrun simctl ui <UDID> appearance`), it runs
 `test-without-building -only-testing:KeyboardSceneTests`. It restores the original appearance and checks out
 any tracked file under `mobile/` that Flutter regenerated (only files that were clean before the run).
@@ -121,7 +121,15 @@ fields need a recorded draft or edit persisted provider settings, and U3 moves t
 
 Unverified until the first run (fix in place if they break): Settings labels on iOS 27 ("General", "Keyboard",
 "Keyboards", "Add New Keyboard…", "Allow Full Access"); the globe button's label ("Next keyboard"); Safari
-accepting an externally opened `data:` URL; whether the simulator loads the unsigned extension. If it doesn't,
-rerun with `SCENE_SIGN_ARGS='CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM='` (ad-hoc). If a
+accepting an externally opened `data:` URL.
+
+Install and signing (fix 3): `xcodebuild test` did not install the host app on the simulator (only the
+`.xctrunner`), so Shinsoku never showed up in Add New Keyboard. After `build-for-testing` the script checks
+that `Runner.app/PlugIns/ShinsokuKeyboard.appex` exists, prints both signatures, runs
+`xcrun simctl install <UDID> Runner.app`, then prints `simctl spawn <UDID> pluginkit -m -v -i
+net.potafree.shinsoku.keyboard` and the installed `net.potafree.shinsoku*` apps. Simulator signing now
+defaults to ad-hoc (`CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
+PROVISIONING_PROFILE_SPECIFIER=`) for the app, the extension and the test runner. Override it with
+`SCENE_SIGN_ARGS`. KeyboardSceneTests already depends on Runner (`8A6D1229…`). If a
 hardware keyboard is connected in Simulator.app, the software keyboard stays hidden. Run it headless or turn
 that off.

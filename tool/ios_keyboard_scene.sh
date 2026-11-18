@@ -15,14 +15,19 @@
 # Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png and FAIL-<step>.txt, the element
 # tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
-# Signing: CODE_SIGNING_ALLOWED=NO by default; if the simulator refuses the unsigned extension or test runner,
-# rerun with SCENE_SIGN_ARGS='CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=' (ad-hoc).
+# Signing: ad-hoc for the simulator by default (app, keyboard extension and test runner), so the extension
+# registers. Override with SCENE_SIGN_ARGS, e.g. SCENE_SIGN_ARGS='CODE_SIGNING_ALLOWED=NO'.
+# Install: xcodebuild test does not install the host app here, so the script installs the built Runner.app
+# (checked to contain PlugIns/ShinsokuKeyboard.appex) with simctl before the runs and prints the pluginkit
+# registration of net.potafree.shinsoku.keyboard.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 MOBILE="$ROOT/mobile"
 DD="$ROOT/build/ios-keyboard-scene/DerivedData"
-read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-CODE_SIGNING_ALLOWED=NO}"
+DEFAULT_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER="
+read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-$DEFAULT_SIGN_ARGS}"
+KEYBOARD_ID=net.potafree.shinsoku.keyboard
 
 usage() {
   echo "usage: $0 <UDID> <out-dir under build/> | $0 --build-only" >&2
@@ -86,6 +91,18 @@ if ! nice -n 10 "${XCB[@]}" -destination "$DEST" build-for-testing >"$BUILD_LOG"
 fi
 grep -E "warning: .*(ShinsokuKeyboard|KeyboardSceneTests)/" "$BUILD_LOG" | sort -u || true
 grep -E "\*\* TEST BUILD" "$BUILD_LOG" || true
+
+APP="$DD/Build/Products/Debug-iphonesimulator/Runner.app"
+APPEX="$APP/PlugIns/ShinsokuKeyboard.appex"
+if [[ ! -d $APPEX ]]; then
+  echo "missing $APPEX (Runner.app built without the keyboard extension)" >&2
+  exit 1
+fi
+echo "== signatures"
+for bundle in "$APP" "$APPEX"; do
+  printf '  %s: ' "${bundle#"$DD/"}"
+  codesign -dv "$bundle" 2>&1 | grep -E "^Signature=|^Authority=" | head -1 || echo "unsigned"
+done
 [[ $BUILD_ONLY -eq 1 ]] && exit 0
 
 export_phases() {
@@ -112,6 +129,12 @@ print(f"  {count} attachments -> {dst}")
 PY
   rm -rf "${tmp:?}"
 }
+
+echo "== install Runner.app on $UDID"
+xcrun simctl install "$UDID" "$APP"
+echo "== keyboard extension registration"
+xcrun simctl spawn "$UDID" pluginkit -m -v -i "$KEYBOARD_ID" 2>&1 || echo "  (pluginkit query failed)"
+xcrun simctl listapps "$UDID" 2>/dev/null | grep -E "CFBundleIdentifier = \"?net\.potafree\.shinsoku" | sort -u || true
 
 mkdir -p "$OUT"
 ORIGINAL_LOOK=$(xcrun simctl ui "$UDID" appearance 2>/dev/null || echo "")
