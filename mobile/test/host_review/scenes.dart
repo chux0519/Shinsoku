@@ -8,6 +8,7 @@ import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
 import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
+import 'package:shinsoku_mobile/nearby/nearby_models.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
@@ -184,16 +185,38 @@ final scenes = <String, SceneBuilder>{
     _settings(),
     const ProfileEditorSheet(profile: _dictation, canDelete: true),
   ),
-  'nearby': () => _tab(
+  'nearby': () =>
+      _tab(2, const NearbyMicrophoneView(profiles: _nearbyProfiles)),
+  'nearby-pair': () => _tab(
     2,
     const NearbyMicrophoneView(
-      profiles: [
-        NearbyProfileOption(id: 'default', label: 'Dictation'),
-        NearbyProfileOption(id: 'chat', label: 'Chat'),
+      profiles: _nearbyProfiles,
+      initialDesktops: [
+        NearbyDesktop(
+          serviceName: 'example-desktop',
+          host: '192.0.2.10',
+          port: 39273,
+          certificateSha256:
+              '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
+          instanceId: 'example-instance',
+        ),
+        NearbyDesktop(
+          serviceName: 'example-laptop',
+          host: '192.0.2.11',
+          port: 39273,
+          certificateSha256:
+              'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
+          instanceId: 'example-instance-2',
+        ),
       ],
     ),
   ),
 };
+
+const _nearbyProfiles = [
+  NearbyProfileOption(id: 'default', label: 'Dictation'),
+  NearbyProfileOption(id: 'chat', label: 'Chat'),
+];
 
 /// Scenes also rendered at the Dynamic Type review size.
 const largeTextScenes = {'record-idle', 'settings'};

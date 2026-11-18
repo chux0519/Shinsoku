@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+import 'package:shinsoku_mobile/ui/ui.dart';
 
 import 'nearby_discovery.dart';
 import 'nearby_models.dart';
@@ -17,9 +18,17 @@ class NearbyProfileOption {
 }
 
 class NearbyMicrophoneView extends StatefulWidget {
-  const NearbyMicrophoneView({required this.profiles, super.key});
+  const NearbyMicrophoneView({
+    required this.profiles,
+    @visibleForTesting this.initialDesktops = const [],
+    super.key,
+  });
 
   final List<NearbyProfileOption> profiles;
+
+  /// Host renders only: start with these desktops listed and the first one
+  /// selected (untrusted), without discovery.
+  final List<NearbyDesktop> initialDesktops;
 
   @override
   State<NearbyMicrophoneView> createState() => _NearbyMicrophoneViewState();
@@ -58,6 +67,14 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialDesktops.isNotEmpty) {
+      _desktops = widget.initialDesktops;
+      _selectedDesktop = widget.initialDesktops.first;
+      _status = const NearbyClientStatus(
+        state: NearbyConnectionState.disconnected,
+        message: 'Verify the desktop fingerprint',
+      );
+    }
     _statusSubscription = _client.statuses.listen((status) {
       if (mounted) {
         setState(() {
@@ -346,406 +363,307 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final c = SkColors.of(context);
     final selected = _selectedDesktop;
     final profiles = [
       const NearbyProfileOption(id: '', label: 'Desktop automatic'),
       ...widget.profiles,
     ];
+    final profileLabel = profiles
+        .firstWhere(
+          (profile) => profile.id == _selectedProfileId,
+          orElse: () => profiles.first,
+        )
+        .label;
+    const gap = SizedBox(height: SkSpace.xl);
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return SkPage(
+      title: 'Desktop Mic',
+      subtitle: 'Private local connection',
+      children: [
+        _NearbyStatusLine(status: _status),
+        gap,
+        SkSection(
+          label: 'Desktop',
           children: [
-            const _NearbyHeader(),
-            const SizedBox(height: 22),
-            _StatusBanner(status: _status),
-            const SizedBox(height: 18),
-            Text('Desktop', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-            Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+            SkSectionBody(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SkButton.secondary(
+                      key: const ValueKey('nearby-discover-button'),
+                      label: 'Find Desktops',
+                      icon: Icons.radar,
+                      expand: true,
+                      onPressed: _busy || _recording ? null : _discover,
+                    ),
+                  ),
+                  const SizedBox(width: SkSpace.s),
+                  SkIconButton(
+                    tooltip: 'Add desktop manually',
+                    icon: Icons.add_link,
+                    onPressed: _recording
+                        ? null
+                        : () => setState(() => _showManual = !_showManual),
+                  ),
+                ],
+              ),
+            ),
+            if (_showManual)
+              SkSectionBody(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SkTextArea.field(
+                      controller: _manualEndpointController,
+                      label: 'WSS endpoint',
+                      keyboardType: TextInputType.url,
+                    ),
+                    const SizedBox(height: SkSpace.m),
+                    SkTextArea.field(
+                      controller: _manualFingerprintController,
+                      label: 'Certificate SHA-256',
+                      style: SkType.body.merge(SkType.mono),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9a-fA-F:\s]'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: SkSpace.m),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SkButton.secondary(
+                        label: 'Add',
+                        icon: Icons.add,
+                        onPressed: _addManualDesktop,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            for (final desktop in _desktops)
+              SkListRow(
+                leading: desktop.discovered ? Icons.wifi_tethering : Icons.link,
+                title: desktop.serviceName,
+                subtitle: '${desktop.host}:${desktop.port}',
+                selected: selected?.id == desktop.id,
+                onTap: _recording
+                    ? null
+                    : () => unawaited(_selectDesktop(desktop)),
+              ),
+          ],
+        ),
+        if (selected != null) ...[
+          gap,
+          SkSection(
+            label: 'Trust',
+            children: [
+              SkSectionBody(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Expanded(
-                          child: FilledButton.tonalIcon(
-                            key: const ValueKey('nearby-discover-button'),
-                            onPressed: _busy || _recording ? null : _discover,
-                            icon:
-                                _busy &&
-                                    _status.state ==
-                                        NearbyConnectionState.discovering
-                                ? const SizedBox.square(
-                                    dimension: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.radar),
-                            label: const Text('Find Desktops'),
-                          ),
+                        Icon(
+                          _trusted
+                              ? Icons.verified_user_outlined
+                              : Icons.fingerprint,
+                          size: 20,
+                          color: _trusted ? c.success : c.textSecondary,
                         ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          tooltip: 'Add desktop manually',
-                          onPressed: _recording
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _showManual = !_showManual;
-                                  });
-                                },
-                          icon: const Icon(Icons.add_link),
+                        const SizedBox(width: SkSpace.s),
+                        Expanded(
+                          child: Text(
+                            _trusted
+                                ? 'Trusted desktop'
+                                : 'Certificate fingerprint',
+                            style: SkType.title.copyWith(color: c.text),
+                          ),
                         ),
                       ],
                     ),
-                    if (_showManual) ...[
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: _manualEndpointController,
-                        keyboardType: TextInputType.url,
-                        autocorrect: false,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          labelText: 'WSS endpoint',
-                          prefixIcon: Icon(Icons.dns_outlined),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _manualFingerprintController,
-                        autocorrect: false,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9a-fA-F:\s]'),
-                          ),
-                        ],
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          labelText: 'Certificate SHA-256',
-                          prefixIcon: Icon(Icons.fingerprint),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          onPressed: _addManualDesktop,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add'),
-                        ),
-                      ),
-                    ],
-                    if (_desktops.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      RadioGroup<String>(
-                        groupValue: selected?.id,
-                        onChanged: (id) {
-                          if (!_recording && id != null) {
-                            final desktop = _desktops.firstWhere(
-                              (candidate) => candidate.id == id,
-                            );
-                            unawaited(_selectDesktop(desktop));
-                          }
-                        },
-                        child: Column(
-                          children: [
-                            for (final desktop in _desktops)
-                              RadioListTile<String>(
-                                value: desktop.id,
-                                title: Text(desktop.serviceName),
-                                subtitle: Text(
-                                  '${desktop.host}:${desktop.port}',
-                                ),
-                                secondary: Icon(
-                                  desktop.discovered
-                                      ? Icons.wifi_tethering
-                                      : Icons.link,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: SkSpace.s),
+                    SelectableText(
+                      formatCertificateFingerprint(selected.certificateSha256),
+                      key: const ValueKey('nearby-certificate-fingerprint'),
+                      style: SkType.secondary
+                          .merge(SkType.mono)
+                          .copyWith(color: c.textSecondary),
+                    ),
                   ],
                 ),
               ),
-            ),
-            if (selected != null) ...[
-              const SizedBox(height: 18),
-              Text('Trust', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 10),
-              Card(
-                margin: EdgeInsets.zero,
-                elevation: 0,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _trusted
-                                ? Icons.verified_user_outlined
-                                : Icons.fingerprint,
-                            color: _trusted ? scheme.primary : scheme.onSurface,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _trusted
-                                  ? 'Trusted desktop'
-                                  : 'Certificate fingerprint',
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      SelectableText(
-                        formatCertificateFingerprint(
-                          selected.certificateSha256,
-                        ),
-                        key: const ValueKey('nearby-certificate-fingerprint'),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      if (!_trusted) ...[
-                        const SizedBox(height: 10),
-                        CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          value: _fingerprintConfirmed,
-                          onChanged: (value) {
-                            setState(() {
-                              _fingerprintConfirmed = value ?? false;
-                            });
-                          },
-                          title: const Text('Matches desktop Settings'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          key: const ValueKey('nearby-pairing-code-field'),
-                          controller: _pairingCodeController,
-                          enabled: !_connected,
-                          keyboardType: TextInputType.number,
-                          maxLength: 2,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            counterText: '',
-                            labelText: 'Two-digit pairing code',
-                            prefixIcon: Icon(Icons.pin_outlined),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.icon(
+              if (!_trusted) ...[
+                SkListRow.toggle(
+                  title: 'Matches desktop Settings',
+                  subtitle: 'Compare it with Settings on the desktop',
+                  value: _fingerprintConfirmed,
+                  onChanged: (value) =>
+                      setState(() => _fingerprintConfirmed = value),
+                ),
+                SkSectionBody(
+                  child: SkTextArea.field(
+                    fieldKey: const ValueKey('nearby-pairing-code-field'),
+                    controller: _pairingCodeController,
+                    label: 'Pairing code shown on the desktop',
+                    placeholder: '--',
+                    enabled: !_connected,
+                    keyboardType: TextInputType.number,
+                    maxLength: 2,
+                    textAlign: TextAlign.center,
+                    style: SkType.mono.copyWith(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 12,
+                      height: 1.2,
+                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                ),
+              ],
+              SkSectionBody(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _connected
+                          ? SkButton.secondary(
+                              label: 'Disconnect',
+                              icon: Icons.link_off,
+                              expand: true,
+                              onPressed: _busy ? null : _disconnect,
+                            )
+                          : SkButton(
                               key: const ValueKey('nearby-connect-button'),
+                              label: _trusted ? 'Connect' : 'Pair and Connect',
+                              icon: Icons.link,
+                              expand: true,
                               onPressed:
-                                  _busy ||
-                                      _connected ||
-                                      (!_trusted && !_fingerprintConfirmed)
+                                  _busy || (!_trusted && !_fingerprintConfirmed)
                                   ? null
                                   : _connect,
-                              icon: const Icon(Icons.link),
-                              label: Text(
-                                _trusted ? 'Connect' : 'Pair and Connect',
-                              ),
                             ),
-                          ),
-                          if (_connected) ...[
-                            const SizedBox(width: 8),
-                            IconButton(
-                              tooltip: 'Disconnect',
-                              onPressed: _busy ? null : _disconnect,
-                              icon: const Icon(Icons.link_off),
-                            ),
-                          ],
-                          if (_trusted && !_recording) ...[
-                            const SizedBox(width: 4),
-                            IconButton(
-                              tooltip: 'Forget desktop',
-                              onPressed: _busy ? null : _forget,
-                              icon: const Icon(Icons.delete_outline),
-                            ),
-                          ],
-                        ],
+                    ),
+                    if (_trusted && !_recording) ...[
+                      const SizedBox(width: SkSpace.s),
+                      SkIconButton(
+                        tooltip: 'Forget desktop',
+                        icon: Icons.delete_outline,
+                        onPressed: _busy ? null : _forget,
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ],
-            const SizedBox(height: 18),
-            Text(
-              'Remote Input',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 10),
-            Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    DropdownButtonFormField<String>(
-                      key: const ValueKey('nearby-profile-field'),
-                      initialValue:
-                          profiles.any(
-                            (profile) => profile.id == _selectedProfileId,
-                          )
-                          ? _selectedProfileId
-                          : '',
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'Requested desktop Profile',
-                        prefixIcon: Icon(Icons.tune),
-                      ),
-                      items: [
-                        for (final profile in profiles)
-                          DropdownMenuItem(
-                            value: profile.id,
-                            child: Text(profile.label),
-                          ),
-                      ],
-                      onChanged: _recording
-                          ? null
-                          : (value) {
-                              setState(() {
-                                _selectedProfileId = value ?? '';
-                              });
-                            },
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox.square(
-                      dimension: 104,
-                      child: FilledButton(
-                        key: const ValueKey('nearby-record-button'),
-                        onPressed: !_connected || _busy
-                            ? null
-                            : _recording
-                            ? _stopRecording
-                            : _startRecording,
-                        style: FilledButton.styleFrom(
-                          shape: const CircleBorder(),
-                          backgroundColor: _recording ? scheme.error : null,
-                        ),
-                        child: Icon(
-                          _recording ? Icons.stop : Icons.mic,
-                          size: 42,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _recording
-                          ? 'Stop and transcribe'
-                          : 'Start remote dictation',
-                    ),
-                  ],
-                ),
-              ),
+          ),
+        ],
+        gap,
+        SkSection(
+          label: 'Remote input',
+          children: [
+            SkListRow(
+              key: const ValueKey('nearby-profile-field'),
+              leading: Icons.tune,
+              title: 'Profile',
+              value: profileLabel,
+              chevron: true,
+              onTap: _recording ? null : () => _pickProfile(profiles),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _NearbyHeader extends StatelessWidget {
-  const _NearbyHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.asset(
-            'assets/app-icon.png',
-            width: 44,
-            height: 44,
-            fit: BoxFit.cover,
+        gap,
+        Center(
+          child: SkRecordButton(
+            key: const ValueKey('nearby-record-button'),
+            state: _recording
+                ? SkRecordState.listening
+                : !_connected
+                ? SkRecordState.unavailable
+                : _busy
+                ? SkRecordState.processing
+                : SkRecordState.idle,
+            semanticLabel: _recording
+                ? 'Stop and transcribe'
+                : 'Start remote dictation',
+            onPressed: !_connected || _busy
+                ? null
+                : _recording
+                ? _stopRecording
+                : _startRecording,
           ),
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Desktop Mic',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Private local connection',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+        const SizedBox(height: SkSpace.s),
+        Text(
+          _recording
+              ? 'Stop and transcribe'
+              : _connected
+              ? 'Start remote dictation'
+              : 'Connect to a desktop to dictate into it',
+          textAlign: TextAlign.center,
+          style: SkType.secondary.copyWith(color: c.textSecondary),
         ),
       ],
     );
   }
+
+  Future<void> _pickProfile(List<NearbyProfileOption> profiles) async {
+    final picked = await showSkSheet<String>(
+      context: context,
+      builder: (context) => SkSheet(
+        title: 'Desktop profile',
+        child: SkSection(
+          children: [
+            for (final profile in profiles)
+              SkListRow(
+                title: profile.label,
+                selected: profile.id == _selectedProfileId,
+                onTap: () => Navigator.of(context).pop(profile.id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _selectedProfileId = picked);
+    }
+  }
 }
 
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.status});
+class _NearbyStatusLine extends StatelessWidget {
+  const _NearbyStatusLine({required this.status});
 
   final NearbyClientStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final error = status.state == NearbyConnectionState.error;
-    final active =
-        status.state == NearbyConnectionState.authenticated ||
-        status.state == NearbyConnectionState.streaming;
-    final scheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: error
-            ? scheme.errorContainer
-            : active
-            ? scheme.primaryContainer
-            : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+    return switch (status.state) {
+      NearbyConnectionState.error => SkStatusLine(
+        icon: Icons.error_outline_rounded,
+        tone: SkTone.danger,
+        text: status.message,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Icon(
-              error
-                  ? Icons.error_outline
-                  : active
-                  ? Icons.check_circle_outline
-                  : Icons.info_outline,
-              color: error ? scheme.onErrorContainer : null,
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(status.message)),
-          ],
-        ),
+      NearbyConnectionState.discovering || NearbyConnectionState.connecting =>
+        SkStatusLine(busy: true, text: status.message),
+      NearbyConnectionState.pairingRequired => SkStatusLine(
+        icon: Icons.pin_outlined,
+        tone: SkTone.warning,
+        text: status.message,
       ),
-    );
+      NearbyConnectionState.authenticated => SkStatusLine(
+        icon: Icons.check_circle_outline_rounded,
+        tone: SkTone.success,
+        text: status.message,
+      ),
+      NearbyConnectionState.streaming => SkStatusLine(
+        icon: Icons.fiber_manual_record_rounded,
+        tone: SkTone.danger,
+        text: status.message,
+      ),
+      NearbyConnectionState.disconnected => SkStatusLine(
+        icon: Icons.info_outline_rounded,
+        text: status.message,
+      ),
+    };
   }
 }
