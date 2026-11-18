@@ -15,7 +15,8 @@
 # Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png and FAIL-<step>.txt, the element
 # tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
-# <look>-keyboard.log: the extension's os_log (subsystem net.potafree.shinsoku.keyboard, last 5 min).
+# <look>-keyboard.log / <look>-app.log: os_log of the extension (net.potafree.shinsoku.keyboard) and the app
+# (net.potafree.shinsoku.app), last 5 min.
 # Signing: ad-hoc for the simulator by default (app, keyboard extension and test runner), so the extension
 # registers. Override with SCENE_SIGN_ARGS, e.g. SCENE_SIGN_ARGS='CODE_SIGNING_ALLOWED=NO'.
 # App Group: app and extension must carry group.net.potafree.shinsoku (ad-hoc signing keeps
@@ -206,6 +207,9 @@ for look in light dark; do
   grep "SCENE " "$OUT/$look.log" >"$OUT/$look-scene.txt" || true
   xcrun simctl spawn "$UDID" log show --last 5m --info --debug --style compact \
     --predicate 'subsystem == "net.potafree.shinsoku.keyboard"' >"$OUT/$look-keyboard.log" 2>&1 || true
+  xcrun simctl spawn "$UDID" log show --last 5m --info --debug --style compact \
+    --predicate 'subsystem == "net.potafree.shinsoku.app"' >"$OUT/$look-app.log" 2>&1 || true
+  echo "  app log: $(grep -cE "scene args|publish:" "$OUT/$look-app.log" || true) seed/publish lines -> $OUT/$look-app.log"
   echo "  keyboard log: $(grep -c "insert tap" "$OUT/$look-keyboard.log" || true) insert-tap lines -> $OUT/$look-keyboard.log"
   cat "$OUT/$look-scene.txt"
   if [[ -d $RESULT ]]; then

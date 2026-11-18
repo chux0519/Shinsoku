@@ -1,4 +1,5 @@
 import Flutter
+import OSLog
 import UIKit
 
 // iPhone Duo division regions (the fold), bridged to Dart as
@@ -106,29 +107,54 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
 
   /// Shared with the keyboard extension (both targets carry this App Group).
   static let appGroup = "group.net.potafree.shinsoku"
+  private static let log = Logger(subsystem: "net.potafree.shinsoku.app", category: "latest")
 
   /// Hands the latest text to the keyboard through the App Group and puts it on the clipboard for the
   /// user's own pasting. The keyboard never reads the clipboard (iOS paste privacy redacts it there).
+  /// Logs never contain the text, only its length.
   static func publishLatestText(_ text: String) {
-    if let shared = UserDefaults(suiteName: appGroup) {
-      shared.set(text, forKey: "latestText")
-      shared.set(UUID().uuidString, forKey: "latestId")
-      shared.set(Date(), forKey: "latestAt")
+    guard let shared = UserDefaults(suiteName: appGroup) else {
+      log.error("publish: UserDefaults(suiteName: \(appGroup, privacy: .public)) is nil")
+      return
     }
+    let id = UUID().uuidString
+    shared.set(text, forKey: "latestText")
+    shared.set(id, forKey: "latestId")
+    shared.set(Date(), forKey: "latestAt")
+    let synced = shared.synchronize()
+    let readBack = shared.string(forKey: "latestId") == id
+    log.notice("""
+      publish: suite=\(appGroup, privacy: .public) keys=latestText,latestId,latestAt \
+      length=\(text.count) synchronize=\(synced) readBack=\(readBack)
+      """)
     UIPasteboard.general.setItems([["public.utf8-plain-text": text]], options: [.localOnly: true])
   }
 
 #if DEBUG
   /// Scene-test hooks (Debug builds only): `-ShinsokuSceneResetLatest YES` clears the shared latest text,
   /// `-ShinsokuSceneSeedLatest <text>` publishes <text> through the same path as the method channel.
+  /// Read straight from the process arguments, before the Flutter engine starts.
   private static func applySceneLaunchArguments() {
-    let arguments = UserDefaults.standard
-    if arguments.bool(forKey: "ShinsokuSceneResetLatest"), let shared = UserDefaults(suiteName: appGroup) {
+    let arguments = ProcessInfo.processInfo.arguments
+    func value(after flag: String) -> String? {
+      guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else {
+        return nil
+      }
+      return arguments[index + 1]
+    }
+    let reset = value(after: "-ShinsokuSceneResetLatest")
+    let seed = value(after: "-ShinsokuSceneSeedLatest")
+    log.notice("""
+      scene args: count=\(arguments.count) reset=\(reset ?? "nil", privacy: .public) \
+      seedLength=\(seed?.count ?? -1)
+      """)
+    if reset == "YES", let shared = UserDefaults(suiteName: appGroup) {
       for key in ["latestText", "latestId", "latestAt", "lastInsertedId"] {
         shared.removeObject(forKey: key)
       }
+      log.notice("scene reset: synchronize=\(shared.synchronize())")
     }
-    if let seed = arguments.string(forKey: "ShinsokuSceneSeedLatest"), !seed.isEmpty {
+    if let seed, !seed.isEmpty {
       publishLatestText(seed)
     }
   }

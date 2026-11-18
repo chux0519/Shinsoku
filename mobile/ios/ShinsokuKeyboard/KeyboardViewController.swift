@@ -72,7 +72,7 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        refreshState()
+        refreshState(reason: "viewWillAppear")
     }
 
     override func viewWillLayoutSubviews() {
@@ -200,7 +200,7 @@ final class KeyboardViewController: UIInputViewController {
 
     // MARK: State
 
-    private func refreshState() {
+    private func refreshState(reason: String) {
         updateReturnKey()
         guard hasFullAccess else {
             latest = .none
@@ -208,7 +208,7 @@ final class KeyboardViewController: UIInputViewController {
             setStatus(.needsFullAccess, announce: false)
             return
         }
-        latest = LatestTextStore.state()
+        latest = LatestTextStore.state(reason: reason)
         updateInsertKey()
         setStatus(latest == .new ? .latestReady : .ready, announce: false)
     }
@@ -416,12 +416,12 @@ enum LatestTextStore {
         shared?.set(id, forKey: "lastInsertedId")
     }
 
-    static func state() -> State {
+    static func state(reason: String) -> State {
         let entry = latest()
         let state: State = entry == nil ? .none : (entry?.id == lastInsertedId() ? .inserted : .new)
         // Booleans only; never the text.
         log.notice("""
-            state: groupAvailable=\(shared != nil) hasLatest=\(entry != nil) \
+            state (\(reason, privacy: .public)): groupAvailable=\(shared != nil) hasLatest=\(entry != nil) \
             isNew=\(state == .new)
             """)
         return state

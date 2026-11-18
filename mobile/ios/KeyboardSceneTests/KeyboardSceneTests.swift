@@ -304,6 +304,11 @@ final class KeyboardSceneTests: XCTestCase {
         app.launchArguments = arguments
         app.launch()
         check(app.wait(for: .runningForeground, timeout: 20), "runner-launch", "Shinsoku did not launch")
+        // The seed/reset runs in didFinishLaunching; give the app a moment on screen before leaving it.
+        _ = app.windows.firstMatch.waitForExistence(timeout: 10)
+        Thread.sleep(forTimeInterval: 2)
+        print("SCENE runner launched with \(arguments.first ?? "")")
+        shot("runner-\(arguments.first?.contains("Reset") == true ? "reset" : "seed")")
     }
 
     /// Records (screenshot + log) any paste prompt or "pasted from" banner; does not fail the scene.
