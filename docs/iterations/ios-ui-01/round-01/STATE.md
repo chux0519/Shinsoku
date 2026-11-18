@@ -32,6 +32,8 @@
   U4's division regions wired through `DivisionRegionHook`.
 - Verified: `--build-only` with Xcode 27.2 and 26.0.1: TEST BUILD SUCCEEDED, no warnings in touched files;
   App Group present on app + appex. Not run on a simulator by the implementer.
+- Coordinator run: full scene passed (13 phases, light + dark, iPhone 17 / iOS 27.2 / Xcode 27.2). Added
+  PHASE-14 deeplink-cold and PHASE-15 deeplink-warm; `--build-only` (27.2): TEST BUILD SUCCEEDED.
 - Next: coordinator reruns `bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh
   9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/ios-ui-01/round-02/iphone-17/keyboard`; check deep
   links (cold + warm) and Duo division regions after the scene migration.

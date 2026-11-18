@@ -245,3 +245,18 @@ ran. This follows Flutter 3.47.9's own template (`FlutterSceneDelegate` + `Flutt
 - To check on the simulator (tier B): Runner launches without the crash; `shinsoku://dictation` reaches Dart
   on a cold launch and while running; on Duo, division regions still arrive after launch and after
   fold/unfold; the scene's seed step now writes (app log `publish: … readBack=true`).
+
+## Deep link phases (after the first full pass: 13 phases, light + dark)
+- **PHASE-14 `deeplink-cold`:** Runner terminated → `XCUIDevice.shared.system.open(shinsoku://dictation)`
+  → accept SpringBoard's 'Open in "Shinsoku"?' if shown (Open / 打开) → Runner in front.
+- **PHASE-15 `deeplink-warm`:** Runner relaunched fresh and idle (asserts "Ready to record") → Home button
+  → Runner in the background → the same open → Runner in front.
+- **Pass condition for both:** a status from the record path appears ("Listening", "Provider settings
+  required", "Microphone access is off", "Recording failed", or the snackbar "…already recording").
+  `_startRecording` asks for the microphone first, so on the simulator without a provider it most likely
+  ends in "Provider settings required"; any of these shows the link reached Dart and started dictation. It
+  also checks for the Record label.
+- **Microphone alert:** accepted via SpringBoard or the app (Allow / 允许 / OK / 好, exact match, so "Don't
+  Allow" is never hit). It's logged, with no PHASE shot, so the numbering stays 14 and 15. The scene
+  terminates Runner at the end so no recording keeps running. SCENE log lines record the confirmation, the
+  permission alert and the final status.
