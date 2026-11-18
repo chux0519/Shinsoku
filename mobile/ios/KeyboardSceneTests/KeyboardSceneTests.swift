@@ -295,15 +295,18 @@ final class KeyboardSceneTests: XCTestCase {
 
     // MARK: Pasteboard
 
-    /// Same item shape as `AppDelegate.publishLatestText`.
+    /// Same item shape as `AppDelegate.publishLatestText`. Experiment: `SCENE_NO_LOCALONLY=1` (passed by the
+    /// script as `TEST_RUNNER_SCENE_NO_LOCALONLY`) writes without `.localOnly`.
     private func publishLatest(_ text: String) {
+        let noLocalOnly = ProcessInfo.processInfo.environment["SCENE_NO_LOCALONLY"] == "1"
+        print("SCENE writer localOnly=\(!noLocalOnly)")
         UIPasteboard.general.setItems(
             [[
                 UTType.utf8PlainText.identifier: text,
                 UTType.plainText.identifier: text,
                 Self.markerType: Data(),
             ]],
-            options: [.localOnly: true]
+            options: noLocalOnly ? [:] : [.localOnly: true]
         )
     }
 

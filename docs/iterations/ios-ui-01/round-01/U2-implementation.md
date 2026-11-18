@@ -160,3 +160,10 @@ Hypothesis (most likely first):
    the extra plain-text representation would fix it; the log would show source 1–4 succeeding.
 3. `.localOnly`: unlikely (it only affects Universal Clipboard); test by dropping it if 1 and 2 are ruled
    out.
+
+Diagnosis (coordinator run, light): fullAccess=true, types=[public.plain-text, public.utf8-plain-text,
+net.potafree.shinsoku.latest], numberOfItems=1, every read nil, items=[[:]]. The content is redacted: iOS 27
+paste privacy. To rule out `.localOnly`, run
+`SCENE_NO_LOCALONLY=1 bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh <UDID> <out>`.
+Only the test writer drops `.localOnly`; AppDelegate is unchanged. The test prints `SCENE writer localOnly=…`.
+App Group work waits for the user's decision.

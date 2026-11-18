@@ -16,6 +16,7 @@
 # tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
 # <look>-keyboard.log: the extension's os_log (subsystem net.potafree.shinsoku.keyboard, last 5 min).
+# Experiment: SCENE_NO_LOCALONLY=1 makes the test's pasteboard writer drop .localOnly (AppDelegate unchanged).
 # Signing: ad-hoc for the simulator by default (app, keyboard extension and test runner), so the extension
 # registers. Override with SCENE_SIGN_ARGS, e.g. SCENE_SIGN_ARGS='CODE_SIGNING_ALLOWED=NO'.
 # Install: xcodebuild test does not install the host app here, so the script installs the built Runner.app
@@ -29,6 +30,11 @@ DD="$ROOT/build/ios-keyboard-scene/DerivedData"
 DEFAULT_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER="
 read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-$DEFAULT_SIGN_ARGS}"
 KEYBOARD_ID=net.potafree.shinsoku.keyboard
+# xcodebuild passes TEST_RUNNER_<NAME> into the UI test runner as <NAME>.
+if [[ ${SCENE_NO_LOCALONLY:-} == 1 ]]; then
+  export TEST_RUNNER_SCENE_NO_LOCALONLY=1
+  echo "experiment: test writer without .localOnly"
+fi
 
 usage() {
   echo "usage: $0 <UDID> <out-dir under build/> | $0 --build-only" >&2
