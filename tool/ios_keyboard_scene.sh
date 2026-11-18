@@ -16,9 +16,10 @@
 # tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
 # <look>-keyboard.log: the extension's os_log (subsystem net.potafree.shinsoku.keyboard, last 5 min).
-# Experiment: SCENE_NO_LOCALONLY=1 makes the test's pasteboard writer drop .localOnly (AppDelegate unchanged).
 # Signing: ad-hoc for the simulator by default (app, keyboard extension and test runner), so the extension
 # registers. Override with SCENE_SIGN_ARGS, e.g. SCENE_SIGN_ARGS='CODE_SIGNING_ALLOWED=NO'.
+# App Group: app and extension must carry group.net.potafree.shinsoku (ad-hoc signing keeps
+# CODE_SIGN_ENTITLEMENTS); checked on the built and the installed bundles.
 # Install: xcodebuild test does not install the host app here, so the script installs the built Runner.app
 # (checked to contain PlugIns/ShinsokuKeyboard.appex) with simctl before the runs and prints the pluginkit
 # registration of net.potafree.shinsoku.keyboard.
@@ -30,11 +31,6 @@ DD="$ROOT/build/ios-keyboard-scene/DerivedData"
 DEFAULT_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER="
 read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-$DEFAULT_SIGN_ARGS}"
 KEYBOARD_ID=net.potafree.shinsoku.keyboard
-# xcodebuild passes TEST_RUNNER_<NAME> into the UI test runner as <NAME>.
-if [[ ${SCENE_NO_LOCALONLY:-} == 1 ]]; then
-  export TEST_RUNNER_SCENE_NO_LOCALONLY=1
-  echo "experiment: test writer without .localOnly"
-fi
 
 usage() {
   echo "usage: $0 <UDID> <out-dir under build/> | $0 --build-only" >&2
@@ -105,11 +101,59 @@ if [[ ! -d $APPEX ]]; then
   echo "missing $APPEX (Runner.app built without the keyboard extension)" >&2
   exit 1
 fi
-echo "== signatures"
-for bundle in "$APP" "$APPEX"; do
-  printf '  %s: ' "${bundle#"$DD/"}"
-  codesign -dv "$bundle" 2>&1 | grep -E "^Signature=|^Authority=" | head -1 || echo "unsigned"
-done
+# App Groups of a bundle. Simulator builds carry entitlements in the binary's __TEXT,__entitlements
+# section (Entitlements-Simulated.plist), not in the code signature; read that, else the signature.
+app_groups() {
+  local bin
+  bin="$1/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$1/Info.plist")"
+  python3 -I - "$bin" <<'PY'
+import plistlib, subprocess, sys
+binary = sys.argv[1]
+def from_section():
+    for arch in ("arm64", "x86_64"):
+        out = subprocess.run(["otool", "-arch", arch, "-X", "-s", "__TEXT", "__entitlements", binary],
+                             capture_output=True, text=True).stdout
+        hexbytes = []
+        for line in out.splitlines():
+            parts = line.split("\t", 1)
+            if len(parts) == 2:
+                hexbytes += parts[1].split()
+        if hexbytes:
+            return bytes(int(b, 16) for b in hexbytes)
+    return None
+def from_signature():
+    out = subprocess.run(["codesign", "-d", "--entitlements", "-", "--xml", binary], capture_output=True).stdout
+    return out or None
+for source, raw in (("simulated", from_section()), ("signature", from_signature())):
+    if not raw:
+        continue
+    try:
+        groups = plistlib.loads(raw.rstrip(b"\0")).get("com.apple.security.application-groups")
+    except Exception:
+        continue
+    if groups:
+        print(f"{', '.join(groups)} ({source})")
+        break
+PY
+}
+
+# Prints signature + App Group entitlement of the app and its keyboard extension; fails if a group is missing.
+check_signing() {
+  local app=$1 label=$2 bundle groups missing=0
+  echo "== signatures and App Group ($label)"
+  for bundle in "$app" "$app/PlugIns/ShinsokuKeyboard.appex"; do
+    printf '  %s: ' "$(basename "$bundle")"
+    codesign -dv "$bundle" 2>&1 | grep -E "^Signature=|^Authority=" | head -1 || echo "unsigned"
+    groups=$(app_groups "$bundle")
+    echo "    application-groups: ${groups:-none}"
+    [[ $groups == *group.net.potafree.shinsoku* ]] || missing=1
+  done
+  if [[ $missing -ne 0 ]]; then
+    echo "App Group entitlement missing ($label); the keyboard cannot read the latest text" >&2
+    exit 1
+  fi
+}
+check_signing "$APP" "built"
 [[ $BUILD_ONLY -eq 1 ]] && exit 0
 
 export_phases() {
@@ -139,6 +183,7 @@ PY
 
 echo "== install Runner.app on $UDID"
 xcrun simctl install "$UDID" "$APP"
+check_signing "$(xcrun simctl get_app_container "$UDID" net.potafree.shinsoku app)" "installed"
 echo "== keyboard extension registration"
 xcrun simctl spawn "$UDID" pluginkit -m -v -i "$KEYBOARD_ID" 2>&1 || echo "  (pluginkit query failed)"
 xcrun simctl listapps "$UDID" 2>/dev/null | grep -E "CFBundleIdentifier = \"?net\.potafree\.shinsoku" | sort -u || true

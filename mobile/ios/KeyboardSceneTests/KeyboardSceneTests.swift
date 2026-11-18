@@ -1,4 +1,3 @@
-import UniformTypeIdentifiers
 import XCTest
 
 /// Tier-B scene for the Shinsoku keyboard extension (docs/iterations/ios-ui-01, U2).
@@ -19,9 +18,7 @@ final class KeyboardSceneTests: XCTestCase {
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
     private static let keyboardName = "Shinsoku"
-    private static let markerType = "net.potafree.shinsoku.latest"
-    private static let latestText = "Shinsoku scene latest 42"
-    private static let plainText = "plain clipboard text"
+    private static let latestText = "Scene text 1"
     private static let pageHTML = "<meta name=viewport content='width=device-width'>"
         + "<textarea id=t aria-label='Scene field' style='width:95%;height:30vh;font-size:20px'></textarea>"
     private static let pageURLString = "data:text/html;charset=utf-8,"
@@ -84,27 +81,33 @@ final class KeyboardSceneTests: XCTestCase {
         shot("delete-hold")
         check(fieldValue().isEmpty, "delete-hold-field-empty", "Delete hold should clear the field: '\(fieldValue())'")
 
-        // 5. Full Access ON, Shinsoku text with the marker → Insert.
+        // 5. Full Access ON, App Group empty → "Ready", Insert says "Nothing yet".
         setFullAccess(true)
         shot("full-access-on")
-        publishLatest(Self.latestText)
+        launchRunner(["-ShinsokuSceneResetLatest", "YES"])
+        focusFieldWithShinsoku()
+        checkPasteBanner("no-latest")
+        require(statusText("Ready"), "status-ready", timeout: 5)
+        shot("no-latest")
+        tap(key("Insert latest text"), "insert-key-empty")
+        require(statusText("Nothing yet — tap Record"), "status-nothing-yet", timeout: 5)
+        shot("nothing-yet")
+
+        // 6. The app publishes through the real path (Debug launch argument) → Insert.
+        launchRunner(["-ShinsokuSceneSeedLatest", Self.latestText])
         focusFieldWithShinsoku()
         checkPasteBanner("latest-ready")
-        require(key("Insert latest text"), "insert-key-latest", timeout: 5)
-        require(statusText("Latest text ready"), "status-latest-ready", timeout: 3)
+        require(statusText("Latest text ready"), "status-latest-ready", timeout: 5)
         shot("latest-ready")
         tap(key("Insert latest text"), "insert-key")
-        checkPasteBanner("after-insert")
         require(statusText("Inserted"), "status-inserted", timeout: 5)
         shot("inserted")
         check(fieldValue().contains(Self.latestText), "field-contains-latest", "field: \(fieldValue())")
 
-        // 6. Plain text without the marker → Paste.
-        UIPasteboard.general.string = Self.plainText
-        focusFieldWithShinsoku()
-        checkPasteBanner("paste")
-        require(key("Paste"), "paste-key", timeout: 5)
-        shot("paste")
+        // 7. Nothing new: Insert re-inserts the latest.
+        tap(key("Insert latest text"), "insert-key-again")
+        require(statusText("Inserted again"), "status-inserted-again", timeout: 5)
+        shot("inserted-again")
 
         let summary = pasteBannerSeen.isEmpty ? "none" : pasteBannerSeen.joined(separator: ", ")
         print("SCENE paste-banner phases: \(summary)")
@@ -293,21 +296,14 @@ final class KeyboardSceneTests: XCTestCase {
         return "Return"
     }
 
-    // MARK: Pasteboard
+    // MARK: App and paste banner
 
-    /// Same item shape as `AppDelegate.publishLatestText`. Experiment: `SCENE_NO_LOCALONLY=1` (passed by the
-    /// script as `TEST_RUNNER_SCENE_NO_LOCALONLY`) writes without `.localOnly`.
-    private func publishLatest(_ text: String) {
-        let noLocalOnly = ProcessInfo.processInfo.environment["SCENE_NO_LOCALONLY"] == "1"
-        print("SCENE writer localOnly=\(!noLocalOnly)")
-        UIPasteboard.general.setItems(
-            [[
-                UTType.utf8PlainText.identifier: text,
-                UTType.plainText.identifier: text,
-                Self.markerType: Data(),
-            ]],
-            options: noLocalOnly ? [:] : [.localOnly: true]
-        )
+    /// Launches Shinsoku (Debug build) with scene launch arguments handled in `AppDelegate`.
+    private func launchRunner(_ arguments: [String]) {
+        let app = XCUIApplication()
+        app.launchArguments = arguments
+        app.launch()
+        check(app.wait(for: .runningForeground, timeout: 20), "runner-launch", "Shinsoku did not launch")
     }
 
     /// Records (screenshot + log) any paste prompt or "pasted from" banner; does not fail the scene.

@@ -1,7 +1,6 @@
 import OSLog
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 
 /// Shinsoku keyboard (DESIGN.md §6): status row, main row (Insert latest · Record · Delete), edit row
 /// (Space · Return). No title row, no scrolling, no settings.
@@ -10,9 +9,9 @@ final class KeyboardViewController: UIInputViewController {
         case ready
         case latestReady
         case noLatest
-        case clipboardBlocked
         case needsFullAccess
         case inserted
+        case insertedAgain
         case opening
         case openFailed
 
@@ -21,8 +20,7 @@ final class KeyboardViewController: UIInputViewController {
             case .ready, .noLatest: return "mic"
             case .latestReady: return "text.badge.checkmark"
             case .needsFullAccess, .openFailed: return "exclamationmark.triangle"
-            case .clipboardBlocked: return "lock"
-            case .inserted: return "checkmark.circle"
+            case .inserted, .insertedAgain: return "checkmark.circle"
             case .opening: return "arrow.up.forward.app"
             }
         }
@@ -31,10 +29,10 @@ final class KeyboardViewController: UIInputViewController {
             switch self {
             case .ready: return "Ready"
             case .latestReady: return "Latest text ready"
-            case .noLatest: return "Nothing to paste — tap Record"
-            case .clipboardBlocked: return "Clipboard locked — long-press the field, Paste"
+            case .noLatest: return "Nothing yet — tap Record"
             case .needsFullAccess: return "Turn on Full Access to insert"
             case .inserted: return "Inserted"
+            case .insertedAgain: return "Inserted again"
             case .opening: return "Opening Shinsoku…"
             case .openFailed: return "Open Shinsoku from the Home Screen"
             }
@@ -42,8 +40,8 @@ final class KeyboardViewController: UIInputViewController {
 
         var tint: UIColor {
             switch self {
-            case .needsFullAccess, .openFailed, .clipboardBlocked: return KeyboardTheme.warning
-            case .inserted: return KeyboardTheme.success
+            case .needsFullAccess, .openFailed: return KeyboardTheme.warning
+            case .inserted, .insertedAgain: return KeyboardTheme.success
             default: return KeyboardTheme.textSecondary
             }
         }
@@ -59,7 +57,7 @@ final class KeyboardViewController: UIInputViewController {
     private let returnKey = KeyboardKey(style: .raised, symbol: nil, title: "return")
 
     private var heightConstraint: NSLayoutConstraint?
-    private var hasLatestMarker = false
+    private var latest = LatestTextStore.State.none
 
     private let deleteRepeater = KeyRepeater()
     private let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -205,41 +203,25 @@ final class KeyboardViewController: UIInputViewController {
     private func refreshState() {
         updateReturnKey()
         guard hasFullAccess else {
-            hasLatestMarker = false
+            latest = .none
             updateInsertKey()
             setStatus(.needsFullAccess, announce: false)
             return
         }
-        checkLatestMarker()
+        latest = LatestTextStore.state()
         updateInsertKey()
-        setStatus(hasLatestMarker ? .latestReady : .ready, announce: false)
+        setStatus(latest == .new ? .latestReady : .ready, announce: false)
     }
 
-    /// Pasteboard type the app adds next to the text it publishes (see `AppDelegate.publishLatestText`).
-    private static let latestMarkerType = "net.potafree.shinsoku.latest"
-
-    /// Metadata check only: never reads the clipboard content (no paste banner, nothing displayed).
-    private func checkLatestMarker() {
-        hasLatestMarker = UIPasteboard.general.contains(pasteboardTypes: [Self.latestMarkerType])
-    }
-
+    /// Never shows the text itself: not on screen, not in accessibility values.
     private func updateInsertKey() {
-        insertKey.isDimmed = !hasFullAccess
-        if !hasFullAccess {
-            insertKey.setTitle("Insert")
-            insertKey.setSymbol("text.insert")
-            insertKey.accessibilityLabel = "Insert latest text"
-            insertKey.accessibilityValue = "Needs Full Access"
-        } else if hasLatestMarker {
-            insertKey.setTitle("Insert")
-            insertKey.setSymbol("text.insert")
-            insertKey.accessibilityLabel = "Insert latest text"
-            insertKey.accessibilityValue = "Shinsoku text"
-        } else {
-            insertKey.setTitle("Paste")
-            insertKey.setSymbol("doc.on.clipboard")
-            insertKey.accessibilityLabel = "Paste"
-            insertKey.accessibilityValue = nil
+        insertKey.isDimmed = !hasFullAccess || latest == .none
+        insertKey.accessibilityLabel = "Insert latest text"
+        switch (hasFullAccess, latest) {
+        case (false, _): insertKey.accessibilityValue = "Needs Full Access"
+        case (true, .new): insertKey.accessibilityValue = "New Shinsoku text"
+        case (true, .inserted): insertKey.accessibilityValue = "Already inserted"
+        case (true, .none): insertKey.accessibilityValue = "Nothing yet"
         }
     }
 
@@ -277,20 +259,20 @@ final class KeyboardViewController: UIInputViewController {
             setStatus(.needsFullAccess)
             return
         }
-        // The only place the clipboard content is read: an explicit tap on Insert / Paste.
-        let pasteboard = UIPasteboard.general
-        let text = ClipboardReader.readText(from: pasteboard, hasFullAccess: hasFullAccess)
-        guard let text, !text.isEmpty else {
-            checkLatestMarker()
+        guard let entry = LatestTextStore.latest() else {
+            latest = .none
             updateInsertKey()
-            // Types are visible but no content came back: the system withheld it (paste privacy), so say how
-            // to paste instead of claiming the clipboard is empty.
-            setStatus(pasteboard.hasStrings || hasLatestMarker ? .clipboardBlocked : .noLatest)
+            setStatus(.noLatest)
             return
         }
+        let again = entry.id == LatestTextStore.lastInsertedId()
+        let text = entry.text
         textDocumentProxy.insertText(text)
+        LatestTextStore.markInserted(entry.id)
+        latest = .inserted
+        updateInsertKey()
         insertFeedback.notificationOccurred(.success)
-        setStatus(.inserted)
+        setStatus(again ? .insertedAgain : .inserted)
     }
 
     @objc private func insertSpace() {
@@ -393,56 +375,55 @@ final class KeyRepeater {
     }
 }
 
-/// Reads text from the pasteboard (only on an explicit Insert/Paste tap) and logs what the extension can see.
-/// Logs never contain clipboard content: only types, counts, lengths and nil/non-nil.
-enum ClipboardReader {
-    static let log = Logger(subsystem: "net.potafree.shinsoku.keyboard", category: "clipboard")
-
-    static func readText(from pasteboard: UIPasteboard, hasFullAccess: Bool) -> String? {
-        let utf8 = UTType.utf8PlainText.identifier
-        let plain = UTType.plainText.identifier
-        let types = pasteboard.types
-        let string = pasteboard.string
-        let utf8Value = pasteboard.value(forPasteboardType: utf8)
-        let plainValue = pasteboard.value(forPasteboardType: plain)
-        let utf8Data = pasteboard.data(forPasteboardType: utf8)
-        let items = pasteboard.items
-        log.notice("""
-            insert tap: fullAccess=\(hasFullAccess) changeCount=\(pasteboard.changeCount) \
-            hasStrings=\(pasteboard.hasStrings) types=\(types, privacy: .public) \
-            numberOfItems=\(pasteboard.numberOfItems) string=\(describe(string), privacy: .public) \
-            value(utf8)=\(describe(utf8Value), privacy: .public) value(plain)=\(describe(plainValue), privacy: .public) \
-            data(utf8)=\(utf8Data.map { "\($0.count) bytes" } ?? "nil", privacy: .public) \
-            items=\(items.map { $0.mapValues { describe($0) } }.description, privacy: .public)
-            """)
-
-        let candidates: [String?] = [
-            string,
-            utf8Value as? String,
-            plainValue as? String,
-            utf8Data.flatMap { String(data: $0, encoding: .utf8) },
-            items.lazy.compactMap { item in
-                (item[utf8] ?? item[plain]).flatMap { value in
-                    (value as? String) ?? (value as? Data).flatMap { String(data: $0, encoding: .utf8) }
-                }
-            }.first,
-        ]
-        for (index, candidate) in candidates.enumerated() {
-            if let text = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-                log.notice("insert tap: text from source \(index) (\(text.count) chars)")
-                return text
-            }
-        }
-        log.notice("insert tap: no readable text")
-        return nil
+/// Latest text handed over by the app through the App Group (written by `AppDelegate.publishLatestText`).
+/// Readable only with Full Access. The clipboard is never read: iOS paste privacy redacts it in extensions.
+enum LatestTextStore {
+    enum State {
+        case none
+        case new
+        case inserted
     }
 
-    private static func describe(_ value: Any?) -> String {
-        switch value {
-        case nil: return "nil"
-        case let text as String: return "String(\(text.count) chars)"
-        case let data as Data: return "Data(\(data.count) bytes)"
-        case let some?: return String(describing: type(of: some))
+    struct Entry {
+        let text: String
+        let id: String
+    }
+
+    static let appGroup = "group.net.potafree.shinsoku"
+    private static let log = Logger(subsystem: "net.potafree.shinsoku.keyboard", category: "latest")
+
+    private static var shared: UserDefaults? {
+        UserDefaults(suiteName: appGroup)
+    }
+
+    static func latest() -> Entry? {
+        guard
+            let shared,
+            let text = shared.string(forKey: "latestText"),
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            let id = shared.string(forKey: "latestId")
+        else {
+            return nil
         }
+        return Entry(text: text, id: id)
+    }
+
+    static func lastInsertedId() -> String? {
+        shared?.string(forKey: "lastInsertedId")
+    }
+
+    static func markInserted(_ id: String) {
+        shared?.set(id, forKey: "lastInsertedId")
+    }
+
+    static func state() -> State {
+        let entry = latest()
+        let state: State = entry == nil ? .none : (entry?.id == lastInsertedId() ? .inserted : .new)
+        // Booleans only; never the text.
+        log.notice("""
+            state: groupAvailable=\(shared != nil) hasLatest=\(entry != nil) \
+            isNew=\(state == .new)
+            """)
+        return state
     }
 }

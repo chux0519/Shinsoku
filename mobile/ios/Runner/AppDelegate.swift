@@ -1,6 +1,5 @@
 import Flutter
 import UIKit
-import UniformTypeIdentifiers
 
 // iPhone Duo division regions (the fold), bridged to Dart as
 // `net.potafree.shinsoku/division_regions` (mobile/lib/platform/division_regions.dart).
@@ -105,6 +104,36 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
   private let divisionRegionStream = DivisionRegionStream()
   private var pendingDeepLink: String?
 
+  /// Shared with the keyboard extension (both targets carry this App Group).
+  static let appGroup = "group.net.potafree.shinsoku"
+
+  /// Hands the latest text to the keyboard through the App Group and puts it on the clipboard for the
+  /// user's own pasting. The keyboard never reads the clipboard (iOS paste privacy redacts it there).
+  static func publishLatestText(_ text: String) {
+    if let shared = UserDefaults(suiteName: appGroup) {
+      shared.set(text, forKey: "latestText")
+      shared.set(UUID().uuidString, forKey: "latestId")
+      shared.set(Date(), forKey: "latestAt")
+    }
+    UIPasteboard.general.setItems([["public.utf8-plain-text": text]], options: [.localOnly: true])
+  }
+
+#if DEBUG
+  /// Scene-test hooks (Debug builds only): `-ShinsokuSceneResetLatest YES` clears the shared latest text,
+  /// `-ShinsokuSceneSeedLatest <text>` publishes <text> through the same path as the method channel.
+  private static func applySceneLaunchArguments() {
+    let arguments = UserDefaults.standard
+    if arguments.bool(forKey: "ShinsokuSceneResetLatest"), let shared = UserDefaults(suiteName: appGroup) {
+      for key in ["latestText", "latestId", "latestAt", "lastInsertedId"] {
+        shared.removeObject(forKey: key)
+      }
+    }
+    if let seed = arguments.string(forKey: "ShinsokuSceneSeedLatest"), !seed.isEmpty {
+      publishLatestText(seed)
+    }
+  }
+#endif
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -112,6 +141,10 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
     if let launchURL = launchOptions?[.url] as? URL, launchURL.scheme == "shinsoku" {
       pendingDeepLink = launchURL.absoluteString
     }
+
+#if DEBUG
+    Self.applySceneLaunchArguments()
+#endif
 
     GeneratedPluginRegistrant.register(with: self)
 
@@ -136,16 +169,7 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
             return
           }
 
-          // The marker type lets the keyboard see "Shinsoku text is ready" without reading the content.
-          UIPasteboard.general.setItems(
-            [[
-              UTType.utf8PlainText.identifier: text,
-              UTType.plainText.identifier: text,
-              "net.potafree.shinsoku.latest": Data(),
-            ]],
-            // Local only (no Universal Clipboard); no expiry, so the text stays pasteable as before.
-            options: [.localOnly: true]
-          )
+          AppDelegate.publishLatestText(text)
           result(nil)
         default:
           result(FlutterMethodNotImplemented)
