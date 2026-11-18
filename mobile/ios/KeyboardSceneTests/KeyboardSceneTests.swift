@@ -7,6 +7,10 @@ import XCTest
 /// Every step attaches a screenshot named `PHASE-xx-<name>`; the script exports them as PNGs.
 /// The scene is idempotent: the keyboard may already be added and Full Access may already be on.
 ///
+/// Language: the shared simulators run in Chinese and must not be changed. Settings and Safari are launched with
+/// `-AppleLanguages (en) -AppleLocale en_US`; every system label is still matched in English and Chinese in case
+/// an app ignores that. On a failed wait the scene attaches `FAIL-<step>` before asserting.
+///
 /// Text field host: a Safari `data:` page with a textarea. The app has no free text field that is reachable
 /// without recording a draft or editing persisted provider settings.
 final class KeyboardSceneTests: XCTestCase {
@@ -23,22 +27,43 @@ final class KeyboardSceneTests: XCTestCase {
     private static let pageURLString = "data:text/html;charset=utf-8,"
         + pageHTML.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
 
+    /// System labels, English first then Chinese (zh-Hans).
+    private enum L {
+        static let general = ["General", "通用"]
+        static let keyboard = ["Keyboard", "键盘"]
+        static let keyboards = ["Keyboards", "键盘"]
+        static let addNewKeyboard = ["Add New Keyboard", "添加新键盘"]
+        static let allowFullAccess = ["Allow Full Access", "允许完全访问"]
+        static let allow = ["Allow", "允许"]
+        static let deny = ["Don", "不允许"]
+        static let nextKeyboard = ["Next keyboard", "下一个键盘", "切换键盘"]
+        static let address = ["Address", "地址"]
+        static let pastePrompt = ["Allow Paste", "pasted from", "允许粘贴", "粘贴自", "已粘贴"]
+    }
+
+    private static let englishArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+
     private var phase = 0
     private var pasteBannerSeen: [String] = []
 
     override func setUp() {
         continueAfterFailure = false
+        settings.launchArguments = Self.englishArguments
+        safari.launchArguments = Self.englishArguments
+        // Relaunch both so the English launch arguments apply.
+        settings.terminate()
+        safari.terminate()
     }
 
     func testKeyboardScene() throws {
         // 1. Add the keyboard (skipped when it is already in the list).
         openKeyboardsList()
         if !keyboardCell().exists {
-            tap(settings.descendants(matching: .any).matching(labelBeginsWith: "Add New Keyboard").firstMatch,
-                "Add New Keyboard…")
-            tap(settings.cells.matching(labelBeginsWith: Self.keyboardName).firstMatch, "Shinsoku in Add list")
+            tap(settings.descendants(matching: .any).matching(labelBeginsWith: L.addNewKeyboard).firstMatch,
+                "add-new-keyboard")
+            tap(settings.cells.matching(labelBeginsWith: [Self.keyboardName]).firstMatch, "shinsoku-in-add-list")
         }
-        XCTAssertTrue(keyboardCell().waitForExistence(timeout: 10), "Shinsoku not in Keyboards list")
+        require(keyboardCell(), "shinsoku-in-keyboards-list")
         shot("keyboard-added")
 
         // 2. Full Access OFF.
@@ -47,18 +72,18 @@ final class KeyboardSceneTests: XCTestCase {
 
         // 3. Field + Shinsoku keyboard, no Full Access.
         focusFieldWithShinsoku()
-        XCTAssertTrue(key("Insert latest text").exists)
+        require(key("Insert latest text"), "insert-key-no-full-access", timeout: 3)
         checkPasteBanner("no-full-access")
         shot("no-full-access")
 
         // 4. Edit keys: Return, Space, Delete tap, 2 s Delete hold.
-        tap(key(returnLabel()), "Return")
-        tap(key("Space"), "Space")
-        tap(key("Delete"), "Delete")
+        tap(key(returnLabel()), "return-key")
+        tap(key("Space"), "space-key")
+        tap(key("Delete"), "delete-key")
         shot("edit-keys")
         key("Delete").press(forDuration: 2.0)
         shot("delete-hold")
-        XCTAssertEqual(fieldValue(), "", "Delete hold should clear the field")
+        check(fieldValue().isEmpty, "delete-hold-field-empty", "Delete hold should clear the field: '\(fieldValue())'")
 
         // 5. Full Access ON, Shinsoku text with the marker → Insert.
         setFullAccess(true)
@@ -66,20 +91,20 @@ final class KeyboardSceneTests: XCTestCase {
         publishLatest(Self.latestText)
         focusFieldWithShinsoku()
         checkPasteBanner("latest-ready")
-        XCTAssertTrue(key("Insert latest text").waitForExistence(timeout: 5), "Insert key not labelled for latest")
-        XCTAssertTrue(statusText("Latest text ready").exists, "status should say Latest text ready")
+        require(key("Insert latest text"), "insert-key-latest", timeout: 5)
+        require(statusText("Latest text ready"), "status-latest-ready", timeout: 3)
         shot("latest-ready")
-        tap(key("Insert latest text"), "Insert")
+        tap(key("Insert latest text"), "insert-key")
         checkPasteBanner("after-insert")
-        XCTAssertTrue(statusText("Inserted").waitForExistence(timeout: 5))
+        require(statusText("Inserted"), "status-inserted", timeout: 5)
         shot("inserted")
-        XCTAssertTrue(fieldValue().contains(Self.latestText), "field: \(fieldValue())")
+        check(fieldValue().contains(Self.latestText), "field-contains-latest", "field: \(fieldValue())")
 
         // 6. Plain text without the marker → Paste.
         UIPasteboard.general.string = Self.plainText
         focusFieldWithShinsoku()
         checkPasteBanner("paste")
-        XCTAssertTrue(key("Paste").waitForExistence(timeout: 5), "Insert key should read Paste without marker")
+        require(key("Paste"), "paste-key", timeout: 5)
         shot("paste")
 
         let summary = pasteBannerSeen.isEmpty ? "none" : pasteBannerSeen.joined(separator: ", ")
@@ -93,60 +118,62 @@ final class KeyboardSceneTests: XCTestCase {
         settings.terminate()
         settings.launch()
         // Settings may restore a deeper page: walk back to the root.
-        for _ in 0..<8 where !settings.cells.matching(labelBeginsWith: "General").firstMatch.isHittable {
+        _ = settings.cells.firstMatch.waitForExistence(timeout: 10)
+        for _ in 0..<8 where !settings.cells.matching(labelBeginsWith: L.general).firstMatch.isHittable {
             let back = settings.navigationBars.buttons.element(boundBy: 0)
             guard back.exists else { break }
             back.tap()
         }
-        tapCell("General")
-        tapCell("Keyboard")
-        tapCell("Keyboards")
+        tapCell(L.general, "settings-general")
+        tapCell(L.keyboard, "settings-keyboard")
+        tapCell(L.keyboards, "settings-keyboards")
     }
 
     private func keyboardCell() -> XCUIElement {
-        settings.cells.matching(labelBeginsWith: Self.keyboardName).firstMatch
+        settings.cells.matching(labelBeginsWith: [Self.keyboardName]).firstMatch
     }
 
     private func setFullAccess(_ on: Bool) {
         settings.activate()
-        if !settings.switches.matching(labelBeginsWith: "Allow Full Access").firstMatch.exists {
+        if !settings.switches.matching(labelBeginsWith: L.allowFullAccess).firstMatch.exists {
             openKeyboardsList()
-            tap(keyboardCell(), "Shinsoku in Keyboards list")
+            tap(keyboardCell(), "shinsoku-in-keyboards-list")
         }
-        let toggle = settings.switches.matching(labelBeginsWith: "Allow Full Access").firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Allow Full Access switch missing")
+        let toggle = settings.switches.matching(labelBeginsWith: L.allowFullAccess).firstMatch
+        require(toggle, "allow-full-access-switch")
+        let allow = settings.alerts.buttons.matching(labelEquals: L.allow).firstMatch
         if isOn(toggle) != on {
             toggle.tap()
-            if on {
-                let allow = settings.alerts.buttons["Allow"]
-                if allow.waitForExistence(timeout: 5) {
-                    allow.tap()
-                }
+            if on, allow.waitForExistence(timeout: 5) {
+                allow.tap()
             }
             if isOn(toggle) != on {
                 // Some iOS versions only toggle when the switch itself (right edge) is tapped.
                 toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
-                if on, settings.alerts.buttons["Allow"].waitForExistence(timeout: 5) {
-                    settings.alerts.buttons["Allow"].tap()
+                if on, allow.waitForExistence(timeout: 5) {
+                    allow.tap()
                 }
             }
         }
-        XCTAssertEqual(isOn(toggle), on, "Allow Full Access should be \(on)")
+        check(isOn(toggle) == on, "full-access-\(on ? "on" : "off")", "Allow Full Access should be \(on)")
     }
 
     private func isOn(_ toggle: XCUIElement) -> Bool {
         (toggle.value as? String) == "1"
     }
 
-    private func tapCell(_ label: String) {
-        let cell = settings.cells.matching(labelBeginsWith: label).firstMatch
-        tap(cell, label)
+    private func tapCell(_ labels: [String], _ step: String) {
+        tap(settings.cells.matching(labelBeginsWith: labels).firstMatch, step)
     }
 
     // MARK: Field and keyboard
 
     private func focusFieldWithShinsoku() {
-        safari.activate()
+        if safari.state == .notRunning {
+            safari.launch()
+        } else {
+            safari.activate()
+        }
         if !field().waitForExistence(timeout: 2) {
             safari.open(URL(string: Self.pageURLString)!)
         }
@@ -154,7 +181,7 @@ final class KeyboardSceneTests: XCTestCase {
             loadPageThroughAddressBar()
         }
         let area = field()
-        XCTAssertTrue(area.waitForExistence(timeout: 15), "textarea did not load in Safari")
+        require(area, "safari-textarea", timeout: 15)
         area.tap()
         // Cycle input modes until the Shinsoku keyboard (its Record key) is up.
         for _ in 0..<6 {
@@ -166,27 +193,27 @@ final class KeyboardSceneTests: XCTestCase {
                 area.tap()
             }
         }
-        XCTAssertTrue(key("Record").exists, "Shinsoku keyboard did not appear")
+        require(key("Record"), "shinsoku-keyboard", timeout: 2)
     }
 
     /// Fallback when Safari ignores an externally opened data: URL: type it into the address bar
     /// (needs the system keyboard, so switch away from Shinsoku first).
     private func loadPageThroughAddressBar() {
         let address = safari.descendants(matching: .any).matching(NSPredicate(
-            format: "identifier IN {'TabBarItemTitle', 'URL', 'Address'} OR label ==[c] 'Address'"
+            format: "identifier IN {'TabBarItemTitle', 'URL', 'Address'} OR label IN %@", L.address
         )).firstMatch
-        tap(address, "Safari address bar")
+        tap(address, "safari-address-bar")
         for _ in 0..<6 where key("Record").waitForExistence(timeout: 1) {
             globeButton().tap()
         }
         let input = safari.textFields.firstMatch
-        XCTAssertTrue(input.waitForExistence(timeout: 5), "Safari address field missing")
+        require(input, "safari-address-field", timeout: 5)
         input.typeText(Self.pageURLString + "\n")
     }
 
     private func globeButton() -> XCUIElement {
         safari.buttons.matching(
-            NSPredicate(format: "label ==[c] 'Next keyboard' OR identifier ==[c] 'Next keyboard'")
+            NSPredicate(format: "label IN[c] %@ OR identifier IN[c] %@", L.nextKeyboard, L.nextKeyboard)
         ).firstMatch
     }
 
@@ -225,7 +252,9 @@ final class KeyboardSceneTests: XCTestCase {
 
     /// Records (screenshot + log) any paste prompt or "pasted from" banner; does not fail the scene.
     private func checkPasteBanner(_ where_: String) {
-        let prompt = NSPredicate(format: "label CONTAINS[c] 'Allow Paste' OR label CONTAINS[c] 'pasted from'")
+        let prompt = NSCompoundPredicate(orPredicateWithSubpredicates: L.pastePrompt.map {
+            NSPredicate(format: "label CONTAINS[c] %@", $0)
+        })
         let candidates = [
             safari.alerts.firstMatch,
             springboard.alerts.firstMatch,
@@ -241,21 +270,42 @@ final class KeyboardSceneTests: XCTestCase {
         print("SCENE paste-banner \(where_): \(hit.label)")
         pasteBannerSeen.append(where_)
         shot("paste-banner-\(where_)")
-        let deny = safari.alerts.buttons.matching(labelBeginsWith: "Don").firstMatch
+        let deny = safari.alerts.buttons.matching(labelBeginsWith: L.deny).firstMatch
         if deny.exists { deny.tap() }
     }
 
     // MARK: Helpers
 
     /// Waits for the element; in Settings, scrolls until it is hittable.
-    private func tap(_ element: XCUIElement, _ name: String, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(element.waitForExistence(timeout: 10), "\(name) not found", file: file, line: line)
+    private func tap(_ element: XCUIElement, _ step: String, file: StaticString = #filePath, line: UInt = #line) {
+        require(element, step, file: file, line: line)
         var swipes = 0
         while !element.isHittable, settings.state == .runningForeground, swipes < 6 {
             settings.swipeUp()
             swipes += 1
         }
         element.tap()
+    }
+
+    /// Waits for the element; on timeout attaches `FAIL-<step>` and fails (the scene stops).
+    private func require(
+        _ element: XCUIElement, _ step: String, timeout: TimeInterval = 10,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        check(element.waitForExistence(timeout: timeout), step, "\(step): element not found", file: file, line: line)
+    }
+
+    private func check(
+        _ condition: Bool, _ step: String, _ message: String,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        guard !condition else { return }
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "FAIL-\(step)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        print("SCENE FAIL \(step): \(message)")
+        XCTFail(message, file: file, line: line)
     }
 
     private func shot(_ name: String) {
@@ -269,7 +319,13 @@ final class KeyboardSceneTests: XCTestCase {
 }
 
 private extension XCUIElementQuery {
-    func matching(labelBeginsWith prefix: String) -> XCUIElementQuery {
-        matching(NSPredicate(format: "label BEGINSWITH %@", prefix))
+    func matching(labelBeginsWith prefixes: [String]) -> XCUIElementQuery {
+        matching(NSCompoundPredicate(orPredicateWithSubpredicates: prefixes.map {
+            NSPredicate(format: "label BEGINSWITH %@", $0)
+        }))
+    }
+
+    func matching(labelEquals labels: [String]) -> XCUIElementQuery {
+        matching(NSPredicate(format: "label IN %@", labels))
     }
 }

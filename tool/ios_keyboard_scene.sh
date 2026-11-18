@@ -5,8 +5,14 @@
 #   tool/ios_keyboard_scene.sh <UDID> <out-dir under build/>   # build, run light + dark, export PHASE PNGs
 #   tool/ios_keyboard_scene.sh --build-only                     # build-for-testing, generic simulator
 #
+# Xcode: the default Xcode 26.0.1 cannot drive iOS 27 simulators (the test runner hangs; DTServiceHub bless
+# failure). For the shared iOS 27.x simulators run the script under Xcode 27.2, for this command only:
+#   bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh <UDID> <out-dir>
+# The shared simulators run in Chinese; the scene launches Settings/Safari in English and also matches Chinese
+# labels. Never change the simulator's language.
+#
 # Run from a shell where `proxy_on; nvm use --lts` was done (flutter may fetch packages).
-# Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png, <look>.xcresult, <look>.log, <look>-scene.txt
+# Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
 # Signing: CODE_SIGNING_ALLOWED=NO by default; if the simulator refuses the unsigned extension or test runner,
 # rerun with SCENE_SIGN_ARGS='CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=' (ad-hoc).
@@ -96,7 +102,7 @@ for test in manifest:
     if isinstance(attachments, dict):
         attachments = [attachments]
     for a in attachments:
-        m = re.match(r"(PHASE-\d+-[A-Za-z0-9-]+)", a.get("suggestedHumanReadableName", ""))
+        m = re.match(r"((?:PHASE-\d+|FAIL)-[A-Za-z0-9-]+)", a.get("suggestedHumanReadableName", ""))
         if m:
             shutil.copyfile(os.path.join(src, a["exportedFileName"]), os.path.join(dst, m.group(1) + ".png"))
             count += 1

@@ -80,7 +80,17 @@ Runner, iOS 16.4+, IDs `8A6D1220…122D`, testable in `Runner.xcscheme`, not par
 **Command (coordinator, simulator already booted, in a shell after `proxy_on; nvm use --lts`):**
 
     xcrun simctl list devices booted     # make sure no other project's simulator is up
-    tool/ios_keyboard_scene.sh 9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/ios-ui-01/round-02/iphone-17/keyboard
+    bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh \
+      9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/ios-ui-01/round-02/iphone-17/keyboard
+
+Xcode 27.2 is required for the iOS 27 simulators: the default Xcode 26.0.1 can't drive them (the test runner
+hangs, DTServiceHub bless failure). `with-xcode.sh` selects it for that one command only.
+
+Language: the shared simulators run in Chinese, and their language must not be changed. The scene launches
+Settings and Safari with `-AppleLanguages (en) -AppleLocale en_US`, and still matches every system label in
+English and Chinese (通用 / 键盘 / 键盘 / 添加新键盘… / 允许完全访问 / 允许, globe 下一个键盘). Our own key labels are
+always English. Every wait goes through `require`/`check`: on failure it attaches `FAIL-<step>` (exported
+as `FAIL-<step>.png` next to the PHASE shots) and logs `SCENE FAIL <step>` before failing.
 
 The script never boots or shuts down a simulator. It runs `flutter build ios --simulator --debug --config-only`
 and `xcodebuild build-for-testing` (`CODE_SIGNING_ALLOWED=NO`, `nice -n 10`, DerivedData in
