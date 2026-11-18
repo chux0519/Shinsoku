@@ -25,6 +25,7 @@ class ShellScaffold extends StatefulWidget {
     required this.onTabSelected,
     required this.pages,
     this.secondaryIndex = 1,
+    this.holdRecord = false,
     super.key,
   }) : assert(pages.length == 4),
        assert(secondaryIndex >= 1 && secondaryIndex < 4);
@@ -37,6 +38,11 @@ class ShellScaffold extends StatefulWidget {
 
   /// Called with a page index from the tab bar or the pane switcher.
   final ValueChanged<int> onTabSelected;
+
+  /// While true (a capture is running), a regular → compact switch shows
+  /// Record, so Stop is in reach after folding (invariant D2). The shell
+  /// shows it at once and reports `onTabSelected(0)` after the frame.
+  final bool holdRecord;
 
   /// Record, Drafts, Desktop, Settings — in [tabs] order.
   final List<Widget> pages;
@@ -169,6 +175,12 @@ class _ShellScaffoldState extends State<ShellScaffold> {
   // rebuilt from scratch (scroll positions, Nearby connection, form fields).
   final _pageKeys = List.generate(4, (i) => GlobalKey(debugLabel: 'page $i'));
 
+  bool _wasRegular = false;
+
+  /// Record is shown in compact although [ShellScaffold.tabIndex] is not 0
+  /// yet (D2 fold, until the parent catches up or the user picks a tab).
+  bool _showRecord = false;
+
   Widget _page(int i, {required bool visible}) => KeyedSubtree(
     key: _pageKeys[i],
     // Hidden pages keep their state but not their animations.
@@ -183,25 +195,40 @@ class _ShellScaffoldState extends State<ShellScaffold> {
           constraints.biggest,
           MediaQuery.displayFeaturesOf(context),
         );
-        return split == null ? _compact() : _regular(context, split);
+        final regular = split != null;
+        if (_wasRegular &&
+            !regular &&
+            widget.holdRecord &&
+            widget.tabIndex != 0) {
+          _showRecord = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _showRecord) widget.onTabSelected(0);
+          });
+        }
+        if (widget.tabIndex == 0) _showRecord = false;
+        _wasRegular = regular;
+        return split == null
+            ? _compact(_showRecord ? 0 : widget.tabIndex)
+            : _regular(context, split);
       },
     );
   }
 
-  Widget _compact() {
+  Widget _compact(int index) {
     return Scaffold(
       body: SafeArea(
         child: IndexedStack(
-          index: widget.tabIndex,
-          children: [
-            for (var i = 0; i < 4; i++) _page(i, visible: i == widget.tabIndex),
-          ],
+          index: index,
+          children: [for (var i = 0; i < 4; i++) _page(i, visible: i == index)],
         ),
       ),
       bottomNavigationBar: SkTabBar(
         items: ShellScaffold.tabs,
-        selectedIndex: widget.tabIndex,
-        onSelected: widget.onTabSelected,
+        selectedIndex: index,
+        onSelected: (i) {
+          _showRecord = false;
+          widget.onTabSelected(i);
+        },
       ),
     );
   }

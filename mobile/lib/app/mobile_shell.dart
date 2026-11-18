@@ -21,15 +21,32 @@ import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
+/// Stands in for the recorder and provider pipeline in widget tests, so
+/// capture state can be driven without plugins or network.
+@visibleForTesting
+abstract interface class DebugCapture {
+  Future<void> start();
+
+  /// Returns the transcript.
+  Future<String> stop();
+}
+
+/// Owns everything that must survive a layout switch (DESIGN §6, invariant
+/// D1): capture state, the recorder, the current transcript and status,
+/// drafts and the selected pages. [ShellScaffold] below only arranges pages.
 class MobileShell extends StatefulWidget {
   const MobileShell({
     this.initialDrafts = const [],
     this.initialTabIndex = 0,
+    this.debugCapture,
     super.key,
   });
 
   final List<DraftEntry> initialDrafts;
   final int initialTabIndex;
+
+  @visibleForTesting
+  final DebugCapture? debugCapture;
 
   @override
   State<MobileShell> createState() => _MobileShellState();
@@ -224,12 +241,44 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   Future<void> _toggleCapture() async {
+    final debug = widget.debugCapture;
+    if (debug != null) {
+      await _toggleDebugCapture(debug);
+      return;
+    }
     if (_captureState == CaptureState.idle) {
       await _startRecording();
       return;
     }
 
     await _stopRecordingAndTranscribe();
+  }
+
+  Future<void> _toggleDebugCapture(DebugCapture debug) async {
+    switch (_captureState) {
+      case CaptureState.idle:
+        await debug.start();
+        if (!mounted) return;
+        setState(() {
+          _captureState = CaptureState.listening;
+          _smokeTestStatus = null;
+        });
+      case CaptureState.listening:
+        setState(() => _captureState = CaptureState.processing);
+        final text = await debug.stop();
+        if (!mounted) return;
+        setState(() {
+          _captureState = CaptureState.idle;
+          _smokeTestStatus = SmokeTestStatus(
+            label: 'Recording transcribed',
+            detail: '',
+            transcript: text,
+            finished: true,
+          );
+        });
+      case CaptureState.processing:
+        return;
+    }
   }
 
   Future<void> _startRecording() async {
@@ -895,6 +944,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       tabIndex: _tabIndex,
       secondaryIndex: _secondaryTab,
       onTabSelected: _selectTab,
+      // Invariant D2: folding mid-capture lands on Record, with Stop.
+      holdRecord: _captureState != CaptureState.idle,
       pages: pages,
     );
   }
