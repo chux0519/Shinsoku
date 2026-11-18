@@ -250,7 +250,8 @@ ran. This follows Flutter 3.47.9's own template (`FlutterSceneDelegate` + `Flutt
 - **PHASE-14 `deeplink-cold`:** Runner terminated → `XCUIDevice.shared.system.open(shinsoku://dictation)`
   → accept SpringBoard's 'Open in "Shinsoku"?' if shown (Open / 打开) → Runner in front.
 - **PHASE-15 `deeplink-warm`:** Runner relaunched fresh and idle (asserts "Ready to record") → Home button
-  → Runner in the background → the same open → Runner in front.
+  → Home Screen in front (SpringBoard foreground within 5 s), or Runner reporting background/suspended within
+  5 s (its reported state can lag, which failed the first warm run) → the same open → Runner in front.
 - **Pass condition for both:** a status from the record path appears ("Listening", "Provider settings
   required", "Microphone access is off", "Recording failed", or the snackbar "…already recording").
   `_startRecording` asks for the microphone first, so on the simulator without a provider it most likely

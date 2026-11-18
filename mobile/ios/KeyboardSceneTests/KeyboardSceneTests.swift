@@ -132,12 +132,17 @@ final class KeyboardSceneTests: XCTestCase {
         require(runner.descendants(matching: .any).matching(labelContainsAny: Self.idleStatus).firstMatch,
                 "deeplink-warm-idle", timeout: 15)
         XCUIDevice.shared.press(.home)
-        let backgrounded = Date().addingTimeInterval(10)
-        while ![.runningBackground, .runningBackgroundSuspended].contains(runner.state), Date() < backgrounded {
-            Thread.sleep(forTimeInterval: 0.25)
+        // Home Screen in front counts (the runner's reported state can lag behind); else wait up to 5 s for
+        // Runner to report background or suspended.
+        let inBackground = NSPredicate { _, _ in
+            [.runningBackground, .runningBackgroundSuspended].contains(runner.state)
         }
-        check([.runningBackground, .runningBackgroundSuspended].contains(runner.state),
-              "deeplink-warm-background", "Shinsoku did not go to the background")
+        let homeInFront = springboard.wait(for: .runningForeground, timeout: 5)
+        let reportedBackground = homeInFront || XCTWaiter().wait(
+            for: [XCTNSPredicateExpectation(predicate: inBackground, object: nil)], timeout: 5
+        ) == .completed
+        print("SCENE deeplink-warm: home in front=\(homeInFront) runner state=\(runner.state.rawValue)")
+        check(reportedBackground, "deeplink-warm-background", "Shinsoku did not go to the background")
         openDeepLink(step: "deeplink-warm")
         expectDictationStarted(runner, step: "deeplink-warm")
         shot("deeplink-warm")
