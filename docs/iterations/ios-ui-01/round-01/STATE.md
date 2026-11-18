@@ -22,3 +22,24 @@
 - Open decisions: stacked order (Record at the bottom), switcher vs rail, draft editor spanning panes.
 - Verify: `cd mobile && flutter analyze`, `bash tool/test_diff.sh`, `python3 tool/review_lint.py`,
   `tool/host_review.sh ios-ui-01/round-01/u4-after` → `build/ui-review/ios-ui-01/round-01/u4-after/index.html`.
+
+## U2 (keyboard extension) — UIScene migration done, rebased on main (with U4), awaiting coordinator rerun
+- Done: keyboard redesign (theme, key, layout, delete repeat, return type); App Group handoff (user decision
+  2026-11-18) with `LatestTextStore`, entitlements on both targets, Debug seed/reset launch arguments;
+  tier-B scene harness `KeyboardSceneTests` + `tool/ios_keyboard_scene.sh` (Xcode 27.2 via `with-xcode.sh`,
+  English launch args + zh labels, FAIL-<step>.png/.txt, Runner install, entitlement + pluginkit checks,
+  keyboard/app logs); UIScene adoption (iOS 27 SDK launch crash), channels in `registerChannels(_:)`,
+  U4's division regions wired through `DivisionRegionHook`.
+- Verified: `--build-only` with Xcode 27.2 and 26.0.1: TEST BUILD SUCCEEDED, no warnings in touched files;
+  App Group present on app + appex. Not run on a simulator by the implementer.
+- Coordinator run: full scene passed (13 phases, light + dark, iPhone 17 / iOS 27.2 / Xcode 27.2). Added
+  PHASE-14 deeplink-cold and PHASE-15 deeplink-warm; `--build-only` (27.2): TEST BUILD SUCCEEDED.
+- Deep link run: cold passed; warm failed only on the background check (Home Screen was in front). The check
+  now accepts SpringBoard in front or Runner background/suspended (5 s each).
+- Next: coordinator reruns `bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh
+  9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/ios-ui-01/round-02/iphone-17/keyboard`; check deep
+  links (cold + warm) and Duo division regions after the scene migration.
+- Open: before TestFlight, register `group.net.potafree.shinsoku` for both App IDs and regenerate profiles
+  (ask the user first). Final keyboard heights after screenshots.
+- Details: `U2-implementation.md`.
+
