@@ -59,9 +59,8 @@ final class KeyboardSceneTests: XCTestCase {
         // 1. Add the keyboard (skipped when it is already in the list).
         openKeyboardsList()
         if !keyboardCell().exists {
-            tap(settings.descendants(matching: .any).matching(labelBeginsWith: L.addNewKeyboard).firstMatch,
-                "add-new-keyboard")
-            tap(settings.cells.matching(labelBeginsWith: [Self.keyboardName]).firstMatch, "shinsoku-in-add-list")
+            navTap(L.addNewKeyboard, "add-new-keyboard", prefix: true)
+            navTap([Self.keyboardName], "shinsoku-in-add-list", prefix: true)
         }
         require(keyboardCell(), "shinsoku-in-keyboards-list")
         shot("keyboard-added")
@@ -118,29 +117,30 @@ final class KeyboardSceneTests: XCTestCase {
         settings.terminate()
         settings.launch()
         // Settings may restore a deeper page: walk back to the root.
-        _ = settings.cells.firstMatch.waitForExistence(timeout: 10)
-        for _ in 0..<8 where !settings.cells.matching(labelBeginsWith: L.general).firstMatch.isHittable {
+        _ = settings.navigationBars.firstMatch.waitForExistence(timeout: 10)
+        for _ in 0..<8 where !settingsItem(L.general).isHittable {
             let back = settings.navigationBars.buttons.element(boundBy: 0)
             guard back.exists else { break }
             back.tap()
         }
-        tapCell(L.general, "settings-general")
-        tapCell(L.keyboard, "settings-keyboard")
-        tapCell(L.keyboards, "settings-keyboards")
+        navTap(L.general, "settings-general")
+        navTap(L.keyboard, "settings-keyboard")
+        navTap(L.keyboards, "settings-keyboards")
     }
 
     private func keyboardCell() -> XCUIElement {
-        settings.cells.matching(labelBeginsWith: [Self.keyboardName]).firstMatch
+        settingsItem([Self.keyboardName], prefix: true)
     }
 
     private func setFullAccess(_ on: Bool) {
         settings.activate()
-        if !settings.switches.matching(labelBeginsWith: L.allowFullAccess).firstMatch.exists {
+        if !fullAccessToggle().exists {
             openKeyboardsList()
-            tap(keyboardCell(), "shinsoku-in-keyboards-list")
+            navTap([Self.keyboardName], "shinsoku-in-keyboards-list", prefix: true)
         }
-        let toggle = settings.switches.matching(labelBeginsWith: L.allowFullAccess).firstMatch
-        require(toggle, "allow-full-access-switch")
+        require(settings.descendants(matching: .any).matching(labelBeginsWith: L.allowFullAccess).firstMatch,
+                "allow-full-access-switch")
+        let toggle = fullAccessToggle()
         let allow = settings.alerts.buttons.matching(labelEquals: L.allow).firstMatch
         if isOn(toggle) != on {
             toggle.tap()
@@ -162,8 +162,61 @@ final class KeyboardSceneTests: XCTestCase {
         (toggle.value as? String) == "1"
     }
 
-    private func tapCell(_ labels: [String], _ step: String) {
-        tap(settings.cells.matching(labelBeginsWith: labels).firstMatch, step)
+    /// The switch if Settings exposes one, otherwise whatever element carries the label.
+    private func fullAccessToggle() -> XCUIElement {
+        let toggle = settings.switches.matching(labelBeginsWith: L.allowFullAccess).firstMatch
+        return toggle.exists ? toggle : settingsItem(L.allowFullAccess, prefix: true)
+    }
+
+    /// A Settings row by label, whatever its element type (iOS 27 rows are not always cells).
+    /// Exact label or "<label>, <value>"; with `prefix`, any label starting with one of `labels`.
+    /// Skips matches inside the navigation bar (e.g. the page title 键盘 on the 键盘 page).
+    private func settingsItem(_ labels: [String], prefix: Bool = false) -> XCUIElement {
+        let predicates = labels.flatMap { label -> [NSPredicate] in
+            prefix
+                ? [NSPredicate(format: "label BEGINSWITH %@", label)]
+                : [NSPredicate(format: "label == %@", label), NSPredicate(format: "label BEGINSWITH %@", label + ",")]
+        }
+        let query = settings.descendants(matching: .any)
+            .matching(NSCompoundPredicate(orPredicateWithSubpredicates: predicates))
+        guard query.firstMatch.exists else { return query.firstMatch }
+        let bar = settings.navigationBars.firstMatch
+        let barBottom = bar.exists ? bar.frame.maxY : 0
+        let count = min(query.count, 12)
+        for index in 0..<count {
+            let candidate = query.element(boundBy: index)
+            if candidate.frame.minY >= barBottom - 1 {
+                return candidate
+            }
+        }
+        return query.firstMatch
+    }
+
+    /// Waits for a Settings row, scrolls it into view and taps it (coordinate tap at its centre as fallback).
+    private func navTap(
+        _ labels: [String], _ step: String, prefix: Bool = false,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        let deadline = Date().addingTimeInterval(10)
+        while !settingsItem(labels, prefix: prefix).exists, Date() < deadline {
+            _ = settingsItem(labels, prefix: prefix).waitForExistence(timeout: 1)
+        }
+        var item = settingsItem(labels, prefix: prefix)
+        check(item.exists, step, "\(step): \(labels) not found", file: file, line: line)
+        var swipes = 0
+        while !item.isHittable, swipes < 6 {
+            settings.swipeUp()
+            swipes += 1
+            item = settingsItem(labels, prefix: prefix)
+        }
+        if item.isHittable {
+            item.tap()
+        } else {
+            let frame = item.frame
+            settings.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
+                .tap()
+        }
     }
 
     // MARK: Field and keyboard
@@ -304,6 +357,12 @@ final class KeyboardSceneTests: XCTestCase {
         attachment.name = "FAIL-\(step)"
         attachment.lifetime = .keepAlways
         add(attachment)
+        // Element tree of the foreground app, exported by the script as FAIL-<step>.txt.
+        let foreground = [safari, settings, springboard].first { $0.state == .runningForeground } ?? springboard
+        let tree = XCTAttachment(string: foreground.debugDescription)
+        tree.name = "FAIL-\(step)"
+        tree.lifetime = .keepAlways
+        add(tree)
         print("SCENE FAIL \(step): \(message)")
         XCTFail(message, file: file, line: line)
     }

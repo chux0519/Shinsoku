@@ -12,7 +12,8 @@
 # labels. Never change the simulator's language.
 #
 # Run from a shell where `proxy_on; nvm use --lts` was done (flutter may fetch packages).
-# Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
+# Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png and FAIL-<step>.txt, the element
+# tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
 # Signing: CODE_SIGNING_ALLOWED=NO by default; if the simulator refuses the unsigned extension or test runner,
 # rerun with SCENE_SIGN_ARGS='CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=' (ad-hoc).
@@ -104,9 +105,10 @@ for test in manifest:
     for a in attachments:
         m = re.match(r"((?:PHASE-\d+|FAIL)-[A-Za-z0-9-]+)", a.get("suggestedHumanReadableName", ""))
         if m:
-            shutil.copyfile(os.path.join(src, a["exportedFileName"]), os.path.join(dst, m.group(1) + ".png"))
+            ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
+            shutil.copyfile(os.path.join(src, a["exportedFileName"]), os.path.join(dst, m.group(1) + ext))
             count += 1
-print(f"  {count} screenshots -> {dst}")
+print(f"  {count} attachments -> {dst}")
 PY
   rm -rf "${tmp:?}"
 }

@@ -91,6 +91,11 @@ Settings and Safari with `-AppleLanguages (en) -AppleLocale en_US`, and still ma
 English and Chinese (通用 / 键盘 / 键盘 / 添加新键盘… / 允许完全访问 / 允许, globe 下一个键盘). Our own key labels are
 always English. Every wait goes through `require`/`check`: on failure it attaches `FAIL-<step>` (exported
 as `FAIL-<step>.png` next to the PHASE shots) and logs `SCENE FAIL <step>` before failing.
+Each failure also attaches the foreground app's element tree (`debugDescription`), exported as
+`FAIL-<step>.txt`. Settings navigation (`navTap`) finds rows by label across all element types (iOS 27
+Settings rows are not cells): either the exact label or "<label>, <value>", or a label prefix for Shinsoku /
+Add New Keyboard / Allow Full Access. It skips matches inside the navigation bar, scrolls the row into view,
+and if it's still not hittable, taps the centre of its frame.
 
 The script never boots or shuts down a simulator. It runs `flutter build ios --simulator --debug --config-only`
 and `xcodebuild build-for-testing` (`CODE_SIGNING_ALLOWED=NO`, `nice -n 10`, DerivedData in
