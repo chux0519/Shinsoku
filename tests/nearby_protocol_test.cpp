@@ -93,7 +93,7 @@ void test_pairing_and_trust(const std::filesystem::path& directory) {
     NearbyPairingService pairing(store, [&random](std::size_t size) { return random(size); });
     const NearbyClientIdentity client{
         .client_id = "phone-a1b2c3",
-        .display_name = "Yongsheng's iPhone",
+        .display_name = "Example iPhone",
         .client_kind = "iphone",
     };
 
