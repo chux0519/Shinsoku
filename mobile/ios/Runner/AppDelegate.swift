@@ -142,10 +142,8 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
               UTType.utf8PlainText.identifier: text,
               "net.potafree.shinsoku.latest": Data(),
             ]],
-            options: [
-              .localOnly: true,
-              .expirationDate: Date().addingTimeInterval(10 * 60),
-            ]
+            // Local only (no Universal Clipboard); no expiry, so the text stays pasteable as before.
+            options: [.localOnly: true]
           )
           result(nil)
         default:
