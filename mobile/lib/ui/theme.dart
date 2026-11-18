@@ -47,16 +47,19 @@ ThemeData buildSkTheme(Brightness brightness) {
     brightness: brightness,
     colorScheme: scheme,
   );
-  final textTheme = base.textTheme.copyWith(
-    titleLarge: SkType.pageTitle,
-    titleMedium: SkType.title,
-    titleSmall: SkType.title,
-    bodyLarge: SkType.transcript,
-    bodyMedium: SkType.body,
-    bodySmall: SkType.secondary,
-    labelLarge: SkType.title,
-    labelMedium: SkType.secondary,
-    labelSmall: SkType.caption,
+  // merge, not copyWith: keeps the platform family (SF Pro on iOS).
+  final textTheme = base.textTheme.merge(
+    const TextTheme(
+      titleLarge: SkType.pageTitle,
+      titleMedium: SkType.title,
+      titleSmall: SkType.title,
+      bodyLarge: SkType.transcript,
+      bodyMedium: SkType.body,
+      bodySmall: SkType.secondary,
+      labelLarge: SkType.title,
+      labelMedium: SkType.secondary,
+      labelSmall: SkType.caption,
+    ),
   );
 
   return base.copyWith(
