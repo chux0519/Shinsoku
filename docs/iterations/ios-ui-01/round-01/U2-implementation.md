@@ -167,3 +167,35 @@ paste privacy. To rule out `.localOnly`, run
 `SCENE_NO_LOCALONLY=1 bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh <UDID> <out>`.
 Only the test writer drops `.localOnly`; AppDelegate is unchanged. The test prints `SCENE writer localOnly=…`.
 App Group work waits for the user's decision.
+
+## App Group handoff (user decision 2026-11-18)
+The `.localOnly` experiment showed the content still redacted (`items=[[:]]`), which confirms paste privacy.
+The keyboard can't read clipboard content, so the latest text now goes through an App Group.
+
+- **Entitlements:** `com.apple.security.application-groups = [group.net.potafree.shinsoku]` in
+  `Runner.entitlements` and `ShinsokuKeyboard.entitlements`.
+- **App** (`AppDelegate.publishLatestText(_:)`, used by the `publishLatestText` channel): writes
+  `latestText`, `latestId` (UUID), `latestAt` (Date) to `UserDefaults(suiteName: group)`. It also still puts
+  the plain text on the clipboard (`.localOnly`) for the user's own pasting. The marker type is gone.
+- **Keyboard** (`LatestTextStore`): reads the group (only with Full Access).
+  - When `latestId != lastInsertedId`: status "Latest text ready", accessibility value "New Shinsoku text".
+  - Insert inserts the text, stores `lastInsertedId` in the group, and shows "Inserted". When there's nothing
+    new it re-inserts and shows "Inserted again".
+  - No latest: status "Ready", key dimmed, tap → "Nothing yet — tap Record".
+  - The text is never shown on screen or in accessibility values. The clipboard read path and its fallbacks
+    are removed. One log line with booleans only (`groupAvailable`, `hasLatest`, `isNew`).
+- **Scene hooks (Debug only):** Runner's Debug config now has `SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG`.
+  - `-ShinsokuSceneResetLatest YES` clears the group keys.
+  - `-ShinsokuSceneSeedLatest <text>` calls `publishLatestText`, the same code as the channel.
+- **Scene steps 5–7:** Full Access on → reset → "Ready", Insert → "Nothing yet" → seed "Scene text 1" →
+  "Latest text ready" → Insert → "Inserted", and the textarea contains "Scene text 1" → Insert again →
+  "Inserted again". The plain-clipboard "Paste" phase is gone.
+- **Script:** prints the App Group of the built *and* the installed app + appex and fails if it's missing.
+  Simulator builds carry entitlements in the binary's `__TEXT,__entitlements` section
+  (`Entitlements-Simulated.plist`), not in the code signature, so `codesign -d --entitlements -` shows an
+  empty dict there. The script reads the section (marked "(simulated)") and falls back to the signature.
+
+**Before TestFlight / device builds:** register the App Group `group.net.potafree.shinsoku` in the developer
+portal, enable it for both App IDs (`net.potafree.shinsoku` and `net.potafree.shinsoku.keyboard`), and
+regenerate the provisioning profiles. Automatic-signing device builds fail until that's done. The coordinator
+asks the user before touching the portal.
