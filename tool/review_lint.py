@@ -52,6 +52,19 @@ def safe_rm():
     return problems
 
 
+@rule('R03', 'No Color(0x / ColorScheme.fromSeed in mobile/lib outside mobile/lib/ui')
+def tokens_only():
+    problems = []
+    for f in tracked('mobile/lib/*.dart'):
+        rel = f.relative_to(ROOT).as_posix()
+        if rel.startswith('mobile/lib/ui/') or not f.is_file():
+            continue
+        for n, line in enumerate(f.read_text(errors='ignore').splitlines(), 1):
+            if re.search(r'\bColor\(0x|ColorScheme\.fromSeed', line):
+                problems.append(f'{rel}:{n}: {line.strip()}')
+    return problems
+
+
 def main(argv):
     selected = argv or sorted(RULES)
     failed = False

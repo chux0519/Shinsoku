@@ -8,9 +8,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/app/bridges.dart';
-import 'package:shinsoku_mobile/features/common/widgets.dart';
+import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
+import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
@@ -18,6 +19,7 @@ import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
+import 'package:shinsoku_mobile/ui/ui.dart';
 
 class MobileShell extends StatefulWidget {
   const MobileShell({
@@ -233,13 +235,13 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       }
       setState(() {
         _microphoneAllowed = false;
-        _tabIndex = 2;
         _smokeTestStatus = const SmokeTestStatus(
-          label: 'Microphone permission required',
+          label: 'Microphone access is off',
           detail:
               'Allow microphone access in iOS Settings, then try recording again.',
           failed: true,
           finished: true,
+          fix: StatusFix.microphone,
         );
       });
       return;
@@ -266,12 +268,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     if (!_providerSettings.activeProviderConfigured) {
       setState(() {
         _microphoneAllowed = true;
-        _tabIndex = 2;
         _smokeTestStatus = const SmokeTestStatus(
           label: 'Provider settings required',
           detail: 'Save a Bailian or Soniox API key before recording.',
           failed: true,
           finished: true,
+          fix: StatusFix.providerSettings,
         );
       });
       return;
@@ -481,9 +483,32 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   void _deleteDraft(DraftEntry draft) {
+    final index = _drafts.indexOf(draft);
+    if (index < 0) {
+      return;
+    }
     setState(() {
-      _drafts.remove(draft);
+      _drafts.removeAt(index);
     });
+    // DESIGN §7: swipe to delete with undo.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Draft deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              if (!mounted || _drafts.contains(draft)) {
+                return;
+              }
+              setState(() {
+                _drafts.insert(index.clamp(0, _drafts.length), draft);
+              });
+            },
+          ),
+        ),
+      );
   }
 
   Future<void> _showDraftEditor(DraftEntry draft) async {
@@ -581,126 +606,19 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   Future<void> _showVoiceProfileEditor({VoiceProfile? profile}) async {
-    final nameController = TextEditingController(text: profile?.name ?? '');
-    final intentController = TextEditingController(
-      text:
-          profile?.intent ??
-          'Clean up the transcript. Return only the final text.',
+    final result = await showProfileEditor(
+      context,
+      profile: profile,
+      canDelete: profile != null && _profiles.length > 1,
     );
-    var commitSuffix = profile?.commitSuffix ?? CommitSuffix.space;
-    var autoCommit = profile?.autoCommit ?? true;
-    try {
-      final edited = await showDialog<VoiceProfile>(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: Text(profile == null ? 'New profile' : 'Edit profile'),
-                content: SizedBox(
-                  width: 520,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Profile name',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: intentController,
-                          maxLines: 6,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Post-processing prompt',
-                            helperText:
-                                'Example: Translate Chinese speech into natural English.',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: SegmentedButton<CommitSuffix>(
-                            showSelectedIcon: false,
-                            segments: const [
-                              ButtonSegment<CommitSuffix>(
-                                value: CommitSuffix.none,
-                                label: Text('None'),
-                              ),
-                              ButtonSegment<CommitSuffix>(
-                                value: CommitSuffix.space,
-                                label: Text('Space'),
-                              ),
-                              ButtonSegment<CommitSuffix>(
-                                value: CommitSuffix.newline,
-                                label: Text('New line'),
-                              ),
-                            ],
-                            selected: {commitSuffix},
-                            onSelectionChanged: (selection) {
-                              setDialogState(() {
-                                commitSuffix = selection.first;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          value: autoCommit,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              autoCommit = value;
-                            });
-                          },
-                          title: const Text('Auto commit'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: () {
-                      final name = nameController.text.trim();
-                      final intent = intentController.text.trim();
-                      Navigator.of(context).pop(
-                        VoiceProfile(
-                          id:
-                              profile?.id ??
-                              'profile_${DateTime.now().microsecondsSinceEpoch}',
-                          name: name.isEmpty ? 'Untitled' : name,
-                          intent: intent.isEmpty
-                              ? 'Clean up the transcript. Return only the final text.'
-                              : intent,
-                          commitSuffix: commitSuffix,
-                          autoCommit: autoCommit,
-                        ),
-                      );
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-      if (edited != null) {
-        await _upsertVoiceProfile(edited);
-      }
-    } finally {
-      nameController.dispose();
-      intentController.dispose();
+    if (result == null || !mounted) {
+      return;
     }
+    if (result.delete) {
+      await _confirmDeleteVoiceProfile(profile!);
+      return;
+    }
+    await _upsertVoiceProfile(result.profile!);
   }
 
   Future<void> _confirmDeleteVoiceProfile(VoiceProfile profile) async {
@@ -710,26 +628,14 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       );
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSkConfirm(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete profile'),
-          content: Text('Delete "${profile.name}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      title: 'Delete profile',
+      message: 'Delete "${profile.name}"?',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await _deleteVoiceProfile(profile);
     }
   }
@@ -918,148 +824,78 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final destinations = const [
-      NavigationDestination(
-        icon: Icon(Icons.mic_none),
-        selectedIcon: Icon(Icons.mic),
-        label: 'Record',
+    final tabs = <Widget>[
+      RecordView(
+        profiles: _profiles,
+        selectedProfileIndex: _selectedProfileIndex,
+        captureState: _captureState,
+        microphoneAllowed: _microphoneAllowed,
+        smokeTestStatus: _smokeTestStatus,
+        onProfileSelected: (index) {
+          unawaited(_selectProfile(index));
+        },
+        onCapturePressed: _toggleCapture,
+        onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
+        onOpenSettings: () => _selectTab(3),
       ),
-      NavigationDestination(
-        icon: Icon(Icons.description_outlined),
-        selectedIcon: Icon(Icons.description),
-        label: 'Drafts',
+      DraftsView(
+        drafts: _drafts,
+        onDelete: _deleteDraft,
+        onEdit: _showDraftEditor,
+        onCopy: (draft) => _publishTextWithFeedback(
+          draft.text,
+          message: 'Draft copied to clipboard.',
+        ),
       ),
-      NavigationDestination(
-        icon: Icon(Icons.wifi_tethering),
-        selectedIcon: Icon(Icons.podcasts),
-        label: 'Desktop',
+      NearbyMicrophoneView(
+        profiles: [
+          for (final profile in _profiles)
+            NearbyProfileOption(
+              id: switch (profile.id) {
+                'dictation' => 'default',
+                'zh_to_en' => 'zh-to-en',
+                _ => profile.id,
+              },
+              label: profile.name,
+            ),
+        ],
       ),
-      NavigationDestination(
-        icon: Icon(Icons.tune_outlined),
-        selectedIcon: Icon(Icons.tune),
-        label: 'Settings',
+      SettingsView(
+        microphoneAllowed: _microphoneAllowed,
+        keyboardExtensionEnabled: _keyboardExtensionEnabled,
+        cloudProcessingEnabled: _cloudProcessingEnabled,
+        providerSettings: _providerSettings,
+        providerSettingsLoading: _providerSettingsLoading,
+        providerSettingsSaving: _providerSettingsSaving,
+        onMicrophonePressed: _handleMicrophoneSettingsPressed,
+        onKeyboardChanged: (value) {
+          setState(() {
+            _keyboardExtensionEnabled = value;
+          });
+        },
+        onCloudProcessingChanged: (value) {
+          setState(() {
+            _cloudProcessingEnabled = value;
+          });
+        },
+        onProviderSettingsSaved: _saveProviderSettings,
+        profiles: _profiles,
+        onProfileAdded: () => _showVoiceProfileEditor(),
+        onProfileOpened: (profile) => _showVoiceProfileEditor(profile: profile),
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 760;
-        final body = IndexedStack(
-          index: _tabIndex,
-          children: [
-            RecordView(
-              profiles: _profiles,
-              selectedProfileIndex: _selectedProfileIndex,
-              captureState: _captureState,
-              microphoneAllowed: _microphoneAllowed,
-              smokeTestStatus: _smokeTestStatus,
-              onProfileSelected: (index) {
-                unawaited(_selectProfile(index));
-              },
-              onProfileAdded: () => _showVoiceProfileEditor(),
-              onProfileEdited: (profile) =>
-                  _showVoiceProfileEditor(profile: profile),
-              onProfileDeleted: _confirmDeleteVoiceProfile,
-              onCapturePressed: _toggleCapture,
-            ),
-            DraftsView(
-              drafts: _drafts,
-              onDelete: _deleteDraft,
-              onEdit: _showDraftEditor,
-              onCopy: (draft) => _publishTextWithFeedback(
-                draft.text,
-                message: 'Draft copied to clipboard.',
-              ),
-            ),
-            NearbyMicrophoneView(
-              profiles: [
-                for (final profile in _profiles)
-                  NearbyProfileOption(
-                    id: switch (profile.id) {
-                      'dictation' => 'default',
-                      'zh_to_en' => 'zh-to-en',
-                      _ => profile.id,
-                    },
-                    label: profile.name,
-                  ),
-              ],
-            ),
-            SettingsView(
-              microphoneAllowed: _microphoneAllowed,
-              keyboardExtensionEnabled: _keyboardExtensionEnabled,
-              cloudProcessingEnabled: _cloudProcessingEnabled,
-              providerSettings: _providerSettings,
-              providerSettingsLoading: _providerSettingsLoading,
-              providerSettingsSaving: _providerSettingsSaving,
-              onMicrophonePressed: _handleMicrophoneSettingsPressed,
-              onKeyboardChanged: (value) {
-                setState(() {
-                  _keyboardExtensionEnabled = value;
-                });
-              },
-              onCloudProcessingChanged: (value) {
-                setState(() {
-                  _cloudProcessingEnabled = value;
-                });
-              },
-              onProviderSettingsSaved: _saveProviderSettings,
-            ),
-          ],
-        );
-
-        if (wide) {
-          return Scaffold(
-            body: SafeArea(
-              child: Row(
-                children: [
-                  NavigationRail(
-                    selectedIndex: _tabIndex,
-                    onDestinationSelected: _selectTab,
-                    labelType: NavigationRailLabelType.all,
-                    leading: const Padding(
-                      padding: EdgeInsets.only(top: 12, bottom: 18),
-                      child: ShinsokuMark(),
-                    ),
-                    destinations: const [
-                      NavigationRailDestination(
-                        icon: Icon(Icons.mic_none),
-                        selectedIcon: Icon(Icons.mic),
-                        label: Text('Record'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.description_outlined),
-                        selectedIcon: Icon(Icons.description),
-                        label: Text('Drafts'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.wifi_tethering),
-                        selectedIcon: Icon(Icons.podcasts),
-                        label: Text('Desktop'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.tune_outlined),
-                        selectedIcon: Icon(Icons.tune),
-                        label: Text('Settings'),
-                      ),
-                    ],
-                  ),
-                  const VerticalDivider(width: 1),
-                  Expanded(child: body),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Scaffold(
-          body: SafeArea(child: body),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _tabIndex,
-            onDestinationSelected: _selectTab,
-            destinations: destinations,
-          ),
-        );
-      },
+    return ShellScaffold(
+      tabIndex: _tabIndex,
+      onTabSelected: _selectTab,
+      body: IndexedStack(
+        index: _tabIndex,
+        children: [
+          // Hidden tabs keep their state but not their animations.
+          for (var i = 0; i < tabs.length; i++)
+            TickerMode(enabled: i == _tabIndex, child: tabs[i]),
+        ],
+      ),
     );
   }
 }

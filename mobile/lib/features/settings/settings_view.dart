@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:shinsoku_mobile/services/smoke_test.dart';
-import 'package:shinsoku_mobile/services/transcription_service.dart';
+import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
-import 'package:shinsoku_mobile/features/common/widgets.dart';
+import 'package:shinsoku_mobile/services/transcription_service.dart';
+import 'package:shinsoku_mobile/services/voice_profiles.dart';
+import 'package:shinsoku_mobile/ui/ui.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({
@@ -19,6 +19,9 @@ class SettingsView extends StatefulWidget {
     required this.onKeyboardChanged,
     required this.onCloudProcessingChanged,
     required this.onProviderSettingsSaved,
+    this.profiles = const [],
+    this.onProfileAdded,
+    this.onProfileOpened,
     super.key,
   });
 
@@ -33,6 +36,11 @@ class SettingsView extends StatefulWidget {
   final ValueChanged<bool> onCloudProcessingChanged;
   final Future<void> Function(ProviderSettings settings)
   onProviderSettingsSaved;
+
+  /// Voice profiles (DESIGN §7: Settings › Profiles).
+  final List<VoiceProfile> profiles;
+  final VoidCallback? onProfileAdded;
+  final ValueChanged<VoiceProfile>? onProfileOpened;
 
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -154,377 +162,230 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final providerConfigured = switch (_speechProvider) {
       'soniox' => _sonioxKeyController.text.trim().isNotEmpty,
       _ => _bailianKeyController.text.trim().isNotEmpty,
     };
+    final textModel = _bailianTextModelController.text.trim().isEmpty
+        ? 'qwen-flash'
+        : _bailianTextModelController.text.trim();
+    const gap = SizedBox(height: SkSpace.xl);
+    const fieldGap = SizedBox(height: SkSpace.m);
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return SkPage(
+      title: 'Settings',
       children: [
-        const AppHeader(title: 'Settings', subtitle: 'Providers and workflow'),
-        const SizedBox(height: 20),
-        InfoPanel(
-          child: Column(
-            children: [
-              SwitchListTile(
-                value: widget.microphoneAllowed,
-                onChanged: (_) => widget.onMicrophonePressed(),
-                secondary: const Icon(Icons.mic_none),
-                title: const Text('Microphone access'),
-                subtitle: Text(
-                  widget.microphoneAllowed
-                      ? 'Allowed for voice capture'
-                      : 'Tap to request iOS microphone access',
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.keyboard_alt_outlined),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: openAppSettings,
-                title: const Text('Keyboard setup'),
-                subtitle: const Text(
-                  'Add Shinsoku in iOS Keyboard settings and allow Full Access',
-                ),
-              ),
-              const Divider(),
-              SwitchListTile(
-                value: widget.cloudProcessingEnabled,
-                onChanged: widget.onCloudProcessingChanged,
-                secondary: const Icon(Icons.cloud_outlined),
-                title: const Text('Cloud processing'),
-                subtitle: Text(
-                  providerConfigured
-                      ? 'Provider credentials are saved'
-                      : 'Save provider credentials before real transcription',
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        InfoPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.keyboard_command_key, color: scheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Enable Shinsoku Keyboard',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                '1. Open iOS Settings > General > Keyboard > Keyboards.\n'
-                '2. Add Shinsoku as a third-party keyboard.\n'
-                '3. Turn on Allow Full Access so Paste can read the latest Shinsoku text.',
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: openAppSettings,
-                icon: const Icon(Icons.settings_outlined),
-                label: const Text('Open iOS Settings'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text('Speech Provider', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
-        InfoPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.providerSettingsLoading) ...[
-                const LinearProgressIndicator(),
-                const SizedBox(height: 16),
-              ],
-              SegmentedButton<String>(
+        SkSection(
+          label: 'Recognition',
+          children: [
+            SkListRow.toggle(
+              leading: Icons.mic_none_rounded,
+              title: 'Microphone access',
+              subtitle: widget.microphoneAllowed
+                  ? 'Allowed for voice capture'
+                  : 'Tap to allow microphone access',
+              value: widget.microphoneAllowed,
+              onChanged: (_) => widget.onMicrophonePressed(),
+            ),
+            SkSectionBody(
+              child: SkSegmented<String>(
+                semanticLabel: 'Speech provider',
                 segments: const [
-                  ButtonSegment<String>(
-                    value: 'bailian',
-                    label: Text('Bailian'),
-                    icon: Icon(Icons.cloud_queue),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'soniox',
-                    label: Text('Soniox'),
-                    icon: Icon(Icons.graphic_eq),
-                  ),
+                  SkSegment(value: 'bailian', label: 'Bailian'),
+                  SkSegment(value: 'soniox', label: 'Soniox'),
                 ],
-                selected: {_speechProvider},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _speechProvider = selection.first;
-                  });
-                },
+                selected: _speechProvider,
+                onChanged: (value) => setState(() => _speechProvider = value),
               ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _textTransformEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _textTransformEnabled = value;
-                  });
-                },
-                secondary: const Icon(Icons.translate),
-                title: const Text('Text post-processing'),
-                subtitle: Text(
-                  'Use ${_bailianTextModelController.text.trim().isEmpty ? "qwen-flash" : _bailianTextModelController.text.trim()} for cleanup or translation',
-                ),
-              ),
-            ],
-          ),
+            ),
+            SkListRow.toggle(
+              leading: Icons.translate_rounded,
+              title: 'Text post-processing',
+              subtitle: 'Use $textModel for cleanup or translation',
+              value: _textTransformEnabled,
+              onChanged: (value) =>
+                  setState(() => _textTransformEnabled = value),
+            ),
+            SkListRow.toggle(
+              leading: Icons.cloud_outlined,
+              title: 'Cloud processing',
+              subtitle: providerConfigured
+                  ? 'Provider credentials are saved'
+                  : 'Save provider credentials before real transcription',
+              value: widget.cloudProcessingEnabled,
+              onChanged: widget.onCloudProcessingChanged,
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        _SaveSettingsButton(
-          saving: widget.providerSettingsSaving,
+        gap,
+        if (widget.providerSettingsLoading) ...[
+          const SkStatusLine(text: 'Loading saved settings', busy: true),
+          const SizedBox(height: SkSpace.m),
+        ],
+        SkSection(
+          label: _speechProvider == 'soniox' ? 'Soniox' : 'Bailian',
+          children: [
+            SkSectionBody(
+              child: _speechProvider == 'soniox'
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _keyField(
+                          _sonioxKeyController,
+                          show: _showSonioxKey,
+                          onToggle: () =>
+                              setState(() => _showSonioxKey = !_showSonioxKey),
+                        ),
+                        fieldGap,
+                        SkTextArea.field(
+                          controller: _sonioxModelController,
+                          label: 'Realtime model',
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _keyField(
+                          _bailianKeyController,
+                          show: _showBailianKey,
+                          onToggle: () => setState(
+                            () => _showBailianKey = !_showBailianKey,
+                          ),
+                        ),
+                        fieldGap,
+                        _FieldLabel('Recognition mode'),
+                        SkSegmented<String>(
+                          semanticLabel: 'Recognition mode',
+                          segments: const [
+                            SkSegment(
+                              value: bailianAsrModeRealtime,
+                              label: 'Streaming',
+                            ),
+                            SkSegment(
+                              value: bailianAsrModeQwen,
+                              label: 'Qwen-ASR',
+                            ),
+                          ],
+                          selected: _bailianAsrMode,
+                          onChanged: (value) =>
+                              setState(() => _bailianAsrMode = value),
+                        ),
+                        fieldGap,
+                        SkTextArea.field(
+                          controller: bailianRealtimeModelController,
+                          label: 'Streaming ASR model',
+                        ),
+                        fieldGap,
+                        SkTextArea.field(
+                          controller: _bailianAsrModelController,
+                          label: 'Qwen-ASR batch model',
+                        ),
+                        fieldGap,
+                        SkTextArea.field(
+                          controller: _bailianTextModelController,
+                          label: 'Post-processing OpenAI model',
+                          helper: 'Used only when Text post-processing is on',
+                        ),
+                        fieldGap,
+                        SkTextArea.field(
+                          controller: _bailianBaseController,
+                          label: 'OpenAI-compatible base URL',
+                          keyboardType: TextInputType.url,
+                        ),
+                        fieldGap,
+                        SkTextArea.field(
+                          controller: bailianRealtimeUrlController,
+                          label: 'Realtime WebSocket URL',
+                          keyboardType: TextInputType.url,
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+        const SizedBox(height: SkSpace.l),
+        SkButton(
+          label: widget.providerSettingsSaving ? 'Saving' : 'Save Settings',
+          busy: widget.providerSettingsSaving,
+          expand: true,
           onPressed: _save,
         ),
-        const SizedBox(height: 18),
-        Text('Bailian', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
-        InfoPanel(
-          child: Column(
-            children: [
-              ConfigTextField(
-                controller: _bailianBaseController,
-                icon: Icons.link,
-                label: 'OpenAI-compatible base URL',
-                keyboardType: TextInputType.url,
+        gap,
+        SkSection(
+          label: 'Profiles',
+          children: [
+            for (final profile in widget.profiles)
+              SkListRow(
+                title: profile.name,
+                subtitle: profile.intent,
+                subtitleMaxLines: 1,
+                chevron: true,
+                onTap: widget.onProfileOpened == null
+                    ? null
+                    : () => widget.onProfileOpened!(profile),
               ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: _bailianKeyController,
-                icon: Icons.key,
-                label: 'API key',
-                obscureText: !_showBailianKey,
-                trailing: IconButton(
-                  tooltip: _showBailianKey ? 'Hide key' : 'Show key',
-                  onPressed: () {
-                    setState(() {
-                      _showBailianKey = !_showBailianKey;
-                    });
-                  },
-                  icon: Icon(
-                    _showBailianKey
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: _bailianTextModelController,
-                icon: Icons.auto_fix_high_outlined,
-                label: 'Post-processing OpenAI model',
-                helperText: 'Used only when Text post-processing is enabled',
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment<String>(
-                      value: bailianAsrModeRealtime,
-                      label: Text('Streaming'),
-                      icon: Icon(Icons.podcasts),
-                    ),
-                    ButtonSegment<String>(
-                      value: bailianAsrModeQwen,
-                      label: Text('Qwen-ASR'),
-                      icon: Icon(Icons.hearing),
-                    ),
-                  ],
-                  selected: {_bailianAsrMode},
-                  onSelectionChanged: (selection) {
-                    setState(() {
-                      _bailianAsrMode = selection.first;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: _bailianAsrModelController,
-                icon: Icons.hearing,
-                label: 'Qwen-ASR batch model',
-              ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: bailianRealtimeUrlController,
-                icon: Icons.hub_outlined,
-                label: 'Realtime WebSocket URL',
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: bailianRealtimeModelController,
-                icon: Icons.multitrack_audio,
-                label: 'Streaming ASR model',
-              ),
-            ],
-          ),
+            SkListRow(
+              leading: Icons.add_rounded,
+              title: 'Add profile',
+              accentTitle: true,
+              onTap: widget.onProfileAdded,
+            ),
+          ],
         ),
-        const SizedBox(height: 18),
-        Text('Soniox', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 10),
-        InfoPanel(
-          child: Column(
-            children: [
-              ConfigTextField(
-                controller: _sonioxKeyController,
-                icon: Icons.key,
-                label: 'API key',
-                obscureText: !_showSonioxKey,
-                trailing: IconButton(
-                  tooltip: _showSonioxKey ? 'Hide key' : 'Show key',
-                  onPressed: () {
-                    setState(() {
-                      _showSonioxKey = !_showSonioxKey;
-                    });
-                  },
-                  icon: Icon(
-                    _showSonioxKey
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                  ),
+        gap,
+        SkSection(
+          label: 'Keyboard',
+          children: [
+            SkListRow(
+              leading: Icons.keyboard_alt_outlined,
+              title: 'Keyboard setup',
+              subtitle: 'Add Shinsoku and allow Full Access',
+              chevron: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => const KeyboardSetupView(),
                 ),
               ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: _sonioxModelController,
-                icon: Icons.multitrack_audio,
-                label: 'Realtime model',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        _SaveSettingsButton(
-          saving: widget.providerSettingsSaving,
-          onPressed: _save,
+            ),
+          ],
         ),
       ],
     );
   }
-}
 
-class _SaveSettingsButton extends StatelessWidget {
-  const _SaveSettingsButton({required this.saving, required this.onPressed});
-
-  final bool saving;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: saving ? null : onPressed,
-        icon: saving
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.save_outlined),
-        label: Text(saving ? 'Saving' : 'Save Settings'),
-      ),
-    );
-  }
-}
-
-class ConfigTextField extends StatelessWidget {
-  const ConfigTextField({
-    required this.controller,
-    required this.icon,
-    required this.label,
-    this.helperText,
-    this.keyboardType,
-    this.obscureText = false,
-    this.trailing,
-    super.key,
-  });
-
-  final TextEditingController controller;
-  final IconData icon;
-  final String label;
-  final String? helperText;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
+  Widget _keyField(
+    TextEditingController controller, {
+    required bool show,
+    required VoidCallback onToggle,
+  }) {
+    return SkTextArea.field(
       controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      autocorrect: false,
-      enableSuggestions: !obscureText,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        prefixIcon: Icon(icon),
-        suffixIcon: trailing,
-        labelText: label,
-        helperText: helperText,
+      label: 'API key',
+      obscureText: !show,
+      trailing: SkIconButton(
+        tooltip: show ? 'Hide key' : 'Show key',
+        onPressed: onToggle,
+        icon: show ? Icons.visibility_off_outlined : Icons.visibility_outlined,
       ),
     );
   }
 }
 
-class SmokeTestPanel extends StatelessWidget {
-  const SmokeTestPanel({required this.status, super.key});
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
 
-  final SmokeTestStatus status;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final icon = status.failed
-        ? Icons.error_outline
-        : status.finished
-        ? Icons.check_circle_outline
-        : Icons.cloud_sync_outlined;
-    final color = status.failed ? scheme.error : scheme.primary;
-
-    return InfoPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  status.label,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(status.detail),
-          if (status.transcript != null) ...[
-            const SizedBox(height: 12),
-            SelectableText(
-              status.transcript!,
-              key: const ValueKey('soniox-smoke-transcript'),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ],
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: SkType.secondary.copyWith(
+          color: SkColors.of(context).textSecondary,
+        ),
       ),
     );
   }

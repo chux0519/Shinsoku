@@ -29,13 +29,19 @@ void main() {
       ),
     );
 
-    expect(
-      find.text('Captured a clean mobile voice note with Shinsoku.'),
-      findsOneWidget,
-    );
-    expect(find.byTooltip('Edit draft'), findsOneWidget);
+    const text = 'Captured a clean mobile voice note with Shinsoku.';
+    expect(find.text(text), findsOneWidget);
+    expect(find.text('TODAY'), findsOneWidget);
     expect(find.byTooltip('Copy draft'), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsWidgets);
+
+    // Swipe to delete, then undo (DESIGN §7).
+    await tester.drag(find.text(text), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+    expect(find.text(text), findsNothing);
+    expect(find.text('Draft deleted'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(find.text(text), findsOneWidget);
   });
 
   testWidgets('edits a draft before saving and copying it', (tester) async {
@@ -69,7 +75,8 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('Edit draft'));
+    // Tapping the row opens the editor.
+    await tester.tap(find.text('Original transcript.'));
     await tester.pumpAndSettle();
     expect(find.text('Edit draft'), findsOneWidget);
 
@@ -82,7 +89,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.widgetWithText(SelectableText, editedText), findsOneWidget);
+    expect(find.text(editedText), findsOneWidget);
     expect(find.text('Draft saved and copied to clipboard.'), findsOneWidget);
     expect(publishedTexts.last, editedText);
   });
