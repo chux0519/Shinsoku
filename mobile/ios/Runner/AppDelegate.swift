@@ -26,12 +26,24 @@ private final class DivisionRegionObserver: UIView {
 }
 #endif
 
-private final class DivisionRegionStream: NSObject, FlutterStreamHandler {
-  /// The Flutter view the regions are measured in (the root controller's view).
-  var hostView: () -> UIView? = { nil }
+/// Self-contained: call `register(with:)` once with the FlutterViewController
+/// (from the app or the scene delegate, wherever channels are registered) and
+/// `attach()` when the scene becomes active.
+final class DivisionRegionStream: NSObject, FlutterStreamHandler {
+  static let channelName = "net.potafree.shinsoku/division_regions"
+  private weak var controller: FlutterViewController?
+  private var channel: FlutterEventChannel?
   private var sink: FlutterEventSink?
   private weak var observer: UIView?
   private var frames: [CGRect] = []
+
+  func register(with controller: FlutterViewController) {
+    self.controller = controller
+    channel?.setStreamHandler(nil)
+    let channel = FlutterEventChannel(name: Self.channelName, binaryMessenger: controller.binaryMessenger)
+    channel.setStreamHandler(self)
+    self.channel = channel
+  }
 
   func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     sink = events
@@ -50,7 +62,7 @@ private final class DivisionRegionStream: NSObject, FlutterStreamHandler {
 
   func attach() {
     #if compiler(>=6.4)
-    guard sink != nil, #available(iOS 27.1, *), let host = hostView() else { return }
+    guard sink != nil, #available(iOS 27.1, *), let host = controller?.view else { return }
     if observer?.superview === host { return }
     observer?.removeFromSuperview()
     if !frames.isEmpty {
@@ -90,7 +102,6 @@ private final class DivisionRegionStream: NSObject, FlutterStreamHandler {
   private let keyboardBridgeChannel = "net.potafree.shinsoku/keyboard_bridge"
   private let deepLinkChannel = "net.potafree.shinsoku/deep_link"
   private let divisionRegionStream = DivisionRegionStream()
-  private var divisionRegionChannel: FlutterEventChannel?
   private var pendingDeepLink: String?
 
   override func application(
@@ -145,15 +156,7 @@ private final class DivisionRegionStream: NSObject, FlutterStreamHandler {
         }
       }
 
-      divisionRegionStream.hostView = { [weak self] in
-        (self?.window?.rootViewController as? FlutterViewController)?.view
-      }
-      let divisionRegions = FlutterEventChannel(
-        name: "net.potafree.shinsoku/division_regions",
-        binaryMessenger: controller.binaryMessenger
-      )
-      divisionRegions.setStreamHandler(divisionRegionStream)
-      divisionRegionChannel = divisionRegions
+      divisionRegionStream.register(with: controller)
 
       if let pendingDeepLink {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {

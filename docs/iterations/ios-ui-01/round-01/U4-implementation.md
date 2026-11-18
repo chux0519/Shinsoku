@@ -16,7 +16,10 @@ Branch `ios-ui-01-u4-duo`, PR #6. Tested source: `c013685` (the last code commit
   FlutterViewController's view and reads `reservedRegions(kind: .division)` (active, finite, non-empty, at most 8)
   in `updateConstraints`. It is guarded by `@available(iOS 27.1, *)` **and** `#if compiler(>=6.4)`, so the
   default Xcode 26.0.1 still compiles (and reports no regions). Shinsoku has no UIScene, so the observer
-  attaches through `window.rootViewController`, on `onListen` and on `applicationDidBecomeActive`. I checked that
+  attaches to the registered controller's view, on `onListen` and on `applicationDidBecomeActive`.
+  For the UIScene move in U2 (PR #3), the bridge is self-contained: `DivisionRegionStream.register(with:
+  FlutterViewController)` (one call, from wherever channels get registered) plus `attach()` from
+  `sceneDidBecomeActive`. Rebasing means moving those two lines. I checked that
   it compiles with `DEVELOPER_DIR=…/Xcode-27.2.app flutter build ios --simulator --debug` (build succeeded; the
   Xcode-managed files the build touched were reverted).
 - Dart (`lib/platform/division_regions.dart`): a `DivisionRegions` widget in `MaterialApp.builder`. It adds each
