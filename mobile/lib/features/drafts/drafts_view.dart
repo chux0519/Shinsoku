@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
-import 'package:shinsoku_mobile/features/common/widgets.dart';
+import 'package:shinsoku_mobile/ui/ui.dart';
 
+/// DESIGN §7 Drafts: date-grouped list; a row is the text, time and source;
+/// tap to edit, swipe to delete (the shell offers Undo), copy from the row.
 class DraftsView extends StatelessWidget {
   const DraftsView({
     required this.drafts,
@@ -18,24 +21,141 @@ class DraftsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    if (drafts.isEmpty) {
+      return const SkPage(
+        title: 'Drafts',
+        children: [
+          SizedBox(height: SkSpace.xl),
+          SkEmptyLine('Your transcripts appear here after you record.'),
+        ],
+      );
+    }
+    final groups = <DateTime, List<DraftEntry>>{};
+    for (final draft in drafts) {
+      final d = draft.createdAt;
+      groups.putIfAbsent(DateTime(d.year, d.month, d.day), () => []).add(draft);
+    }
+    return SkPage(
+      title: 'Drafts',
       children: [
-        const AppHeader(title: 'Drafts', subtitle: 'Captured mobile text'),
-        const SizedBox(height: 20),
-        if (drafts.isEmpty)
-          const InfoPanel(child: EmptyState())
-        else
-          for (final draft in drafts) ...[
-            DraftCard(
-              draft: draft,
-              onDelete: () => onDelete(draft),
-              onEdit: () => onEdit(draft),
-              onCopy: () => onCopy(draft),
-            ),
-            const SizedBox(height: 12),
-          ],
+        for (final MapEntry(key: day, value: items) in groups.entries) ...[
+          SkSection(
+            label: _dayLabel(context, day),
+            children: [
+              for (final draft in items)
+                DraftRow(
+                  key: ObjectKey(draft),
+                  draft: draft,
+                  onDelete: () => onDelete(draft),
+                  onEdit: () => onEdit(draft),
+                  onCopy: () => onCopy(draft),
+                ),
+            ],
+          ),
+          const SizedBox(height: SkSpace.xl),
+        ],
       ],
+    );
+  }
+
+  String _dayLabel(BuildContext context, DateTime day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(day).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return MaterialLocalizations.of(context).formatMediumDate(day);
+  }
+}
+
+class DraftRow extends StatelessWidget {
+  const DraftRow({
+    required this.draft,
+    required this.onDelete,
+    required this.onEdit,
+    required this.onCopy,
+    super.key,
+  });
+
+  final DraftEntry draft;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = SkColors.of(context);
+    final time = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(draft.createdAt),
+      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
+    return Dismissible(
+      key: ObjectKey(draft),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDelete(),
+      background: ColoredBox(
+        color: c.danger,
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(end: SkSpace.xl),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.delete_outline, color: c.onAccent),
+                const SizedBox(width: SkSpace.s),
+                Text('Delete', style: SkType.title.copyWith(color: c.onAccent)),
+              ],
+            ),
+          ),
+        ),
+      ),
+      child: SkPressable(
+        onTap: onEdit,
+        customSemanticsActions: {
+          const CustomSemanticsAction(label: 'Copy'): onCopy,
+          const CustomSemanticsAction(label: 'Delete'): onDelete,
+        },
+        builder: (context, pressed) => AnimatedContainer(
+          duration: SkMotion.of(context, SkMotion.fast),
+          color: pressed ? c.pressed : c.raised,
+          padding: const EdgeInsetsDirectional.only(
+            start: SkSpace.l,
+            end: SkSpace.xs,
+            top: SkSpace.m,
+            bottom: SkSpace.m,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      draft.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: SkType.body.copyWith(color: c.text),
+                    ),
+                    const SizedBox(height: SkSpace.xs),
+                    Text(
+                      '$time · ${draft.profileName}',
+                      style: SkType.caption.copyWith(color: c.textTertiary),
+                    ),
+                  ],
+                ),
+              ),
+              SkIconButton(
+                icon: Icons.content_copy_outlined,
+                tooltip: 'Copy draft',
+                size: 20,
+                onPressed: onCopy,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -98,161 +218,77 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = SkColors.of(context);
     return Scaffold(
-      appBar: AppBar(
-        leading: const CloseButton(),
-        title: const Text('Edit draft'),
+      appBar: SkTopBar(
+        title: 'Edit draft',
+        leading: SkIconButton(
+          icon: Icons.close_rounded,
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
       ),
-      body: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Captured with ${widget.draft.profileName}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: TextField(
-                  key: const ValueKey('draft-editor-field'),
-                  controller: _controller,
-                  autofocus: true,
-                  expands: true,
-                  minLines: null,
-                  maxLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(),
-                    labelText: 'Transcript',
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final insets = skPageInsets(context, constraints.maxWidth);
+          final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+          return Padding(
+            padding: insets.copyWith(
+              top: SkSpace.s,
+              bottom:
+                  SkSpace.l +
+                  (keyboardOpen ? 0 : MediaQuery.paddingOf(context).bottom),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Captured with ${widget.draft.profileName}',
+                  style: SkType.secondary.copyWith(color: c.textSecondary),
+                ),
+                const SizedBox(height: SkSpace.m),
+                Expanded(
+                  child: SkTextArea(
+                    fieldKey: const ValueKey('draft-editor-field'),
+                    controller: _controller,
+                    autofocus: true,
+                    expands: true,
+                    style: SkType.transcript,
+                    textCapitalization: TextCapitalization.sentences,
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
+                const SizedBox(height: SkSpace.m),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SkButton.secondary(
                         key: const ValueKey('draft-save-button'),
+                        label: 'Save',
+                        expand: true,
                         onPressed: _hasText
                             ? () => _complete(copyToClipboard: false)
                             : null,
-                        icon: const Icon(Icons.check),
-                        label: const Text('Save'),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: FilledButton.icon(
+                    const SizedBox(width: SkSpace.m),
+                    Expanded(
+                      child: SkButton(
                         key: const ValueKey('draft-save-copy-button'),
+                        label: 'Save & Copy',
+                        icon: Icons.content_copy_outlined,
+                        expand: true,
                         onPressed: _hasText
                             ? () => _complete(copyToClipboard: true)
                             : null,
-                        icon: const Icon(Icons.content_copy_outlined),
-                        label: const Text('Save & Copy'),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class DraftCard extends StatelessWidget {
-  const DraftCard({
-    required this.draft,
-    required this.onDelete,
-    required this.onEdit,
-    required this.onCopy,
-    super.key,
-  });
-
-  final DraftEntry draft;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
-  final VoidCallback onCopy;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      color: Theme.of(context).colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Flexible(
-                  child: StatusChip(
-                    icon: Icons.person_search_outlined,
-                    label: draft.profileName,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  _relativeTime(draft.createdAt),
-                  style: textTheme.bodySmall,
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            SelectableText(draft.text, style: textTheme.bodyLarge),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: 'Edit draft',
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Copy draft',
-                  onPressed: onCopy,
-                  icon: const Icon(Icons.content_copy_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Delete draft',
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
-  }
-
-  String _relativeTime(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-
-    if (diff.inMinutes < 1) {
-      return 'Just now';
-    }
-    if (diff.inHours < 1) {
-      return '${diff.inMinutes} min ago';
-    }
-    if (diff.inDays < 1) {
-      return '${diff.inHours} hr ago';
-    }
-    return '${diff.inDays} days ago';
   }
 }

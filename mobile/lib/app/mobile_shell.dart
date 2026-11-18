@@ -483,9 +483,32 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   void _deleteDraft(DraftEntry draft) {
+    final index = _drafts.indexOf(draft);
+    if (index < 0) {
+      return;
+    }
     setState(() {
-      _drafts.remove(draft);
+      _drafts.removeAt(index);
     });
+    // DESIGN §7: swipe to delete with undo.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Draft deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              if (!mounted || _drafts.contains(draft)) {
+                return;
+              }
+              setState(() {
+                _drafts.insert(index.clamp(0, _drafts.length), draft);
+              });
+            },
+          ),
+        ),
+      );
   }
 
   Future<void> _showDraftEditor(DraftEntry draft) async {
@@ -801,75 +824,78 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final body = IndexedStack(
-      index: _tabIndex,
-      children: [
-        RecordView(
-          profiles: _profiles,
-          selectedProfileIndex: _selectedProfileIndex,
-          captureState: _captureState,
-          microphoneAllowed: _microphoneAllowed,
-          smokeTestStatus: _smokeTestStatus,
-          onProfileSelected: (index) {
-            unawaited(_selectProfile(index));
-          },
-          onCapturePressed: _toggleCapture,
-          onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
-          onOpenSettings: () => _selectTab(3),
+    final tabs = <Widget>[
+      RecordView(
+        profiles: _profiles,
+        selectedProfileIndex: _selectedProfileIndex,
+        captureState: _captureState,
+        microphoneAllowed: _microphoneAllowed,
+        smokeTestStatus: _smokeTestStatus,
+        onProfileSelected: (index) {
+          unawaited(_selectProfile(index));
+        },
+        onCapturePressed: _toggleCapture,
+        onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
+        onOpenSettings: () => _selectTab(3),
+      ),
+      DraftsView(
+        drafts: _drafts,
+        onDelete: _deleteDraft,
+        onEdit: _showDraftEditor,
+        onCopy: (draft) => _publishTextWithFeedback(
+          draft.text,
+          message: 'Draft copied to clipboard.',
         ),
-        DraftsView(
-          drafts: _drafts,
-          onDelete: _deleteDraft,
-          onEdit: _showDraftEditor,
-          onCopy: (draft) => _publishTextWithFeedback(
-            draft.text,
-            message: 'Draft copied to clipboard.',
-          ),
-        ),
-        NearbyMicrophoneView(
-          profiles: [
-            for (final profile in _profiles)
-              NearbyProfileOption(
-                id: switch (profile.id) {
-                  'dictation' => 'default',
-                  'zh_to_en' => 'zh-to-en',
-                  _ => profile.id,
-                },
-                label: profile.name,
-              ),
-          ],
-        ),
-        SettingsView(
-          microphoneAllowed: _microphoneAllowed,
-          keyboardExtensionEnabled: _keyboardExtensionEnabled,
-          cloudProcessingEnabled: _cloudProcessingEnabled,
-          providerSettings: _providerSettings,
-          providerSettingsLoading: _providerSettingsLoading,
-          providerSettingsSaving: _providerSettingsSaving,
-          onMicrophonePressed: _handleMicrophoneSettingsPressed,
-          onKeyboardChanged: (value) {
-            setState(() {
-              _keyboardExtensionEnabled = value;
-            });
-          },
-          onCloudProcessingChanged: (value) {
-            setState(() {
-              _cloudProcessingEnabled = value;
-            });
-          },
-          onProviderSettingsSaved: _saveProviderSettings,
-          profiles: _profiles,
-          onProfileAdded: () => _showVoiceProfileEditor(),
-          onProfileOpened: (profile) =>
-              _showVoiceProfileEditor(profile: profile),
-        ),
-      ],
-    );
+      ),
+      NearbyMicrophoneView(
+        profiles: [
+          for (final profile in _profiles)
+            NearbyProfileOption(
+              id: switch (profile.id) {
+                'dictation' => 'default',
+                'zh_to_en' => 'zh-to-en',
+                _ => profile.id,
+              },
+              label: profile.name,
+            ),
+        ],
+      ),
+      SettingsView(
+        microphoneAllowed: _microphoneAllowed,
+        keyboardExtensionEnabled: _keyboardExtensionEnabled,
+        cloudProcessingEnabled: _cloudProcessingEnabled,
+        providerSettings: _providerSettings,
+        providerSettingsLoading: _providerSettingsLoading,
+        providerSettingsSaving: _providerSettingsSaving,
+        onMicrophonePressed: _handleMicrophoneSettingsPressed,
+        onKeyboardChanged: (value) {
+          setState(() {
+            _keyboardExtensionEnabled = value;
+          });
+        },
+        onCloudProcessingChanged: (value) {
+          setState(() {
+            _cloudProcessingEnabled = value;
+          });
+        },
+        onProviderSettingsSaved: _saveProviderSettings,
+        profiles: _profiles,
+        onProfileAdded: () => _showVoiceProfileEditor(),
+        onProfileOpened: (profile) => _showVoiceProfileEditor(profile: profile),
+      ),
+    ];
 
     return ShellScaffold(
       tabIndex: _tabIndex,
       onTabSelected: _selectTab,
-      body: body,
+      body: IndexedStack(
+        index: _tabIndex,
+        children: [
+          // Hidden tabs keep their state but not their animations.
+          for (var i = 0; i < tabs.length; i++)
+            TickerMode(enabled: i == _tabIndex, child: tabs[i]),
+        ],
+      ),
     );
   }
 }
