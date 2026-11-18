@@ -35,7 +35,7 @@ whitespace + previous word) after 1.5 s; stops on touch up/outside/cancel and on
 Latest text (round 2, privacy fix): App Groups are **not** configured (both `Runner.entitlements` and
 `ShinsokuKeyboard.entitlements` are empty), so the app hands text over through the pasteboard with a marker:
 `AppDelegate.publishLatestText` writes one item `{public.utf8-plain-text: text, "net.potafree.shinsoku.latest":
-empty Data}` with `.localOnly` and a 10-minute expiration. On appear the keyboard only calls
+empty Data}` with `.localOnly` (the 10-minute expiration was dropped in `5fb4f55`). On appear the keyboard only calls
 `UIPasteboard.general.contains(pasteboardTypes: ["net.potafree.shinsoku.latest"])` (metadata, no content read,
 Full Access only): marker present → status "Latest text ready", key "Insert"; absent → status "Ready", key
 "Paste". The string is read **only inside the Insert/Paste tap**. No preview is shown and nothing from the
@@ -59,7 +59,6 @@ VoiceOver labels: "Insert latest text" (value "Shinsoku text", or "Needs Full Ac
    publishing from Shinsoku).
 3. Record in Shinsoku → back in Notes: status "Latest text ready", key "Insert", no text shown; tap inserts,
    status "Inserted". Copy text elsewhere (no marker): status "Ready", key "Paste"; tap pastes it.
-   Marker expires after 10 minutes (text too).
 3b. Full Access off: Insert dimmed, status "Turn on Full Access to insert" in warning colour.
 4. Hold Delete: single delete, repeat after ~0.4 s, word deletes after ~1.5 s, stops on release.
 5. Return title in Safari address bar ("go"), Messages ("send" only where the host sets it), search fields.
@@ -69,7 +68,7 @@ VoiceOver labels: "Insert latest text" (value "Shinsoku text", or "Needs Full Ac
 
 ## Open points
 - Heights 216/226/176 are estimates of the system keyboard; adjust after the tier B screenshots.
-- Side effect of the round 2 handoff: published text leaves the clipboard after 10 minutes and no longer goes
+- Side effect of the round 2 handoff: published text no longer goes
   to Universal Clipboard (`.localOnly`). If users rely on pasting it elsewhere later, App Groups would be the
   cleaner handoff (needs entitlements + provisioning; coordinator/user decision).
 
