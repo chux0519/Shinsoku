@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shinsoku_mobile/features/common/widgets.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
-import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
@@ -388,53 +386,6 @@ class _FieldLabel extends StatelessWidget {
         style: SkType.secondary.copyWith(
           color: SkColors.of(context).textSecondary,
         ),
-      ),
-    );
-  }
-}
-
-class SmokeTestPanel extends StatelessWidget {
-  const SmokeTestPanel({required this.status, super.key});
-
-  final SmokeTestStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final icon = status.failed
-        ? Icons.error_outline
-        : status.finished
-        ? Icons.check_circle_outline
-        : Icons.cloud_sync_outlined;
-    final color = status.failed ? scheme.error : scheme.primary;
-
-    return InfoPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  status.label,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(status.detail),
-          if (status.transcript != null) ...[
-            const SizedBox(height: 12),
-            SelectableText(
-              status.transcript!,
-              key: const ValueKey('soniox-smoke-transcript'),
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ],
-        ],
       ),
     );
   }

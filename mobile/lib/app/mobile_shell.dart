@@ -235,13 +235,13 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       }
       setState(() {
         _microphoneAllowed = false;
-        _tabIndex = 2;
         _smokeTestStatus = const SmokeTestStatus(
-          label: 'Microphone permission required',
+          label: 'Microphone access is off',
           detail:
               'Allow microphone access in iOS Settings, then try recording again.',
           failed: true,
           finished: true,
+          fix: StatusFix.microphone,
         );
       });
       return;
@@ -268,12 +268,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     if (!_providerSettings.activeProviderConfigured) {
       setState(() {
         _microphoneAllowed = true;
-        _tabIndex = 2;
         _smokeTestStatus = const SmokeTestStatus(
           label: 'Provider settings required',
           detail: 'Save a Bailian or Soniox API key before recording.',
           failed: true,
           finished: true,
+          fix: StatusFix.providerSettings,
         );
       });
       return;
@@ -813,11 +813,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           onProfileSelected: (index) {
             unawaited(_selectProfile(index));
           },
-          onProfileAdded: () => _showVoiceProfileEditor(),
-          onProfileEdited: (profile) =>
-              _showVoiceProfileEditor(profile: profile),
-          onProfileDeleted: _confirmDeleteVoiceProfile,
           onCapturePressed: _toggleCapture,
+          onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
+          onOpenSettings: () => _selectTab(3),
         ),
         DraftsView(
           drafts: _drafts,

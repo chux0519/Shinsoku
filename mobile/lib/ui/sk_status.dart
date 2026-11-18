@@ -36,14 +36,18 @@ class SkStatusLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = SkColors.of(context);
     final iconColor = c.tone(tone);
+    // The icon follows Dynamic Type (up to 1.5×) so it stays with the text.
+    final iconSize = MediaQuery.textScalerOf(
+      context,
+    ).clamp(maxScaleFactor: 1.5).scale(22);
     final leading = busy
-        ? const Padding(
-            padding: EdgeInsets.all(2),
-            child: SkActivityIndicator(size: 18),
+        ? Padding(
+            padding: const EdgeInsets.all(2),
+            child: SkActivityIndicator(size: iconSize - 4),
           )
         : icon == null
         ? null
-        : Icon(icon, size: 22, color: iconColor);
+        : Icon(icon, size: iconSize, color: iconColor);
     return Semantics(
       liveRegion: true,
       container: true,

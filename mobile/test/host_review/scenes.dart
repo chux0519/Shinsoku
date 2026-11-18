@@ -64,10 +64,9 @@ Widget _record({
     microphoneAllowed: microphoneAllowed,
     smokeTestStatus: status,
     onProfileSelected: (_) {},
-    onProfileAdded: () {},
-    onProfileEdited: (_) {},
-    onProfileDeleted: (_) {},
     onCapturePressed: () {},
+    onOpenMicrophoneSettings: () {},
+    onOpenSettings: () {},
   ),
 );
 
@@ -142,14 +141,22 @@ final scenes = <String, SceneBuilder>{
       finished: true,
     ),
   ),
+  'record-processing': () => _record(
+    state: CaptureState.processing,
+    status: const SmokeTestStatus(
+      label: 'Transcribing recording',
+      detail: 'Uploading recorded audio to the selected provider.',
+    ),
+  ),
   'record-error': () => _record(
     microphoneAllowed: false,
     status: const SmokeTestStatus(
-      label: 'Microphone permission required',
+      label: 'Microphone access is off',
       detail:
           'Allow microphone access in iOS Settings, then try recording again.',
       failed: true,
       finished: true,
+      fix: StatusFix.microphone,
     ),
   ),
   'drafts-empty': () => _tab(

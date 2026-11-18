@@ -52,6 +52,9 @@ class SmokeTestConfig {
   static bool get enabled => mode == 'soniox' || mode == 'bailian';
 }
 
+/// The fix a failed status offers (DESIGN §7: errors carry their fix).
+enum StatusFix { none, microphone, providerSettings }
+
 class SmokeTestStatus {
   const SmokeTestStatus({
     required this.label,
@@ -59,6 +62,7 @@ class SmokeTestStatus {
     this.transcript,
     this.failed = false,
     this.finished = false,
+    this.fix = StatusFix.none,
   });
 
   final String label;
@@ -66,6 +70,7 @@ class SmokeTestStatus {
   final String? transcript;
   final bool failed;
   final bool finished;
+  final StatusFix fix;
 }
 
 class SonioxSmokeTestResult {
