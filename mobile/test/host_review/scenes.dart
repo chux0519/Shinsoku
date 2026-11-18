@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
+import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
+import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
@@ -11,6 +13,7 @@ import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
+import 'package:shinsoku_mobile/ui/ui.dart';
 
 typedef SceneBuilder = Widget Function();
 
@@ -83,7 +86,49 @@ Widget _settings() => _tab(
     onKeyboardChanged: (_) {},
     onCloudProcessingChanged: (_) {},
     onProviderSettingsSaved: (_) async {},
+    profiles: defaultVoiceProfiles,
+    onProfileAdded: () {},
+    onProfileOpened: (_) {},
   ),
+);
+
+const _dictation = VoiceProfile(
+  id: 'dictation',
+  name: 'Dictation',
+  intent: 'Clean speech into natural prose',
+  commitSuffix: CommitSuffix.space,
+  autoCommit: true,
+);
+
+/// A sheet as the modal route shows it: page behind, scrim, sheet at the
+/// bottom inside the top safe area.
+Widget _sheetOver(Widget page, Widget sheet) => Builder(
+  builder: (context) {
+    final c = SkColors.of(context);
+    return Stack(
+      children: [
+        page,
+        const ModalBarrier(color: Colors.black54),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+            child: Material(
+              color: c.raised,
+              elevation: 8,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(SkShape.sheet),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: sheet,
+            ),
+          ),
+        ),
+      ],
+    );
+  },
 );
 
 final scenes = <String, SceneBuilder>{
@@ -127,6 +172,11 @@ final scenes = <String, SceneBuilder>{
   ),
   'draft-editor': () => DraftEditorScreen(draft: sampleDrafts().first),
   'settings': _settings,
+  'keyboard-setup': () => KeyboardSetupView(onOpenSettings: () async => true),
+  'profile-editor': () => _sheetOver(
+    _settings(),
+    const ProfileEditorSheet(profile: _dictation, canDelete: true),
+  ),
   'nearby': () => _tab(
     2,
     const NearbyMicrophoneView(

@@ -278,3 +278,55 @@ class SkTabBar extends StatelessWidget {
     );
   }
 }
+
+/// Top bar for pushed screens: a leading control, a centred page title and
+/// optional trailing controls. Respects the top and side safe insets.
+class SkTopBar extends StatelessWidget implements PreferredSizeWidget {
+  const SkTopBar({
+    required this.title,
+    this.leading,
+    this.trailing = const [],
+    super.key,
+  });
+
+  final String title;
+  final Widget? leading;
+  final List<Widget> trailing;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(52);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = SkColors.of(context);
+    final safe = MediaQuery.paddingOf(context);
+    return ColoredBox(
+      color: c.canvas,
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: safe.top,
+          left: safe.left + SkSpace.xs,
+          right: safe.right + SkSpace.xs,
+        ),
+        child: SizedBox(
+          height: 52,
+          child: NavigationToolbar(
+            leading: leading,
+            middle: Semantics(
+              header: true,
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SkType.pageTitle.copyWith(color: c.text),
+              ),
+            ),
+            trailing: trailing.isEmpty
+                ? null
+                : Row(mainAxisSize: MainAxisSize.min, children: trailing),
+          ),
+        ),
+      ),
+    );
+  }
+}

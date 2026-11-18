@@ -155,7 +155,7 @@ class SkListRow extends StatelessWidget {
     this.selected = false,
     this.destructive = false,
     this.accentTitle = false,
-    this.subtitleMaxLines = 2,
+    this.subtitleMaxLines,
     this.customSemanticsActions,
     super.key,
   }) : toggleValue = null,
@@ -168,7 +168,7 @@ class SkListRow extends StatelessWidget {
     required ValueChanged<bool>? onChanged,
     this.subtitle,
     this.leading,
-    this.subtitleMaxLines = 2,
+    this.subtitleMaxLines,
     super.key,
   }) : toggleValue = value,
        onToggle = onChanged,
@@ -197,7 +197,9 @@ class SkListRow extends StatelessWidget {
 
   /// Accent title for action rows ("Add profile").
   final bool accentTitle;
-  final int subtitleMaxLines;
+
+  /// Null: wrap freely (large Dynamic Type sizes never truncate).
+  final int? subtitleMaxLines;
   final Map<CustomSemanticsAction, VoidCallback>? customSemanticsActions;
   final bool? toggleValue;
   final ValueChanged<bool>? onToggle;
@@ -257,7 +259,9 @@ class SkListRow extends StatelessWidget {
                       Text(
                         subtitle!,
                         maxLines: subtitleMaxLines,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: subtitleMaxLines == null
+                            ? null
+                            : TextOverflow.ellipsis,
                         style: SkType.secondary.copyWith(
                           color: c.textSecondary,
                         ),

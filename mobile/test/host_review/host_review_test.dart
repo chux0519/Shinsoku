@@ -136,6 +136,8 @@ void main() {
       testWidgets('$scene $device $theme', (t) async {
         debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
         EditableText.debugDeterministicCursor = true;
+        // flutter_test draws shadows as solid outlines by default.
+        debugDisableShadows = false;
         t.view.devicePixelRatio = 1;
         t.view.physicalSize = spec.size;
         t.view.padding = spec.padding;
@@ -202,6 +204,7 @@ void main() {
           t.view.reset();
           debugDefaultTargetPlatformOverride = null;
           EditableText.debugDeterministicCursor = false;
+          debugDisableShadows = true;
         }
       });
     }

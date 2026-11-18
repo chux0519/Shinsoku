@@ -11,6 +11,7 @@ import 'package:shinsoku_mobile/app/bridges.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
+import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
@@ -18,6 +19,7 @@ import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
+import 'package:shinsoku_mobile/ui/ui.dart';
 
 class MobileShell extends StatefulWidget {
   const MobileShell({
@@ -581,126 +583,19 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   Future<void> _showVoiceProfileEditor({VoiceProfile? profile}) async {
-    final nameController = TextEditingController(text: profile?.name ?? '');
-    final intentController = TextEditingController(
-      text:
-          profile?.intent ??
-          'Clean up the transcript. Return only the final text.',
+    final result = await showProfileEditor(
+      context,
+      profile: profile,
+      canDelete: profile != null && _profiles.length > 1,
     );
-    var commitSuffix = profile?.commitSuffix ?? CommitSuffix.space;
-    var autoCommit = profile?.autoCommit ?? true;
-    try {
-      final edited = await showDialog<VoiceProfile>(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: Text(profile == null ? 'New profile' : 'Edit profile'),
-                content: SizedBox(
-                  width: 520,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Profile name',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: intentController,
-                          maxLines: 6,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Post-processing prompt',
-                            helperText:
-                                'Example: Translate Chinese speech into natural English.',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: SegmentedButton<CommitSuffix>(
-                            showSelectedIcon: false,
-                            segments: const [
-                              ButtonSegment<CommitSuffix>(
-                                value: CommitSuffix.none,
-                                label: Text('None'),
-                              ),
-                              ButtonSegment<CommitSuffix>(
-                                value: CommitSuffix.space,
-                                label: Text('Space'),
-                              ),
-                              ButtonSegment<CommitSuffix>(
-                                value: CommitSuffix.newline,
-                                label: Text('New line'),
-                              ),
-                            ],
-                            selected: {commitSuffix},
-                            onSelectionChanged: (selection) {
-                              setDialogState(() {
-                                commitSuffix = selection.first;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          value: autoCommit,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              autoCommit = value;
-                            });
-                          },
-                          title: const Text('Auto commit'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: () {
-                      final name = nameController.text.trim();
-                      final intent = intentController.text.trim();
-                      Navigator.of(context).pop(
-                        VoiceProfile(
-                          id:
-                              profile?.id ??
-                              'profile_${DateTime.now().microsecondsSinceEpoch}',
-                          name: name.isEmpty ? 'Untitled' : name,
-                          intent: intent.isEmpty
-                              ? 'Clean up the transcript. Return only the final text.'
-                              : intent,
-                          commitSuffix: commitSuffix,
-                          autoCommit: autoCommit,
-                        ),
-                      );
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-      if (edited != null) {
-        await _upsertVoiceProfile(edited);
-      }
-    } finally {
-      nameController.dispose();
-      intentController.dispose();
+    if (result == null || !mounted) {
+      return;
     }
+    if (result.delete) {
+      await _confirmDeleteVoiceProfile(profile!);
+      return;
+    }
+    await _upsertVoiceProfile(result.profile!);
   }
 
   Future<void> _confirmDeleteVoiceProfile(VoiceProfile profile) async {
@@ -710,26 +605,14 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       );
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSkConfirm(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete profile'),
-          content: Text('Delete "${profile.name}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      title: 'Delete profile',
+      message: 'Delete "${profile.name}"?',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await _deleteVoiceProfile(profile);
     }
   }
@@ -977,6 +860,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
             });
           },
           onProviderSettingsSaved: _saveProviderSettings,
+          profiles: _profiles,
+          onProfileAdded: () => _showVoiceProfileEditor(),
+          onProfileOpened: (profile) =>
+              _showVoiceProfileEditor(profile: profile),
         ),
       ],
     );
