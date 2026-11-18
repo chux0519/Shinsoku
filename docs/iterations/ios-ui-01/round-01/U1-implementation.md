@@ -24,4 +24,4 @@ Test change: `test/widget_test.dart` imports `services/drafts.dart` for `DraftEn
 - `bash tool/test_diff.sh`: no new failures (0 known).
 - `python3 tool/review_lint.py`: R01, R02 ok.
 - Not committed: churn in `mobile/pubspec.lock`, `mobile/analysis_options.yaml`.
-- Commits: U1.1 services 52ad82a, U1.2 features, U1.3 app shell (see `git log`).
+- Commits: U1.1 services 52ad82a, U1.2 features 4ad1d62, U1.3 app shell 40dda3d.
