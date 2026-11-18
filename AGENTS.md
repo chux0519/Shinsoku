@@ -48,9 +48,12 @@ priorities are in [Roadmap.md](Roadmap.md).
   microphone, gestures, iPhone Duo hinge/posture). Coordinator only. Timing issues: record once, cut frames at
   PHASE marks.
 - **C:** full matrix (iPhone, iPhone Duo folded/unfolded, light/dark) once before a store submission.
-- Use dedicated simulators only, never `booted`, never another project's devices. UDIDs: *not assigned yet —
-  ask the user before creating them*, then write them here. Dev builds use their own bundle id, never
-  `net.potafree.shinsoku` on a device that has the TestFlight build.
+- Simulators are shared with other projects in turns (disk is tight: never create new ones, user decision
+  2026-11-18). Use only these, by UDID, never `booted`; boot one at a time and shut it down when done:
+  `iPhone 17` iOS 27.2 `9080FE77-1FF9-49A1-B165-55DCA4ECED64`, `iPhone Duo` iOS 27.1
+  `2F378AB1-D2CC-44E6-9E0F-5AE02FBAFFFC`. Before booting, check no other project's simulator is running
+  (`xcrun simctl list devices booted`). Dev builds use their own bundle id, never `net.potafree.shinsoku` on a
+  device that has the TestFlight build.
 - Evidence goes under `build/ui-review/<iteration-id>/round-NN/<device>/` (not in git; keep the latest 2
   iterations).
 
@@ -72,7 +75,7 @@ priorities are in [Roadmap.md](Roadmap.md).
 ## Authorizations
 - Standing (no need to ask): push branches, open PRs, merge PRs to main — **only when the change can be rolled
   back** (a plain revert restores the previous state; no data migration, deletion, or external side effect).
-- Always ask: TestFlight uploads, store submissions and releases, creating simulators, deleting the Qt code,
+- Always ask: TestFlight uploads, store submissions and releases, creating simulators (never: disk), deleting the Qt code,
   anything public or hard to undo.
 - An authorization never extends to a different context. If the tool refuses an action, ask; don't work around.
 

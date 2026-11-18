@@ -3,7 +3,7 @@
 Single source of truth for visual and interaction rules. Only the coordinator edits this file; user decisions
 are written here with their date.
 
-> Status: **draft 2026-11-18**, derived from Shinphony's DESIGN.md principles with Shinsoku's own palette
+> Status: **confirmed 2026-11-18**, derived from Shinphony's DESIGN.md principles with Shinsoku's own palette
 > (user decision 2026-11-18: "沿用 Shinphony 的原则，配色独立"). The first UI iteration confirms or corrects it.
 > Where current code disagrees, new work follows this file and old screens migrate per §8.
 
