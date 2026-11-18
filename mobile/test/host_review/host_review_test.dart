@@ -3,7 +3,8 @@
 // which also writes the index.html contact sheet.
 //
 // Not covered here (tier B/C): the keyboard extension, native fonts beyond
-// the host's SF Pro, real safe areas and the iPhone Duo hinge.
+// the host's SF Pro, real safe areas and the real iPhone Duo fold (the
+// *-fold devices use a fake centre hinge line).
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -18,11 +19,15 @@ import 'package:shinsoku_mobile/ui/theme.dart';
 import 'scenes.dart';
 
 class _Device {
-  const _Device(this.size, this.padding, {this.textScale = 1});
+  const _Device(this.size, this.padding, {this.textScale = 1, this.fold});
 
   final Size size;
   final FakeViewPadding padding;
   final double textScale;
+
+  /// A fake iPhone Duo division region (window coordinates), fed in as a
+  /// hinge display feature like the native bridge does.
+  final Rect? fold;
 }
 
 /// Logical points. Safe areas follow the task brief for iPhone 17 and the
@@ -36,6 +41,21 @@ const _devices = <String, _Device>{
     FakeViewPadding(top: 84, bottom: 95),
   ),
   'duo-inner-landscape': _Device(Size(951, 669), FakeViewPadding(right: 84)),
+};
+
+/// Inner display with a fake fold at the centre (0-width hinge line), for
+/// [foldScenes]. Real region sizes when folded are pending tier B.
+const _foldDevices = <String, _Device>{
+  'duo-inner-landscape-fold': _Device(
+    Size(951, 669),
+    FakeViewPadding(right: 84),
+    fold: Rect.fromLTWH(475.5, 0, 0, 669),
+  ),
+  'duo-inner-portrait-fold': _Device(
+    Size(669, 951),
+    FakeViewPadding(top: 84, bottom: 95),
+    fold: Rect.fromLTWH(0, 475.5, 669, 0),
+  ),
 };
 
 /// Dynamic Type review size (2.0×) on the iPhone, for [largeTextScenes].
@@ -105,6 +125,9 @@ void main() {
         (scene, device, spec),
       if (largeTextScenes.contains(scene))
         (scene, 'iphone-text200', _largeText),
+      if (foldScenes.contains(scene))
+        for (final MapEntry(key: device, value: spec) in _foldDevices.entries)
+          (scene, device, spec),
     ],
   ];
 
@@ -157,6 +180,14 @@ void main() {
                   data: MediaQuery.of(context).copyWith(
                     disableAnimations: true,
                     textScaler: TextScaler.linear(spec.textScale),
+                    displayFeatures: [
+                      if (spec.fold != null)
+                        ui.DisplayFeature(
+                          bounds: spec.fold!,
+                          type: ui.DisplayFeatureType.hinge,
+                          state: ui.DisplayFeatureState.postureHalfOpened,
+                        ),
+                    ],
                   ),
                   child: page!,
                 ),
@@ -195,6 +226,13 @@ void main() {
                   'right': spec.padding.right,
                 },
                 'textScale': spec.textScale,
+                if (spec.fold case final fold?)
+                  'fold': {
+                    'left': fold.left,
+                    'top': fold.top,
+                    'width': fold.width,
+                    'height': fold.height,
+                  },
                 'uiFont': 'host SF Pro (SFNS.ttf)',
               }),
             );

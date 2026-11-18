@@ -4,8 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/main.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 
+/// An iPhone-sized window: these flows test the compact (phone) shell. The
+/// default 800 × 600 test window is a regular (two-pane) size.
+void _phone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(402, 874);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
   testWidgets('shows the Shinsoku mobile record surface', (tester) async {
+    _phone(tester);
     await tester.pumpWidget(const ShinsokuMobileApp());
 
     expect(find.text('Shinsoku'), findsOneWidget);
@@ -16,6 +25,7 @@ void main() {
   });
 
   testWidgets('shows a captured draft with explicit actions', (tester) async {
+    _phone(tester);
     await tester.pumpWidget(
       ShinsokuMobileApp(
         initialDrafts: [
@@ -45,6 +55,7 @@ void main() {
   });
 
   testWidgets('edits a draft before saving and copying it', (tester) async {
+    _phone(tester);
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     const keyboardChannel = MethodChannel(
@@ -97,6 +108,7 @@ void main() {
   testWidgets('microphone setting redirects recording to settings', (
     tester,
   ) async {
+    _phone(tester);
     await tester.pumpWidget(const ShinsokuMobileApp());
 
     await tester.tap(find.byIcon(Icons.tune_outlined));
@@ -109,6 +121,7 @@ void main() {
   testWidgets('shows the pinned local desktop microphone workflow', (
     tester,
   ) async {
+    _phone(tester);
     await tester.pumpWidget(const ShinsokuMobileApp());
 
     await tester.tap(find.byIcon(Icons.wifi_tethering));
