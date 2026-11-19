@@ -90,3 +90,32 @@ Setup: app with ≥ 3 profiles (e.g. Default, Chat, Review); Shinsoku keyboard a
 9. Light + dark, VoiceOver: "Profile, Chat, button", custom actions "Use …".
 
 Not tested by me: anything on a simulator (implementers don't touch shared simulators).
+
+## Scene (tier B harness, branch `profile-01-p3-scene`)
+Run (coordinator, iPhone 17, under Xcode 27.2, simulator already booted):
+`SCENE_TEST=KeyboardSceneTests/ProfileKeyboardSceneTests bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash
+tool/ios_keyboard_scene.sh 9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/profile-01/round-01/iphone-17`
+
+- `KeyboardSceneTests/SceneSupport.swift`: `SceneTestCase` base class. The Settings / Safari-field / Shortcuts /
+  Runner / FAIL-PHASE helpers of `KeyboardSceneTests` and `ProfileIntentSceneTests` moved there unchanged; both
+  scenes now subclass it (FAIL trees now always include SpringBoard; `tap` scrolls Settings or Shortcuts,
+  whichever is in front). 8 pbxproj lines add the two new files to the test target.
+- `ProfileKeyboardSceneTests` (steps = task brief 1–8): seed → textarea shows Dictation → tap → Chat → tap →
+  Review → long-press menu lists Dictation/Chat/Review/ZH -> EN, pick Chat → keyboard Record → app's Record
+  has Chat selected (PR1) → reseed → address bar (`.webSearch` = search) shows Review (rule) → Shortcuts
+  "Set Profile: Chat" → address bar shows Chat (PR2) → Full Access off → textarea shows "Chat, read only",
+  tap → "Turn on Full Access to switch profiles", long-press opens no menu (PR4) → Full Access on → system
+  keyboard restored.
+- Keyboard control is matched as button label `Profile`, value = name (`"<name>, read only"` without Full
+  Access). App side: segment label `Chat` with `selected == YES`.
+- Soft (reported at the end, scene continues): the long-press menu not drawing (falls back to cycling to
+  Chat) and a menu opening without Full Access. Everything else stops the scene with `FAIL-<step>`.
+- Seed (Runner DEBUG launch args, `AppDelegate.applySceneProfileArguments`): `-ShinsokuSceneResetSelection
+  YES` removes `activeProfile.v1` (Dart's launch sync then writes the default selection);
+  `-ShinsokuSceneFieldRules '{"search":"review"}'` writes `fieldRules.v1` directly (P4's `setFieldRules`
+  channel not merged; known kinds only, `{}` clears). The scene leaves `fieldRules.v1 = {search: review}` and
+  the selection at automation/Chat behind.
+- Assumes the built-in profile list (Dictation, Chat, Review, ZH -> EN); an edited list fails at the first
+  name check.
+- Verified: `tool/ios_keyboard_scene.sh --build-only` under Xcode 27.2 → TEST BUILD SUCCEEDED, no warnings in
+  AppDelegate / KeyboardSceneTests; `python3 tool/review_lint.py` ok. Not run on a simulator.

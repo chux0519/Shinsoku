@@ -1,3 +1,15 @@
+# STATE — profile-01 P3 scene (tier-B harness)
+- Done: `ProfileKeyboardSceneTests` (brief steps 1–8), shared `SceneSupport.swift` (both older scenes use it),
+  DEBUG seed args `-ShinsokuSceneResetSelection` / `-ShinsokuSceneFieldRules`. Details: `P3-implementation.md`
+  § Scene.
+- In progress: none. Next: coordinator runs the scene on iPhone 17 (command in `P3-implementation.md`), also
+  reruns KeyboardSceneTests / ProfileIntentSceneTests once (helpers moved).
+- Open: once P4's `setFieldRules` lands, the seed could go through it (the DEBUG arg writes the same key).
+- Verify: `bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh --build-only`;
+  `python3 tool/review_lint.py`.
+
+---
+
 # STATE — profile-01 P3 (keyboard)
 - Done: keyboard shows the active profile, tap cycles, long-press menu, manual write, field-kind rules
   (`fieldRules.v1`), read-only + lock without Full Access, Record passes `?profile=<shown id>`. Round 2:
