@@ -12,6 +12,17 @@ class UseInAppsView extends StatelessWidget {
     super.key,
   });
 
+  /// Reads the version from the host (null off-device) and builds the view.
+  static Widget withSystemVersion({
+    Future<bool> Function() onOpenShortcuts = openShortcutsApp,
+  }) => FutureBuilder<int?>(
+    future: systemMajorVersion(),
+    builder: (context, snapshot) => UseInAppsView(
+      onOpenShortcuts: onOpenShortcuts,
+      iosMajorVersion: snapshot.data,
+    ),
+  );
+
   final Future<bool> Function() onOpenShortcuts;
 
   /// Null: unknown / not iOS, so the iOS 16 note is not shown.
@@ -35,8 +46,8 @@ class UseInAppsView extends StatelessWidget {
   ];
 
   static const keyboardNote =
-      'You can also tap the profile name in the keyboard to switch. A choice '
-      'you make there wins over an automation.';
+      'You can also tap the profile name in the keyboard to switch. It stays '
+      'until an automation runs again.';
 
   static const iosNote = 'The Shortcuts actions need iOS 16 or later.';
 

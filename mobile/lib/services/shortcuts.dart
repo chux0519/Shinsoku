@@ -13,3 +13,17 @@ Future<bool> openShortcutsApp() async {
     return false;
   }
 }
+
+/// The iOS major version, or null when unknown (tests, other platforms).
+Future<int?> systemMajorVersion() async {
+  try {
+    final v = await const MethodChannel(
+      'net.potafree.shinsoku/profiles',
+    ).invokeMethod<int>('systemMajorVersion');
+    return v == null || v <= 0 ? null : v;
+  } on MissingPluginException {
+    return null;
+  } on PlatformException {
+    return null;
+  }
+}

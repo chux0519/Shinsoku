@@ -79,7 +79,6 @@
   Details: `P4-implementation.md`.
 - In progress: none.
 - Next: coordinator review; tier B: the keyboard reads `fieldRules.v1` (P3 side) and "Open Shortcuts" opens the app.
-- Open decisions: second native method (`openShortcuts`) vs adding `url_launcher`; iOS < 16 note not wired in the
-  shell (no version source).
+- Open decisions: none (round 2: `systemMajorVersion` added, footer copy fixed).
 - Verify: `cd mobile && flutter analyze`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
   `tool/host_review.sh profile-01/round-01/p4`.

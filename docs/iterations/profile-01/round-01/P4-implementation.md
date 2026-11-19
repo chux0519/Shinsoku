@@ -5,9 +5,9 @@ Branch `profile-01-p4-ui`. Model: sonnet.
 ## What changed
 - **Use in apps** (`features/settings/use_in_apps_view.dart`): one-line summary, "When the app is opened" (3 steps)
   and "When the app is closed" (2 steps) as numbered rows, a note that tapping the profile name in the keyboard also
-  switches (and wins over an automation), one primary action "Open Shortcuts". `iosMajorVersion < 16` shows a
-  warning status line "The Shortcuts actions need iOS 16 or later." The shell doesn't pass a version yet (app min is
-  iOS 15; no plugin gives the version without a new dependency), so the note is reachable through the parameter only.
+  switches (it stays until an automation runs again), one primary action "Open Shortcuts". `iosMajorVersion < 16` shows a
+  warning status line "The Shortcuts actions need iOS 16 or later." The version comes from a third native method,
+  `systemMajorVersion` (round 2, coordinator decision), via `UseInAppsView.withSystemVersion`.
 - **Field rules** (`features/settings/field_rules_view.dart`): rows Search / Web address / Email / Message, each opens
   a sheet with None + profiles. `services/field_rules.dart`: `FieldRules` (kind → profile id), `FieldRulesStore`
   (secure storage, mirrored to `fieldRules.v1` via `setFieldRules`). Deleting a profile prunes rules that point to it
@@ -19,7 +19,7 @@ Branch `profile-01-p4-ui`. Model: sonnet.
   only `search|url|email|message`, non-empty string ids) and `openShortcuts` (opens `shortcuts://`).
 
 ## Deviation from the brief
-The brief says "one native method". I added a second, `openShortcuts`, because the project has no `url_launcher`
+The brief says "one native method". I added `openShortcuts` (accepted in review; `systemMajorVersion` too), because the project has no `url_launcher`
 and adding a dependency changes `pubspec.lock`. Say if you prefer the dependency.
 
 ## Verified

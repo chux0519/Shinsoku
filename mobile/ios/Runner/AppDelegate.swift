@@ -369,6 +369,8 @@ enum ProfileGroupChannel {
         shared.set(rules, forKey: ProfileGroup.fieldRulesKey)
         log.notice("setFieldRules: bytes=\(rules.utf8.count)")
         result(nil)
+      case "systemMajorVersion":
+        result(Int(UIDevice.current.systemVersion.split(separator: ".").first ?? "") ?? 0)
       case "openShortcuts":
         guard let url = URL(string: "shortcuts://") else {
           result(false)

@@ -349,8 +349,10 @@ class _SettingsViewState extends State<SettingsView> {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (context) => widget.onOpenShortcuts == null
-                      ? const UseInAppsView()
-                      : UseInAppsView(onOpenShortcuts: widget.onOpenShortcuts!),
+                      ? UseInAppsView.withSystemVersion()
+                      : UseInAppsView.withSystemVersion(
+                          onOpenShortcuts: widget.onOpenShortcuts!,
+                        ),
                 ),
               ),
             ),
