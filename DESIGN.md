@@ -24,8 +24,8 @@ or an icon. Contrast is checked in every theme: 4.5:1 for body text, 3:1 for ico
 | Token | Dark (default) | Light | Use |
 |---|---|---|---|
 | canvas | `#101314` | `#F7F8F8` | page background, transcript area |
-| frame | `#161A1B` | `#EEF1F1` | grouped sections, keyboard background |
-| raised | `#1D2224` | `#FFFFFF` | cards, sheets, menus, keys |
+| frame | `#161A1B` | `#EEF1F1` | tab bar, pane switcher track, keyboard background |
+| raised | `#1D2224` | `#FFFFFF` | cards, grouped section rows, sheets, menus, keys |
 | text | `#E3E9EA` | `#1C2426` | primary text |
 | text-secondary | `#AEB9BB` | `#4A5659` | labels, metadata |
 | text-tertiary | `#848E90` | `#5F6A6D` | hints, timestamps (≥ 12 px) |
@@ -61,12 +61,16 @@ or an icon. Contrast is checked in every theme: 4.5:1 for body text, 3:1 for ico
 Own component layer (`mobile/lib/ui/`), new UI uses it, not raw Material widgets:
 `SkButton` (primary / secondary / text), `SkIconButton`, `SkRecordButton` (the one big control),
 `SkCard`, `SkSection` + `SkListRow`, `SkSegmented`, `SkSheet`, `SkTextArea`, `SkStatusLine`
-(state text + icon), `SkBadge`, `SkKey` (keyboard extension mirrors it in SwiftUI/UIKit with the same tokens).
+(state text + icon), `SkBadge`, `SkKey` (keyboard extension mirrors it in SwiftUI/UIKit with the same tokens),
+`SkTabBar`, `SkTopBar`, `SkPage` + `SkPageHeader`, `SkEmptyLine`, `SkSwitch` (added 2026-11-19).
 
 ## 6. Layout and form factors
 - iPhone (compact width): single column, primary action in the bottom third (thumb reach).
-- **iPhone Duo** (2026-11-18): folded = iPhone rules. Unfolded = two panes split at the hinge: left = record
-  and current transcript, right = drafts/history or settings detail. Nothing interactive or text-bearing
+- **iPhone Duo** (2026-11-18, revised 2026-11-19): folded = iPhone rules. Unfolded = two panes split at the
+  hinge: one pane is always Record (status, transcript, record button); the other shows Drafts, Desktop or
+  Settings, chosen with a top switcher (no side rail: Record never needs navigating to). Landscape: Record left.
+  Portrait / tabletop (horizontal hinge): the switchable pane on top, Record at the bottom (content up,
+  controls down; primary action in the bottom third). Nothing interactive or text-bearing
   crosses the hinge; use the display-feature APIs, not a width guess. Posture changes keep state (an active
   recording never stops because the device folded). Follow the `iphone-duo-*` skills.
 - Keyboard extension: fixed height that fits the system keyboard; top row status + mode; primary row
@@ -76,16 +80,16 @@ Own component layer (`mobile/lib/ui/`), new UI uses it, not raw Material widgets
 ## 7. Screens
 - **Record (home):** status line, transcript area, one record button. Empty state: one line on how to start.
   Errors: inline status line with the fix (e.g. "Microphone access is off — Open Settings").
-- **Drafts / history:** date-grouped list, row = first line + time + source; tap to edit; swipe to delete
+- **Drafts / history:** date-grouped list, row = first two lines (dictations are usually one paragraph) + time + source; tap to edit; swipe to delete
   with undo.
 - **Settings:** grouped sections (Recognition, Profiles, Keyboard, Nearby, About); one detail per row.
 - **Nearby microphone:** pairing code large and mono, connection state as status line.
 - **Keyboard setup guide:** numbered steps, one "Open Settings" action.
 
 ## 8. Migration
-Existing screens use Material defaults (`ColorScheme.fromSeed(0xFF256D7B)`). They move to the component layer
-screen by screen; each migrated screen is reviewed against this file. Until then, do not add new raw Material
-widgets.
+Done 2026-11-19 (ios-ui-01 U3): every iOS screen uses the component layer; lint R03 forbids literal colours
+and `ColorScheme.fromSeed` outside `mobile/lib/ui/`.
 
 ## 9. Exceptions (dated)
-- (none yet)
+- 2026-11-19: ios-ui-01 design conflicts resolved by the user — section rows on raised (frame-on-frame lacked
+  contrast in light), two-line draft rows, five extra components, Duo pane order and top switcher (above).
