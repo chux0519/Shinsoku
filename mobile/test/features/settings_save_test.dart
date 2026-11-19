@@ -43,6 +43,9 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    // Fully on screen: the row may stop at the viewport edge.
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
     await tester.tap(save);
     await tester.pumpAndSettle();
     expect(saved, isNotNull);
