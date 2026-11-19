@@ -1,6 +1,6 @@
 # Iteration live-01 — live transcript preview + the transcript is the text field
 
-Status: **awaiting user confirmation** (2026-11-19). Base: `main` @ 47076c9 (TestFlight 0.1.0 (20)).
+Status: **confirmed by the user 2026-11-19**. Base: `main` @ 47076c9 (TestFlight 0.1.0 (20)).
 
 ## Goal
 1. While recording, the words appear as they are recognised (streaming providers: Bailian realtime, Soniox).
