@@ -19,7 +19,10 @@ import XCTest
 final class ProfileIntentSceneTests: SceneTestCase {
     func testProfileIntentScene() throws {
         // 1. Launch Shinsoku once: Dart publishes `profiles.v1` (the intents' entity list) at launch.
+        //    pricing-01: Set Shinsoku Profile is Shinsoku Pro; the Debug fixture writes the mirror `pro.v1` owned
+        //    (the intents read it; later launches without the fixture keep it, E1).
         runner.terminate()
+        runner.launchArguments = ["-ShinsokuSceneProFixture", "owned"]
         runner.launch()
         check(runner.wait(for: .runningForeground, timeout: 20), "runner-launch", "Shinsoku did not launch")
         require(runner.descendants(matching: .any).matching(labelContainsAny: Self.recordTab).firstMatch,

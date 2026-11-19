@@ -187,6 +187,9 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
 #endif
     // i18n-01 I4: the per-profile App Shortcuts list the profiles last published into the App Group.
     ShinsokuShortcutParameters.refresh()
+    // pricing-01: Shinsoku Pro. The transaction listener starts at launch so no update is missed, and the
+    // App Group mirror `pro.v1` is reconciled for the keyboard and the intents (E1–E4).
+    ProStore.shared.start()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -196,7 +199,7 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
   }
 
   /// The one place where Shinsoku's own platform channels are registered: keyboard bridge, profiles
-  /// (profile-01), deep links, division regions (U4). Add new channels here.
+  /// (profile-01), store (pricing-01), deep links, division regions (U4). Add new channels here.
   private func registerChannels(_ registry: FlutterPluginRegistry) {
     guard let registrar = registry.registrar(forPlugin: "ShinsokuHost") else {
       Self.log.error("registerChannels: no registrar")
@@ -236,6 +239,10 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
         } else {
           result(nil)
         }
+      case "sceneProFixture":
+        // pricing-01 scene hook (Debug builds only): `-ShinsokuSceneProFixture owned|locked` swaps Dart's store
+        // for a fake; `ProStore` writes the mirror from the same argument, so the keyboard and intents follow.
+        result(ProStore.shared.fixture)
 #endif
       default:
         result(FlutterMethodNotImplemented)
@@ -243,6 +250,7 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
     }
 
     ProfileGroupChannel.register(messenger: messenger)
+    ProStore.shared.register(messenger: messenger)
 
     let router = DeepLinkRouter(messenger: messenger)
     registrar.addSceneDelegate(router)

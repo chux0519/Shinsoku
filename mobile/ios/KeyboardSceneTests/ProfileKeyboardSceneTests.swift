@@ -29,7 +29,8 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         static let review = "Review"
     }
 
-    private static let seedArguments = ["-ShinsokuSceneResetSelection", "YES"]
+    /// pricing-01: field rules and Shortcuts switching are Shinsoku Pro; the Debug fixture makes the mirror owned.
+    private static let seedArguments = ["-ShinsokuSceneResetSelection", "YES", "-ShinsokuSceneProFixture", "owned"]
     private static let searchKind = "Search"
     private static let fieldRulesURL = URL(string: "shinsoku://settings/field-rules")!
     private static let noRule = "None"
@@ -48,7 +49,7 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         // 1. Seed: profiles published, selection reset to default; field rule Search → Review set in the app.
         launchSeededRunner("seed", searchRule: Profile.review)
         addTeardownBlock { [unowned self] in
-            self.launchRunner([], shotName: "runner-rule-reset")
+            self.launchRunner(["-ShinsokuSceneProFixture", "owned"], shotName: "runner-rule-reset")
             self.setSearchRule(Self.noRule, step: "field-rules-reset")
             self.runner.terminate()
         }

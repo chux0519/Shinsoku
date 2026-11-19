@@ -1,0 +1,38 @@
+{
+  "identifier" : "5E1A7C3D",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : true,
+      "internalID" : "6E5A1F20",
+      "localizations" : [
+        {
+          "description" : "Custom profiles, automatic switching per app, Desktop.",
+          "displayName" : "Shinsoku Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "net.potafree.shinsoku.pro",
+      "referenceName" : "Shinsoku Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
