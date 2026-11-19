@@ -1,0 +1,153 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@" : {
+      "comment" : "App Intents: a profile shown in Shortcuts; %@ is the user's profile name (not translated)",
+      "shouldTranslate" : false
+    },
+    "Get Profile" : {
+      "comment" : "App Shortcut short title (Shortcuts app tile, Spotlight)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Profile"
+          }
+        }
+      }
+    },
+    "Get Shinsoku Profile" : {
+      "comment" : "Shortcuts action title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Shinsoku Profile"
+          }
+        }
+      }
+    },
+    "Open Shinsoku once so your profiles are available." : {
+      "comment" : "Shortcuts error: no profiles in the shared store yet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Shinsoku once so your profiles are available."
+          }
+        }
+      }
+    },
+    "Profile" : {
+      "comment" : "Shortcuts parameter title of Set Shinsoku Profile",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile"
+          }
+        }
+      }
+    },
+    "Returns the profile Shinsoku uses for the next dictation." : {
+      "comment" : "Shortcuts action description (Get Shinsoku Profile)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Returns the profile Shinsoku uses for the next dictation."
+          }
+        }
+      }
+    },
+    "Set Profile" : {
+      "comment" : "App Shortcut short title (Shortcuts app tile, Spotlight)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Profile"
+          }
+        }
+      }
+    },
+    "Set Shinsoku Profile" : {
+      "comment" : "Shortcuts action title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Shinsoku Profile"
+          }
+        }
+      }
+    },
+    "Set Shinsoku profile to ${profile}" : {
+      "comment" : "Shortcuts parameter summary of Set Shinsoku Profile; keep ${profile}",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Shinsoku profile to ${profile}"
+          }
+        }
+      }
+    },
+    "Sets the profile Shinsoku uses for the next dictation, for example from an automation when an app opens." : {
+      "comment" : "Shortcuts action description (Set Shinsoku Profile)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sets the profile Shinsoku uses for the next dictation, for example from an automation when an app opens."
+          }
+        }
+      }
+    },
+    "Shinsoku Profile" : {
+      "comment" : "App Intents: type name of a profile in Shortcuts",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku Profile"
+          }
+        }
+      }
+    },
+    "Shinsoku could not save the profile." : {
+      "comment" : "Shortcuts error: the shared store could not be written",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku could not save the profile."
+          }
+        }
+      }
+    },
+    "Shinsoku profile: %@" : {
+      "comment" : "Shortcuts result dialog; %@ is the profile name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku profile: %@"
+          }
+        }
+      }
+    },
+    "The Shinsoku profile \"%@\" no longer exists." : {
+      "comment" : "Shortcuts error: the chosen profile was deleted; %@ is its name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Shinsoku profile \"%@\" no longer exists."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
