@@ -149,7 +149,6 @@ class _RecordViewState extends State<RecordView> {
   void _sync({required bool duringBuild}) {
     final t = _effective;
     final previous = _phase;
-    _phase = t.phase;
     switch (t.phase) {
       case LivePhase.connecting:
       case LivePhase.listening:
@@ -185,6 +184,8 @@ class _RecordViewState extends State<RecordView> {
       case LivePhase.idle:
         if (_controller.hasPending) _controller.showText(_controller.text);
     }
+    // Last: _keepEdits above judges edits by the phase the area showed.
+    _phase = t.phase;
   }
 
   /// Saves unsaved edits into the current draft.
@@ -273,7 +274,10 @@ class _RecordViewState extends State<RecordView> {
                         ),
                       ),
                     const SizedBox(height: SkSpace.l),
+                    // Keyed: the header and selector come and go with focus;
+                    // the field must keep its element (and the IME link).
                     Expanded(
+                      key: const ValueKey('record-transcript-slot'),
                       child: SkTranscriptArea(
                         key: const ValueKey('record-transcript'),
                         fieldKey: const ValueKey('record-transcript-field'),

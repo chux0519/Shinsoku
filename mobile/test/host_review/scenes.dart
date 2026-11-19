@@ -215,7 +215,7 @@ final scenes = <String, SceneBuilder>{
     ),
   ),
   // Editing the result with the software keyboard up (see sceneSetups).
-  'record-editing': () => _record(status: _doneStatus),
+  'record-editing': () => _withKeyboard(_record(status: _doneStatus)),
   'record-error': () => _record(
     microphoneAllowed: false,
     status: const SmokeTestStatus(
@@ -294,6 +294,35 @@ const foldScenes = {
   'drafts-list',
   'settings',
 };
+
+/// A flat stand-in for the software keyboard over the bottom inset, so the
+/// render shows what stays above it.
+Widget _withKeyboard(Widget page) => Builder(
+  builder: (context) {
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    final c = SkColors.of(context);
+    return Stack(
+      children: [
+        page,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: inset,
+          child: Material(
+            color: c.frame,
+            child: Center(
+              child: Text(
+                'software keyboard (simulated)',
+                style: SkType.caption.copyWith(color: c.textTertiary),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  },
+);
 
 /// Simulated software keyboard height for [device] (logical points): the
 /// iPhone 17 keyboard with its predictive bar; about 40 % of the height
