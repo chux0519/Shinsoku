@@ -65,6 +65,32 @@ def tokens_only():
     return problems
 
 
+@rule('R04', 'No API keys compiled into the app (fromEnvironment / dart-define of *_API_KEY)')
+def no_compiled_keys():
+    problems = []
+    for f in tracked('mobile/lib/**/*.dart'):
+        if not f.is_file():
+            continue
+        for n, line in enumerate(f.read_text(errors='ignore').splitlines(), 1):
+            if re.search(r'fromEnvironment\(\s*[\'"][A-Z_]*API_KEY', line):
+                problems.append(f'{f.relative_to(ROOT).as_posix()}:{n}: {line.strip()}')
+    for f in tracked('mobile/scripts/*.sh'):
+        if not f.is_file():
+            continue
+        in_list = False
+        for n, line in enumerate(f.read_text(errors='ignore').splitlines(), 1):
+            st = line.strip()
+            if re.match(r'for\s+name\s+in\b', st):
+                in_list = True
+            if in_list and re.match(r'^[A-Z_]*API_KEY\b', st):
+                problems.append(f'{f.relative_to(ROOT).as_posix()}:{n}: {st}')
+            if in_list and not st.endswith('\\') :
+                in_list = False
+            if re.search(r'--dart-define=[A-Z_]*API_KEY', line):
+                problems.append(f'{f.relative_to(ROOT).as_posix()}:{n}: {st}')
+    return problems
+
+
 def main(argv):
     selected = argv or sorted(RULES)
     failed = False

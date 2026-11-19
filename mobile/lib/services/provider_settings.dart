@@ -31,7 +31,7 @@ class ProviderSettings {
         'BAILIAN_API_BASE',
         defaultValue: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       ),
-      bailianApiKey: String.fromEnvironment('BAILIAN_API_KEY'),
+      bailianApiKey: '',
       bailianTextModel: String.fromEnvironment(
         'BAILIAN_OPENAI_MODEL',
         defaultValue: 'qwen-flash',
@@ -48,7 +48,7 @@ class ProviderSettings {
         'BAILIAN_REALTIME_MODEL',
         defaultValue: 'fun-asr-realtime',
       ),
-      sonioxApiKey: String.fromEnvironment('SONIOX_API_KEY'),
+      sonioxApiKey: '',
       sonioxModel: String.fromEnvironment(
         'SONIOX_MODEL',
         defaultValue: 'stt-rt-v4',

@@ -16,13 +16,16 @@ API_ISSUER="${APPSTORE_API_ISSUER:-8cc2abdc-3f44-41e4-89ae-4ec5ec7dbfc3}"
 DART_DEFINES=()
 for name in \
   BAILIAN_API_BASE \
-  BAILIAN_API_KEY \
   BAILIAN_OPENAI_MODEL \
   BAILIAN_OPENAI_ASR_MODEL \
   BAILIAN_REALTIME_URL \
   BAILIAN_REALTIME_MODEL \
-  SONIOX_API_KEY \
   SONIOX_MODEL; do
+  # R04: no API key may be compiled into the app; users enter keys in Settings.
+  if [[ "$name" == *_API_KEY ]]; then
+    echo "Refusing to pass $name as a dart-define (keys must not be in the app binary)." >&2
+    exit 1
+  fi
   if [[ -n "${!name:-}" ]]; then
     DART_DEFINES+=("--dart-define=$name=${!name}")
   fi
