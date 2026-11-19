@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
+import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
+import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
+import 'package:shinsoku_mobile/services/field_rules.dart';
 import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
@@ -78,6 +81,7 @@ Widget _recordView({
   onCapturePressed: () {},
   onOpenMicrophoneSettings: () {},
   onOpenSettings: () {},
+  profileReason: 'Dictation · default',
 );
 
 Widget _record({
@@ -193,6 +197,15 @@ final scenes = <String, SceneBuilder>{
   'draft-editor': () => DraftEditorScreen(draft: sampleDrafts().first),
   'settings': _settings,
   'keyboard-setup': () => KeyboardSetupView(onOpenSettings: () async => true),
+  'use-in-apps': () => UseInAppsView(onOpenShortcuts: () async => true),
+  'field-rules': () => FieldRulesView(
+    profiles: defaultVoiceProfiles,
+    rules: const FieldRules({
+      FieldKind.search: 'chat',
+      FieldKind.email: 'review',
+    }),
+    onChanged: (_) async {},
+  ),
   'profile-editor': () => _sheetOver(
     _settings(),
     const ProfileEditorSheet(profile: _dictation, canDelete: true),
@@ -207,16 +220,14 @@ final scenes = <String, SceneBuilder>{
           serviceName: 'example-desktop',
           host: '192.0.2.10',
           port: 39273,
-          certificateSha256:
-              '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
+          certificateSha256: '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
           instanceId: 'example-instance',
         ),
         NearbyDesktop(
           serviceName: 'example-laptop',
           host: '192.0.2.11',
           port: 39273,
-          certificateSha256:
-              'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
+          certificateSha256: 'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
           instanceId: 'example-instance-2',
         ),
       ],

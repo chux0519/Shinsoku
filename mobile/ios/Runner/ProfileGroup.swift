@@ -9,6 +9,8 @@ enum ProfileGroup {
   static let appGroup = "group.net.potafree.shinsoku"
   static let profilesKey = "profiles.v1"
   static let activeKey = "activeProfile.v1"
+  static let fieldRulesKey = "fieldRules.v1"
+  static let fieldKinds: [String] = ["search", "url", "email", "message"]
   static let sources: Set<String> = ["manual", "automation", "fieldRule", "default"]
 
   struct Profile: Equatable {
@@ -74,6 +76,17 @@ enum ProfileGroup {
 
   static func sanitizedSelection(_ raw: String?) -> String? {
     parseSelection(raw).flatMap(encodeSelection)
+  }
+
+  /// `fieldRules.v1`: `{kind: profileId}`. Only known kinds with non-empty string ids survive; nil when the
+  /// value is not a JSON object.
+  static func sanitizedFieldRules(_ raw: String?) -> String? {
+    guard let object = decode(raw) as? [String: Any] else { return nil }
+    var rules: [String: String] = [:]
+    for kind in fieldKinds {
+      if let id = object[kind] as? String, !id.isEmpty { rules[kind] = id }
+    }
+    return jsonString(rules)
   }
 
   /// Same format as Dart's `DateTime.toUtc().toIso8601String()` (millisecond precision, `Z`).

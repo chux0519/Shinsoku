@@ -361,6 +361,22 @@ enum ProfileGroupChannel {
         result(nil)
       case "readActive":
         result(shared.string(forKey: ProfileGroup.activeKey))
+      case "setFieldRules":
+        guard let rules = ProfileGroup.sanitizedFieldRules(arguments?["rules"] as? String) else {
+          result(FlutterError(code: "invalid-arguments", message: "Bad field rules.", details: nil))
+          return
+        }
+        shared.set(rules, forKey: ProfileGroup.fieldRulesKey)
+        log.notice("setFieldRules: bytes=\(rules.utf8.count)")
+        result(nil)
+      case "systemMajorVersion":
+        result(Int(UIDevice.current.systemVersion.split(separator: ".").first ?? "") ?? 0)
+      case "openShortcuts":
+        guard let url = URL(string: "shortcuts://") else {
+          result(false)
+          return
+        }
+        UIApplication.shared.open(url, options: [:]) { opened in result(opened) }
       default:
         result(FlutterMethodNotImplemented)
       }
