@@ -219,6 +219,59 @@ void main() {
     await session.close();
   });
 
+  group('language hints (i18n-01 I3)', () {
+    Future<Map> firstMessage(String fixture, ProviderSettings settings) async {
+      final socket = ReplayLiveSocket(StreamingFixture.load(fixture));
+      final service = RealTranscriptionService(
+        settings: settings,
+        connect: socket.connect,
+      );
+      final session = await service.startLiveSession();
+      await session.close();
+      return jsonDecode(socket.sent.first as String) as Map;
+    }
+
+    test('soniox config carries the stored hints', () async {
+      final config = await firstMessage(
+        'soniox_basic',
+        _settings(
+          provider: 'soniox',
+        ).copyWith(sonioxLanguageHints: ['ja', 'en']),
+      );
+      expect(config['language_hints'], ['ja', 'en']);
+    });
+
+    test('fun-asr run-task parameters carry the one stored hint', () async {
+      final runTask = await firstMessage(
+        'bailian_basic',
+        _settings(provider: 'bailian').copyWith(bailianLanguageHint: 'zh'),
+      );
+      final parameters = (runTask['payload'] as Map)['parameters'] as Map;
+      expect(parameters['language_hints'], ['zh']);
+      expect(parameters['format'], 'pcm');
+      expect(parameters['sample_rate'], 16000);
+    });
+
+    test('no stored hint (installs from before I3): nothing sent, auto-detect '
+        'as before', () async {
+      final config = await firstMessage(
+        'soniox_basic',
+        _settings(provider: 'soniox'),
+      );
+      expect(config.containsKey('language_hints'), isFalse);
+      final runTask = await firstMessage(
+        'bailian_basic',
+        _settings(provider: 'bailian'),
+      );
+      expect(
+        ((runTask['payload'] as Map)['parameters'] as Map).containsKey(
+          'language_hints',
+        ),
+        isFalse,
+      );
+    });
+  });
+
   test('post-processing: processing shows raw text, then done swaps in the '
       'processed text once (L2)', () async {
     final run = await _startLive(
