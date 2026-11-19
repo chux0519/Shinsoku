@@ -1,3 +1,13 @@
+# STATE — profile-01 P5 (model test)
+- Done: harness, model test PR1–PR4, two bugs fixed (keyboard record handoff carries the shown profile;
+  field-rule check is clock-skew free). Details: `P5-implementation.md`.
+- In progress: none. Next: coordinator review; P3 must use `?profile=` and `selectionAtKeyboardAppear`.
+- Open decisions: keep or drop the skew fix (see P5-implementation.md).
+- Verify: `cd mobile && flutter analyze && flutter test test/model`; `SHINSOKU_MODEL_SEEDS=3000 flutter test
+  test/model/profile_model_test.dart`; `bash tool/test_diff.sh`; `python3 tool/review_lint.py`.
+
+---
+
 # profile-01 round-01 — STATE (P1 worker)
 
 ## Done

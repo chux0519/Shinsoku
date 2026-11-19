@@ -29,13 +29,22 @@ Events: `automation_set(id, at)` (App Intent), `manual_pick(id, at)` (keyboard o
 `profile_rename(id)`. The selection `{profileId, source: manual|automation|fieldRule|default, at}` lives in the
 App Group (`group.net.potafree.shinsoku`, key `activeProfile.v1`; list of ids and names in `profiles.v1`). Pure
 resolver: `resolveActive` in `mobile/lib/services/active_profile.dart` (unit tests:
-`mobile/test/services/active_profile_test.dart`; seeded model test: P5).
+`mobile/test/services/active_profile_test.dart`). Seeded model test: `mobile/test/model/profile_model_test.dart`
+(seeds 1 / 7 / 42 / 99 / 123 / 2026 / 31337; `SHINSOKU_MODEL_SEEDS=<n>` runs seeds 0..n-1), events also
+`keyboard_disappear`, `record_stop`, `profile_add`, `full_access(on|off)`, `clock_skew(writer, ±2 s)`; named
+cases in `mobile/test/model/regressions_test.dart`.
 - **PR1 Record uses what the keyboard shows.** Recording uses exactly the profile that the keyboard shows at the
   moment Record is tapped; the app resolves the selection once at record start and keeps that profile until
-  the transcript is done.
+  the transcript is done. A keyboard tap passes the shown profile (`shinsoku://dictation?profile=<id>`,
+  `profileForRecordStart`); the app can't see field rules or a read-only keyboard's stale profile. Only a
+  shown profile that was deleted meanwhile falls back to the selection (PR3 wins). Regression: "PR1: keyboard
+  Record tap records what the keyboard shows".
 - **PR2 Newer event wins.** Automation set and manual pick are ordered by timestamp (the newest write is the
   selection); a field rule never overrides a manual pick or an automation set made at or after the moment the
-  keyboard appeared. Without a keyboard session a field rule never overrides an explicit selection.
+  keyboard appeared. Without a keyboard session a field rule never overrides an explicit selection. "Newer"
+  is real order, not writers' clocks: the keyboard compares the stored selection with the one it read when
+  it appeared (`selectionAtKeyboardAppear`), so ±2 s of skew between the app, the App Intent and the keyboard
+  can't reorder events. Regression: "PR2: clock skew does not reorder automation and keyboard".
 - **PR3 No dangling selection.** Deleting or renaming a profile never leaves the active selection pointing at a
   missing id: the resolver falls back to the default (first) profile and the app rewrites the stored selection
   to `default`, so the keyboard shows it.
