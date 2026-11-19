@@ -53,12 +53,12 @@ class LiveFixture {
 /// DEBUG: the next recordings replay [fixture] through the real
 /// [RealTranscriptionService] (same session, trackers and phases as a real
 /// provider) instead of the microphone and the network. `during` messages
-/// arrive one every [interval]; Stop sends whatever is left, then
+/// arrive one every [interval] (800 ms: slow enough for the tier-B scene to see the text grow); Stop sends whatever is left, then
 /// `on_finish`.
 class LiveFixturePipeline implements RecordingPipeline {
   LiveFixturePipeline(
     this.fixture, {
-    this.interval = const Duration(milliseconds: 450),
+    this.interval = const Duration(milliseconds: 800),
   }) : _socket = _ReplaySocket(fixture, interval) {
     service = RealTranscriptionService(
       settings: ProviderSettings.defaults().copyWith(

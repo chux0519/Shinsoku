@@ -418,7 +418,7 @@ class SceneTestCase: XCTestCase {
     }
 
     /// If the Shinsoku keyboard is up (its Record key exists), taps the globe until it is gone.
-    private func ensureSystemKeyboard(in app: XCUIApplication, step: String) {
+    func ensureSystemKeyboard(in app: XCUIApplication, step: String) {
         let record = app.keys.matching(labelEquals: ["Record"]).firstMatch
         let globe = app.buttons.matching(labelEquals: L.nextKeyboard).firstMatch
         for _ in 0..<6 where record.waitForExistence(timeout: 1) {

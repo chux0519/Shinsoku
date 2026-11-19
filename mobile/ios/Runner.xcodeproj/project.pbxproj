@@ -24,6 +24,7 @@
 		8A6D123401B1C0D000000001 /* ProfileIntentSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123501B1C0D000000001 /* ProfileIntentSceneTests.swift */; };
 		8A6D123601B1C0D000000001 /* SceneSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123701B1C0D000000001 /* SceneSupport.swift */; };
 		8A6D123801B1C0D000000001 /* ProfileKeyboardSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */; };
+		8A6D123A01B1C0D000000001 /* LiveSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */; };
 		8A6D124001B1C0D000000001 /* KeyboardProfileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */; };
 		8A6D124201B1C0D000000001 /* KeyboardProfileButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */; };
 		8A6D124401B1C0D000000001 /* ProfileGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123101B1C0D000000001 /* ProfileGroup.swift */; };
@@ -111,6 +112,7 @@
 		8A6D123501B1C0D000000001 /* ProfileIntentSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileIntentSceneTests.swift; sourceTree = "<group>"; };
 		8A6D123701B1C0D000000001 /* SceneSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSupport.swift; sourceTree = "<group>"; };
 		8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileKeyboardSceneTests.swift; sourceTree = "<group>"; };
+		8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSceneTests.swift; sourceTree = "<group>"; };
 		8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardProfileResolver.swift; sourceTree = "<group>"; };
 		8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardProfileButton.swift; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 				8A6D123501B1C0D000000001 /* ProfileIntentSceneTests.swift */,
 				8A6D123701B1C0D000000001 /* SceneSupport.swift */,
 				8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */,
+				8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */,
 			);
 			path = KeyboardSceneTests;
 			sourceTree = "<group>";
@@ -567,6 +570,7 @@
 				8A6D123401B1C0D000000001 /* ProfileIntentSceneTests.swift in Sources */,
 				8A6D123601B1C0D000000001 /* SceneSupport.swift in Sources */,
 				8A6D123801B1C0D000000001 /* ProfileKeyboardSceneTests.swift in Sources */,
+				8A6D123A01B1C0D000000001 /* LiveSceneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
