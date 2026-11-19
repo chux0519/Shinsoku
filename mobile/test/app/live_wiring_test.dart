@@ -308,4 +308,14 @@ void main() {
     await t.pump();
     expect(d.published.last, 'Example plain. ');
   });
+
+  testWidgets('the Record area carries the scene identifier', (t) async {
+    final handle = t.ensureSemantics();
+    final d = ShellDriver(t);
+    await d.pump(_iphone);
+    expect(find.bySemanticsIdentifier('transcript-area'), findsOneWidget);
+    await d.toggle(); // read-only while live: still found
+    expect(find.bySemanticsIdentifier('transcript-area'), findsOneWidget);
+    handle.dispose();
+  });
 }

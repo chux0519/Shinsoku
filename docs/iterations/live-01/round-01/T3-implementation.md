@@ -89,6 +89,11 @@ commit, docs only).
   `Example one`, Record again shown. Teardown restores the system keyboard. No Flutter scrolling (M07). Fixture
   interval now 800 ms so the scene can read the text mid-stream (~4 s per fixture). **Build-only checked**
   (`tool/ios_keyboard_scene.sh --build-only`: TEST BUILD SUCCEEDED); not run on a simulator.
+- First coordinator run (356374a) failed at `transcript-area`: read-only (live) the TextField merges into its
+  Semantics container (`Other`, label Transcript, value = text), so `textViews` found nothing. Fix:
+  `SkTranscriptArea.semanticsIdentifier` → `Semantics(identifier:)` (iOS accessibilityIdentifier):
+  `transcript-area` (Record), `draft-editor-area` (Drafts editor); the scene finds the area by it, reads the
+  value from it (or an inner text view/field when editable) and types with `runner.typeText` (focused element).
 - Assumptions to watch in the first run: Flutter exposes the transcript as a text view whose `value` is the
   text; the status line's merged label contains "Recording transcribed" / "Saved…" / "Recording stopped".
 

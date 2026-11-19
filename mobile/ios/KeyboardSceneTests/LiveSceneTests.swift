@@ -72,7 +72,9 @@ final class LiveSceneTests: SceneTestCase {
         // 3. Edit in place, Done (saved + republished).
         area.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.9)).tap()
         ensureSystemKeyboard(in: runner, step: "runner")
-        area.typeText(Self.edit)
+        shot("editing")
+        // Types into whatever has keyboard focus (the area's field).
+        runner.typeText(Self.edit)
         let edited = waitForValue(area, containing: Self.edit, step: "edited", timeout: 5)
         check(edited == Fixture.basicFinal + Self.edit, "edited-text", "edited text '\(edited)'")
         shot("edited")
@@ -114,10 +116,20 @@ final class LiveSceneTests: SceneTestCase {
         require(runnerText("Ready to record"), "\(name)-idle", timeout: 15)
     }
 
-    /// The Record area: Flutter exposes the borderless TextField as a text view (multi-line) or text field.
+    /// The Record area, by its accessibility identifier (`SkTranscriptArea.semanticsIdentifier`). Its type
+    /// varies: read-only (live) the field merges into the container (`Other`, label Transcript, value = text);
+    /// editable, the text may sit on an inner text view / field.
     private func transcriptArea() -> XCUIElement {
-        let textView = runner.textViews.firstMatch
-        return textView.waitForExistence(timeout: 5) ? textView : runner.textFields.firstMatch
+        runner.descendants(matching: .any).matching(identifier: "transcript-area").firstMatch
+    }
+
+    /// The editable text element inside the area, if Flutter exposes one; else the area itself.
+    private func textElement(in area: XCUIElement) -> XCUIElement {
+        let inner = area.descendants(matching: .any)
+            .matching(NSPredicate(format: "elementType IN %@", [
+                XCUIElement.ElementType.textView.rawValue, XCUIElement.ElementType.textField.rawValue,
+            ])).firstMatch
+        return inner.exists ? inner : area
     }
 
     private func runnerButton(_ label: String) -> XCUIElement {
@@ -130,7 +142,10 @@ final class LiveSceneTests: SceneTestCase {
     }
 
     private func value(of element: XCUIElement) -> String {
-        (element.value as? String) ?? ""
+        let own = (element.value as? String) ?? ""
+        if !own.isEmpty { return own }
+        let inner = textElement(in: element)
+        return inner == element ? own : ((inner.value as? String) ?? "")
     }
 
     /// Polls the element's value until it contains `part`; returns the last value (fails the step otherwise).

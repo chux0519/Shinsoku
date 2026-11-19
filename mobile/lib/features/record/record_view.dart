@@ -320,6 +320,7 @@ class RecordViewState extends State<RecordView> {
                       child: SkTranscriptArea(
                         key: const ValueKey('record-transcript'),
                         fieldKey: const ValueKey('record-transcript-field'),
+                        semanticsIdentifier: 'transcript-area',
                         controller: _controller,
                         focusNode: _focus,
                         readOnly: _readOnly,

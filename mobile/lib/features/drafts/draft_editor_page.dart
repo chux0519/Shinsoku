@@ -126,6 +126,7 @@ class _DraftEditorPageState extends State<DraftEditorPage> {
                   Expanded(
                     child: SkTranscriptArea(
                       fieldKey: const ValueKey('draft-editor-field'),
+                      semanticsIdentifier: 'draft-editor-area',
                       controller: _controller,
                       focusNode: _focus,
                     ),
