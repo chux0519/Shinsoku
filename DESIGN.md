@@ -62,7 +62,8 @@ Own component layer (`mobile/lib/ui/`), new UI uses it, not raw Material widgets
 `SkButton` (primary / secondary / text), `SkIconButton`, `SkRecordButton` (the one big control),
 `SkCard`, `SkSection` + `SkListRow`, `SkSegmented`, `SkSheet`, `SkTextArea`, `SkStatusLine`
 (state text + icon), `SkBadge`, `SkKey` (keyboard extension mirrors it in SwiftUI/UIKit with the same tokens),
-`SkTabBar`, `SkTopBar`, `SkPage` + `SkPageHeader`, `SkEmptyLine`, `SkSwitch` (added 2026-11-19).
+`SkTabBar`, `SkTopBar`, `SkPage` + `SkPageHeader`, `SkEmptyLine`, `SkSwitch` (added 2026-11-19),
+`SkProBadge`, `SkProSheet`, `SkProLockedNote` (pricing-01, 2026-11-19).
 
 ## 6. Layout and form factors
 - iPhone (compact width): single column, primary action in the bottom third (thumb reach).
@@ -87,7 +88,13 @@ Own component layer (`mobile/lib/ui/`), new UI uses it, not raw Material widgets
 - **Drafts / history:** date-grouped list, row = first two lines (dictations are usually one paragraph) + time +
   source; tap opens the same borderless editor (top bar: back, Copy, Save; back saves); swipe to delete with
   undo.
-- **Settings:** grouped sections (Recognition, Profiles, Keyboard, Nearby, About); one detail per row.
+- **Settings:** grouped sections (Shinsoku Pro, Recognition, Profiles, Keyboard, Nearby, About); one detail per
+  row. Shinsoku Pro is first (2026-11-19, pricing-01): a row with what Pro adds and the price (or "Unlocked")
+  opening the Pro sheet, and Restore Purchases, so Restore is easy to find for users and App Review.
+- **Shinsoku Pro (pricing-01):** locked features stay visible with a small "Pro" badge and a locked note; tapping
+  opens the Pro sheet (`SkProSheet`): the three things Pro adds, "One-time purchase. Family Sharing included.",
+  Restore Purchases, and the primary "Unlock for <localized StoreKit price>" at the bottom. Losing Pro never
+  hides or deletes data; custom profiles stay selectable but read-only.
 - **Nearby microphone:** pairing code large and mono, connection state as status line.
 - **Keyboard setup guide:** numbered steps, one "Open Settings" action.
 
