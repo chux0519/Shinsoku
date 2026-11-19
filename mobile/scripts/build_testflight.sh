@@ -55,6 +55,22 @@ if [[ -z "$IPA_PATH" ]]; then
   exit 1
 fi
 
+# M06: no API key value may be inside the IPA. Compare against every *_API_KEY in the environment
+# (.env included) without printing the values.
+CHECK_DIR="$(mktemp -d)"
+unzip -q "$IPA_PATH" -d "$CHECK_DIR"
+for var in $(compgen -v | grep -E '_API_KEY$' | grep -v '^APPSTORE_'); do
+  value="${!var:-}"
+  [[ ${#value} -ge 8 ]] || continue
+  if grep -rqaF -- "$value" "$CHECK_DIR"; then
+    rm -rf "${CHECK_DIR:?}"
+    echo "M06: the value of $var was found inside the IPA; refusing to upload." >&2
+    exit 1
+  fi
+  echo "M06: $var not in IPA"
+done
+rm -rf "${CHECK_DIR:?}"
+
 xcrun altool --upload-app \
   --type ios \
   -f "$IPA_PATH" \
