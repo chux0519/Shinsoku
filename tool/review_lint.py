@@ -124,6 +124,16 @@ def no_literal_ui_strings():
     return problems
 
 
+
+@rule('R06', 'Native strings localized: catalogs have English values, no bare UI literals (tool/check_xcstrings.py)')
+def native_strings():
+    out = subprocess.run([sys.executable, str(ROOT / 'tool/check_xcstrings.py')], cwd=ROOT,
+                         capture_output=True, text=True)
+    if out.returncode == 0:
+        return []
+    return [line for line in out.stdout.splitlines()
+            if line and not line.startswith(('warning:', 'check_xcstrings:'))] or [out.stdout.strip()]
+
 def main(argv):
     selected = argv or sorted(RULES)
     failed = False

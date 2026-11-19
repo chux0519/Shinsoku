@@ -1,0 +1,512 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@, read only" : {
+      "comment" : "VoiceOver value of the profile button without Full Access; %@ is the profile name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, read only"
+          }
+        }
+      }
+    },
+    "Already inserted" : {
+      "comment" : "VoiceOver value of the Insert key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already inserted"
+          }
+        }
+      }
+    },
+    "Call" : {
+      "comment" : "VoiceOver label of the return key for Emergency Call",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call"
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "comment" : "VoiceOver label of the return key for Continue",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "Delete" : {
+      "comment" : "VoiceOver label of the Delete key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "comment" : "VoiceOver label of the return key for Done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "Go" : {
+      "comment" : "VoiceOver label of the return key for Go",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go"
+          }
+        }
+      }
+    },
+    "Insert" : {
+      "comment" : "Key title: inserts the latest dictated text",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insert"
+          }
+        }
+      }
+    },
+    "Insert latest text" : {
+      "comment" : "VoiceOver label of the Insert key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insert latest text"
+          }
+        }
+      }
+    },
+    "Inserted" : {
+      "comment" : "Keyboard status: the latest text was inserted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserted"
+          }
+        }
+      }
+    },
+    "Inserted again" : {
+      "comment" : "Keyboard status: the same text was inserted a second time",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserted again"
+          }
+        }
+      }
+    },
+    "Join" : {
+      "comment" : "VoiceOver label of the return key for Join",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Join"
+          }
+        }
+      }
+    },
+    "Latest text ready" : {
+      "comment" : "Keyboard status: new dictated text can be inserted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest text ready"
+          }
+        }
+      }
+    },
+    "Needs Full Access" : {
+      "comment" : "VoiceOver value of the Insert key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs Full Access"
+          }
+        }
+      }
+    },
+    "New Shinsoku text" : {
+      "comment" : "VoiceOver value of the Insert key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Shinsoku text"
+          }
+        }
+      }
+    },
+    "Next" : {
+      "comment" : "VoiceOver label of the return key for Next",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        }
+      }
+    },
+    "Next keyboard" : {
+      "comment" : "VoiceOver label of the globe key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next keyboard"
+          }
+        }
+      }
+    },
+    "Nothing yet" : {
+      "comment" : "VoiceOver value of the Insert key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing yet"
+          }
+        }
+      }
+    },
+    "Nothing yet — tap Record" : {
+      "comment" : "Keyboard status: no dictated text exists yet; Record is the big key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing yet — tap Record"
+          }
+        }
+      }
+    },
+    "Open Shinsoku from the Home Screen" : {
+      "comment" : "Keyboard status: the keyboard could not open the app",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Shinsoku from the Home Screen"
+          }
+        }
+      }
+    },
+    "Opening Shinsoku…" : {
+      "comment" : "Keyboard status: opening the app to record",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening Shinsoku…"
+          }
+        }
+      }
+    },
+    "Opens Shinsoku to record" : {
+      "comment" : "VoiceOver hint of the Record key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens Shinsoku to record"
+          }
+        }
+      }
+    },
+    "Profile" : {
+      "comment" : "VoiceOver label of the profile button\nTitle of the profile list menu",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile"
+          }
+        }
+      }
+    },
+    "Profile %@" : {
+      "comment" : "VoiceOver announcement after a profile pick; %@ is the profile name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile %@"
+          }
+        }
+      }
+    },
+    "Ready" : {
+      "comment" : "Keyboard status: nothing new to insert",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready"
+          }
+        }
+      }
+    },
+    "Record" : {
+      "comment" : "Key title: opens the app to record\nVoiceOver label of the Record key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
+          }
+        }
+      }
+    },
+    "Return" : {
+      "comment" : "VoiceOver label of the return key (default)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return"
+          }
+        }
+      }
+    },
+    "Route" : {
+      "comment" : "VoiceOver label of the return key for Route",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route"
+          }
+        }
+      }
+    },
+    "Search" : {
+      "comment" : "VoiceOver label of the return key for Search",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
+    },
+    "Send" : {
+      "comment" : "VoiceOver label of the return key for Send",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "Space" : {
+      "comment" : "VoiceOver label of the space bar",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Space"
+          }
+        }
+      }
+    },
+    "Switches to the next profile. Long press for the list." : {
+      "comment" : "VoiceOver hint of the profile button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switches to the next profile. Long press for the list."
+          }
+        }
+      }
+    },
+    "Turn on Full Access to insert" : {
+      "comment" : "Keyboard status: inserting needs the system Full Access setting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Full Access to insert"
+          }
+        }
+      }
+    },
+    "Turn on Full Access to switch profiles" : {
+      "comment" : "Keyboard status and VoiceOver hint: switching profiles needs Full Access",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Full Access to switch profiles"
+          }
+        }
+      }
+    },
+    "Use %@" : {
+      "comment" : "VoiceOver action that switches to a profile; %@ is the profile name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use %@"
+          }
+        }
+      }
+    },
+    "call" : {
+      "comment" : "Return key title for Emergency Call",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "call"
+          }
+        }
+      }
+    },
+    "continue" : {
+      "comment" : "Return key title for Continue",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "continue"
+          }
+        }
+      }
+    },
+    "done" : {
+      "comment" : "Return key title for Done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "done"
+          }
+        }
+      }
+    },
+    "go" : {
+      "comment" : "Return key title for Go",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "go"
+          }
+        }
+      }
+    },
+    "join" : {
+      "comment" : "Return key title for Join",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "join"
+          }
+        }
+      }
+    },
+    "next" : {
+      "comment" : "Return key title for Next",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "next"
+          }
+        }
+      }
+    },
+    "return" : {
+      "comment" : "Return key title (default)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "return"
+          }
+        }
+      }
+    },
+    "route" : {
+      "comment" : "Return key title for Route",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "route"
+          }
+        }
+      }
+    },
+    "search" : {
+      "comment" : "Return key title for Search",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "search"
+          }
+        }
+      }
+    },
+    "send" : {
+      "comment" : "Return key title for Send",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "send"
+          }
+        }
+      }
+    },
+    "space" : {
+      "comment" : "Key title of the space bar (lowercase, like the system keyboard)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "space"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

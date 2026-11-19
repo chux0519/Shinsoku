@@ -4,6 +4,21 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleAllowMixedLocalizations</key>
+	<true/>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ja</string>
+		<string>zh-Hant</string>
+		<string>ko</string>
+		<string>de</string>
+		<string>es</string>
+		<string>zh-Hans</string>
+		<string>fr</string>
+		<string>pt-BR</string>
+		<string>it</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Shinsoku</string>
 	<key>CFBundleExecutable</key>

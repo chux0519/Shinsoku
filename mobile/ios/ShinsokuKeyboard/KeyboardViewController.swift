@@ -30,15 +30,15 @@ final class KeyboardViewController: UIInputViewController {
 
         var text: String {
             switch self {
-            case .ready: return "Ready"
-            case .latestReady: return "Latest text ready"
-            case .noLatest: return "Nothing yet — tap Record"
-            case .needsFullAccess: return "Turn on Full Access to insert"
-            case .inserted: return "Inserted"
-            case .insertedAgain: return "Inserted again"
-            case .opening: return "Opening Shinsoku…"
-            case .openFailed: return "Open Shinsoku from the Home Screen"
-            case .profileLocked: return "Turn on Full Access to switch profiles"
+            case .ready: return String(localized: "Ready", comment: "Keyboard status: nothing new to insert")
+            case .latestReady: return String(localized: "Latest text ready", comment: "Keyboard status: new dictated text can be inserted")
+            case .noLatest: return String(localized: "Nothing yet — tap Record", comment: "Keyboard status: no dictated text exists yet; Record is the big key")
+            case .needsFullAccess: return String(localized: "Turn on Full Access to insert", comment: "Keyboard status: inserting needs the system Full Access setting")
+            case .inserted: return String(localized: "Inserted", comment: "Keyboard status: the latest text was inserted")
+            case .insertedAgain: return String(localized: "Inserted again", comment: "Keyboard status: the same text was inserted a second time")
+            case .opening: return String(localized: "Opening Shinsoku…", comment: "Keyboard status: opening the app to record")
+            case .openFailed: return String(localized: "Open Shinsoku from the Home Screen", comment: "Keyboard status: the keyboard could not open the app")
+            case .profileLocked: return String(localized: "Turn on Full Access to switch profiles", comment: "Keyboard status and VoiceOver hint: switching profiles needs Full Access")
             }
         }
 
@@ -55,11 +55,11 @@ final class KeyboardViewController: UIInputViewController {
     private let statusLabel = UILabel()
     private let profileButton = KeyboardProfileButton()
     private let globeKey = KeyboardKey(style: .raised, symbol: "globe", title: nil)
-    private let insertKey = KeyboardKey(style: .raised, symbol: "text.insert", title: "Insert", axis: .vertical)
-    private let recordKey = KeyboardKey(style: .accent, symbol: "mic.fill", title: "Record", axis: .vertical)
+    private let insertKey = KeyboardKey(style: .raised, symbol: "text.insert", title: String(localized: "Insert", comment: "Key title: inserts the latest dictated text"), axis: .vertical)
+    private let recordKey = KeyboardKey(style: .accent, symbol: "mic.fill", title: String(localized: "Record", comment: "Key title: opens the app to record"), axis: .vertical)
     private let deleteKey = KeyboardKey(style: .raised, symbol: "delete.left", title: nil)
-    private let spaceKey = KeyboardKey(style: .raised, symbol: nil, title: "space")
-    private let returnKey = KeyboardKey(style: .raised, symbol: nil, title: "return")
+    private let spaceKey = KeyboardKey(style: .raised, symbol: nil, title: String(localized: "space", comment: "Key title of the space bar (lowercase, like the system keyboard)"))
+    private let returnKey = KeyboardKey(style: .raised, symbol: nil, title: ReturnKeyTitle.title(for: .default).title)
 
     private var heightConstraint: NSLayoutConstraint?
     private var latest = LatestTextStore.State.none
@@ -70,6 +70,9 @@ final class KeyboardViewController: UIInputViewController {
     private var shownSource: String?
     private var fieldKind = FieldKind.other
     private static let profileLog = Logger(subsystem: "net.potafree.shinsoku.keyboard", category: "profile")
+
+    private static let insertLabel = String(
+        localized: "Insert latest text", comment: "VoiceOver label of the Insert key")
 
     private let deleteRepeater = KeyRepeater()
     private let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -205,13 +208,13 @@ final class KeyboardViewController: UIInputViewController {
         // The globe key sits in the 28 pt status row; extend its hit area to 44 pt.
         globeKey.hitOutset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
-        insertKey.accessibilityLabel = "Insert latest text"
-        recordKey.accessibilityLabel = "Record"
-        recordKey.accessibilityHint = "Opens Shinsoku to record"
-        deleteKey.accessibilityLabel = "Delete"
-        spaceKey.accessibilityLabel = "Space"
-        returnKey.accessibilityLabel = "Return"
-        globeKey.accessibilityLabel = "Next keyboard"
+        insertKey.accessibilityLabel = Self.insertLabel
+        recordKey.accessibilityLabel = String(localized: "Record", comment: "VoiceOver label of the Record key")
+        recordKey.accessibilityHint = String(localized: "Opens Shinsoku to record", comment: "VoiceOver hint of the Record key")
+        deleteKey.accessibilityLabel = String(localized: "Delete", comment: "VoiceOver label of the Delete key")
+        spaceKey.accessibilityLabel = String(localized: "Space", comment: "VoiceOver label of the space bar")
+        returnKey.accessibilityLabel = ReturnKeyTitle.title(for: .default).label
+        globeKey.accessibilityLabel = String(localized: "Next keyboard", comment: "VoiceOver label of the globe key")
         recordKey.setSymbol("mic.fill", pointSize: 22)
         deleteKey.setSymbol("delete.left", pointSize: 20)
     }
@@ -293,22 +296,29 @@ final class KeyboardViewController: UIInputViewController {
         let readOnly = !hasFullAccess
         profileButton.isHidden = false
         profileButton.show(name: profile.name, readOnly: readOnly)
-        profileButton.accessibilityLabel = "Profile"
-        profileButton.accessibilityValue = readOnly ? "\(profile.name), read only" : profile.name
+        profileButton.accessibilityLabel = String(localized: "Profile", comment: "VoiceOver label of the profile button")
+        profileButton.accessibilityValue = readOnly
+            ? String(localized: "\(profile.name), read only",
+                     comment: "VoiceOver value of the profile button without Full Access; %@ is the profile name")
+            : profile.name
         guard !readOnly, profiles.count > 1 else {
             profileButton.menu = nil
-            profileButton.accessibilityHint = readOnly ? "Turn on Full Access to switch profiles" : nil
+            profileButton.accessibilityHint = readOnly ? Status.profileLocked.text : nil
             profileButton.accessibilityCustomActions = nil
             return
         }
-        profileButton.accessibilityHint = "Switches to the next profile. Long press for the list."
-        profileButton.menu = UIMenu(title: "Profile", children: profiles.map { candidate in
+        profileButton.accessibilityHint = String(
+            localized: "Switches to the next profile. Long press for the list.",
+            comment: "VoiceOver hint of the profile button")
+        profileButton.menu = UIMenu(title: String(localized: "Profile", comment: "Title of the profile list menu"), children: profiles.map { candidate in
             UIAction(title: candidate.name, state: candidate.id == profile.id ? .on : .off) { [weak self] _ in
                 self?.pickProfile(candidate)
             }
         })
         profileButton.accessibilityCustomActions = profiles.filter { $0.id != profile.id }.map { candidate in
-            UIAccessibilityCustomAction(name: "Use \(candidate.name)") { [weak self] _ in
+            UIAccessibilityCustomAction(name: String(
+                localized: "Use \(candidate.name)",
+                comment: "VoiceOver action that switches to a profile; %@ is the profile name")) { [weak self] _ in
                 self?.pickProfile(candidate)
                 return true
             }
@@ -339,7 +349,9 @@ final class KeyboardViewController: UIInputViewController {
             return
         }
         refreshProfile(reason: "manualPick")
-        UIAccessibility.post(notification: .announcement, argument: "Profile \(shownProfile?.name ?? profile.name)")
+        UIAccessibility.post(notification: .announcement, argument: String(
+            localized: "Profile \(shownProfile?.name ?? profile.name)",
+            comment: "VoiceOver announcement after a profile pick; %@ is the profile name"))
     }
 
     // MARK: Keys
@@ -347,31 +359,23 @@ final class KeyboardViewController: UIInputViewController {
     /// Never shows the text itself: not on screen, not in accessibility values.
     private func updateInsertKey() {
         insertKey.isDimmed = !hasFullAccess || latest == .none
-        insertKey.accessibilityLabel = "Insert latest text"
+        insertKey.accessibilityLabel = Self.insertLabel
         switch (hasFullAccess, latest) {
-        case (false, _): insertKey.accessibilityValue = "Needs Full Access"
-        case (true, .new): insertKey.accessibilityValue = "New Shinsoku text"
-        case (true, .inserted): insertKey.accessibilityValue = "Already inserted"
-        case (true, .none): insertKey.accessibilityValue = "Nothing yet"
+        case (false, _):
+            insertKey.accessibilityValue = String(localized: "Needs Full Access", comment: "VoiceOver value of the Insert key")
+        case (true, .new):
+            insertKey.accessibilityValue = String(localized: "New Shinsoku text", comment: "VoiceOver value of the Insert key")
+        case (true, .inserted):
+            insertKey.accessibilityValue = String(localized: "Already inserted", comment: "VoiceOver value of the Insert key")
+        case (true, .none):
+            insertKey.accessibilityValue = String(localized: "Nothing yet", comment: "VoiceOver value of the Insert key")
         }
     }
 
     private func updateReturnKey() {
-        let title: String
-        switch textDocumentProxy.returnKeyType ?? .default {
-        case .go: title = "go"
-        case .google, .yahoo, .search: title = "search"
-        case .join: title = "join"
-        case .next: title = "next"
-        case .route: title = "route"
-        case .send: title = "send"
-        case .done: title = "done"
-        case .emergencyCall: title = "call"
-        case .continue: title = "continue"
-        default: title = "return"
-        }
-        returnKey.setTitle(title)
-        returnKey.accessibilityLabel = title.capitalized
+        let title = ReturnKeyTitle.title(for: textDocumentProxy.returnKeyType ?? .default)
+        returnKey.setTitle(title.title)
+        returnKey.accessibilityLabel = title.label
     }
 
     private func setStatus(_ newStatus: Status, announce: Bool = true) {
@@ -470,6 +474,45 @@ final class KeyboardViewController: UIInputViewController {
                     self?.setStatus(.openFailed)
                 }
             }
+        }
+    }
+}
+
+/// Title (lowercase, like the system keyboard) and VoiceOver label of the return key for the host's return key
+/// type. We draw this key ourselves, so we localize it ourselves.
+enum ReturnKeyTitle {
+    static func title(for type: UIReturnKeyType) -> (title: String, label: String) {
+        switch type {
+        case .go:
+            return (String(localized: "go", comment: "Return key title for Go"),
+                    String(localized: "Go", comment: "VoiceOver label of the return key for Go"))
+        case .google, .yahoo, .search:
+            return (String(localized: "search", comment: "Return key title for Search"),
+                    String(localized: "Search", comment: "VoiceOver label of the return key for Search"))
+        case .join:
+            return (String(localized: "join", comment: "Return key title for Join"),
+                    String(localized: "Join", comment: "VoiceOver label of the return key for Join"))
+        case .next:
+            return (String(localized: "next", comment: "Return key title for Next"),
+                    String(localized: "Next", comment: "VoiceOver label of the return key for Next"))
+        case .route:
+            return (String(localized: "route", comment: "Return key title for Route"),
+                    String(localized: "Route", comment: "VoiceOver label of the return key for Route"))
+        case .send:
+            return (String(localized: "send", comment: "Return key title for Send"),
+                    String(localized: "Send", comment: "VoiceOver label of the return key for Send"))
+        case .done:
+            return (String(localized: "done", comment: "Return key title for Done"),
+                    String(localized: "Done", comment: "VoiceOver label of the return key for Done"))
+        case .emergencyCall:
+            return (String(localized: "call", comment: "Return key title for Emergency Call"),
+                    String(localized: "Call", comment: "VoiceOver label of the return key for Emergency Call"))
+        case .continue:
+            return (String(localized: "continue", comment: "Return key title for Continue"),
+                    String(localized: "Continue", comment: "VoiceOver label of the return key for Continue"))
+        default:
+            return (String(localized: "return", comment: "Return key title (default)"),
+                    String(localized: "Return", comment: "VoiceOver label of the return key (default)"))
         }
     }
 }
