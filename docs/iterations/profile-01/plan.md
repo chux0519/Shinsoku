@@ -27,13 +27,14 @@ App Intent agree. Recording in the app reads it at start.
 ## Work units
 | # | Unit | Files | Model | Tier |
 |---|---|---|---|---|
+| P0 | **Release blocker (user decision 2026-11-19): no API keys in the app binary.** Remove `BAILIAN_API_KEY` / `SONIOX_API_KEY` from `build_testflight.sh` dart-defines and from the `String.fromEnvironment` defaults in `provider_settings.dart` / `smoke_test.dart` (smoke tests read keys from the test environment only). The app already shows "Provider settings required" with an Open Settings fix when no key is saved. Add lint R04 (no `*_API_KEY` dart-define or `fromEnvironment` key in `mobile/lib` / release scripts) and review rule M06. Note for TestFlight users: keys must be entered once in Settings | `mobile/scripts/`, `mobile/lib/services/`, `tool/review_lint.py` | sonnet | A |
 | P1 | Shared profile store: profile list (no secrets) + active selection `{profileId, source, at}` mirrored to the App Group via the existing channel registration point; Dart stays the owner; keys stay in the keychain. Migration from the current secure-storage list | `mobile/lib/services/`, `mobile/ios/Runner/` | Opus | A |
 | P2 | App Intents (iOS 16+, guarded; app min stays iOS 15): `SetProfileIntent`, `GetProfileIntent`, `ProfileEntity` query reading the App Group; `AppShortcutsProvider` phrases | `mobile/ios/Runner/` (Swift) | Opus | A + B |
 | P3 | Keyboard: profile name in the status row, tap to cycle / long-press list; field-kind detection; reads/writes the active selection | `mobile/ios/ShinsokuKeyboard/` | Opus | B |
 | P4 | Flutter UI: Settings › Profiles › "Use in apps" guide (steps to create the Shortcuts automation, one "Open Shortcuts" action), field-kind rules, Record shows which profile is active and why ("Set by Shortcuts · Slack" is not knowable — show "Set by automation") | `mobile/lib/features/` | sonnet | A |
 | P5 | Invariants + model test: precedence and freshness rules (PR1–PR4 below) with seeded random event sequences (automation set, manual pick, field change, app record start, app relaunch) | `docs/design/state_invariants.md`, `mobile/test/` | Opus | A |
 
-Order: P1 → (P2 ‖ P5) → (P3 ‖ P4). At most two workers at a time.
+Order: P0 ‖ P1 → (P2 ‖ P5) → (P3 ‖ P4). At most two workers at a time.
 
 ### Invariants (draft)
 - **PR1** Recording uses exactly the profile that the keyboard shows at the moment Record is tapped.
