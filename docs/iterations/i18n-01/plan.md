@@ -1,6 +1,6 @@
 # Iteration i18n-01 — multiple languages and regions
 
-Status: **awaiting user confirmation** (2026-11-19). Market research: `docs/market/research-20261119.md`. Base: `main` @ 61d4233 (TestFlight 0.1.0 (21)).
+Status: **confirmed by the user 2026-11-19**. Market research: `docs/market/research-20261119.md`. Base: `main` @ 61d4233 (TestFlight 0.1.0 (21)).
 
 ## User decisions so far (2026-11-19)
 - Languages (all in this iteration): en, ja, zh-Hant, ko, de, es, zh-Hans, fr, pt-BR, it.
