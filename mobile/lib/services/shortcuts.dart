@@ -4,8 +4,9 @@ import 'package:flutter/services.dart';
 /// Returns false when it could not be opened.
 Future<bool> openShortcutsApp() async {
   try {
-    final opened = await const MethodChannel('net.potafree.shinsoku/profiles')
-        .invokeMethod<bool>('openShortcuts');
+    final opened = await const MethodChannel(
+      'net.potafree.shinsoku/profiles',
+    ).invokeMethod<bool>('openShortcuts');
     return opened ?? false;
   } on MissingPluginException {
     return false;

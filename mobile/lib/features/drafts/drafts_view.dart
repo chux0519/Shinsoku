@@ -4,7 +4,7 @@ import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
 /// DESIGN §7 Drafts: date-grouped list; a row is the text, time and source;
-/// tap to edit, swipe to delete (the shell offers Undo), copy from the row.
+/// tap to open it in [DraftEditorPage], swipe to delete (the shell offers Undo), copy from the row.
 class DraftsView extends StatelessWidget {
   const DraftsView({
     required this.drafts,
@@ -155,139 +155,6 @@ class DraftRow extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class DraftEditResult {
-  const DraftEditResult({required this.text, required this.copyToClipboard});
-
-  final String text;
-  final bool copyToClipboard;
-}
-
-class DraftEditorScreen extends StatefulWidget {
-  const DraftEditorScreen({required this.draft, super.key});
-
-  final DraftEntry draft;
-
-  @override
-  State<DraftEditorScreen> createState() => _DraftEditorScreenState();
-}
-
-class _DraftEditorScreenState extends State<DraftEditorScreen> {
-  late final TextEditingController _controller;
-  bool _hasText = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.draft.text);
-    _hasText = widget.draft.text.trim().isNotEmpty;
-    _controller.addListener(_handleTextChanged);
-  }
-
-  @override
-  void dispose() {
-    _controller
-      ..removeListener(_handleTextChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _handleTextChanged() {
-    final hasText = _controller.text.trim().isNotEmpty;
-    if (hasText == _hasText) {
-      return;
-    }
-    setState(() {
-      _hasText = hasText;
-    });
-  }
-
-  void _complete({required bool copyToClipboard}) {
-    final text = _controller.text.trim();
-    if (text.isEmpty) {
-      return;
-    }
-    Navigator.of(
-      context,
-    ).pop(DraftEditResult(text: text, copyToClipboard: copyToClipboard));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = SkColors.of(context);
-    return Scaffold(
-      appBar: SkTopBar(
-        title: 'Edit draft',
-        leading: SkIconButton(
-          icon: Icons.close_rounded,
-          tooltip: 'Close',
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final insets = skPageInsets(context, constraints.maxWidth);
-          final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-          return Padding(
-            padding: insets.copyWith(
-              top: SkSpace.s,
-              bottom:
-                  SkSpace.l +
-                  (keyboardOpen ? 0 : MediaQuery.paddingOf(context).bottom),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Captured with ${widget.draft.profileName}',
-                  style: SkType.secondary.copyWith(color: c.textSecondary),
-                ),
-                const SizedBox(height: SkSpace.m),
-                Expanded(
-                  child: SkTextArea(
-                    fieldKey: const ValueKey('draft-editor-field'),
-                    controller: _controller,
-                    autofocus: true,
-                    expands: true,
-                    style: SkType.transcript,
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                ),
-                const SizedBox(height: SkSpace.m),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SkButton.secondary(
-                        key: const ValueKey('draft-save-button'),
-                        label: 'Save',
-                        expand: true,
-                        onPressed: _hasText
-                            ? () => _complete(copyToClipboard: false)
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: SkSpace.m),
-                    Expanded(
-                      child: SkButton(
-                        key: const ValueKey('draft-save-copy-button'),
-                        label: 'Save & Copy',
-                        icon: Icons.content_copy_outlined,
-                        expand: true,
-                        onPressed: _hasText
-                            ? () => _complete(copyToClipboard: true)
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
