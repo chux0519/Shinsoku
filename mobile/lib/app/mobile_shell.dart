@@ -159,11 +159,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       return;
     }
     if (uri.host == 'dictation' || uri.pathSegments.contains('dictation')) {
-      await _handleKeyboardRecordRequest();
+      // PR1: the keyboard passes the profile it showed.
+      await _handleKeyboardRecordRequest(uri.queryParameters['profile']);
     }
   }
 
-  Future<void> _handleKeyboardRecordRequest() async {
+  Future<void> _handleKeyboardRecordRequest(String? profileId) async {
     if (!mounted) {
       return;
     }
@@ -182,7 +183,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     if (!mounted || _captureState != CaptureState.idle) {
       return;
     }
-    await _startRecording();
+    await _startRecording(requestedProfileId: profileId);
   }
 
   void _selectTab(int index) {
@@ -302,10 +303,15 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _startRecording() async {
-    // PR1: resolve once, at the tap, from the shared selection.
+  Future<void> _startRecording({String? requestedProfileId}) async {
+    // PR1: resolve once, at the tap: the profile the keyboard showed, else
+    // the shared selection.
     await _refreshActiveProfile();
-    final profile = _activeProfile;
+    final profile = profileForRecordStart(
+      _activeProfileStore.selection,
+      _profiles,
+      requestedProfileId: requestedProfileId,
+    );
     final permission = await Permission.microphone.request();
     final hasPermission = permission.isGranted || permission.isLimited;
     if (!hasPermission) {
