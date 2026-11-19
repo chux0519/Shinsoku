@@ -751,8 +751,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     });
 
     try {
+      final saved = await _providerSettingsStore.load();
       final result = await SonioxSmokeTestRunner(
-        apiKey: SmokeTestConfig.sonioxApiKey,
+        apiKey: saved.sonioxApiKey,
         audioUrl: SmokeTestConfig.audioUrl,
         audioFormat: SmokeTestConfig.audioFormat,
       ).run();
@@ -812,9 +813,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     });
 
     try {
+      final saved = await _providerSettingsStore.load();
       final result = await BailianSmokeTestRunner(
         apiBase: SmokeTestConfig.bailianApiBase,
-        apiKey: SmokeTestConfig.bailianApiKey,
+        apiKey: saved.bailianApiKey,
         textModel: SmokeTestConfig.bailianOpenAiModel,
         asrModel: SmokeTestConfig.bailianAsrModel,
         asrAudioUrl: SmokeTestConfig.bailianAsrAudioUrl,

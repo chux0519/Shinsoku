@@ -10,14 +10,14 @@ import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/wav.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 
+/// Smoke runs read API keys from the saved provider settings (entered in Settings), never from
+/// compile-time constants: no key may be compiled into the app binary (review rule R04).
 class SmokeTestConfig {
   static const mode = String.fromEnvironment('SHINSOKU_SMOKE_TEST');
-  static const sonioxApiKey = String.fromEnvironment('SONIOX_API_KEY');
   static const bailianApiBase = String.fromEnvironment(
     'BAILIAN_API_BASE',
     defaultValue: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   );
-  static const bailianApiKey = String.fromEnvironment('BAILIAN_API_KEY');
   static const bailianOpenAiModel = String.fromEnvironment(
     'BAILIAN_OPENAI_MODEL',
     defaultValue: 'qwen-flash',
@@ -100,7 +100,7 @@ class SonioxSmokeTestRunner {
 
   Future<SonioxSmokeTestResult> run() async {
     if (apiKey.trim().isEmpty) {
-      throw StateError('Missing SONIOX_API_KEY dart define.');
+      throw StateError('Missing Soniox API key: save it in Settings.');
     }
 
     final client = http.Client();
@@ -324,7 +324,7 @@ class BailianSmokeTestRunner {
 
   Future<BailianSmokeTestResult> run() async {
     if (apiKey.trim().isEmpty) {
-      throw StateError('Missing BAILIAN_API_KEY dart define.');
+      throw StateError('Missing Bailian API key: save it in Settings.');
     }
 
     final client = http.Client();
