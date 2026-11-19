@@ -1,0 +1,12 @@
+/* App Shortcut phrases (Siri / Spotlight). Every phrase must keep ${applicationName}. AppShortcuts.xcstrings
+   needs an iOS 17 deployment target; Runner targets iOS 15, so phrases live in <lang>.lproj/AppShortcuts.strings.
+   I5 adds the other 9 languages as sibling .lproj folders. */
+
+/* Phrase for Set Shinsoku Profile */
+"Set ${applicationName} profile" = "Set ${applicationName} profile";
+
+/* Phrase for Set Shinsoku Profile */
+"Switch ${applicationName} profile" = "Switch ${applicationName} profile";
+
+/* Phrase for Get Shinsoku Profile */
+"Get ${applicationName} profile" = "Get ${applicationName} profile";
