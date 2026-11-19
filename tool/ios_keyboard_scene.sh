@@ -32,7 +32,8 @@ DD="$ROOT/build/ios-keyboard-scene/DerivedData"
 DEFAULT_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER="
 read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-$DEFAULT_SIGN_ARGS}"
 KEYBOARD_ID=net.potafree.shinsoku.keyboard
-# Which scene: the keyboard scene by default; profile-01 P2: SCENE_TEST=KeyboardSceneTests/ProfileIntentSceneTests.
+# Which scene: the keyboard scene by default; profile-01 P2: SCENE_TEST=KeyboardSceneTests/ProfileIntentSceneTests;
+# profile-01 P3 (keyboard profile switch): SCENE_TEST=KeyboardSceneTests/ProfileKeyboardSceneTests.
 SCENE_TEST=${SCENE_TEST:-KeyboardSceneTests/KeyboardSceneTests}
 
 usage() {
