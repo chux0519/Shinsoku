@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:web_socket_channel/io.dart';
 
 import 'package:shinsoku_mobile/services/capture_types.dart';
+import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/wav.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
@@ -32,28 +31,6 @@ class _PostProcessResult {
   final bool timedOut;
 }
 
-class _BailianRealtimeTiming {
-  const _BailianRealtimeTiming({
-    required this.audioMs,
-    required this.startMs,
-    required this.uploadMs,
-    required this.finishMs,
-    required this.totalMs,
-  });
-
-  final int audioMs;
-  final int startMs;
-  final int uploadMs;
-  final int finishMs;
-  final int totalMs;
-
-  String toDetail({required int bytes}) {
-    return 'Realtime ASR completed with $bytes PCM bytes '
-        '(audio=${audioMs}ms, start=${startMs}ms, upload=${uploadMs}ms, '
-        'finish=${finishMs}ms, total=${totalMs}ms).';
-  }
-}
-
 const bailianRealtimeAudioChunkMs = 100;
 const bailianRealtimeSendDelay = Duration(milliseconds: 10);
 const bailianRealtimeSampleRate = 16000;
@@ -68,116 +45,203 @@ const _postProcessTimeout = Duration(seconds: 8);
 const bailianAsrModeRealtime = 'realtime';
 const bailianAsrModeQwen = 'qwen';
 
-class BailianRealtimeLiveSession {
-  BailianRealtimeLiveSession._({
+/// A provider session that receives PCM while the user records and reports live text.
+///
+/// Phases reported through [onUpdate]: connecting → listening → finishing, or failed (committed kept).
+/// The service that finishes the session reports processing / done.
+abstract class LiveAsrSession {
+  String get provider;
+
+  /// The latest live state of this session.
+  LiveTranscript get current;
+
+  /// Called on every change of [current]. May be replaced (the service attaches itself).
+  ValueChanged<LiveTranscript>? onUpdate;
+
+  void addPcm(Uint8List chunk);
+
+  /// Ends the audio and waits for the provider's final result (raw text, no post-processing).
+  /// Throws when the session failed; [current] then still holds the committed text.
+  Future<RealTranscriptionResult> finish();
+
+  Future<void> close();
+}
+
+abstract class _SocketLiveSession implements LiveAsrSession {
+  _SocketLiveSession(this.socket, {this.onUpdate});
+
+  final LiveSocket socket;
+  @override
+  ValueChanged<LiveTranscript>? onUpdate;
+
+  final finished = Completer<void>();
+  final totalWatch = Stopwatch()..start();
+  final finishWatch = Stopwatch();
+  StreamSubscription<dynamic>? subscription;
+  var bytesSent = 0;
+  var finishSent = false;
+  var closed = false;
+  Object? failure;
+  LiveTranscript _current = const LiveTranscript(phase: LivePhase.connecting);
+
+  @override
+  LiveTranscript get current => _current;
+
+  String get committedText;
+  String get pendingText;
+
+  void emit({LivePhase? phase, String? error}) {
+    final next = _current.copyWith(
+      committed: committedText,
+      pending: pendingText,
+      phase: phase,
+      error: error,
+    );
+    if (next == _current) {
+      return;
+    }
+    _current = next;
+    onUpdate?.call(next);
+  }
+
+  void fail(Object error, [StackTrace? stackTrace]) {
+    if (failure != null) {
+      return;
+    }
+    failure = error;
+    emit(phase: LivePhase.failed, error: error.toString());
+    onFailed(error, stackTrace);
+    if (!finished.isCompleted) {
+      finished.completeError(error, stackTrace);
+      // Nobody may be waiting yet (the user is still talking); finish() rethrows it.
+      finished.future.ignore();
+    }
+  }
+
+  void onFailed(Object error, StackTrace? stackTrace) {}
+
+  void listen() {
+    subscription = socket.stream.listen(
+      (message) {
+        if (message is! String || failure != null) {
+          return;
+        }
+        final Object? decoded;
+        try {
+          decoded = jsonDecode(message);
+        } on FormatException catch (error, stackTrace) {
+          fail(error, stackTrace);
+          return;
+        }
+        if (decoded is Map<String, dynamic>) {
+          onMessage(decoded);
+        }
+      },
+      onError: (Object error, StackTrace stackTrace) => fail(error, stackTrace),
+      onDone: () {
+        if (!finished.isCompleted) {
+          fail(StateError('$provider connection closed before the result.'));
+        }
+      },
+    );
+  }
+
+  void onMessage(Map<String, dynamic> message);
+
+  @override
+  void addPcm(Uint8List chunk) {
+    if (closed || finishSent || failure != null || chunk.isEmpty) {
+      return;
+    }
+    socket.send(chunk);
+    bytesSent += chunk.length;
+  }
+
+  void sendFinish();
+
+  Duration get finishTimeout;
+
+  String resultDetail();
+
+  @override
+  Future<RealTranscriptionResult> finish() async {
+    if (failure == null && !finishSent && !closed) {
+      finishSent = true;
+      finishWatch.start();
+      emit(phase: LivePhase.finishing);
+      sendFinish();
+    }
+    try {
+      await finished.future.timeout(finishTimeout);
+    } on TimeoutException catch (error, stackTrace) {
+      fail(error, stackTrace);
+      rethrow;
+    } finally {
+      finishWatch.stop();
+      totalWatch.stop();
+      await close();
+    }
+    return RealTranscriptionResult(
+      text: '$committedText$pendingText'.trim(),
+      provider: provider,
+      detail: resultDetail(),
+    );
+  }
+
+  @override
+  Future<void> close() async {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    await subscription?.cancel();
+    await socket.close();
+  }
+}
+
+class BailianRealtimeLiveSession extends _SocketLiveSession {
+  BailianRealtimeLiveSession._(
+    super.socket, {
     required this.taskId,
-    required this.channel,
-    required this.subscription,
-    required this.started,
-    required this.finished,
-    required this.sentences,
-    required this.startWatch,
-    required this.totalWatch,
+    super.onUpdate,
   });
 
   final String taskId;
-  final IOWebSocketChannel channel;
-  final StreamSubscription<dynamic> subscription;
-  final Completer<void> started;
-  final Completer<void> finished;
-  final Map<int, String> sentences;
-  final Stopwatch startWatch;
-  final Stopwatch totalWatch;
-  final Stopwatch finishWatch = Stopwatch();
-  var bytesSent = 0;
-  var _finishSent = false;
-  var _closed = false;
+  final tracker = BailianSentenceTracker();
+  final started = Completer<void>();
+  final startWatch = Stopwatch()..start();
+
+  @override
+  String get provider => 'Bailian';
+  @override
+  String get committedText => tracker.committed;
+  @override
+  String get pendingText => tracker.pending;
+  @override
+  Duration get finishTimeout => const Duration(seconds: 45);
 
   static Future<BailianRealtimeLiveSession> start(
-    ProviderSettings settings,
-  ) async {
-    final totalWatch = Stopwatch()..start();
-    final startWatch = Stopwatch()..start();
+    ProviderSettings settings, {
+    LiveSocketConnector connect = connectIoLiveSocket,
+    ValueChanged<LiveTranscript>? onUpdate,
+    int sampleRate = bailianRealtimeSampleRate,
+  }) async {
     final taskId = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-    final channel = IOWebSocketChannel.connect(
+    final socket = connect(
       Uri.parse(settings.bailianRealtimeUrl),
       headers: {
         'Authorization': 'Bearer ${settings.bailianApiKey}',
         'user-agent': 'Shinsoku-Mobile/1.0',
       },
     );
-
-    final started = Completer<void>();
-    final finished = Completer<void>();
-    final sentences = <int, String>{};
-    late final StreamSubscription<dynamic> subscription;
-    subscription = channel.stream.listen(
-      (message) {
-        if (message is! String) {
-          return;
-        }
-        final decoded = jsonDecode(message) as Map<String, dynamic>;
-        final header = decoded['header'] as Map<String, dynamic>? ?? {};
-        final event = header['event'];
-        if (event == 'task-failed') {
-          final error = StateError(
-            header['error_message']?.toString() ?? 'Bailian task failed.',
-          );
-          if (!started.isCompleted) {
-            started.completeError(error);
-          }
-          if (!finished.isCompleted) {
-            finished.completeError(error);
-          }
-          return;
-        }
-        if (event == 'task-started' && !started.isCompleted) {
-          startWatch.stop();
-          started.complete();
-          return;
-        }
-        if (event == 'result-generated') {
-          final sentence =
-              (((decoded['payload'] as Map?)?['output'] as Map?)?['sentence']
-                  as Map?) ??
-              {};
-          final id = sentence['sentence_id'];
-          final text = sentence['text'];
-          if (id is int && text is String && text.isNotEmpty) {
-            sentences[id] = text;
-          }
-          return;
-        }
-        if (event == 'task-finished' && !finished.isCompleted) {
-          finished.complete();
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        if (!started.isCompleted) {
-          started.completeError(error, stackTrace);
-        }
-        if (!finished.isCompleted) {
-          finished.completeError(error, stackTrace);
-        }
-      },
-      onDone: () {
-        if (!finished.isCompleted) {
-          finished.complete();
-        }
-      },
-    );
-
     final session = BailianRealtimeLiveSession._(
+      socket,
       taskId: taskId,
-      channel: channel,
-      subscription: subscription,
-      started: started,
-      finished: finished,
-      sentences: sentences,
-      startWatch: startWatch,
-      totalWatch: totalWatch,
+      onUpdate: onUpdate,
     );
-    channel.sink.add(
+    onUpdate?.call(session.current);
+    session.listen();
+    socket.send(
       jsonEncode({
         'header': {
           'action': 'run-task',
@@ -189,142 +253,320 @@ class BailianRealtimeLiveSession {
           'task': 'asr',
           'function': 'recognition',
           'model': settings.bailianRealtimeModel,
-          'parameters': {
-            'format': 'pcm',
-            'sample_rate': bailianRealtimeSampleRate,
-          },
+          'parameters': {'format': 'pcm', 'sample_rate': sampleRate},
           'input': <String, dynamic>{},
         },
       }),
     );
     try {
-      await started.future.timeout(const Duration(seconds: 20));
-    } catch (_) {
+      await session.started.future.timeout(const Duration(seconds: 20));
+    } catch (error, stackTrace) {
+      session.fail(error, stackTrace);
       await session.close();
       rethrow;
     }
     return session;
   }
 
-  void addPcm(Uint8List chunk) {
-    if (_closed || _finishSent || chunk.isEmpty) {
-      return;
+  @override
+  void onFailed(Object error, StackTrace? stackTrace) {
+    if (!started.isCompleted) {
+      started.completeError(error, stackTrace);
     }
-    channel.sink.add(chunk);
-    bytesSent += chunk.length;
   }
 
-  Future<RealTranscriptionResult> finish() async {
-    if (!_finishSent) {
-      _finishSent = true;
-      finishWatch.start();
-      channel.sink.add(
-        jsonEncode({
-          'header': {
-            'action': 'finish-task',
-            'task_id': taskId,
-            'streaming': 'duplex',
-          },
-          'payload': {'input': <String, dynamic>{}},
-        }),
-      );
+  @override
+  void onMessage(Map<String, dynamic> message) {
+    final header = message['header'] as Map<String, dynamic>? ?? const {};
+    switch (header['event']) {
+      case 'task-failed':
+        fail(
+          StateError(
+            header['error_message']?.toString() ?? 'Bailian task failed.',
+          ),
+        );
+      case 'task-started':
+        if (!started.isCompleted) {
+          startWatch.stop();
+          started.complete();
+          emit(phase: LivePhase.listening);
+        }
+      case 'result-generated':
+        final sentence =
+            ((message['payload'] as Map?)?['output'] as Map?)?['sentence'];
+        if (sentence is Map && tracker.apply(sentence)) {
+          emit();
+        }
+      case 'task-finished':
+        if (!finished.isCompleted) {
+          finished.complete();
+        }
     }
-    try {
-      await finished.future.timeout(const Duration(seconds: 45));
-    } finally {
-      finishWatch.stop();
-      totalWatch.stop();
-      await close();
-    }
+  }
 
-    final ordered = sentences.keys.toList()..sort();
-    final text = ordered.map((id) => sentences[id]!).join().trim();
-    final audioMs = (bytesSent * 1000 / (bailianRealtimeSampleRate * 2))
-        .round();
-    return RealTranscriptionResult(
-      text: text,
-      provider: 'Bailian',
-      detail:
-          'Realtime streaming ASR completed with $bytesSent PCM bytes '
-          '(audio=${audioMs}ms, start=${startWatch.elapsedMilliseconds}ms, '
-          'finish=${finishWatch.elapsedMilliseconds}ms, '
-          'total=${totalWatch.elapsedMilliseconds}ms).',
+  @override
+  void sendFinish() {
+    socket.send(
+      jsonEncode({
+        'header': {
+          'action': 'finish-task',
+          'task_id': taskId,
+          'streaming': 'duplex',
+        },
+        'payload': {'input': <String, dynamic>{}},
+      }),
     );
   }
 
-  Future<void> close() async {
-    if (_closed) {
-      return;
-    }
-    _closed = true;
-    await subscription.cancel();
-    await channel.sink.close();
+  @override
+  String resultDetail() {
+    final audioMs = (bytesSent * 1000 / (bailianRealtimeSampleRate * 2))
+        .round();
+    return 'Realtime streaming ASR completed with $bytesSent PCM bytes '
+        '(audio=${audioMs}ms, start=${startWatch.elapsedMilliseconds}ms, '
+        'finish=${finishWatch.elapsedMilliseconds}ms, '
+        'total=${totalWatch.elapsedMilliseconds}ms).';
   }
 }
 
+const sonioxRealtimeUrl = 'wss://stt-rt.soniox.com/transcribe-websocket';
+
+class SonioxLiveSession extends _SocketLiveSession {
+  SonioxLiveSession._(super.socket, {super.onUpdate});
+
+  final tracker = SonioxTokenTracker();
+
+  @override
+  String get provider => 'Soniox';
+  @override
+  String get committedText => tracker.committed;
+  @override
+  String get pendingText => tracker.pending;
+  @override
+  Duration get finishTimeout => const Duration(seconds: 90);
+
+  /// [audioFormat] `pcm_s16le` streams raw PCM while recording; `wav` uploads a finished file.
+  static Future<SonioxLiveSession> start(
+    ProviderSettings settings, {
+    LiveSocketConnector connect = connectIoLiveSocket,
+    ValueChanged<LiveTranscript>? onUpdate,
+    String audioFormat = 'pcm_s16le',
+    int sampleRate = bailianRealtimeSampleRate,
+    int numChannels = bailianRealtimeChannels,
+  }) async {
+    final socket = connect(Uri.parse(sonioxRealtimeUrl));
+    final session = SonioxLiveSession._(socket, onUpdate: onUpdate);
+    onUpdate?.call(session.current);
+    session.listen();
+    socket.send(
+      jsonEncode({
+        'api_key': settings.sonioxApiKey,
+        'model': settings.sonioxModel,
+        'audio_format': audioFormat,
+        if (audioFormat != 'wav') ...{
+          'sample_rate': sampleRate,
+          'num_channels': numChannels,
+        },
+        'enable_endpoint_detection': true,
+        'max_endpoint_delay_ms': 900,
+        'client_reference_id': 'shinsoku-mobile-live-recording',
+      }),
+    );
+    // Soniox sends no start acknowledgement; audio may follow the config right away.
+    session.emit(phase: LivePhase.listening);
+    return session;
+  }
+
+  @override
+  void onMessage(Map<String, dynamic> message) {
+    final errorMessage = message['error_message'];
+    if (errorMessage is String && errorMessage.isNotEmpty) {
+      fail(StateError(errorMessage));
+      return;
+    }
+    final tokens = message['tokens'];
+    if (tokens is List && tracker.apply(tokens)) {
+      emit();
+    }
+    if (message['finished'] == true && !finished.isCompleted) {
+      finished.complete();
+    }
+  }
+
+  @override
+  void sendFinish() => socket.send('');
+
+  @override
+  String resultDetail() =>
+      'Sent $bytesSent bytes and received a finished result '
+      '(finish=${finishWatch.elapsedMilliseconds}ms, '
+      'total=${totalWatch.elapsedMilliseconds}ms).';
+}
+
 class RealTranscriptionService {
-  RealTranscriptionService({required this.settings});
+  RealTranscriptionService({
+    required this.settings,
+    LiveSocketConnector connect = connectIoLiveSocket,
+    http.Client Function()? httpClient,
+  }) : _connect = connect,
+       _httpClient = httpClient ?? http.Client.new;
 
   final ProviderSettings settings;
+  final LiveSocketConnector _connect;
+  final http.Client Function() _httpClient;
+  final _live = ValueNotifier<LiveTranscript>(LiveTranscript.idle);
 
+  /// Pinned phase while a finished recording is uploaded (batch path): provider text still flows in, the
+  /// phase stays [LivePhase.finishing].
+  LivePhase? _pinnedPhase;
+
+  /// Live text of the current recording. One service instance serves one recording at a time.
+  ValueListenable<LiveTranscript> get live => _live;
+
+  /// Whether the selected provider shows words while the user speaks.
+  bool get streamsLive =>
+      settings.speechProvider == 'soniox' ||
+      (settings.speechProvider == 'bailian' &&
+          settings.bailianAsrMode == bailianAsrModeRealtime);
+
+  /// Back to [LiveTranscript.idle] (before a new recording).
+  void reset() {
+    _pinnedPhase = null;
+    _live.value = LiveTranscript.idle;
+  }
+
+  /// Batch providers: the recording started; no words until the result.
+  void beginBatchListening() {
+    _pinnedPhase = null;
+    _live.value = const LiveTranscript(phase: LivePhase.listening);
+  }
+
+  void dispose() => _live.dispose();
+
+  void _forward(LiveTranscript update) {
+    final current = _live.value.phase;
+    if (current == LivePhase.processing || current == LivePhase.done) {
+      return;
+    }
+    final pinned = _pinnedPhase;
+    _live.value = pinned != null && update.phase != LivePhase.failed
+        ? update.copyWith(phase: pinned)
+        : update;
+  }
+
+  void _failLive(Object error) {
+    if (_live.value.phase == LivePhase.failed) {
+      return;
+    }
+    _live.value = _live.value.copyWith(
+      phase: LivePhase.failed,
+      error: error.toString(),
+    );
+  }
+
+  /// Streaming providers: opens the provider session; feed it PCM while recording, then call
+  /// [finishLiveSession].
+  Future<LiveAsrSession> startLiveSession() async {
+    reset();
+    if (!settings.activeProviderConfigured) {
+      final error = StateError(
+        'Provider credentials are missing. Save them in Settings first.',
+      );
+      _failLive(error);
+      throw error;
+    }
+    try {
+      return settings.speechProvider == 'soniox'
+          ? await SonioxLiveSession.start(
+              settings,
+              connect: _connect,
+              onUpdate: _forward,
+            )
+          : await BailianRealtimeLiveSession.start(
+              settings,
+              connect: _connect,
+              onUpdate: _forward,
+            );
+    } catch (error) {
+      _failLive(error);
+      rethrow;
+    }
+  }
+
+  Future<RealTranscriptionResult> finishLiveSession({
+    required LiveAsrSession session,
+    required VoiceProfile profile,
+  }) async {
+    final wallWatch = Stopwatch()..start();
+    session.onUpdate = _forward;
+    _forward(session.current);
+    final rawWatch = Stopwatch()..start();
+    try {
+      final raw = await session.finish();
+      rawWatch.stop();
+      return await _completeResult(
+        raw,
+        profile,
+        timing:
+            'finishRaw=${rawWatch.elapsedMilliseconds}ms '
+            'serviceTotal=${wallWatch.elapsedMilliseconds}ms',
+      );
+    } catch (error) {
+      _failLive(error);
+      rethrow;
+    }
+  }
+
+  /// Kept for the current shell; same as [finishLiveSession].
+  Future<RealTranscriptionResult> finishBailianRealtimeSession({
+    required BailianRealtimeLiveSession session,
+    required VoiceProfile profile,
+  }) => finishLiveSession(session: session, profile: profile);
+
+  /// Batch path: transcribes a finished WAV recording.
   Future<RealTranscriptionResult> transcribe({
     required Uint8List wavBytes,
     required VoiceProfile profile,
   }) async {
     final wallWatch = Stopwatch()..start();
-    if (!settings.activeProviderConfigured) {
-      throw StateError(
-        'Provider credentials are missing. Save them in Settings first.',
+    _pinnedPhase = LivePhase.finishing;
+    _live.value = const LiveTranscript(phase: LivePhase.finishing);
+    try {
+      if (!settings.activeProviderConfigured) {
+        throw StateError(
+          'Provider credentials are missing. Save them in Settings first.',
+        );
+      }
+      final rawWatch = Stopwatch()..start();
+      final raw = switch (settings.speechProvider) {
+        'soniox' => await _transcribeWithSoniox(wavBytes),
+        _ =>
+          settings.bailianAsrMode == bailianAsrModeQwen
+              ? await _transcribeWithBailianQwenAsr(wavBytes)
+              : await _transcribeWithBailianRealtime(wavBytes),
+      };
+      rawWatch.stop();
+      return await _completeResult(
+        raw,
+        profile,
+        timing:
+            'raw=${rawWatch.elapsedMilliseconds}ms '
+            'serviceTotal=${wallWatch.elapsedMilliseconds}ms',
       );
+    } catch (error) {
+      _failLive(error);
+      rethrow;
+    } finally {
+      _pinnedPhase = null;
     }
-
-    final rawWatch = Stopwatch()..start();
-    final raw = switch (settings.speechProvider) {
-      'soniox' => await _transcribeWithSoniox(wavBytes),
-      _ =>
-        settings.bailianAsrMode == bailianAsrModeQwen
-            ? await _transcribeWithBailianQwenAsr(wavBytes)
-            : await _transcribeWithBailianRealtime(wavBytes),
-    };
-    rawWatch.stop();
-    var text = raw.text.trim();
-    if (text.isEmpty) {
-      throw StateError('${raw.provider} returned no transcript.');
-    }
-
-    var detail = raw.detail;
-    var postProcessTimedOut = false;
-    if (settings.textTransformEnabled &&
-        settings.bailianApiKey.trim().isNotEmpty) {
-      final postWatch = Stopwatch()..start();
-      final postProcessed = await _postProcess(text, profile);
-      postWatch.stop();
-      text = postProcessed.text;
-      postProcessTimedOut = postProcessed.timedOut;
-      detail =
-          '$detail postProcess=${postWatch.elapsedMilliseconds}ms'
-          '${postProcessed.timedOut ? " timeoutFallback=true" : ""}';
-    }
-    wallWatch.stop();
-
-    return RealTranscriptionResult(
-      text: _applySuffix(text, profile.commitSuffix),
-      provider: raw.provider,
-      detail:
-          '$detail raw=${rawWatch.elapsedMilliseconds}ms '
-          'serviceTotal=${wallWatch.elapsedMilliseconds}ms',
-      postProcessTimedOut: postProcessTimedOut,
-    );
   }
 
-  Future<RealTranscriptionResult> finishBailianRealtimeSession({
-    required BailianRealtimeLiveSession session,
-    required VoiceProfile profile,
+  /// Raw provider text → (processing →) done. The processed text replaces the raw text once (L2).
+  Future<RealTranscriptionResult> _completeResult(
+    RealTranscriptionResult raw,
+    VoiceProfile profile, {
+    required String timing,
   }) async {
-    final wallWatch = Stopwatch()..start();
-    final rawWatch = Stopwatch()..start();
-    var raw = await session.finish();
-    rawWatch.stop();
     var text = raw.text.trim();
     if (text.isEmpty) {
       throw StateError('${raw.provider} returned no transcript.');
@@ -334,6 +576,10 @@ class RealTranscriptionService {
     var postProcessTimedOut = false;
     if (settings.textTransformEnabled &&
         settings.bailianApiKey.trim().isNotEmpty) {
+      _live.value = LiveTranscript(
+        committed: text,
+        phase: LivePhase.processing,
+      );
       final postWatch = Stopwatch()..start();
       final postProcessed = await _postProcess(text, profile);
       postWatch.stop();
@@ -343,264 +589,64 @@ class RealTranscriptionService {
           '$detail postProcess=${postWatch.elapsedMilliseconds}ms'
           '${postProcessed.timedOut ? " timeoutFallback=true" : ""}';
     }
-    wallWatch.stop();
+    _live.value = LiveTranscript(committed: text, phase: LivePhase.done);
 
     return RealTranscriptionResult(
       text: _applySuffix(text, profile.commitSuffix),
       provider: raw.provider,
-      detail:
-          '$detail finishRaw=${rawWatch.elapsedMilliseconds}ms '
-          'serviceTotal=${wallWatch.elapsedMilliseconds}ms',
+      detail: '$detail $timing',
       postProcessTimedOut: postProcessTimedOut,
     );
   }
 
   Future<RealTranscriptionResult> _transcribeWithSoniox(Uint8List audio) async {
-    final channel = IOWebSocketChannel.connect(
-      Uri.parse('wss://stt-rt.soniox.com/transcribe-websocket'),
+    final session = await SonioxLiveSession.start(
+      settings,
+      connect: _connect,
+      onUpdate: _forward,
+      audioFormat: 'wav',
     );
-    final transcript = StringBuffer();
-    final resultCompleter = Completer<RealTranscriptionResult>();
-    var latestTranscript = '';
-    var bytesSent = 0;
-
-    RealTranscriptionResult currentResult({required bool partial}) {
-      final finalTranscript = _cleanSonioxTranscript(transcript.toString());
-      final text = finalTranscript.isNotEmpty
-          ? finalTranscript
-          : _cleanSonioxTranscript(latestTranscript);
-      return RealTranscriptionResult(
-        text: text,
-        provider: 'Soniox',
-        detail: partial
-            ? 'Received realtime tokens after sending $bytesSent bytes.'
-            : 'Sent $bytesSent bytes and received a finished result.',
-      );
-    }
-
-    late final StreamSubscription<dynamic> subscription;
-    subscription = channel.stream.listen(
-      (message) {
-        if (message is! String) {
-          return;
-        }
-
-        final decoded = jsonDecode(message) as Map<String, dynamic>;
-        final errorMessage = decoded['error_message'];
-        if (errorMessage is String && errorMessage.isNotEmpty) {
-          if (!resultCompleter.isCompleted) {
-            final current = currentResult(partial: true);
-            if (current.text.isNotEmpty) {
-              resultCompleter.complete(current);
-            } else {
-              resultCompleter.completeError(StateError(errorMessage));
-            }
-          }
-          return;
-        }
-
-        final tokens = decoded['tokens'];
-        if (tokens is List) {
-          final latest = StringBuffer();
-          for (final token in tokens) {
-            if (token is! Map<String, dynamic>) {
-              continue;
-            }
-            final text = token['text'];
-            if (text is String) {
-              latest.write(text);
-              if (token['is_final'] == true) {
-                transcript.write(text);
-              }
-            }
-          }
-          if (latest.isNotEmpty) {
-            latestTranscript = latest.toString();
-          }
-        }
-
-        if (decoded['finished'] == true && !resultCompleter.isCompleted) {
-          resultCompleter.complete(currentResult(partial: false));
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        if (!resultCompleter.isCompleted) {
-          resultCompleter.completeError(error, stackTrace);
-        }
-      },
-      onDone: () {
-        if (!resultCompleter.isCompleted) {
-          resultCompleter.complete(currentResult(partial: true));
-        }
-      },
-    );
-
     try {
-      channel.sink.add(
-        jsonEncode({
-          'api_key': settings.sonioxApiKey,
-          'model': settings.sonioxModel,
-          'audio_format': 'wav',
-          'enable_endpoint_detection': true,
-          'max_endpoint_delay_ms': 900,
-          'client_reference_id': 'shinsoku-mobile-live-recording',
-        }),
-      );
-
       const chunkSize = 8192;
       for (var offset = 0; offset < audio.length; offset += chunkSize) {
         final end = (offset + chunkSize).clamp(0, audio.length);
-        final chunk = audio.sublist(offset, end);
-        channel.sink.add(chunk);
-        bytesSent += chunk.length;
+        session.addPcm(audio.sublist(offset, end));
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
-      channel.sink.add('');
-
-      return await resultCompleter.future.timeout(const Duration(seconds: 90));
+      return await session.finish();
     } finally {
-      unawaited(subscription.cancel());
-      unawaited(channel.sink.close());
+      await session.close();
     }
   }
 
   Future<RealTranscriptionResult> _transcribeWithBailianRealtime(
     Uint8List wavBytes,
   ) async {
-    final totalWatch = Stopwatch()..start();
     final wav = parseWavPcm16(wavBytes);
-    final audioMs = (wav.pcm.length * 1000 / (wav.sampleRate * 2)).round();
-    final taskId = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-    final channel = IOWebSocketChannel.connect(
-      Uri.parse(settings.bailianRealtimeUrl),
-      headers: {
-        'Authorization': 'Bearer ${settings.bailianApiKey}',
-        'user-agent': 'Shinsoku-Mobile/1.0',
-      },
+    final session = await BailianRealtimeLiveSession.start(
+      settings,
+      connect: _connect,
+      onUpdate: _forward,
+      sampleRate: wav.sampleRate,
     );
-
-    final started = Completer<void>();
-    final finished = Completer<void>();
-    final sentences = <int, String>{};
-    late final StreamSubscription<dynamic> subscription;
-    subscription = channel.stream.listen(
-      (message) {
-        if (message is! String) {
-          return;
-        }
-        final decoded = jsonDecode(message) as Map<String, dynamic>;
-        final header = decoded['header'] as Map<String, dynamic>? ?? {};
-        final event = header['event'];
-        if (event == 'task-failed') {
-          final error = StateError(
-            header['error_message']?.toString() ?? 'Bailian task failed.',
-          );
-          if (!started.isCompleted) {
-            started.completeError(error);
-          }
-          if (!finished.isCompleted) {
-            finished.completeError(error);
-          }
-          return;
-        }
-        if (event == 'task-started' && !started.isCompleted) {
-          started.complete();
-          return;
-        }
-        if (event == 'result-generated') {
-          final sentence =
-              (((decoded['payload'] as Map?)?['output'] as Map?)?['sentence']
-                  as Map?) ??
-              {};
-          final id = sentence['sentence_id'];
-          final text = sentence['text'];
-          if (id is int && text is String && text.isNotEmpty) {
-            sentences[id] = text;
-          }
-          return;
-        }
-        if (event == 'task-finished' && !finished.isCompleted) {
-          finished.complete();
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        if (!started.isCompleted) {
-          started.completeError(error, stackTrace);
-        }
-        if (!finished.isCompleted) {
-          finished.completeError(error, stackTrace);
-        }
-      },
-      onDone: () {
-        if (!finished.isCompleted) {
-          finished.complete();
-        }
-      },
-    );
-
     try {
-      final startWatch = Stopwatch()..start();
-      channel.sink.add(
-        jsonEncode({
-          'header': {
-            'action': 'run-task',
-            'task_id': taskId,
-            'streaming': 'duplex',
-          },
-          'payload': {
-            'task_group': 'audio',
-            'task': 'asr',
-            'function': 'recognition',
-            'model': settings.bailianRealtimeModel,
-            'parameters': {'format': 'pcm', 'sample_rate': wav.sampleRate},
-            'input': <String, dynamic>{},
-          },
-        }),
-      );
-      await started.future.timeout(const Duration(seconds: 20));
-      startWatch.stop();
-
       final uploadWatch = Stopwatch()..start();
       final chunkSize =
           (wav.sampleRate * 2 * bailianRealtimeAudioChunkMs / 1000).round();
       for (var offset = 0; offset < wav.pcm.length; offset += chunkSize) {
         final end = (offset + chunkSize).clamp(0, wav.pcm.length);
-        channel.sink.add(wav.pcm.sublist(offset, end));
+        session.addPcm(wav.pcm.sublist(offset, end));
         await Future<void>.delayed(bailianRealtimeSendDelay);
       }
       uploadWatch.stop();
-
-      final finishWatch = Stopwatch()..start();
-      channel.sink.add(
-        jsonEncode({
-          'header': {
-            'action': 'finish-task',
-            'task_id': taskId,
-            'streaming': 'duplex',
-          },
-          'payload': {'input': <String, dynamic>{}},
-        }),
-      );
-      await finished.future.timeout(const Duration(seconds: 45));
-      finishWatch.stop();
-      totalWatch.stop();
-      final timing = _BailianRealtimeTiming(
-        audioMs: audioMs,
-        startMs: startWatch.elapsedMilliseconds,
-        uploadMs: uploadWatch.elapsedMilliseconds,
-        finishMs: finishWatch.elapsedMilliseconds,
-        totalMs: totalWatch.elapsedMilliseconds,
-      );
-      final ordered = sentences.keys.toList()..sort();
-      final text = ordered.map((id) => sentences[id]!).join().trim();
+      final raw = await session.finish();
       return RealTranscriptionResult(
-        text: text,
-        provider: 'Bailian',
-        detail: timing.toDetail(bytes: wav.pcm.length),
+        text: raw.text,
+        provider: raw.provider,
+        detail: '${raw.detail} upload=${uploadWatch.elapsedMilliseconds}ms',
       );
     } finally {
-      unawaited(subscription.cancel());
-      unawaited(channel.sink.close());
+      await session.close();
     }
   }
 
@@ -608,7 +654,7 @@ class RealTranscriptionService {
     Uint8List wavBytes,
   ) async {
     final watch = Stopwatch()..start();
-    final client = http.Client();
+    final client = _httpClient();
     try {
       final dataUrl = 'data:audio/wav;base64,${base64Encode(wavBytes)}';
       final response = await client
@@ -666,7 +712,7 @@ class RealTranscriptionService {
     String transcript,
     VoiceProfile profile,
   ) async {
-    final client = http.Client();
+    final client = _httpClient();
     try {
       final response = await client
           .post(
@@ -730,9 +776,5 @@ class RealTranscriptionService {
       CommitSuffix.space => '$trimmed ',
       CommitSuffix.newline => '$trimmed\n',
     };
-  }
-
-  String _cleanSonioxTranscript(String value) {
-    return value.replaceAll('<fin>', '').trim();
   }
 }
