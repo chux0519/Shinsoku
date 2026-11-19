@@ -4,10 +4,64 @@
     "NSLocalNetworkUsageDescription" : {
       "comment" : "Permission prompt: local network (Nearby desktop)",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku verwendet dein lokales Netzwerk, um deinen Shinsoku-Computer zu finden und sich mit ihm zu verbinden."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Shinsoku uses your local network to find and connect to your Shinsoku desktop."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku usa tu red local para encontrar tu ordenador con Shinsoku y conectarse a él."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku utilise votre réseau local pour trouver votre ordinateur Shinsoku et s’y connecter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku usa la rete locale per trovare il tuo computer con Shinsoku e connettersi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsokuはローカルネットワークを使って、お使いのShinsokuデスクトップを探して接続します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku는 로컬 네트워크를 사용해 Shinsoku 데스크톱을 찾고 연결합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Shinsoku usa sua rede local para encontrar e se conectar ao seu computador com Shinsoku."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku 使用本地网络查找并连接你的 Shinsoku 电脑。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku 會使用區域網路尋找並連線到你的 Shinsoku 電腦。"
           }
         }
       }
@@ -15,10 +69,64 @@
     "NSMicrophoneUsageDescription" : {
       "comment" : "Permission prompt: microphone",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku verwendet das Mikrofon für die Spracheingabe."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Shinsoku uses the microphone to capture voice input."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku usa el micrófono para la entrada de voz."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku utilise le micro pour la saisie vocale."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku usa il microfono per l’input vocale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsokuは音声入力のためにマイクを使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku는 음성 입력을 위해 마이크를 사용합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Shinsoku usa o microfone para a entrada de voz."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku 使用麦克风进行语音输入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shinsoku 會使用麥克風擷取語音輸入。"
           }
         }
       }
