@@ -41,3 +41,18 @@
 - In progress: none. Next: coordinator review, merge; next TestFlight build needs keys entered once in Settings.
 - Open decisions: none.
 - Verify: `cd mobile && flutter analyze`; `bash tool/test_diff.sh`; `python3 tool/review_lint.py`.
+
+---
+
+# STATE — profile-01 P2 (App Intents, branch `profile-01-p2-intents`)
+- Done: `ProfileGroup.swift` (shared App Group store + sanitizer, used by `ProfileGroupChannel`),
+  `ProfileIntents.swift` (ProfileEntity + query, Set/Get Shinsoku Profile, AppShortcutsProvider), Metadata.appintents
+  confirmed; tier-B scene `ProfileIntentSceneTests` + `SCENE_TEST` selector in `tool/ios_keyboard_scene.sh`.
+  Details: `P2-implementation.md`.
+- In progress: none.
+- Next: coordinator runs the tier-B scene on iPhone 17 (never run yet; selectors for the Shortcuts app are a
+  best guess); P3 adds the keyboard check (TODO in the scene).
+- Open decisions: none new (P1's automation-vs-field-rule question still stands).
+- Verify: `cd mobile && flutter build ios --simulator --debug --no-pub` (then restore regenerated tracked
+  files; check `build/ios/iphonesimulator/Runner.app/Metadata.appintents`); `tool/ios_keyboard_scene.sh
+  --build-only`; `python3 tool/review_lint.py`.
