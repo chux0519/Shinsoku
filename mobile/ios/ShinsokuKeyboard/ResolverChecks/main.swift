@@ -15,7 +15,6 @@ func check(_ condition: Bool, _ name: String, line: Int = #line) {
 typealias P = ProfileGroup.Profile
 typealias S = ProfileGroup.Selection
 let profiles = [P(id: "a", name: "Default"), P(id: "b", name: "Chat"), P(id: "c", name: "Review")]
-let appear = KeyboardProfileResolver.instant("2026-11-19T10:00:00.000Z")!
 func sel(_ id: String, _ source: String, _ at: String) -> S { S(profileId: id, source: source, at: at) }
 
 // Timestamps: Dart writes microseconds, Swift milliseconds; whole seconds too.
@@ -24,10 +23,6 @@ check(KeyboardProfileResolver.instant("2026-11-19T10:00:00.123Z") != nil, "parse
 check(KeyboardProfileResolver.instant("2026-11-19T10:00:00Z") != nil, "parse seconds")
 check(KeyboardProfileResolver.instant(ProfileGroup.timestamp()) != nil, "parse own timestamp")
 check(KeyboardProfileResolver.instant("yesterday") == nil, "reject junk")
-check(
-    KeyboardProfileResolver.sameEvent(sel("b", "manual", "2026-11-19T10:00:00.000Z"),
-                                      sel("b", "manual", "2026-11-19T10:00:00Z")),
-    "same instant, different spelling")
 
 // No selection, no rule → default.
 var r = KeyboardProfileResolver.resolve(selection: nil, profiles: profiles)
@@ -42,36 +37,25 @@ check(r?.profile.id == "a" && r?.source == "default", "PR3 missing id → defaul
 r = KeyboardProfileResolver.resolve(selection: sel("c", "manual", "not a time"), profiles: profiles)
 check(r?.profile.id == "a" && r?.source == "default", "unparseable at → no selection")
 
-// PR2 with selectionAtKeyboardAppear: unchanged explicit selection → rule applies.
-let old = sel("c", "automation", "2026-11-19T10:00:01.500Z")  // writer clock ahead of the keyboard
-r = KeyboardProfileResolver.resolve(selection: old, profiles: profiles, fieldRuleProfileId: "b",
-                                    keyboardAppearedAt: appear, selectionAtKeyboardAppear: old)
-check(r?.profile.id == "b" && r?.source == "fieldRule", "PR2 skew: unchanged selection, rule applies")
-// A pick made after the keyboard appeared (differs from the captured one) beats the rule, even with an older
-// clock.
-let pick = sel("c", "manual", "2026-11-19T09:59:58.000Z")
-r = KeyboardProfileResolver.resolve(selection: pick, profiles: profiles, fieldRuleProfileId: "b",
-                                    keyboardAppearedAt: appear, selectionAtKeyboardAppear: old)
-check(r?.profile.id == "c" && r?.source == "manual", "PR2 skew: newer pick wins")
-// Default source never beats a rule.
+// PR2, strict precedence (2026-11-19): a rule never overrides manual or automation, whatever the time.
+for source in ["manual", "automation"] {
+    for at in ["2020-01-01T00:00:00Z", "2030-01-01T00:00:00Z"] {
+        r = KeyboardProfileResolver.resolve(selection: sel("c", source, at), profiles: profiles,
+                                            fieldRuleProfileId: "b")
+        check(r?.profile.id == "c" && r?.source == source, "explicit \(source) at \(at) beats rule")
+    }
+}
+// A rule applies over a default selection, no selection, or an explicit one whose profile was deleted.
 r = KeyboardProfileResolver.resolve(selection: sel("a", "default", "2026-11-19T11:00:00Z"), profiles: profiles,
-                                    fieldRuleProfileId: "b", keyboardAppearedAt: appear,
-                                    selectionAtKeyboardAppear: nil)
-check(r?.profile.id == "b" && r?.source == "fieldRule", "default selection never beats a rule")
-// Without a capture: clock comparison.
-r = KeyboardProfileResolver.resolve(selection: sel("c", "manual", "2026-11-19T10:00:00Z"), profiles: profiles,
-                                    fieldRuleProfileId: "b", keyboardAppearedAt: appear)
-check(r?.source == "manual", "at == appear counts as after")
-r = KeyboardProfileResolver.resolve(selection: sel("c", "manual", "2026-11-19T09:59:59Z"), profiles: profiles,
-                                    fieldRuleProfileId: "b", keyboardAppearedAt: appear)
-check(r?.source == "fieldRule", "before appear → rule")
-// No keyboard session: a rule never overrides an explicit selection.
-r = KeyboardProfileResolver.resolve(selection: sel("c", "manual", "2020-01-01T00:00:00Z"), profiles: profiles,
                                     fieldRuleProfileId: "b")
-check(r?.source == "manual", "no session → explicit wins")
+check(r?.profile.id == "b" && r?.source == "fieldRule", "rule beats default selection")
+r = KeyboardProfileResolver.resolve(selection: nil, profiles: profiles, fieldRuleProfileId: "b")
+check(r?.profile.id == "b" && r?.source == "fieldRule", "rule without selection")
+r = KeyboardProfileResolver.resolve(selection: sel("zz", "manual", "2026-11-19T11:00:00Z"), profiles: profiles,
+                                    fieldRuleProfileId: "b")
+check(r?.profile.id == "b" && r?.source == "fieldRule", "rule when picked profile was deleted")
 // Rule pointing at a missing profile is ignored.
-r = KeyboardProfileResolver.resolve(selection: nil, profiles: profiles, fieldRuleProfileId: "zz",
-                                    keyboardAppearedAt: appear)
+r = KeyboardProfileResolver.resolve(selection: nil, profiles: profiles, fieldRuleProfileId: "zz")
 check(r?.source == "default", "rule with missing id ignored")
 
 // Field rules parsing.

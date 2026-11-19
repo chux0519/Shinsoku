@@ -1,12 +1,15 @@
 # STATE — profile-01 P3 (keyboard)
-- Done: keyboard shows the active profile (resolver port incl. `selectionAtKeyboardAppear`), tap cycles,
-  long-press menu, manual write, field-kind rules (`fieldRules.v1`), read-only + lock without Full Access,
-  Record passes `?profile=<shown id>`. Details + tier-B checklist: `P3-implementation.md`.
-- Stacked on P2 (#15): shares `Runner/ProfileGroup.swift` by target membership. Merge #15 first.
-- In progress: none. Next: coordinator tier B (checklist in P3-implementation.md).
-- Open decisions: hostDidBecomeActive = new appearance; `.webSearch` → search; hide button when unknown.
-- Verify: `mobile/ios/ShinsokuKeyboard/ResolverChecks/run.sh`; `cd mobile && flutter build ios --simulator
-  --debug --no-pub` (restore regenerated files); `python3 tool/review_lint.py`.
+- Done: keyboard shows the active profile, tap cycles, long-press menu, manual write, field-kind rules
+  (`fieldRules.v1`), read-only + lock without Full Access, Record passes `?profile=<shown id>`. Round 2:
+  strict precedence (manual > automation > field rule > default) in Dart `resolveActive`, its tests, the
+  Swift port, the P5 model and PR2. Rebased onto main after #15. Details + tier-B checklist:
+  `P3-implementation.md`.
+- In progress: none. Next: coordinator review + tier B.
+- Open decision: "Set Shinsoku Profile: <default>" writes source `automation`, so field rules stay off after
+  it; needs a reset (source `default`) in P2 if rules should come back.
+- Verify: `cd mobile && flutter analyze && flutter test test/model test/services/active_profile_test.dart`;
+  `tool/test_diff.sh`; `python3 tool/review_lint.py`; `mobile/ios/ShinsokuKeyboard/ResolverChecks/run.sh`;
+  `cd mobile && flutter build ios --simulator --debug --no-pub` (restore regenerated files).
 
 ---
 

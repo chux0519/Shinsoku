@@ -69,9 +69,6 @@ final class KeyboardViewController: UIInputViewController {
     private var shownProfile: ProfileGroup.Profile?
     private var shownSource: String?
     private var fieldKind = FieldKind.other
-    /// Captured when the keyboard appears (PR2: a field rule yields only to explicit events after this).
-    private var keyboardAppearedAt: Date?
-    private var selectionAtKeyboardAppear: ProfileGroup.Selection?
     private static let profileLog = Logger(subsystem: "net.potafree.shinsoku.keyboard", category: "profile")
 
     private let deleteRepeater = KeyRepeater()
@@ -90,16 +87,12 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        captureKeyboardAppearance()
         refreshState(reason: "viewWillAppear")
     }
 
     /// When the user comes back to the host app, the keyboard can stay on screen without a new
-    /// viewWillAppear; re-read the App Group then too (the reason is logged). This counts as the keyboard
-    /// appearing again: an automation that ran while the host was in the background happened "before"
-    /// this appearance, so a field rule may apply over it.
+    /// viewWillAppear; re-read the App Group then too (the reason is logged).
     @objc private func hostDidBecomeActive() {
-        captureKeyboardAppearance()
         refreshState(reason: "hostDidBecomeActive")
     }
 
@@ -257,11 +250,6 @@ final class KeyboardViewController: UIInputViewController {
 
     // MARK: Profile
 
-    private func captureKeyboardAppearance() {
-        keyboardAppearedAt = Date()
-        selectionAtKeyboardAppear = hasFullAccess ? ProfileGroup.readSelection() : nil
-    }
-
     /// Resolves what the status row shows: with Full Access, the App Group's list and selection plus the field
     /// rule for the focused field; without it, the last profile shown, read-only (PR4).
     private func refreshProfile(reason: String) {
@@ -272,9 +260,7 @@ final class KeyboardViewController: UIInputViewController {
             let resolved = KeyboardProfileResolver.resolve(
                 selection: ProfileGroup.readSelection(),
                 profiles: profiles,
-                fieldRuleProfileId: rules[fieldKind],
-                keyboardAppearedAt: keyboardAppearedAt,
-                selectionAtKeyboardAppear: selectionAtKeyboardAppear
+                fieldRuleProfileId: rules[fieldKind]
             )
             shownProfile = resolved?.profile
             shownSource = resolved?.source
@@ -341,8 +327,8 @@ final class KeyboardViewController: UIInputViewController {
         pickProfile(next)
     }
 
-    /// A pick writes `{profileId, source: manual, at: now}` (PR2: newer than anything before it, so it also
-    /// beats a field rule for the rest of this keyboard session).
+    /// A pick writes `{profileId, source: manual, at: now}`: the newest explicit event, which a field rule
+    /// never overrides (PR2, strict precedence).
     private func pickProfile(_ profile: ProfileGroup.Profile) {
         guard hasFullAccess else {
             setStatus(.profileLocked)

@@ -26,22 +26,33 @@ void main() {
     RecordStart(at: 300445),
   ]);
 
+  // Updated 2026-11-19 (strict precedence): it used to follow an automation,
+  // which now beats the rule; without one the keyboard shows the rule.
   regression('PR1: keyboard Record tap with a field rule', const [
-    AutomationSet('chat', at: 1000),
     KeyboardAppear(FieldKind.search, at: 2000),
     RecordStart(at: 3000),
   ]);
 
-  // Found by P5 (seed 1, after the PR1 fix): the keyboard's clock was 1.8 s
-  // behind; an automation (Translate) fired 1.1 s before the keyboard
-  // appeared in a search field. By timestamps the automation looked newer
-  // than the keyboard, so it suppressed the search-field rule (Review).
-  // Fix: compare with the selection seen at appear, not clocks.
-  regression('PR2: clock skew does not reorder automation and keyboard', const [
+  // Found by P5 (seed 1) under the old rule (a field rule beat an automation
+  // made before the keyboard appeared; clock skew reordered them). Strict
+  // precedence (user decision 2026-11-19): the automation (Translate) stays
+  // in effect in the search field, whatever the clocks say.
+  regression('PR2: an automation before appear beats a field rule', const [
     ClockSkew(Writer.keyboard, -1762, at: 76001),
     AutomationSet('zh_to_en', at: 82390),
     KeyboardAppear(FieldKind.search, at: 83516),
   ]);
+
+  regression(
+    'PR2: a field rule applies again once the picked profile is '
+    'deleted',
+    const [
+      KeyboardAppear(FieldKind.search, at: 1000),
+      ManualPick('chat', at: 2000),
+      ProfileDelete('chat', at: 3000),
+      RecordStart(at: 4000),
+    ],
+  );
 
   regression(
     'PR2: an automation after appear wins despite a fast keyboard '

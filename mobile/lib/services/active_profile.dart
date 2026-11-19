@@ -119,23 +119,20 @@ VoiceProfile defaultProfileOf(List<VoiceProfile> profiles) =>
 /// Pure precedence resolver (plan profile-01; PR2, PR3). Kept free of I/O so
 /// the P5 model test can drive it.
 ///
-/// 1. A field rule applies only when the stored selection is not an explicit
-///    event made at or after [keyboardAppearedAt]. Without
-///    [keyboardAppearedAt] (no keyboard session, e.g. recording in the app)
-///    a field rule never overrides an explicit selection.
-///    With [selectionAtKeyboardAppear] (what the keyboard read when it
-///    appeared) "made after the keyboard appeared" means "differs from that
-///    selection", without comparing clocks: the App Intent, the app and the
-///    keyboard each stamp `at` with their own clock, which may disagree by a
-///    second or two (P5, PR2).
-/// 2. Otherwise the stored selection, if its profile still exists.
+/// Strict precedence (user decision 2026-11-19): manual > automation >
+/// field rule > default.
+/// 1. A field rule applies only when no explicit selection (manual pick or
+///    automation set) is in effect: the stored selection is missing, has
+///    source `default`, or points at a deleted profile. It never overrides a
+///    manual or automation selection, whatever the timestamps or when the
+///    keyboard appeared.
+/// 2. Otherwise the stored selection, if its profile still exists (between
+///    manual and automation the newest write is the selection).
 /// 3. Otherwise the default profile (missing id → default, PR3).
 ResolvedProfile resolveActive(
   ProfileSelection? selection,
   List<VoiceProfile> profiles, {
   FieldRuleMatch? fieldRuleMatch,
-  DateTime? keyboardAppearedAt,
-  ProfileSelection? selectionAtKeyboardAppear,
 }) {
   VoiceProfile? find(String id) {
     for (final profile in profiles) {
@@ -144,25 +141,16 @@ ResolvedProfile resolveActive(
     return null;
   }
 
+  final selected = selection == null ? null : find(selection.profileId);
+  final explicitInEffect = selected != null && selection!.source.isExplicit;
+
   final fieldProfile = fieldRuleMatch == null
       ? null
       : find(fieldRuleMatch.profileId);
-  if (fieldProfile != null) {
-    final explicit = selection != null && selection.source.isExplicit;
-    final bool explicitIsNewer;
-    if (!explicit || keyboardAppearedAt == null) {
-      explicitIsNewer = explicit;
-    } else if (selectionAtKeyboardAppear != null) {
-      explicitIsNewer = selection != selectionAtKeyboardAppear;
-    } else {
-      explicitIsNewer = !selection.at.isBefore(keyboardAppearedAt);
-    }
-    if (!explicitIsNewer) {
-      return ResolvedProfile(fieldProfile, ProfileSource.fieldRule);
-    }
+  if (fieldProfile != null && !explicitInEffect) {
+    return ResolvedProfile(fieldProfile, ProfileSource.fieldRule);
   }
 
-  final selected = selection == null ? null : find(selection.profileId);
   if (selected != null) {
     return ResolvedProfile(selected, selection!.source);
   }

@@ -70,74 +70,61 @@ void main() {
       expect(r.profile.id, 'review');
     });
 
-    test('PR2: field rule never overrides an explicit event made after the '
-        'keyboard appeared', () {
+    test('PR2: a field rule never overrides a manual or automation '
+        'selection, whatever its time', () {
       for (final source in [ProfileSource.manual, ProfileSource.automation]) {
-        final r = resolveActive(
-          _sel('chat', source, 5),
-          profiles,
-          fieldRuleMatch: const FieldRuleMatch('review'),
-          keyboardAppearedAt: _at(1),
-        );
-        expect(r.profile.id, 'chat', reason: source.wireName);
-        expect(r.source, source);
+        // Old and new timestamps alike: strict precedence, no clocks.
+        for (final seconds in [0, 5]) {
+          final r = resolveActive(
+            _sel('chat', source, seconds),
+            profiles,
+            fieldRuleMatch: const FieldRuleMatch('review'),
+          );
+          expect(r.profile.id, 'chat', reason: '${source.wireName} $seconds');
+          expect(r.source, source);
+        }
       }
     });
-
-    test('PR2: an explicit event at the same instant as the keyboard wins', () {
-      final r = resolveActive(
-        _sel('chat', ProfileSource.manual, 1),
-        profiles,
-        fieldRuleMatch: const FieldRuleMatch('review'),
-        keyboardAppearedAt: _at(1),
-      );
-      expect(r.profile.id, 'chat');
-    });
-
-    test(
-      'field rule applies over an explicit event older than the keyboard',
-      () {
-        final r = resolveActive(
-          _sel('chat', ProfileSource.automation, 0),
-          profiles,
-          fieldRuleMatch: const FieldRuleMatch('review'),
-          keyboardAppearedAt: _at(1),
-        );
-        expect(r.profile.id, 'review');
-        expect(r.source, ProfileSource.fieldRule);
-      },
-    );
 
     test('field rule applies over a default selection', () {
       final r = resolveActive(
         _sel('dictation', ProfileSource.byDefault, 9),
         profiles,
         fieldRuleMatch: const FieldRuleMatch('zh_to_en'),
-        keyboardAppearedAt: _at(1),
       );
       expect(r.profile.id, 'zh_to_en');
       expect(r.source, ProfileSource.fieldRule);
     });
 
-    test('without a keyboard session a field rule never overrides an '
-        'explicit selection', () {
+    test('field rule applies without a stored selection', () {
       final r = resolveActive(
-        _sel('chat', ProfileSource.manual, 0),
+        null,
         profiles,
         fieldRuleMatch: const FieldRuleMatch('review'),
       );
-      expect(r.profile.id, 'chat');
+      expect(r.profile.id, 'review');
+      expect(r.source, ProfileSource.fieldRule);
+    });
+
+    test('field rule applies when the explicit selection points at a '
+        'deleted profile (PR3: no explicit selection is in effect)', () {
+      final r = resolveActive(
+        _sel('gone', ProfileSource.manual, 9),
+        profiles,
+        fieldRuleMatch: const FieldRuleMatch('review'),
+      );
+      expect(r.profile.id, 'review');
+      expect(r.source, ProfileSource.fieldRule);
     });
 
     test('field rule pointing at a missing profile is ignored', () {
       final r = resolveActive(
-        _sel('chat', ProfileSource.automation, 0),
+        _sel('dictation', ProfileSource.byDefault, 0),
         profiles,
         fieldRuleMatch: const FieldRuleMatch('gone'),
-        keyboardAppearedAt: _at(1),
       );
-      expect(r.profile.id, 'chat');
-      expect(r.source, ProfileSource.automation);
+      expect(r.profile.id, 'dictation');
+      expect(r.source, ProfileSource.byDefault);
     });
 
     test('empty list still resolves to a profile', () {

@@ -182,10 +182,8 @@ class RefModel {
   /// The newest explicit event (manual pick or automation set), by real
   /// order; null when there is none or its profile was deleted.
   String? explicitId;
-  int explicitSeq = -1;
 
   bool keyboardUp = false;
-  int keyboardSeq = -1;
   FieldKind kind = FieldKind.message;
   bool fullAccess = true;
 
@@ -199,32 +197,28 @@ class RefModel {
   /// check.
   String? shownAtRecordTap;
 
-  int _seq = 0;
-
   String get defaultId => ids.first;
 
   /// Selection without a keyboard session (the app, App Intents "Get").
   String get selectionId => explicitId ?? defaultId;
 
-  /// What the keyboard shows (PR2, PR3, PR4).
+  /// What the keyboard shows (PR2, PR3, PR4). Strict precedence (user
+  /// decision 2026-11-19): manual > automation > field rule > default; a
+  /// field rule applies only while no explicit event is in effect.
   String? get keyboardShows {
     if (!keyboardUp) return null;
     if (!fullAccess) return keyboardLastShown ?? keyboardFallbackId;
     final rule = fieldRules[kind];
     final ruleApplies = rule != null && ids.contains(rule);
-    final explicitAfterKeyboard =
-        explicitId != null && explicitSeq > keyboardSeq;
-    if (ruleApplies && !explicitAfterKeyboard) return rule;
+    if (ruleApplies && explicitId == null) return rule;
     return selectionId;
   }
 
   void _explicit(String id) {
     explicitId = id;
-    explicitSeq = _seq;
   }
 
   void apply(ProfileEvent ev) {
-    _seq++;
     shownAtRecordTap = null;
     switch (ev) {
       case AutomationSet(:final id):
@@ -234,7 +228,6 @@ class RefModel {
         if (canWrite && ids.contains(id)) _explicit(id);
       case KeyboardAppear(kind: final k):
         keyboardUp = true;
-        keyboardSeq = _seq;
         kind = k;
       case KeyboardDisappear():
         keyboardUp = false;
@@ -323,15 +316,11 @@ class KeyboardStandIn {
   bool up = false;
   bool fullAccess = true;
   FieldKind kind = FieldKind.message;
-  DateTime? appearedAt;
-  ProfileSelection? selectionAtAppear;
   VoiceProfile? lastShown;
 
   void appear(FieldKind k) {
     up = true;
     kind = k;
-    appearedAt = clock();
-    selectionAtAppear = group.active;
   }
 
   /// Null when the keyboard is down.
@@ -346,8 +335,6 @@ class KeyboardStandIn {
       group.active,
       group.listed,
       fieldRuleMatch: rule == null ? null : FieldRuleMatch(rule),
-      keyboardAppearedAt: appearedAt,
-      selectionAtKeyboardAppear: selectionAtAppear,
     ).profile;
     return lastShown = resolved;
   }
@@ -370,8 +357,14 @@ class KeyboardStandIn {
 }
 
 class ProfileSystem {
-  ProfileSystem() {
-    keyboard = KeyboardStandIn(group, () => _clock(Writer.keyboard));
+  ProfileSystem({
+    KeyboardStandIn Function(FakeGroup group, DateTime Function() clock)?
+    makeKeyboard,
+  }) {
+    keyboard = (makeKeyboard ?? KeyboardStandIn.new)(
+      group,
+      () => _clock(Writer.keyboard),
+    );
   }
 
   static final _t0 = DateTime.utc(2026, 11, 19, 9);
@@ -506,6 +499,8 @@ String? pr1RecordUsesWhatKeyboardShows(RefModel m, ProfileSystem s) {
   return null;
 }
 
+/// PR2: between manual and automation the newest event is the selection;
+/// a field rule shows only while neither is in effect.
 String? pr2NewerEventWins(RefModel m, ProfileSystem s) {
   final stored = resolveActive(s.group.active, s.profiles).profile.id;
   if (stored != m.selectionId) {

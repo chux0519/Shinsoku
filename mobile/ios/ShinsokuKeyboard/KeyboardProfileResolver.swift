@@ -54,51 +54,30 @@ enum KeyboardProfileResolver {
         return ISO8601DateFormatter().date(from: at)
     }
 
-    /// Same event: same id, same source, same instant (Dart's `ProfileSelection ==`).
-    static func sameEvent(_ a: ProfileGroup.Selection, _ b: ProfileGroup.Selection) -> Bool {
-        guard a.profileId == b.profileId, a.source == b.source else { return false }
-        if let left = instant(a.at), let right = instant(b.at) { return left == right }
-        return a.at == b.at
-    }
-
-    /// 1. A field rule applies only when the stored selection is not an explicit event (manual, automation)
-    ///    made at or after the keyboard appeared. With `selectionAtKeyboardAppear` (what the keyboard read
-    ///    when it appeared) "made after" means "differs from that selection", without comparing the writers'
-    ///    clocks (PR2). Without `keyboardAppearedAt` a field rule never overrides an explicit selection.
+    /// Strict precedence (user decision 2026-11-19): manual > automation > field rule > default.
+    /// 1. A field rule applies only when no explicit selection (manual pick or automation set) is in effect:
+    ///    the stored selection is missing, has source `default`, or points at a deleted profile. It never
+    ///    overrides a manual or automation selection, whatever the timestamps or when the keyboard appeared.
     /// 2. Otherwise the stored selection, if its profile still exists.
     /// 3. Otherwise the default (first) profile (missing id → default, PR3).
     /// Nil only when there are no profiles (the app never published a list).
     static func resolve(
         selection: ProfileGroup.Selection?,
         profiles: [ProfileGroup.Profile],
-        fieldRuleProfileId: String? = nil,
-        keyboardAppearedAt: Date? = nil,
-        selectionAtKeyboardAppear: ProfileGroup.Selection? = nil
+        fieldRuleProfileId: String? = nil
     ) -> Resolved? {
         func find(_ id: String) -> ProfileGroup.Profile? {
             profiles.first { $0.id == id }
         }
         // Dart's `ProfileSelection.fromJson` rejects an unparseable `at`: treat it as no selection.
         let selection = selection.flatMap { instant($0.at) == nil ? nil : $0 }
+        let selected = selection.flatMap { find($0.profileId) }
+        let explicitInEffect = selected != nil && explicitSources.contains(selection?.source ?? "")
 
-        if let fieldRuleProfileId, let fieldProfile = find(fieldRuleProfileId) {
-            let explicit = selection.map { explicitSources.contains($0.source) } ?? false
-            let explicitIsNewer: Bool
-            if !explicit || keyboardAppearedAt == nil {
-                explicitIsNewer = explicit
-            } else if let atAppear = selectionAtKeyboardAppear, let selection {
-                explicitIsNewer = !sameEvent(selection, atAppear)
-            } else if let selection, let keyboardAppearedAt, let at = instant(selection.at) {
-                explicitIsNewer = at >= keyboardAppearedAt
-            } else {
-                explicitIsNewer = false  // unreachable: explicit implies a parseable selection
-            }
-            if !explicitIsNewer {
-                return Resolved(profile: fieldProfile, source: "fieldRule")
-            }
+        if let fieldRuleProfileId, let fieldProfile = find(fieldRuleProfileId), !explicitInEffect {
+            return Resolved(profile: fieldProfile, source: "fieldRule")
         }
-
-        if let selection, let selected = find(selection.profileId) {
+        if let selection, let selected {
             return Resolved(profile: selected, source: selection.source)
         }
         return profiles.first.map { Resolved(profile: $0, source: "default") }

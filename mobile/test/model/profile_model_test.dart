@@ -4,6 +4,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shinsoku_mobile/services/active_profile.dart';
+import 'package:shinsoku_mobile/services/voice_profiles.dart';
 
 import 'harness.dart';
 import 'profile_world.dart';
@@ -51,6 +53,14 @@ void main() {
       expect(message, contains('PR2'));
     });
 
+    test('a keyboard on the old rule: a field rule beats an automation made '
+        'before the keyboard appeared (PR2)', () async {
+      final message = await failureOf(
+        () => ProfileSystem(makeKeyboard: _OldTimingKeyboard.new),
+      );
+      expect(message, contains('PR2'));
+    });
+
     test('a delete that does not repair the selection (PR3)', () async {
       final message = await failureOf(_NoRepair.new);
       expect(message, contains('PR3'));
@@ -78,6 +88,35 @@ class _NoFieldRules extends ProfileSystem {
     await super.apply(
       ev is KeyboardAppear ? KeyboardAppear(FieldKind.message, at: ev.at) : ev,
     );
+  }
+}
+
+/// The rule before 2026-11-19: a field rule yields only to an explicit event
+/// made after the keyboard appeared.
+class _OldTimingKeyboard extends KeyboardStandIn {
+  _OldTimingKeyboard(super.group, super.clock);
+
+  ProfileSelection? _atAppear;
+
+  @override
+  void appear(FieldKind k) {
+    super.appear(k);
+    _atAppear = this.group.active;
+  }
+
+  @override
+  VoiceProfile? get shows {
+    final rule = fieldRules[kind];
+    final ruleProfile = this.group.listed
+        .where((p) => p.id == rule)
+        .firstOrNull;
+    if (up &&
+        fullAccess &&
+        ruleProfile != null &&
+        this.group.active == _atAppear) {
+      return lastShown = ruleProfile;
+    }
+    return super.shows;
   }
 }
 
