@@ -1,6 +1,6 @@
-# Privacy-first offline dictation app — plan (draft, awaiting the user)
+# Hisoka — privacy-first offline dictation app — plan
 
-Status: **draft 2026-11-19**, not confirmed. User decisions so far (2026-11-19): a separate app with its own
+Status: **decisions taken 2026-11-19** (name, price, free tier, minimum OS — see the end); name availability check and Windows payment choice still open. User decisions so far (2026-11-19): a separate app with its own
 name; focus = privacy (audio and text never leave the device); paid; **macOS and iOS are both first
 priority**; Windows also paid, sold directly with the user's Stripe account. Shinsoku itself stays key-first
 (cloud providers, Free + Pro). Research: `research-20261119.md` next to this file.
@@ -73,3 +73,11 @@ cloud only).
 3. Free tier: "speech only, no AI cleanup" vs "N dictations" vs no free tier (paid upfront).
 4. Minimum OS 26 on Apple platforms (drops older iPhones/Macs).
 5. Windows payments: Stripe Managed Payments (Stripe handles VAT) vs plain Stripe + our own VAT filing.
+
+## User decisions (2026-11-19)
+- Name: **Hisoka** (密か) — pending App Store / trademark / domain check.
+- Price: universal iOS + Mac unlock **$9.99 (launch $6.99)**; Windows proposed **$12.99** (to confirm).
+- Free tier: **speech recognition only**, unlimited; the unlock adds AI cleanup, translation, multiple profiles,
+  per-app switching.
+- Minimum OS: **iOS 26 / macOS 26**.
+- Still open: Windows payments (Stripe Managed Payments recommended).
