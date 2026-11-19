@@ -18,6 +18,9 @@
 		8A6D120101B1C0D000000001 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D120501B1C0D000000001 /* KeyboardViewController.swift */; };
 		8A6D121C01B1C0D000000001 /* KeyboardKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D121D01B1C0D000000001 /* KeyboardKey.swift */; };
 		8A6D121A01B1C0D000000001 /* KeyboardTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D121B01B1C0D000000001 /* KeyboardTheme.swift */; };
+		8A6D124001B1C0D000000001 /* KeyboardProfileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */; };
+		8A6D124201B1C0D000000001 /* KeyboardProfileButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */; };
+		8A6D124401B1C0D000000001 /* ProfileGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123101B1C0D000000001 /* ProfileGroup.swift */; };
 		8A6D120201B1C0D000000001 /* ShinsokuKeyboard.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 8A6D120701B1C0D000000001 /* ShinsokuKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
@@ -95,6 +98,8 @@
 		8A6D120501B1C0D000000001 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
 		8A6D121D01B1C0D000000001 /* KeyboardKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardKey.swift; sourceTree = "<group>"; };
 		8A6D121B01B1C0D000000001 /* KeyboardTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardTheme.swift; sourceTree = "<group>"; };
+		8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardProfileResolver.swift; sourceTree = "<group>"; };
+		8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardProfileButton.swift; sourceTree = "<group>"; };
 		8A6D120601B1C0D000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A6D120701B1C0D000000001 /* ShinsokuKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShinsokuKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShinsokuKeyboard.entitlements; sourceTree = "<group>"; };
@@ -171,6 +176,8 @@
 				8A6D120501B1C0D000000001 /* KeyboardViewController.swift */,
 				8A6D121D01B1C0D000000001 /* KeyboardKey.swift */,
 				8A6D121B01B1C0D000000001 /* KeyboardTheme.swift */,
+				8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */,
+				8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */,
 				8A6D120601B1C0D000000001 /* Info.plist */,
 				8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */,
 			);
@@ -548,6 +555,9 @@
 				8A6D120101B1C0D000000001 /* KeyboardViewController.swift in Sources */,
 				8A6D121C01B1C0D000000001 /* KeyboardKey.swift in Sources */,
 				8A6D121A01B1C0D000000001 /* KeyboardTheme.swift in Sources */,
+				8A6D124001B1C0D000000001 /* KeyboardProfileResolver.swift in Sources */,
+				8A6D124201B1C0D000000001 /* KeyboardProfileButton.swift in Sources */,
+				8A6D124401B1C0D000000001 /* ProfileGroup.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

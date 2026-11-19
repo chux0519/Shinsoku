@@ -39,12 +39,16 @@ cases in `mobile/test/model/regressions_test.dart`.
   `profileForRecordStart`); the app can't see field rules or a read-only keyboard's stale profile. Only a
   shown profile that was deleted meanwhile falls back to the selection (PR3 wins). Regression: "PR1: keyboard
   Record tap records what the keyboard shows".
-- **PR2 Newer event wins.** Automation set and manual pick are ordered by timestamp (the newest write is the
-  selection); a field rule never overrides a manual pick or an automation set made at or after the moment the
-  keyboard appeared. Without a keyboard session a field rule never overrides an explicit selection. "Newer"
-  is real order, not writers' clocks: the keyboard compares the stored selection with the one it read when
-  it appeared (`selectionAtKeyboardAppear`), so ±2 s of skew between the app, the App Intent and the keyboard
-  can't reorder events. Regression: "PR2: clock skew does not reorder automation and keyboard".
+- **PR2 Strict precedence: manual > automation > field rule > default** (user decision 2026-11-19, replaces
+  the "made after the keyboard appeared" rule). Between a manual pick and an automation set, the newest write
+  is the selection (last writer wins in `activeProfile.v1`; timestamps aren't compared). A field rule applies
+  only while no explicit selection is in effect: the stored selection is missing, has source `default`, or
+  points at a deleted profile (PR3). It never overrides a manual or automation selection, whatever the
+  timestamps, clock skew or when the keyboard appeared. An automation stays in effect across apps; to return
+  to the default profile after an app, the user adds a "When <app> is closed → Set Shinsoku Profile:
+  <default>" automation (P4 guide). That write has source `automation`, so field rules stay off until a
+  selection with source `default` is written (open: a reset intent, see P3-implementation.md). Regressions: "PR2: an automation before appear beats a field rule",
+  "PR2: a field rule applies again once the picked profile is deleted".
 - **PR3 No dangling selection.** Deleting or renaming a profile never leaves the active selection pointing at a
   missing id: the resolver falls back to the default (first) profile and the app rewrites the stored selection
   to `default`, so the keyboard shows it.
