@@ -8,12 +8,12 @@ class KeyboardBridge {
   );
 
   static Future<void> publishText(String text) async {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) {
+    // Sent as is: a profile's commit suffix (space, new line) is part of it.
+    if (text.trim().isEmpty) {
       return;
     }
 
-    await _channel.invokeMethod<void>('publishLatestText', {'text': trimmed});
+    await _channel.invokeMethod<void>('publishLatestText', {'text': text});
   }
 }
 

@@ -117,7 +117,9 @@ void main() {
     await d.settle();
     expect(d.area, 'Example one. Example two.');
     expect(d.drafts, ['Example one. Example two.']);
-    expect(d.published, ['Example one. Example two.']);
+    // The draft is plain; Insert and the clipboard get the profile's suffix
+    // (Dictation: a space).
+    expect(d.published, ['Example one. Example two. ']);
   });
 
   testWidgets('L2: a drop while listening keeps committed + pending', (
@@ -188,7 +190,7 @@ void main() {
     await t.tap(find.byKey(const ValueKey('record-done')));
     await d.settle();
     expect(d.drafts, ['Example take, edited.']);
-    expect(d.published.last, 'Example take, edited.');
+    expect(d.published.last, 'Example take, edited. ');
     expect(d.status, SkStrings.savedInsert);
   });
 
@@ -278,5 +280,32 @@ void main() {
     t.view.resetViewInsets();
     await t.pumpAndSettle();
     expect(paneFirst.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('drafts store plain text; the suffix comes with publishing '
+      '(Copy in Drafts too); old drafts publish as they are', (t) async {
+    final d = ShellDriver(t);
+    await d.pump(_iphone);
+    await d.toggle();
+    d.pipeline.finalWords('Example plain.');
+    await d.toggle();
+    await d.pipeline.process();
+    await d.settle();
+    expect(d.drafts, ['Example plain.']);
+    expect(d.area, 'Example plain.');
+    expect(d.published.last, 'Example plain. ');
+    await t.tap(find.byKey(const ValueKey('record-copy')));
+    await d.settle();
+    expect(d.published.last, 'Example plain. ');
+    expect(d.drafts, ['Example plain.']);
+
+    // Drafts › editor › Copy publishes with the recording's suffix.
+    await t.tap(find.text('Drafts').last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Example plain.'));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('draft-editor-copy')));
+    await t.pump();
+    expect(d.published.last, 'Example plain. ');
   });
 }

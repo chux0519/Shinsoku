@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:record/record.dart';
 import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
@@ -174,8 +175,9 @@ class DebugCapturePipeline implements RecordingPipeline {
     _live.value = const LiveTranscript(phase: LivePhase.finishing);
     final text = await capture.stop();
     _live.value = LiveTranscript(committed: text, phase: LivePhase.done);
+    // Like the service: the result carries the profile's suffix.
     return RealTranscriptionResult(
-      text: text,
+      text: withCommitSuffix(text, profile.commitSuffix),
       provider: profile.name,
       detail: '',
     );

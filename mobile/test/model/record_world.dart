@@ -217,20 +217,23 @@ class RecordModel {
         focused = false;
         keyboardUp = false;
       case Partial(:final words):
-        if (capture != ModelCapture.listening && capture != ModelCapture.stopping) {
+        if (capture != ModelCapture.listening &&
+            capture != ModelCapture.stopping) {
           return false;
         }
         pending = words;
         area = committed + pending;
       case Final(:final words):
-        if (capture != ModelCapture.listening && capture != ModelCapture.stopping) {
+        if (capture != ModelCapture.listening &&
+            capture != ModelCapture.stopping) {
           return false;
         }
         committed += words;
         pending = '';
         area = committed;
       case Drop():
-        if (capture != ModelCapture.listening && capture != ModelCapture.stopping) {
+        if (capture != ModelCapture.listening &&
+            capture != ModelCapture.stopping) {
           return false;
         }
         final heard = (committed + pending).trim();
@@ -244,7 +247,8 @@ class RecordModel {
         if (capture != ModelCapture.listening) return false;
         capture = ModelCapture.stopping;
       case Process():
-        if (capture != ModelCapture.stopping && capture != ModelCapture.processing) {
+        if (capture != ModelCapture.stopping &&
+            capture != ModelCapture.processing) {
           return false;
         }
         final raw = (committed + pending).trim();
@@ -530,7 +534,8 @@ ModelFailure? _check(
 ) {
   final area = system.controller.text;
   final live =
-      model.capture == ModelCapture.listening || model.capture == ModelCapture.stopping;
+      model.capture == ModelCapture.listening ||
+      model.capture == ModelCapture.stopping;
   if (live) {
     if (committedSoFar != null && !area.startsWith(committedSoFar)) {
       return ModelFailure(

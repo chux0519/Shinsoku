@@ -434,7 +434,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     } catch (error) {
       if (!mounted || !identical(_pipeline, pipeline)) return;
       // Nothing was recorded yet; the area keeps nothing new.
-      await _finishFailed(pipeline, error, label: 'Recording failed');
+      await _finishFailed(
+        pipeline,
+        error,
+        label: 'Recording failed',
+        profile: profile,
+      );
       return;
     }
     if (mounted && !_simulatedCapture) {
@@ -519,15 +524,23 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       result = await pipeline.stop(profile);
     } catch (error) {
       if (!mounted || !identical(_pipeline, pipeline)) return;
-      await _finishFailed(pipeline, error, label: SkStrings.recordingStopped);
+      await _finishFailed(
+        pipeline,
+        error,
+        label: SkStrings.recordingStopped,
+        profile: profile,
+      );
       return;
     }
     if (!mounted || !identical(_pipeline, pipeline)) return;
     debugPrint('SHINSOKU_RECORDING_E2E ${result.detail}');
+    // The draft holds the plain text; the profile's suffix is added when it
+    // is published or copied (decision 2026-11-19).
     final draft = DraftEntry(
-      text: result.text,
+      text: result.text.trim(),
       profileName: result.provider,
       createdAt: DateTime.now(),
+      commitSuffix: profile.commitSuffix,
     );
     pipeline.live.removeListener(_onPipelineLive);
     setState(() {
@@ -536,18 +549,18 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       _recordDraft = draft;
       _live.value = pipeline.live.value.phase == LivePhase.done
           ? pipeline.live.value
-          : LiveTranscript(committed: result.text, phase: LivePhase.done);
+          : LiveTranscript(committed: draft.text, phase: LivePhase.done);
       _smokeTestStatus = SmokeTestStatus(
         label: 'Recording transcribed',
         detail: result.detail,
-        transcript: result.text,
+        transcript: draft.text,
         finished: true,
       );
     });
     // Coordinator decision 2026-11-19: each new result is still published
     // to the keyboard and the clipboard. The status line says so; a snack
     // bar would cover Copy and Done.
-    await _publishTextWithFeedback(draft.text);
+    await _publishTextWithFeedback(draft.publishText);
   }
 
   /// A failed recording: whatever was heard (committed + pending) becomes
@@ -557,6 +570,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     RecordingPipeline pipeline,
     Object error, {
     required String label,
+    required VoiceProfile profile,
   }) async {
     pipeline.live.removeListener(_onPipelineLive);
     final heard = pipeline.live.value.text.trim();
@@ -564,8 +578,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         ? null
         : DraftEntry(
             text: heard,
-            profileName: _activeProfile.name,
+            profileName: profile.name,
             createdAt: DateTime.now(),
+            commitSuffix: profile.commitSuffix,
           );
     setState(() {
       _captureState = CaptureState.idle;
@@ -660,6 +675,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       text: text,
       profileName: _activeProfile.name,
       createdAt: DateTime.now(),
+      commitSuffix: _activeProfile.commitSuffix,
     );
     setState(() {
       _drafts.insert(0, draft);
@@ -667,9 +683,19 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     });
   }
 
+  /// The Record text as Insert and the clipboard get it: with the suffix of
+  /// the profile its draft was recorded with.
+  String _recordPublishText(String text) =>
+      withCommitSuffix(text, _recordDraft?.commitSuffix ?? CommitSuffix.none);
+
   void _copyRecordText(String text) {
     _saveRecordText(text);
-    unawaited(_publishTextWithFeedback(text, message: SkStrings.copied));
+    unawaited(
+      _publishTextWithFeedback(
+        _recordPublishText(text),
+        message: SkStrings.copied,
+      ),
+    );
   }
 
   /// Record › Done after an edit: saved into the same draft and republished
@@ -684,7 +710,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         finished: true,
       );
     });
-    unawaited(_publishTextWithFeedback(text));
+    unawaited(_publishTextWithFeedback(_recordPublishText(text)));
   }
 
   Future<void> _showDraftEditor(DraftEntry tapped) async {
@@ -719,7 +745,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           onCopy: (text) {
             save(text);
             unawaited(
-              _publishTextWithFeedback(text, message: SkStrings.copied),
+              _publishTextWithFeedback(
+                withCommitSuffix(text, current.commitSuffix),
+                message: SkStrings.copied,
+              ),
             );
           },
         ),
@@ -1042,7 +1071,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         onDelete: _deleteDraft,
         onEdit: _showDraftEditor,
         onCopy: (draft) => _publishTextWithFeedback(
-          draft.text,
+          draft.publishText,
           message: 'Draft copied to clipboard.',
         ),
       ),

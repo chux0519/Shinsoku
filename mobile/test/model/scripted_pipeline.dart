@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shinsoku_mobile/app/recording_pipeline.dart';
+import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
@@ -17,6 +18,7 @@ class ScriptedPipeline implements RecordingPipeline {
 
   final _live = ValueNotifier<LiveTranscript>(LiveTranscript.idle);
   Completer<RealTranscriptionResult>? _result;
+  VoiceProfile? _profile;
   var disposed = false;
 
   @override
@@ -67,6 +69,7 @@ class ScriptedPipeline implements RecordingPipeline {
   Future<RealTranscriptionResult> stop(VoiceProfile profile) {
     final result = Completer<RealTranscriptionResult>();
     _result = result;
+    _profile = profile;
     if (value.phase == LivePhase.failed) {
       result.completeError(StateError('example connection closed'));
     } else {
@@ -106,7 +109,16 @@ class ScriptedPipeline implements RecordingPipeline {
     }
     _live.value = LiveTranscript(committed: text, phase: LivePhase.done);
     result.complete(
-      RealTranscriptionResult(text: text, provider: 'Example', detail: ''),
+      // Like the service: done.committed is plain, result.text has the
+      // profile's suffix.
+      RealTranscriptionResult(
+        text: withCommitSuffix(
+          text,
+          _profile?.commitSuffix ?? CommitSuffix.none,
+        ),
+        provider: 'Example',
+        detail: '',
+      ),
     );
     return true;
   }
