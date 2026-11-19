@@ -3,7 +3,8 @@ import SwiftUI
 import UIKit
 
 /// Shinsoku keyboard (DESIGN.md §6): status row, main row (Insert latest · Record · Delete), edit row
-/// (Space · Return). No title row, no scrolling, no settings.
+/// (Space · Return). No title row, no scrolling, no settings. The status row also shows the active profile
+/// (profile-01 P3): tap to cycle, long-press for the list.
 final class KeyboardViewController: UIInputViewController {
     private enum Status {
         case ready
@@ -14,12 +15,14 @@ final class KeyboardViewController: UIInputViewController {
         case insertedAgain
         case opening
         case openFailed
+        case profileLocked
 
         var symbol: String {
             switch self {
             case .ready, .noLatest: return "mic"
             case .latestReady: return "text.badge.checkmark"
             case .needsFullAccess, .openFailed: return "exclamationmark.triangle"
+            case .profileLocked: return "lock"
             case .inserted, .insertedAgain: return "checkmark.circle"
             case .opening: return "arrow.up.forward.app"
             }
@@ -35,12 +38,13 @@ final class KeyboardViewController: UIInputViewController {
             case .insertedAgain: return "Inserted again"
             case .opening: return "Opening Shinsoku…"
             case .openFailed: return "Open Shinsoku from the Home Screen"
+            case .profileLocked: return "Turn on Full Access to switch profiles"
             }
         }
 
         var tint: UIColor {
             switch self {
-            case .needsFullAccess, .openFailed: return KeyboardTheme.warning
+            case .needsFullAccess, .openFailed, .profileLocked: return KeyboardTheme.warning
             case .inserted, .insertedAgain: return KeyboardTheme.success
             default: return KeyboardTheme.textSecondary
             }
@@ -49,6 +53,7 @@ final class KeyboardViewController: UIInputViewController {
 
     private let statusIcon = UIImageView()
     private let statusLabel = UILabel()
+    private let profileButton = KeyboardProfileButton()
     private let globeKey = KeyboardKey(style: .raised, symbol: "globe", title: nil)
     private let insertKey = KeyboardKey(style: .raised, symbol: "text.insert", title: "Insert", axis: .vertical)
     private let recordKey = KeyboardKey(style: .accent, symbol: "mic.fill", title: "Record", axis: .vertical)
@@ -58,6 +63,16 @@ final class KeyboardViewController: UIInputViewController {
 
     private var heightConstraint: NSLayoutConstraint?
     private var latest = LatestTextStore.State.none
+
+    // Active profile (profile-01 P3). `shownProfile` is what the status row shows and what Record sends (PR1).
+    private var profiles: [ProfileGroup.Profile] = []
+    private var shownProfile: ProfileGroup.Profile?
+    private var shownSource: String?
+    private var fieldKind = FieldKind.other
+    /// Captured when the keyboard appears (PR2: a field rule yields only to explicit events after this).
+    private var keyboardAppearedAt: Date?
+    private var selectionAtKeyboardAppear: ProfileGroup.Selection?
+    private static let profileLog = Logger(subsystem: "net.potafree.shinsoku.keyboard", category: "profile")
 
     private let deleteRepeater = KeyRepeater()
     private let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -75,12 +90,16 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        captureKeyboardAppearance()
         refreshState(reason: "viewWillAppear")
     }
 
     /// When the user comes back to the host app, the keyboard can stay on screen without a new
-    /// viewWillAppear; re-read the App Group then too (the reason is logged).
+    /// viewWillAppear; re-read the App Group then too (the reason is logged). This counts as the keyboard
+    /// appearing again: an automation that ran while the host was in the background happened "before"
+    /// this appearance, so a field rule may apply over it.
     @objc private func hostDidBecomeActive() {
+        captureKeyboardAppearance()
         refreshState(reason: "hostDidBecomeActive")
     }
 
@@ -93,6 +112,10 @@ final class KeyboardViewController: UIInputViewController {
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         updateReturnKey()
+        // The focused field may have changed under the same keyboard session.
+        if FieldKind.detect(textDocumentProxy) != fieldKind {
+            refreshProfile(reason: "fieldChanged")
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -127,7 +150,12 @@ final class KeyboardViewController: UIInputViewController {
         statusRow.addArrangedSubview(statusIcon)
         statusRow.addArrangedSubview(statusLabel)
         statusRow.addArrangedSubview(statusSpacer)
+        statusRow.addArrangedSubview(profileButton)
         statusRow.addArrangedSubview(globeKey)
+        // The status text truncates first; the profile name keeps up to 45 % of the row, then truncates too.
+        profileButton.setContentCompressionResistancePriority(.defaultLow + 1, for: .horizontal)
+        profileButton.setContentHuggingPriority(.required, for: .horizontal)
+        profileButton.isHidden = true
         statusRow.isAccessibilityElement = false
         statusLabel.accessibilityTraits = .updatesFrequently
 
@@ -166,6 +194,9 @@ final class KeyboardViewController: UIInputViewController {
             statusRow.heightAnchor.constraint(equalToConstant: KeyboardTheme.statusRowHeight),
             globeKey.widthAnchor.constraint(equalToConstant: 44),
             globeKey.heightAnchor.constraint(equalToConstant: KeyboardTheme.statusRowHeight),
+            profileButton.heightAnchor.constraint(equalToConstant: KeyboardTheme.statusRowHeight),
+            profileButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+            profileButton.widthAnchor.constraint(lessThanOrEqualTo: statusRow.widthAnchor, multiplier: 0.45),
 
             mainRow.heightAnchor.constraint(greaterThanOrEqualToConstant: KeyboardTheme.minRecordHeight),
             editRowHeight,
@@ -199,6 +230,7 @@ final class KeyboardViewController: UIInputViewController {
         spaceKey.addTarget(self, action: #selector(insertSpace), for: .touchUpInside)
         returnKey.addTarget(self, action: #selector(insertReturn), for: .touchUpInside)
         globeKey.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
+        profileButton.addTarget(self, action: #selector(cycleProfile), for: .touchUpInside)
 
         deleteKey.addTarget(self, action: #selector(deleteTouchDown), for: .touchDown)
         deleteKey.addTarget(self, action: #selector(deleteTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
@@ -211,6 +243,7 @@ final class KeyboardViewController: UIInputViewController {
 
     private func refreshState(reason: String) {
         updateReturnKey()
+        refreshProfile(reason: reason)
         guard hasFullAccess else {
             latest = .none
             updateInsertKey()
@@ -221,6 +254,109 @@ final class KeyboardViewController: UIInputViewController {
         updateInsertKey()
         setStatus(latest == .new ? .latestReady : .ready, announce: false)
     }
+
+    // MARK: Profile
+
+    private func captureKeyboardAppearance() {
+        keyboardAppearedAt = Date()
+        selectionAtKeyboardAppear = hasFullAccess ? ProfileGroup.readSelection() : nil
+    }
+
+    /// Resolves what the status row shows: with Full Access, the App Group's list and selection plus the field
+    /// rule for the focused field; without it, the last profile shown, read-only (PR4).
+    private func refreshProfile(reason: String) {
+        fieldKind = FieldKind.detect(textDocumentProxy)
+        if hasFullAccess {
+            profiles = ProfileGroup.readProfiles()
+            let rules = KeyboardProfileResolver.readFieldRules()
+            let resolved = KeyboardProfileResolver.resolve(
+                selection: ProfileGroup.readSelection(),
+                profiles: profiles,
+                fieldRuleProfileId: rules[fieldKind],
+                keyboardAppearedAt: keyboardAppearedAt,
+                selectionAtKeyboardAppear: selectionAtKeyboardAppear
+            )
+            shownProfile = resolved?.profile
+            shownSource = resolved?.source
+            if let profile = resolved?.profile {
+                LastShownProfile.write(profile)
+            }
+        } else {
+            profiles = []
+            shownProfile = LastShownProfile.read()
+            shownSource = nil
+        }
+        // Ids and wire names only; never profile names.
+        let fullAccess = hasFullAccess
+        let count = profiles.count
+        let kind = fieldKind.rawValue
+        let source = shownSource ?? "none"
+        let shown = shownProfile?.id ?? "none"
+        Self.profileLog.notice(
+            "profile (\(reason, privacy: .public)): fullAccess=\(fullAccess) count=\(count) kind=\(kind, privacy: .public) source=\(source, privacy: .public) shown=\(shown, privacy: .public)"
+        )
+        updateProfileButton()
+    }
+
+    private func updateProfileButton() {
+        guard let profile = shownProfile else {
+            profileButton.isHidden = true
+            profileButton.menu = nil
+            return
+        }
+        let readOnly = !hasFullAccess
+        profileButton.isHidden = false
+        profileButton.show(name: profile.name, readOnly: readOnly)
+        profileButton.accessibilityLabel = "Profile"
+        profileButton.accessibilityValue = readOnly ? "\(profile.name), read only" : profile.name
+        guard !readOnly, profiles.count > 1 else {
+            profileButton.menu = nil
+            profileButton.accessibilityHint = readOnly ? "Turn on Full Access to switch profiles" : nil
+            profileButton.accessibilityCustomActions = nil
+            return
+        }
+        profileButton.accessibilityHint = "Switches to the next profile. Long press for the list."
+        profileButton.menu = UIMenu(title: "Profile", children: profiles.map { candidate in
+            UIAction(title: candidate.name, state: candidate.id == profile.id ? .on : .off) { [weak self] _ in
+                self?.pickProfile(candidate)
+            }
+        })
+        profileButton.accessibilityCustomActions = profiles.filter { $0.id != profile.id }.map { candidate in
+            UIAccessibilityCustomAction(name: "Use \(candidate.name)") { [weak self] _ in
+                self?.pickProfile(candidate)
+                return true
+            }
+        }
+    }
+
+    @objc private func cycleProfile() {
+        guard hasFullAccess else {
+            setStatus(.profileLocked)
+            return
+        }
+        guard
+            let next = KeyboardProfileResolver.next(after: shownProfile?.id, in: profiles),
+            next.id != shownProfile?.id
+        else { return }
+        pickProfile(next)
+    }
+
+    /// A pick writes `{profileId, source: manual, at: now}` (PR2: newer than anything before it, so it also
+    /// beats a field rule for the rest of this keyboard session).
+    private func pickProfile(_ profile: ProfileGroup.Profile) {
+        guard hasFullAccess else {
+            setStatus(.profileLocked)
+            return
+        }
+        guard ProfileGroup.writeSelection(profileId: profile.id, source: "manual") else {
+            Self.profileLog.error("profile pick: write failed")
+            return
+        }
+        refreshProfile(reason: "manualPick")
+        UIAccessibility.post(notification: .announcement, argument: "Profile \(shownProfile?.name ?? profile.name)")
+    }
+
+    // MARK: Keys
 
     /// Never shows the text itself: not on screen, not in accessibility values.
     private func updateInsertKey() {
@@ -328,7 +464,8 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     @objc private func openDictationApp() {
-        guard let url = URL(string: "shinsoku://dictation") else {
+        // PR1: record with exactly the profile the status row shows.
+        guard let url = KeyboardProfileResolver.dictationURL(profileId: shownProfile?.id) else {
             return
         }
         setStatus(.opening)
