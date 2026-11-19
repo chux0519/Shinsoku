@@ -115,6 +115,8 @@ tool/ios_keyboard_scene.sh 9080FE77-1FF9-49A1-B165-55DCA4ECED64 build/ui-review/
   `-ShinsokuSceneFieldRules '{"search":"review"}'` writes `fieldRules.v1` directly (P4's `setFieldRules`
   channel not merged; known kinds only, `{}` clears). The scene leaves `fieldRules.v1 = {search: review}` and
   the selection at automation/Chat behind.
+  Superseded (scene-rules): `-ShinsokuSceneFieldRules` is gone; the scene sets the rule in Settings ›
+  Profiles › Field rules and resets it to None at the end. See `scene-rules-implementation.md`.
 - Assumes the built-in profile list (Dictation, Chat, Review, ZH -> EN); an edited list fails at the first
   name check.
 - Verified: `tool/ios_keyboard_scene.sh --build-only` under Xcode 27.2 → TEST BUILD SUCCEEDED, no warnings in

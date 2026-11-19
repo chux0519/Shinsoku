@@ -1,3 +1,15 @@
+# STATE — profile-01 scene-rules (ProfileKeyboardSceneTests vs P4 field-rule mirroring)
+- Done: cause confirmed (Dart mirrors its empty rules to `fieldRules.v1` on launch, overwriting the DEBUG seed).
+  The scene now sets Search → Review in Settings › Profiles › Field rules (PHASE shot of the page) and resets
+  it to None in a teardown block; `-ShinsokuSceneFieldRules` removed, `-ShinsokuSceneResetSelection` kept.
+  Details: `scene-rules-implementation.md`.
+- In progress: none. Next: coordinator runs ProfileKeyboardSceneTests on iPhone 17 (light + dark).
+- Open: none.
+- Verify: `bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh --build-only`;
+  `python3 tool/review_lint.py`.
+
+---
+
 # STATE — profile-01 P3 scene (tier-B harness)
 - Done: `ProfileKeyboardSceneTests` (brief steps 1–8), shared `SceneSupport.swift` (both older scenes use it),
   DEBUG seed args `-ShinsokuSceneResetSelection` / `-ShinsokuSceneFieldRules`. Details: `P3-implementation.md`

@@ -136,8 +136,8 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
   /// Scene-test hooks (Debug builds only): `-ShinsokuSceneResetLatest YES` clears the shared latest text,
   /// `-ShinsokuSceneSeedLatest <text>` publishes <text> through the same path as the method channel.
   /// profile-01 P3 scene: `-ShinsokuSceneResetSelection YES` removes `activeProfile.v1`, so Dart's launch sync
-  /// writes the default selection (source `default`); `-ShinsokuSceneFieldRules <json>` writes `fieldRules.v1`
-  /// (`{kind: profileId}`, known kinds only; `{}` clears) until P4's Settings UI / channel writes it.
+  /// writes the default selection (source `default`). Field rules have no hook: Dart owns them and mirrors its
+  /// copy to `fieldRules.v1` on every launch, so the scene sets them in Settings › Profiles › Field rules.
   /// Read straight from the process arguments, before the Flutter engine starts.
   private static func applySceneLaunchArguments() {
     let arguments = ProcessInfo.processInfo.arguments
@@ -163,44 +163,18 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
       publishLatestText(seed)
     }
     applySceneProfileArguments(
-      resetSelection: value(after: "-ShinsokuSceneResetSelection") == "YES",
-      fieldRules: value(after: "-ShinsokuSceneFieldRules")
+      resetSelection: value(after: "-ShinsokuSceneResetSelection") == "YES"
     )
   }
 
-  /// Field kinds the keyboard knows (`FieldKind` in `ShinsokuKeyboard/KeyboardProfileResolver.swift`).
-  private static let sceneFieldKinds: Set<String> = ["search", "url", "email", "message", "other"]
-
-  private static func applySceneProfileArguments(resetSelection: Bool, fieldRules: String?) {
-    guard resetSelection || fieldRules != nil else { return }
+  private static func applySceneProfileArguments(resetSelection: Bool) {
+    guard resetSelection else { return }
     guard let shared = ProfileGroup.defaults else {
       log.error("scene profile args: App Group unavailable")
       return
     }
-    if resetSelection {
-      shared.removeObject(forKey: ProfileGroup.activeKey)
-      log.notice("scene reset selection")
-    }
-    if let fieldRules {
-      guard
-        let data = fieldRules.data(using: .utf8),
-        let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-      else {
-        log.error("scene field rules: not a JSON object")
-        return
-      }
-      let rules = object.compactMapValues { $0 as? String }
-        .filter { sceneFieldKinds.contains($0.key) && !$0.value.isEmpty }
-      if rules.isEmpty {
-        shared.removeObject(forKey: "fieldRules.v1")
-      } else if let encoded = try? JSONSerialization.data(withJSONObject: rules, options: [.sortedKeys]) {
-        shared.set(String(data: encoded, encoding: .utf8), forKey: "fieldRules.v1")
-      }
-      // Kinds and ids only (never profile names).
-      let summary = rules.keys.sorted().map { "\($0)=\(rules[$0]!)" }.joined(separator: ",")
-      log.notice("scene field rules: \(summary, privacy: .public)")
-    }
-    log.notice("scene profile args: synchronize=\(shared.synchronize())")
+    shared.removeObject(forKey: ProfileGroup.activeKey)
+    log.notice("scene reset selection: synchronize=\(shared.synchronize())")
   }
 #endif
 
