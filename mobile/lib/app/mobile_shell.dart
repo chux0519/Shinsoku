@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/app/bridges.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
+import 'package:shinsoku_mobile/features/drafts/draft_editor_page.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
@@ -68,6 +69,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   List<VoiceProfile> _profiles = List<VoiceProfile>.of(defaultVoiceProfiles);
   late final List<DraftEntry> _drafts;
+
+  /// The draft the Record screen's text belongs to (L3).
+  DraftEntry? _recordDraft;
 
   late int _tabIndex;
 
@@ -347,8 +351,15 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         setState(() => _captureState = CaptureState.processing);
         final text = await debug.stop();
         if (!mounted) return;
+        final draft = DraftEntry(
+          text: text,
+          profileName: _activeProfile.name,
+          createdAt: DateTime.now(),
+        );
         setState(() {
           _captureState = CaptureState.idle;
+          _drafts.insert(0, draft);
+          _recordDraft = draft;
           _smokeTestStatus = SmokeTestStatus(
             label: 'Recording transcribed',
             detail: '',
@@ -574,7 +585,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       setState(() {
         _captureState = CaptureState.idle;
         _drafts.insert(0, draft);
-        _tabIndex = 1;
+        _recordDraft = draft;
         _smokeTestStatus = SmokeTestStatus(
           label: 'Recording transcribed',
           detail: finalDetail,
@@ -654,36 +665,61 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       );
   }
 
+  /// Replaces [draft] in place (same slot, L3) and returns the new entry,
+  /// or null when it is gone.
+  DraftEntry? _replaceDraft(DraftEntry draft, String text) {
+    final index = _drafts.indexOf(draft);
+    if (index < 0) return null;
+    final updated = draft.copyWith(text: text);
+    setState(() {
+      _drafts[index] = updated;
+      if (identical(_recordDraft, draft)) _recordDraft = updated;
+    });
+    return updated;
+  }
+
+  /// Record › Done: the edit goes into this recording's draft (L3); text
+  /// typed without a recording, or into a deleted draft, makes one.
+  void _saveRecordText(String text) {
+    final current = _recordDraft;
+    if (current != null && _replaceDraft(current, text) != null) return;
+    final draft = DraftEntry(
+      text: text,
+      profileName: _activeProfile.name,
+      createdAt: DateTime.now(),
+    );
+    setState(() {
+      _drafts.insert(0, draft);
+      _recordDraft = draft;
+    });
+  }
+
+  void _copyRecordText(String text) {
+    _saveRecordText(text);
+    unawaited(_publishTextWithFeedback(text, message: SkStrings.copied));
+  }
+
   Future<void> _showDraftEditor(DraftEntry draft) async {
-    final result = await Navigator.of(context).push<DraftEditResult>(
-      MaterialPageRoute<DraftEditResult>(
-        fullscreenDialog: true,
-        builder: (context) => DraftEditorScreen(draft: draft),
+    var current = draft;
+    void save(String text) {
+      final updated = _replaceDraft(current, text);
+      if (updated != null) current = updated;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => DraftEditorPage(
+          draft: draft,
+          onSave: save,
+          onCopy: (text) {
+            save(text);
+            unawaited(
+              _publishTextWithFeedback(text, message: SkStrings.copied),
+            );
+          },
+        ),
       ),
     );
-    if (!mounted || result == null) {
-      return;
-    }
-
-    final index = _drafts.indexOf(draft);
-    if (index < 0) {
-      return;
-    }
-    setState(() {
-      _drafts[index] = draft.copyWith(text: result.text);
-    });
-
-    if (result.copyToClipboard) {
-      await _publishTextWithFeedback(
-        result.text,
-        message: 'Draft saved and copied to clipboard.',
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Draft updated.')));
   }
 
   Future<void> _loadVoiceProfiles() async {
@@ -983,6 +1019,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           unawaited(_selectProfile(index));
         },
         onCapturePressed: _toggleCapture,
+        onSaveText: _saveRecordText,
+        onCopyText: _copyRecordText,
         onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
         onOpenSettings: () => _selectTab(3),
         profileReason: activeProfileReason(

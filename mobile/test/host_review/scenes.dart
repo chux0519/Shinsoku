@@ -1,8 +1,11 @@
 // Scenes for the tier-A host review (see host_review_test.dart). Each scene
 // builds a real screen with fake data: no network, no plugins.
 import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
+import 'package:shinsoku_mobile/features/drafts/draft_editor_page.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
+import 'package:shinsoku_mobile/features/record/live_transcript.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
@@ -71,7 +74,11 @@ Widget _recordView({
   CaptureState state = CaptureState.idle,
   bool microphoneAllowed = true,
   SmokeTestStatus? status,
+  LiveTranscript? live,
 }) => RecordView(
+  transcript: live == null ? null : ValueNotifier(live),
+  onSaveText: (_) {},
+  onCopyText: (_) {},
   profiles: defaultVoiceProfiles,
   selectedProfileIndex: 0,
   captureState: state,
@@ -88,13 +95,28 @@ Widget _record({
   CaptureState state = CaptureState.idle,
   bool microphoneAllowed = true,
   SmokeTestStatus? status,
+  LiveTranscript? live,
 }) => _tab(
   0,
   record: _recordView(
     state: state,
     microphoneAllowed: microphoneAllowed,
     status: status,
+    live: live,
   ),
+);
+
+/// Live words as a streaming provider sends them: committed sentences, then
+/// the interim words still being recognised.
+const _liveCommitted =
+    'Let us move the design review to Thursday afternoon, and send the ';
+const _livePending = 'updated keyboard screen';
+
+const _doneStatus = SmokeTestStatus(
+  label: 'Recording transcribed',
+  detail: 'provider=bailian appStopToDraft=640ms',
+  transcript: sampleTranscript,
+  finished: true,
 );
 
 Widget _draftsView(List<DraftEntry> drafts) => DraftsView(
@@ -165,15 +187,18 @@ Widget _sheetOver(Widget page, Widget sheet) => Builder(
 
 final scenes = <String, SceneBuilder>{
   'record-idle': () => _record(),
+  // Batch provider: no live words, the area says Listening….
   'record-listening': () => _record(state: CaptureState.listening),
-  'record-result': () => _record(
-    status: const SmokeTestStatus(
-      label: 'Recording transcribed',
-      detail: 'provider=bailian appStopToDraft=640ms',
-      transcript: sampleTranscript,
-      finished: true,
+  'record-listening-live': () => _record(
+    state: CaptureState.listening,
+    live: const LiveTranscript(
+      committed: _liveCommitted,
+      pending: _livePending,
+      phase: LivePhase.listening,
     ),
   ),
+  'record-result': () => _record(status: _doneStatus),
+  // Batch provider waiting for the text.
   'record-processing': () => _record(
     state: CaptureState.processing,
     status: const SmokeTestStatus(
@@ -181,6 +206,16 @@ final scenes = <String, SceneBuilder>{
       detail: 'Uploading recorded audio to the selected provider.',
     ),
   ),
+  // Post-processing profile: the raw words dimmed until the result swaps in.
+  'record-processing-live': () => _record(
+    state: CaptureState.processing,
+    live: const LiveTranscript(
+      committed: '$_liveCommitted$_livePending.',
+      phase: LivePhase.processing,
+    ),
+  ),
+  // Editing the result with the software keyboard up (see sceneSetups).
+  'record-editing': () => _withKeyboard(_record(status: _doneStatus)),
   'record-error': () => _record(
     microphoneAllowed: false,
     status: const SmokeTestStatus(
@@ -194,7 +229,11 @@ final scenes = <String, SceneBuilder>{
   ),
   'drafts-empty': () => _tab(1, drafts: _draftsView(const [])),
   'drafts-list': () => _tab(1),
-  'draft-editor': () => DraftEditorScreen(draft: sampleDrafts().first),
+  'draft-editor': () => DraftEditorPage(
+    draft: sampleDrafts().first,
+    onSave: (_) {},
+    onCopy: (_) {},
+  ),
   'settings': _settings,
   'keyboard-setup': () => KeyboardSetupView(onOpenSettings: () async => true),
   'use-in-apps': () => UseInAppsView(onOpenShortcuts: () async => true),
@@ -220,14 +259,16 @@ final scenes = <String, SceneBuilder>{
           serviceName: 'example-desktop',
           host: '192.0.2.10',
           port: 39273,
-          certificateSha256: '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
+          certificateSha256:
+              '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
           instanceId: 'example-instance',
         ),
         NearbyDesktop(
           serviceName: 'example-laptop',
           host: '192.0.2.11',
           port: 39273,
-          certificateSha256: 'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
+          certificateSha256:
+              'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
           instanceId: 'example-instance-2',
         ),
       ],
@@ -247,6 +288,67 @@ const largeTextScenes = {'record-idle', 'settings'};
 const foldScenes = {
   'record-idle',
   'record-listening',
+  'record-listening-live',
+  'record-result',
+  'record-editing',
   'drafts-list',
   'settings',
 };
+
+/// A flat stand-in for the software keyboard over the bottom inset, so the
+/// render shows what stays above it.
+Widget _withKeyboard(Widget page) => Builder(
+  builder: (context) {
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    final c = SkColors.of(context);
+    return Stack(
+      children: [
+        page,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: inset,
+          child: Material(
+            color: c.frame,
+            child: Center(
+              child: Text(
+                'software keyboard (simulated)',
+                style: SkType.caption.copyWith(color: c.textTertiary),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  },
+);
+
+/// Simulated software keyboard height for [device] (logical points): the
+/// iPhone 17 keyboard with its predictive bar; about 40 % of the height
+/// elsewhere (real heights are tier B).
+double keyboardHeight(String device, Size size) =>
+    device.startsWith('iphone') ? 336 : (size.height * 0.4).roundToDouble();
+
+/// Steps run after a scene settles, before the screenshot.
+final sceneSetups =
+    <String, Future<void> Function(WidgetTester t, String device)>{
+      'record-editing': (t, device) async {
+        final size = t.view.physicalSize / t.view.devicePixelRatio;
+        final inset = keyboardHeight(device, size);
+        // The keyboard covers the bottom safe area.
+        final padding = t.view.padding;
+        final keyboard = FakeViewPadding(
+          bottom: inset * t.view.devicePixelRatio,
+        );
+        final noBottom = FakeViewPadding(
+          left: padding.left,
+          top: padding.top,
+          right: padding.right,
+        );
+        t.view.padding = noBottom;
+        t.view.viewInsets = keyboard;
+        await t.tap(find.byKey(const ValueKey('record-transcript-field')));
+        await t.pumpAndSettle();
+      },
+    };

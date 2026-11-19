@@ -127,6 +127,13 @@ class _Harness {
     matching: find.byType(SkRecordButton, skipOffstage: false),
   );
 
+  /// [text] on the Record page (Drafts lists the same take).
+  Finder recordText(String text, {bool skipOffstage = true}) => find.descendant(
+    of: find.byType(RecordView, skipOffstage: false),
+    matching: find.text(text, skipOffstage: skipOffstage),
+    skipOffstage: skipOffstage,
+  );
+
   SkRecordState get recordState => t.widget<SkRecordButton>(_button).state;
 
   bool get recordVisible => _button.hitTestable().evaluate().isNotEmpty;
@@ -167,10 +174,10 @@ void main() {
 
     await h.toggle();
     final transcript = capture.transcriptFor(1);
-    expect(find.text(transcript), findsOneWidget);
+    expect(h.recordText(transcript), findsOneWidget);
     for (final w in [_windows[2], _phone, _windows[4], _phone]) {
       await h.resize(w);
-      expect(find.text(transcript), findsOneWidget, reason: '$w');
+      expect(h.recordText(transcript), findsOneWidget, reason: '$w');
       expect(h.recordState, SkRecordState.idle, reason: '$w');
     }
 
@@ -300,7 +307,7 @@ void main() {
         );
         if (transcript != null) {
           expect(
-            find.text(transcript, skipOffstage: false),
+            h.recordText(transcript, skipOffstage: false),
             findsOneWidget,
             reason: reason,
           );

@@ -196,6 +196,7 @@ void main() {
             ),
           );
           await t.pumpAndSettle();
+          await sceneSetups[scene]?.call(t, device);
           // Overflow and layout errors fail the scene.
           expect(t.takeException(), isNull);
           await t.runAsync(() async {
