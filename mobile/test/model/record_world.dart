@@ -154,26 +154,26 @@ String recordCaseToDart(String name, List<RecEvent> seq) {
 
 // ── Reference model ───────────────────────────────────────────────────────
 
-enum _Capture { idle, listening, stopping, processing }
+enum ModelCapture { idle, listening, stopping, processing }
 
-class _Draft {
-  _Draft(this.text);
+class ModelDraft {
+  ModelDraft(this.text);
   String text;
 }
 
 class RecordModel {
-  var capture = _Capture.idle;
+  var capture = ModelCapture.idle;
   var post = false;
   var committed = '';
   var pending = '';
-  final drafts = <_Draft>[];
-  _Draft? recordDraft;
+  final drafts = <ModelDraft>[];
+  ModelDraft? recordDraft;
   var area = '';
   var baseline = '';
   var focused = false;
   var keyboardUp = false;
 
-  bool get editable => capture == _Capture.idle;
+  bool get editable => capture == ModelCapture.idle;
   bool get dirty => editable && area.trim().isNotEmpty && area != baseline;
   bool get doneVisible => editable && (focused || dirty);
 
@@ -182,7 +182,7 @@ class RecordModel {
     if (current != null && drafts.contains(current)) {
       current.text = text;
     } else {
-      final draft = _Draft(text);
+      final draft = ModelDraft(text);
       drafts.insert(0, draft);
       recordDraft = draft;
     }
@@ -196,7 +196,7 @@ class RecordModel {
   }
 
   void _newDraft(String text) {
-    final draft = _Draft(text);
+    final draft = ModelDraft(text);
     drafts.insert(0, draft);
     recordDraft = draft;
     area = text;
@@ -207,57 +207,57 @@ class RecordModel {
   bool apply(RecEvent e) {
     switch (e) {
       case NewRecording(:final post) || KeyboardRecord(:final post):
-        if (capture != _Capture.idle) return false;
+        if (capture != ModelCapture.idle) return false;
         _flush();
         this.post = post;
-        capture = _Capture.listening;
+        capture = ModelCapture.listening;
         committed = '';
         pending = '';
         area = '';
         focused = false;
         keyboardUp = false;
       case Partial(:final words):
-        if (capture != _Capture.listening && capture != _Capture.stopping) {
+        if (capture != ModelCapture.listening && capture != ModelCapture.stopping) {
           return false;
         }
         pending = words;
         area = committed + pending;
       case Final(:final words):
-        if (capture != _Capture.listening && capture != _Capture.stopping) {
+        if (capture != ModelCapture.listening && capture != ModelCapture.stopping) {
           return false;
         }
         committed += words;
         pending = '';
         area = committed;
       case Drop():
-        if (capture != _Capture.listening && capture != _Capture.stopping) {
+        if (capture != ModelCapture.listening && capture != ModelCapture.stopping) {
           return false;
         }
         final heard = (committed + pending).trim();
-        capture = _Capture.idle;
+        capture = ModelCapture.idle;
         if (heard.isNotEmpty) {
           _newDraft(heard);
         } else {
           area = committed + pending;
         }
       case Stop():
-        if (capture != _Capture.listening) return false;
-        capture = _Capture.stopping;
+        if (capture != ModelCapture.listening) return false;
+        capture = ModelCapture.stopping;
       case Process():
-        if (capture != _Capture.stopping && capture != _Capture.processing) {
+        if (capture != ModelCapture.stopping && capture != ModelCapture.processing) {
           return false;
         }
         final raw = (committed + pending).trim();
-        if (capture == _Capture.stopping && raw.isEmpty) {
-          capture = _Capture.idle; // "no transcript": nothing to keep
+        if (capture == ModelCapture.stopping && raw.isEmpty) {
+          capture = ModelCapture.idle; // "no transcript": nothing to keep
           area = committed + pending;
-        } else if (capture == _Capture.stopping && post) {
-          capture = _Capture.processing;
+        } else if (capture == ModelCapture.stopping && post) {
+          capture = ModelCapture.processing;
           committed = raw;
           pending = '';
           area = raw;
         } else {
-          capture = _Capture.idle;
+          capture = ModelCapture.idle;
           _newDraft(post ? processed(committed) : raw);
         }
       case Edit(:final suffix):
@@ -513,8 +513,8 @@ Future<ModelFailure?> runRecordSequence(
     final failure = _check(model, system, e, i, before, committedSoFar);
     if (failure != null) return failure;
     final live =
-        model.capture == _Capture.listening ||
-        model.capture == _Capture.stopping;
+        model.capture == ModelCapture.listening ||
+        model.capture == ModelCapture.stopping;
     committedSoFar = live ? model.committed : null;
   }
   return null;
@@ -525,12 +525,12 @@ ModelFailure? _check(
   RecordSystem system,
   RecEvent e,
   int i,
-  _Capture before,
+  ModelCapture before,
   String? committedSoFar,
 ) {
   final area = system.controller.text;
   final live =
-      model.capture == _Capture.listening || model.capture == _Capture.stopping;
+      model.capture == ModelCapture.listening || model.capture == ModelCapture.stopping;
   if (live) {
     if (committedSoFar != null && !area.startsWith(committedSoFar)) {
       return ModelFailure(
@@ -546,7 +546,7 @@ ModelFailure? _check(
   final expected = model.drafts.map((d) => d.text).toList();
   final actual = system.drafts;
   final finishing =
-      e is Drop || e is Process || (e is Stop && before != _Capture.idle);
+      e is Drop || e is Process || (e is Stop && before != ModelCapture.idle);
   if (!_listEquals(actual, expected)) {
     return ModelFailure(
       i,
