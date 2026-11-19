@@ -11,6 +11,9 @@
    announcements) in the native targets.
 4. Info.plist permission texts (`NS*UsageDescription`) are in InfoPlist.xcstrings with the same English value.
 5. Catalog keys no longer found in the source are reported as warnings (stale; don't translate them).
+6. (I5) Every translatable catalog entry has a `translated` value in all of LANGUAGES, with the same
+   placeholders (%@, %lld, %d, ${…}) as English; every language has `Runner/<lang>.lproj/AppShortcuts.strings`
+   with every English phrase, the same `${…}` placeholders, and a file reference in the pbxproj variant group.
 
 `--stringsdata DIR` also checks the keys the Swift compiler extracted (`*.stringsdata` under DIR, e.g. the
 DerivedData `Runner.build/Debug-iphonesimulator` folder after a build with SWIFT_EMIT_LOC_STRINGS=YES): this is
@@ -32,6 +35,9 @@ TARGETS = {
 }
 INFOPLIST_CATALOG = IOS / 'Runner/InfoPlist.xcstrings'
 SHORTCUTS_STRINGS = IOS / 'Runner/en.lproj/AppShortcuts.strings'
+PBXPROJ = IOS / 'Runner.xcodeproj/project.pbxproj'
+LANGUAGES = ['en', 'ja', 'zh-Hant', 'ko', 'de', 'es', 'zh-Hans', 'fr', 'pt-BR', 'it']
+PLACEHOLDER = re.compile(r'%(?:\d+\$)?(?:@|lld|ld|d|f)|\$\{\w+\}')
 
 STR = r'"((?:[^"\\]|\\.)*)"'
 # Localizable forms. Group 1 is the Swift literal.
@@ -92,6 +98,51 @@ def load_catalog(path, problems):
         if not value.strip():
             problems.append(f'{path.relative_to(ROOT)}: "{key}" has no English value')
     return strings
+
+
+def placeholders(text):
+    return sorted(PLACEHOLDER.findall(text))
+
+
+def check_languages(path, strings, problems):
+    """Every translatable entry: a translated value per language, placeholders as in English."""
+    rel = path.relative_to(ROOT)
+    for key, entry in strings.items():
+        if entry.get('shouldTranslate') is False:
+            continue
+        locs = entry.get('localizations', {})
+        english = placeholders(locs.get('en', {}).get('stringUnit', {}).get('value', ''))
+        for lang in LANGUAGES[1:]:
+            unit = locs.get(lang, {}).get('stringUnit', {})
+            value = unit.get('value', '')
+            if not value.strip():
+                problems.append(f'{rel}: "{key}" has no {lang} value')
+            elif unit.get('state') != 'translated':
+                problems.append(f'{rel}: "{key}" {lang} state is {unit.get("state")!r}, not translated')
+            elif placeholders(value) != english:
+                problems.append(f'{rel}: "{key}" {lang} placeholders {placeholders(value)} != English {english}')
+
+
+def check_shortcut_languages(english, problems):
+    pbxproj = PBXPROJ.read_text() if PBXPROJ.is_file() else ''
+    for lang in LANGUAGES[1:]:
+        path = IOS / f'Runner/{lang}.lproj/AppShortcuts.strings'
+        if f'path = {quote_pbx(lang + ".lproj/AppShortcuts.strings")};' not in pbxproj:
+            problems.append(f'{path.relative_to(ROOT)}: not in the AppShortcuts.strings variant group (pbxproj)')
+        strings = load_strings_file(path, problems)
+        for key in english:
+            value = strings.get(key)
+            if value is None:
+                problems.append(f'{path.relative_to(ROOT)}: "{key}" missing')
+            elif placeholders(value) != placeholders(key):
+                problems.append(f'{path.relative_to(ROOT)}: "{key}" placeholders differ: "{value}"')
+        for key in strings:
+            if key not in english:
+                problems.append(f'{path.relative_to(ROOT)}: "{key}" is not an English phrase')
+
+
+def quote_pbx(value):
+    return value if re.fullmatch(r'[\w./]+', value) else f'"{value}"'
 
 
 def load_strings_file(path, problems):
@@ -164,6 +215,9 @@ def main():
 
     catalogs = {target: load_catalog(path, problems) for target, path in TARGETS.items()}
     shortcuts = load_strings_file(SHORTCUTS_STRINGS, problems)
+    for target, catalog in catalogs.items():
+        check_languages(TARGETS[target], catalog, problems)
+    check_shortcut_languages(shortcuts, problems)
 
     for target, catalog in catalogs.items():
         keys, phrases, sink_problems = scan_sources(target)
@@ -188,6 +242,7 @@ def main():
 
     info = plistlib.loads((IOS / 'Runner/Info.plist').read_bytes())
     info_catalog = load_catalog(INFOPLIST_CATALOG, problems)
+    check_languages(INFOPLIST_CATALOG, info_catalog, problems)
     for key, value in info.items():
         if key.startswith('NS') and key.endswith('UsageDescription'):
             entry = info_catalog.get(key)

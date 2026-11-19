@@ -134,6 +134,18 @@ def native_strings():
     return [line for line in out.stdout.splitlines()
             if line and not line.startswith(('warning:', 'check_xcstrings:'))] or [out.stdout.strip()]
 
+@rule('R07', 'Every language translated: ARB keys/placeholders/plurals, quoted Shortcuts names, native files '
+              'generated from tool/i18n/native.json (check_arb.py, i18n_native.py --check)')
+def translations():
+    problems = []
+    for cmd in (['tool/check_arb.py'], ['tool/i18n_native.py', '--check']):
+        out = subprocess.run([sys.executable, str(ROOT / cmd[0]), *cmd[1:]], cwd=ROOT, capture_output=True, text=True)
+        if out.returncode != 0:
+            problems += [line for line in out.stdout.splitlines()
+                         if line and not line.startswith('check_arb:')] or [out.stdout.strip() or out.stderr.strip()]
+    return problems
+
+
 def main(argv):
     selected = argv or sorted(RULES)
     failed = False
