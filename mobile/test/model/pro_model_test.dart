@@ -10,7 +10,6 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 
@@ -368,7 +367,7 @@ void main() {
         gen: genEvent,
         run: (seq) => runProSequence(seq, downgradeOnUnknown: true),
         toDart: proCaseToDart,
-        seeds: const [1, 7, 42],
+        seeds: [for (var i = 0; i < 50; i++) i],
         length: 40,
       );
     } on ModelCheckError catch (e) {
