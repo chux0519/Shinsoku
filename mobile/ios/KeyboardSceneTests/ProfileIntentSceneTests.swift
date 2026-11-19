@@ -22,7 +22,7 @@ final class ProfileIntentSceneTests: SceneTestCase {
         runner.terminate()
         runner.launch()
         check(runner.wait(for: .runningForeground, timeout: 20), "runner-launch", "Shinsoku did not launch")
-        require(runner.descendants(matching: .any).matching(labelContainsAny: ["Record"]).firstMatch,
+        require(runner.descendants(matching: .any).matching(labelContainsAny: Self.recordTab).firstMatch,
                 "runner-ready", timeout: 15)
         shot("runner-published")
         runner.terminate()
