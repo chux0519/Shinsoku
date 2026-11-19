@@ -12,8 +12,12 @@ import XCTest
 /// Profiles: the app's built-in list (`defaultVoiceProfiles`): Dictation (`dictation`, the default), Chat,
 /// Review, ZH -> EN. A simulator whose profiles were edited in the app fails at the first name check.
 ///
-/// Seed (Runner Debug launch arguments, `AppDelegate.applySceneProfileArguments`): the selection is removed, so
-/// Dart's launch sync publishes the list and writes the default selection; `fieldRules.v1` = `{search: review}`.
+/// Seed (Runner Debug launch argument `-ShinsokuSceneResetSelection`, `AppDelegate.applySceneProfileArguments`):
+/// the selection is removed, so Dart's launch sync publishes the list and writes the default selection.
+/// Field rule `Search → Review` is set through the app's UI (`shinsoku://settings/field-rules` opens Settings ›
+/// Profiles › Field rules; scrolling Settings left Flutter's element tree stale): Dart owns the
+/// rules and mirrors its own copy to `fieldRules.v1` on every launch, so a native seed would be overwritten.
+/// A teardown block sets it back to None, also after a failure.
 ///
 /// The keyboard's profile control is a button labelled "Profile" whose accessibility value is the profile name
 /// (`"<name>, read only"` without Full Access).
@@ -23,13 +27,12 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         static let defaultName = "Dictation"
         static let chat = "Chat"
         static let review = "Review"
-        static let reviewId = "review"
     }
 
-    private static let fieldRules = "{\"search\":\"\(Profile.reviewId)\"}"
-    private static let seedArguments = [
-        "-ShinsokuSceneResetSelection", "YES", "-ShinsokuSceneFieldRules", fieldRules,
-    ]
+    private static let seedArguments = ["-ShinsokuSceneResetSelection", "YES"]
+    private static let searchKind = "Search"
+    private static let fieldRulesURL = URL(string: "shinsoku://settings/field-rules")!
+    private static let noRule = "None"
     private static let lockedStatus = "Turn on Full Access to switch profiles"
     private static let cancel = ["Cancel", "取消"]
 
@@ -42,8 +45,13 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         setFullAccess(true)
         shot("full-access-on")
 
-        // 1. Seed: profiles published, selection reset to default, field rules {search: review}.
-        launchSeededRunner("seed")
+        // 1. Seed: profiles published, selection reset to default; field rule Search → Review set in the app.
+        launchSeededRunner("seed", searchRule: Profile.review)
+        addTeardownBlock { [unowned self] in
+            self.launchRunner([], shotName: "runner-rule-reset")
+            self.setSearchRule(Self.noRule, step: "field-rules-reset")
+            self.runner.terminate()
+        }
 
         // 2. Textarea (kind other): no rule applies → the default profile.
         focusFieldWithShinsoku()
@@ -113,12 +121,59 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
     // MARK: Steps
 
     /// Launches Shinsoku with the seed arguments and waits for the Record tab (Dart's launch sync has run by
-    /// then: the profile list is published and the default selection written).
-    private func launchSeededRunner(_ name: String) {
+    /// then: the profile list is published, the default selection and the field rules written). With
+    /// `searchRule`, sets Search → that profile in Settings › Profiles › Field rules before leaving.
+    private func launchSeededRunner(_ name: String, searchRule: String? = nil) {
         launchRunner(Self.seedArguments, shotName: "runner-\(name)")
         require(runner.descendants(matching: .any).matching(labelContainsAny: ["Record"]).firstMatch,
                 "runner-\(name)-ready", timeout: 15)
+        if let searchRule {
+            setSearchRule(searchRule, step: "field-rules-\(name)")
+        }
         runner.terminate()
+    }
+
+    /// In the running app: opens `shinsoku://settings/field-rules` (the app selects the Settings tab and pushes
+    /// Field rules; no scrolling, Search is the first row), sets Search → `profile` (a profile name or None),
+    /// checks the row shows it, attaches `PHASE-xx-<step>` of the Field rules page, then goes back. Saving the
+    /// pick mirrors the rules to `fieldRules.v1` (the keyboard reads it on its next appearance).
+    private func setSearchRule(_ profile: String, step: String) {
+        openDeepLink(Self.fieldRulesURL, step: "\(step)-link")
+        let search = searchRow()
+        waitHittable(search, "\(step)-search-row")
+        if !search.label.contains(profile) {
+            search.tap()
+            let option = runner.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@",
+                                                             profile, "\(profile)\n")).firstMatch
+            waitHittable(option, "\(step)-option-\(profile)")
+            option.tap()
+        }
+        let picked = runner.buttons.matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND label CONTAINS %@", Self.searchKind, profile
+        )).firstMatch
+        require(picked, "\(step)-shows-\(profile)", timeout: 5)
+        print("SCENE \(step): Search -> \(profile) (\(picked.label.replacingOccurrences(of: "\n", with: " | ")))")
+        shot(step)
+        let back = runner.buttons.matching(labelEquals: ["Back"]).firstMatch
+        if back.exists { back.tap() }
+    }
+
+    /// The Field rules page's Search row (`"Search\n<profile>"`); not the Settings row whose subtitle starts
+    /// "Search, web address, …".
+    private func searchRow() -> XCUIElement {
+        runner.buttons.matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", Self.searchKind, "\(Self.searchKind)\n"
+        )).firstMatch
+    }
+
+    /// Waits (up to `timeout`) until a Flutter element has a real frame and is hittable (after a push or a
+    /// sheet animation the tree lags the screen).
+    private func waitHittable(_ element: XCUIElement, _ step: String, timeout: TimeInterval = 10) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, !(element.exists && !element.frame.isEmpty && element.isHittable) {
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        check(element.exists && !element.frame.isEmpty && element.isHittable, step, "\(step): not hittable")
     }
 
     /// Safari's address bar focused (keyboard type `.webSearch` → field kind search) with Shinsoku up.
