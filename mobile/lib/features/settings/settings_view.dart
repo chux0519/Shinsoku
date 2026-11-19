@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
+import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
+import 'package:shinsoku_mobile/services/field_rules.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
@@ -22,6 +25,9 @@ class SettingsView extends StatefulWidget {
     this.profiles = const [],
     this.onProfileAdded,
     this.onProfileOpened,
+    this.fieldRules = const FieldRules(),
+    this.onFieldRulesChanged,
+    this.onOpenShortcuts,
     super.key,
   });
 
@@ -41,6 +47,11 @@ class SettingsView extends StatefulWidget {
   final List<VoiceProfile> profiles;
   final VoidCallback? onProfileAdded;
   final ValueChanged<VoiceProfile>? onProfileOpened;
+
+  /// Field-kind rules and the Shortcuts launcher (profile-01 P4).
+  final FieldRules fieldRules;
+  final Future<void> Function(FieldRules rules)? onFieldRulesChanged;
+  final Future<bool> Function()? onOpenShortcuts;
 
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -154,9 +165,8 @@ class _SettingsViewState extends State<SettingsView> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save failed: $error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Save failed: $error')));
     }
   }
 
@@ -330,6 +340,34 @@ class _SettingsViewState extends State<SettingsView> {
               title: 'Add profile',
               accentTitle: true,
               onTap: widget.onProfileAdded,
+            ),
+            SkListRow(
+              leading: Icons.apps_rounded,
+              title: 'Use in apps',
+              subtitle: 'Switch profile when you open an app',
+              chevron: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => widget.onOpenShortcuts == null
+                      ? const UseInAppsView()
+                      : UseInAppsView(onOpenShortcuts: widget.onOpenShortcuts!),
+                ),
+              ),
+            ),
+            SkListRow(
+              leading: Icons.text_fields_rounded,
+              title: 'Field rules',
+              subtitle: 'Search, web address, email, message',
+              chevron: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => FieldRulesView(
+                    profiles: widget.profiles,
+                    rules: widget.fieldRules,
+                    onChanged: widget.onFieldRulesChanged ?? (_) async {},
+                  ),
+                ),
+              ),
             ),
           ],
         ),

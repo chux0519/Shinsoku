@@ -15,6 +15,9 @@ import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/services/active_profile.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
+import 'package:shinsoku_mobile/services/field_rules.dart';
+import 'package:shinsoku_mobile/services/profile_reason.dart';
+import 'package:shinsoku_mobile/services/shortcuts.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
@@ -57,6 +60,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   final ProviderSettingsStore _providerSettingsStore = ProviderSettingsStore();
   final VoiceProfileStore _voiceProfileStore = VoiceProfileStore();
   final ActiveProfileStore _activeProfileStore = ActiveProfileStore();
+  final FieldRulesStore _fieldRulesStore = FieldRulesStore();
+  FieldRules _fieldRules = const FieldRules();
   final AudioRecorder _audioRecorder = AudioRecorder();
 
   List<VoiceProfile> _profiles = List<VoiceProfile>.of(defaultVoiceProfiles);
@@ -249,9 +254,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       if (!mounted) {
         return;
@@ -322,8 +326,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         _microphoneAllowed = false;
         _smokeTestStatus = const SmokeTestStatus(
           label: 'Microphone access is off',
-          detail:
-              'Allow microphone access in iOS Settings, then try recording again.',
+          detail: 'Allow microphone access in iOS Settings, then try recording again.',
           failed: true,
           finished: true,
           fix: StatusFix.microphone,
@@ -341,8 +344,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         _microphoneAllowed = false;
         _smokeTestStatus = const SmokeTestStatus(
           label: 'Recording failed',
-          detail:
-              'Microphone permission was granted but the recorder is not ready.',
+          detail: 'Microphone permission was granted but the recorder is not ready.',
           failed: true,
           finished: true,
         );
@@ -623,9 +625,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Draft updated.')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Draft updated.')));
   }
 
   Future<void> _loadVoiceProfiles() async {
@@ -633,23 +634,34 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     // Migration + launch sync: publish ids/names, keep or create the shared
     // selection (idempotent).
     await _activeProfileStore.sync(profiles);
+    final rules = await _fieldRulesStore.pruneTo(profiles.map((p) => p.id));
+    await _fieldRulesStore.mirror(rules);
     if (!mounted) {
       return;
     }
     setState(() {
       _profiles = profiles;
+      _fieldRules = rules;
     });
+  }
+
+  Future<void> _saveFieldRules(FieldRules rules) async {
+    await _fieldRulesStore.save(rules);
+    if (mounted) setState(() => _fieldRules = rules);
   }
 
   Future<void> _saveVoiceProfiles(List<VoiceProfile> profiles) async {
     await _voiceProfileStore.save(profiles);
     // PR3: republish and repair a selection that points at a deleted id.
     await _activeProfileStore.sync(profiles);
+    // Deleting a profile removes the field rules that point to it.
+    final rules = await _fieldRulesStore.pruneTo(profiles.map((p) => p.id));
     if (!mounted) {
       return;
     }
     setState(() {
       _profiles = profiles;
+      _fieldRules = rules;
     });
   }
 
@@ -829,8 +841,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       _captureState = CaptureState.processing;
       _smokeTestStatus = const SmokeTestStatus(
         label: 'Real Bailian smoke test',
-        detail:
-            'Calling Bailian text, ASR, and realtime APIs from the iOS simulator.',
+        detail: 'Calling Bailian text, ASR, and realtime APIs from the iOS simulator.',
       );
     });
 
@@ -916,6 +927,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         onCapturePressed: _toggleCapture,
         onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
         onOpenSettings: () => _selectTab(3),
+        profileReason: activeProfileReason(
+          _activeProfile.name,
+          resolveActive(_activeProfileStore.selection, _profiles).source,
+        ),
       ),
       DraftsView(
         drafts: _drafts,
@@ -961,6 +976,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         profiles: _profiles,
         onProfileAdded: () => _showVoiceProfileEditor(),
         onProfileOpened: (profile) => _showVoiceProfileEditor(profile: profile),
+        fieldRules: _fieldRules,
+        onFieldRulesChanged: _saveFieldRules,
+        onOpenShortcuts: openShortcutsApp,
       ),
     ];
 

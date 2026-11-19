@@ -71,3 +71,15 @@
 - Verify: `cd mobile && flutter build ios --simulator --debug --no-pub` (then restore regenerated tracked
   files; check `build/ios/iphonesimulator/Runner.app/Metadata.appintents`); `tool/ios_keyboard_scene.sh
   --build-only`; `python3 tool/review_lint.py`.
+
+---
+
+# STATE — profile-01 P4 (branch `profile-01-p4-ui`)
+- Done: Use in apps guide, Field rules screen + store + `setFieldRules` mirror, Record reason line, `openShortcuts`.
+  Details: `P4-implementation.md`.
+- In progress: none.
+- Next: coordinator review; tier B: the keyboard reads `fieldRules.v1` (P3 side) and "Open Shortcuts" opens the app.
+- Open decisions: second native method (`openShortcuts`) vs adding `url_launcher`; iOS < 16 note not wired in the
+  shell (no version source).
+- Verify: `cd mobile && flutter analyze`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
+  `tool/host_review.sh profile-01/round-01/p4`.

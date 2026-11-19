@@ -17,6 +17,7 @@ class RecordView extends StatelessWidget {
     required this.onCapturePressed,
     this.onOpenMicrophoneSettings,
     this.onOpenSettings,
+    this.profileReason,
     super.key,
   });
 
@@ -33,6 +34,9 @@ class RecordView extends StatelessWidget {
 
   /// Fix for missing provider settings (switches to the Settings tab).
   final VoidCallback? onOpenSettings;
+
+  /// "Chat · set by you": which profile is active and why (profile-01).
+  final String? profileReason;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +66,17 @@ class RecordView extends StatelessWidget {
                   children: [
                     const SkPageHeader(title: 'Shinsoku'),
                     _statusLine(context, status),
+                    if (profileReason != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: SkSpace.xs),
+                        child: Text(
+                          profileReason!,
+                          key: const ValueKey('record-profile-reason'),
+                          style: SkType.secondary.copyWith(
+                            color: SkColors.of(context).textSecondary,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: SkSpace.l),
                     Expanded(
                       child: transcript != null && transcript.isNotEmpty
