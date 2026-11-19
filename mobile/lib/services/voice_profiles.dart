@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 import 'package:shinsoku_mobile/services/capture_types.dart';
+import 'package:shinsoku_mobile/services/region_defaults.dart';
 
 class VoiceProfile {
   const VoiceProfile({
@@ -107,8 +109,15 @@ const defaultVoiceProfiles = [
 ];
 
 /// The built-in profiles with names and prompts in [l]'s language, for
-/// creating the first stored list.
-List<VoiceProfile> localizedDefaultProfiles(AppLocalizations l) => [
+/// creating the first stored list. The fourth one translates the device
+/// language into English ([translationSource], from `regionDefaultsFor`):
+/// `zh` keeps the historic `zh_to_en` profile; `ja`, `ko`, `de`, … get their
+/// own ("JA -> EN"); null (English devices, other languages) gets
+/// "Translate -> EN", any language in.
+List<VoiceProfile> localizedDefaultProfiles(
+  AppLocalizations l, {
+  String? translationSource = 'zh',
+}) => [
   VoiceProfile(
     id: 'dictation',
     name: l.profileDictationName,
@@ -130,14 +139,31 @@ List<VoiceProfile> localizedDefaultProfiles(AppLocalizations l) => [
     commitSuffix: CommitSuffix.none,
     autoCommit: false,
   ),
-  VoiceProfile(
-    id: 'zh_to_en',
-    name: l.profileZhToEnName,
-    intent: l.profileZhToEnIntent,
+  translationProfile(l, translationSource),
+];
+
+/// The built-in "`<language>` -> EN" profile for [source] (see
+/// [localizedDefaultProfiles]).
+VoiceProfile translationProfile(AppLocalizations l, String? source) {
+  final (String name, String intent) = switch (source) {
+    'zh' => (l.profileZhToEnName, l.profileZhToEnIntent),
+    'ja' => (l.profileJaToEnName, l.profileJaToEnIntent),
+    'ko' => (l.profileKoToEnName, l.profileKoToEnIntent),
+    'de' => (l.profileDeToEnName, l.profileDeToEnIntent),
+    'es' => (l.profileEsToEnName, l.profileEsToEnIntent),
+    'fr' => (l.profileFrToEnName, l.profileFrToEnIntent),
+    'pt' => (l.profilePtToEnName, l.profilePtToEnIntent),
+    'it' => (l.profileItToEnName, l.profileItToEnIntent),
+    _ => (l.profileTranslateToEnName, l.profileTranslateToEnIntent),
+  };
+  return VoiceProfile(
+    id: source == 'zh' ? zhToEnProfileId : translateToEnProfileId,
+    name: name,
+    intent: intent,
     commitSuffix: CommitSuffix.space,
     autoCommit: true,
-  ),
-];
+  );
+}
 
 class VoiceProfileStore {
   static const _storage = FlutterSecureStorage(
@@ -145,13 +171,21 @@ class VoiceProfileStore {
   );
   static const _key = 'voice_profiles.v1';
 
-  /// Stored profiles; on first launch the built-in ones in the system
-  /// language ([l10n], or the resolved system locale), saved right away.
+  /// Storage key of the profile list (first-launch region defaults check it).
+  static const storageKey = _key;
+
+  /// Stored profiles; when none are stored, the built-in ones in the system
+  /// language ([l10n], or the resolved system locale) with the translation
+  /// profile for the device language, saved right away. Normally
+  /// `RegionDefaultsStore` has already written them on first launch.
   Future<List<VoiceProfile>> load({AppLocalizations? l10n}) async {
     final raw = await _storage.read(key: _key);
     if (raw == null || raw.trim().isEmpty) {
       final created = localizedDefaultProfiles(
         l10n ?? await systemAppLocalizations(),
+        translationSource: regionDefaultsFor(
+          ui.PlatformDispatcher.instance.locales,
+        ).translationSource,
       );
       try {
         await save(created);

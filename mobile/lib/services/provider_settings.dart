@@ -17,6 +17,8 @@ class ProviderSettings {
     required this.bailianRealtimeModel,
     required this.sonioxApiKey,
     required this.sonioxModel,
+    required this.sonioxLanguageHints,
+    required this.bailianLanguageHint,
   });
 
   factory ProviderSettings.defaults() {
@@ -53,6 +55,8 @@ class ProviderSettings {
         'SONIOX_MODEL',
         defaultValue: 'stt-rt-v4',
       ),
+      sonioxLanguageHints: [],
+      bailianLanguageHint: '',
     );
   }
 
@@ -68,6 +72,14 @@ class ProviderSettings {
   final String sonioxApiKey;
   final String sonioxModel;
 
+  /// Soniox `language_hints` (ISO 639-1, bias only). Empty = auto. Set once
+  /// on first launch from the device languages (i18n-01 I3); an absent key
+  /// (installs from before I3) reads as empty, i.e. today's behaviour.
+  final List<String> sonioxLanguageHints;
+
+  /// Fun-ASR realtime `language_hints` (one value). Empty = auto-detect.
+  final String bailianLanguageHint;
+
   ProviderSettings copyWith({
     String? speechProvider,
     bool? textTransformEnabled,
@@ -80,6 +92,8 @@ class ProviderSettings {
     String? bailianRealtimeModel,
     String? sonioxApiKey,
     String? sonioxModel,
+    List<String>? sonioxLanguageHints,
+    String? bailianLanguageHint,
   }) {
     return ProviderSettings(
       speechProvider: speechProvider ?? this.speechProvider,
@@ -93,6 +107,8 @@ class ProviderSettings {
       bailianRealtimeModel: bailianRealtimeModel ?? this.bailianRealtimeModel,
       sonioxApiKey: sonioxApiKey ?? this.sonioxApiKey,
       sonioxModel: sonioxModel ?? this.sonioxModel,
+      sonioxLanguageHints: sonioxLanguageHints ?? this.sonioxLanguageHints,
+      bailianLanguageHint: bailianLanguageHint ?? this.bailianLanguageHint,
     );
   }
 
@@ -110,6 +126,20 @@ class ProviderSettingsStore {
   );
 
   static const _prefix = 'provider_settings.';
+
+  /// Storage key (without prefix) → full key, for code that writes single
+  /// settings (first-launch region defaults).
+  static String keyFor(String name) => '$_prefix$name';
+
+  /// Whether [key] (a full storage key) belongs to the provider settings.
+  static bool isProviderKey(String key) => key.startsWith(_prefix);
+
+  static String encodeHints(List<String> hints) => hints.join(',');
+
+  static List<String> decodeHints(String? raw) => [
+    for (final part in (raw ?? '').split(','))
+      if (part.trim().isNotEmpty) part.trim(),
+  ];
 
   Future<ProviderSettings> load() async {
     final defaults = ProviderSettings.defaults();
@@ -162,6 +192,13 @@ class ProviderSettingsStore {
       ),
       sonioxApiKey: await readString('sonioxApiKey', defaults.sonioxApiKey),
       sonioxModel: await readString('sonioxModel', defaults.sonioxModel),
+      sonioxLanguageHints: decodeHints(
+        await _storage.read(key: '${_prefix}sonioxLanguageHints'),
+      ),
+      bailianLanguageHint: await readString(
+        'bailianLanguageHint',
+        defaults.bailianLanguageHint,
+      ),
     );
   }
 
@@ -182,6 +219,8 @@ class ProviderSettingsStore {
       write('bailianRealtimeModel', settings.bailianRealtimeModel),
       write('sonioxApiKey', settings.sonioxApiKey),
       write('sonioxModel', settings.sonioxModel),
+      write('sonioxLanguageHints', encodeHints(settings.sonioxLanguageHints)),
+      write('bailianLanguageHint', settings.bailianLanguageHint),
     ]);
   }
 }

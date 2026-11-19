@@ -457,6 +457,62 @@ class AppLocalizationsEn extends AppLocalizations {
       'Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
 
   @override
+  String get profileTranslateToEnName => 'Translate -> EN';
+
+  @override
+  String get profileTranslateToEnIntent =>
+      'Translate the speech into natural English, whatever language it is in. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profileJaToEnName => 'JA -> EN';
+
+  @override
+  String get profileJaToEnIntent =>
+      'Translate Japanese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profileKoToEnName => 'KO -> EN';
+
+  @override
+  String get profileKoToEnIntent =>
+      'Translate Korean speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profileDeToEnName => 'DE -> EN';
+
+  @override
+  String get profileDeToEnIntent =>
+      'Translate German speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profileEsToEnName => 'ES -> EN';
+
+  @override
+  String get profileEsToEnIntent =>
+      'Translate Spanish speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profileFrToEnName => 'FR -> EN';
+
+  @override
+  String get profileFrToEnIntent =>
+      'Translate French speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profilePtToEnName => 'PT -> EN';
+
+  @override
+  String get profilePtToEnIntent =>
+      'Translate Portuguese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
+  String get profileItToEnName => 'IT -> EN';
+
+  @override
+  String get profileItToEnIntent =>
+      'Translate Italian speech into natural English. Preserve the meaning, keep it concise, and return only the English text.';
+
+  @override
   String get shellAlreadyRecording => 'Shinsoku is already recording.';
 
   @override
@@ -1195,6 +1251,62 @@ class AppLocalizationsEnXa extends AppLocalizationsEn {
   @override
   String get profileZhToEnIntent =>
       '[Ţràñšlàţé Çhîñéšé špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçî]';
+
+  @override
+  String get profileTranslateToEnName => '[Ţràñšlàţé -> ÉÑ lörém]';
+
+  @override
+  String get profileTranslateToEnIntent =>
+      '[Ţràñšlàţé ţhé špééçh îñţö ñàţüràl Éñĝlîšh, whàţévér làñĝüàĝé îţ îš îñ. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçîñĝ élîţ š]';
+
+  @override
+  String get profileJaToEnName => '[JÀ -> ÉÑ lö]';
+
+  @override
+  String get profileJaToEnIntent =>
+      '[Ţràñšlàţé Jàpàñéšé špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçî]';
+
+  @override
+  String get profileKoToEnName => '[KÖ -> ÉÑ lö]';
+
+  @override
+  String get profileKoToEnIntent =>
+      '[Ţràñšlàţé Köréàñ špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšç]';
+
+  @override
+  String get profileDeToEnName => '[ĐÉ -> ÉÑ lö]';
+
+  @override
+  String get profileDeToEnIntent =>
+      '[Ţràñšlàţé Ĝérmàñ špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšç]';
+
+  @override
+  String get profileEsToEnName => '[ÉŠ -> ÉÑ lö]';
+
+  @override
+  String get profileEsToEnIntent =>
+      '[Ţràñšlàţé Špàñîšh špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçî]';
+
+  @override
+  String get profileFrToEnName => '[FR -> ÉÑ lö]';
+
+  @override
+  String get profileFrToEnIntent =>
+      '[Ţràñšlàţé Fréñçh špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšç]';
+
+  @override
+  String get profilePtToEnName => '[PŢ -> ÉÑ lö]';
+
+  @override
+  String get profilePtToEnIntent =>
+      '[Ţràñšlàţé Pörţüĝüéšé špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçîñ]';
+
+  @override
+  String get profileItToEnName => '[ÎŢ -> ÉÑ lö]';
+
+  @override
+  String get profileItToEnIntent =>
+      '[Ţràñšlàţé Îţàlîàñ špééçh îñţö ñàţüràl Éñĝlîšh. Préšérvé ţhé méàñîñĝ, kéép îţ çöñçîšé, àñđ réţürñ öñlý ţhé Éñĝlîšh ţéxţ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçî]';
 
   @override
   String get shellAlreadyRecording =>

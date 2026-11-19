@@ -153,6 +153,9 @@ class _SettingsViewState extends State<SettingsView> {
       bailianRealtimeModel: bailianRealtimeModelController.text.trim(),
       sonioxApiKey: _sonioxKeyController.text.trim(),
       sonioxModel: _sonioxModelController.text.trim(),
+      // Not edited here (I3): keep what first launch or the user stored.
+      sonioxLanguageHints: widget.providerSettings.sonioxLanguageHints,
+      bailianLanguageHint: widget.providerSettings.bailianLanguageHint,
     );
 
     try {

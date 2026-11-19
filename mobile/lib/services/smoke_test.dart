@@ -528,6 +528,8 @@ class BailianSmokeTestRunner {
       bailianRealtimeModel: realtimeModel,
       sonioxApiKey: '',
       sonioxModel: '',
+      sonioxLanguageHints: const [],
+      bailianLanguageHint: '',
     );
     final session = await BailianRealtimeLiveSession.start(settings);
 

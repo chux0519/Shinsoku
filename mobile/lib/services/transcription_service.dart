@@ -199,6 +199,20 @@ abstract class _SocketLiveSession implements LiveAsrSession {
   }
 }
 
+/// Fun-ASR realtime run-task `parameters`. `language_hints` takes one value
+/// (only the first counts); none = auto-detect.
+Map<String, dynamic> bailianRunTaskParameters(
+  ProviderSettings settings,
+  int sampleRate,
+) {
+  final hint = settings.bailianLanguageHint.trim();
+  return {
+    'format': 'pcm',
+    'sample_rate': sampleRate,
+    if (hint.isNotEmpty) 'language_hints': [hint],
+  };
+}
+
 class BailianRealtimeLiveSession extends _SocketLiveSession {
   BailianRealtimeLiveSession._(
     super.socket, {
@@ -253,7 +267,7 @@ class BailianRealtimeLiveSession extends _SocketLiveSession {
           'task': 'asr',
           'function': 'recognition',
           'model': settings.bailianRealtimeModel,
-          'parameters': {'format': 'pcm', 'sample_rate': sampleRate},
+          'parameters': bailianRunTaskParameters(settings, sampleRate),
           'input': <String, dynamic>{},
         },
       }),
@@ -369,6 +383,8 @@ class SonioxLiveSession extends _SocketLiveSession {
         },
         'enable_endpoint_detection': true,
         'max_endpoint_delay_ms': 900,
+        if (settings.sonioxLanguageHints.isNotEmpty)
+          'language_hints': settings.sonioxLanguageHints,
         'client_reference_id': 'shinsoku-mobile-live-recording',
       }),
     );

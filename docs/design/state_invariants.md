@@ -89,6 +89,23 @@ cases in `mobile/test/model/regressions_test.dart`.
 - **PR4 Read-only without Full Access.** Without Full Access the keyboard still shows the last known profile
   read-only and says why it can't switch.
 
+## R. Region defaults (i18n-01 I3)
+Events: `launch(device locales)` (may crash after n storage writes, or find storage unreadable), `user_write(key)`
+(Settings save, profile edit, or a build from before I3). Storage: secure storage keys `provider_settings.*`,
+`voice_profiles.v1`, marker `region_defaults.v1` (`kept` | `applied`). Pure parts: `regionDefaultsFor`
+(`mobile/lib/services/region_defaults.dart`), `planRegionSetup` (`mobile/lib/services/region_defaults_store.dart`);
+unit tests `mobile/test/services/region_defaults_test.dart`; seeded model test
+`mobile/test/model/region_model_test.dart` (same seeds and `SHINSOKU_MODEL_SEEDS` as PR) with named regressions.
+- **R1 User settings always win.** A value the user (or an older build) stored is never overwritten by region
+  defaults, including after a crash in the middle of applying them; Settings save keeps the language hints it
+  does not edit.
+- **R2 Defaults are applied once.** Region values are written on at most one launch; once the marker exists, no
+  launch writes anything, whatever the device language is now. The marker is written last; unreadable storage
+  writes nothing (retried next launch).
+- **R3 An upgrade never changes the provider.** An install that has any `provider_settings.*` key or stored
+  profiles before region defaults run keeps its values (an absent provider still reads as `bailian`) and only
+  gets the marker (`kept`). Absent language hints read as empty = auto-detect, i.e. today's requests.
+
 ## Process
 - Seeds are fixed in CI. A failing seed prints its shrunk sequence and is kept as a named regression case.
 - Three layers: pure model test → real UI driven with fakes (clock, network, payments) → device scenario

@@ -28,6 +28,7 @@ import 'package:shinsoku_mobile/services/shortcuts.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
+import 'package:shinsoku_mobile/services/region_defaults_store.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
@@ -147,8 +148,13 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     } else if (SmokeTestConfig.mode == 'bailian') {
       unawaited(_runBailianSmokeTest());
     }
-    unawaited(_loadProviderSettings());
-    _profilesLoaded = _loadVoiceProfiles();
+    // i18n-01 I3: a fresh install gets its region defaults written before
+    // anything reads the settings (R1–R3); never throws.
+    final regionReady = const RegionDefaultsStore().applyOnce(
+      locales: WidgetsBinding.instance.platformDispatcher.locales,
+    );
+    unawaited(regionReady.then((_) => _loadProviderSettings()));
+    _profilesLoaded = regionReady.then((_) => _loadVoiceProfiles());
     unawaited(_refreshMicrophonePermission());
     if (kDebugMode) unawaited(_loadLiveFixture());
   }

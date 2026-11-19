@@ -583,6 +583,70 @@
   "@profileZhToEnIntent": {
     "description": "Instruction of the ZH -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
   },
+  "profileTranslateToEnName": "Translate -> EN",
+  "@profileTranslateToEnName": {
+    "description": "Name of the built-in profile that translates speech in any language into English (devices whose language has no own translation profile, e.g. English)."
+  },
+  "profileTranslateToEnIntent": "Translate the speech into natural English, whatever language it is in. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileTranslateToEnIntent": {
+    "description": "Instruction of the Translate -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profileJaToEnName": "JA -> EN",
+  "@profileJaToEnName": {
+    "description": "Name of the built-in Japanese-to-English profile (devices set to Japanese). Translators: use the short form your language uses for \"Japanese to English\"."
+  },
+  "profileJaToEnIntent": "Translate Japanese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileJaToEnIntent": {
+    "description": "Instruction of the JA -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profileKoToEnName": "KO -> EN",
+  "@profileKoToEnName": {
+    "description": "Name of the built-in Korean-to-English profile (devices set to Korean). Translators: use the short form your language uses for \"Korean to English\"."
+  },
+  "profileKoToEnIntent": "Translate Korean speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileKoToEnIntent": {
+    "description": "Instruction of the KO -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profileDeToEnName": "DE -> EN",
+  "@profileDeToEnName": {
+    "description": "Name of the built-in German-to-English profile (devices set to German). Translators: use the short form your language uses for \"German to English\"."
+  },
+  "profileDeToEnIntent": "Translate German speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileDeToEnIntent": {
+    "description": "Instruction of the DE -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profileEsToEnName": "ES -> EN",
+  "@profileEsToEnName": {
+    "description": "Name of the built-in Spanish-to-English profile (devices set to Spanish). Translators: use the short form your language uses for \"Spanish to English\"."
+  },
+  "profileEsToEnIntent": "Translate Spanish speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileEsToEnIntent": {
+    "description": "Instruction of the ES -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profileFrToEnName": "FR -> EN",
+  "@profileFrToEnName": {
+    "description": "Name of the built-in French-to-English profile (devices set to French). Translators: use the short form your language uses for \"French to English\"."
+  },
+  "profileFrToEnIntent": "Translate French speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileFrToEnIntent": {
+    "description": "Instruction of the FR -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profilePtToEnName": "PT -> EN",
+  "@profilePtToEnName": {
+    "description": "Name of the built-in Portuguese-to-English profile (devices set to Portuguese). Translators: use the short form your language uses for \"Portuguese to English\"."
+  },
+  "profilePtToEnIntent": "Translate Portuguese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profilePtToEnIntent": {
+    "description": "Instruction of the PT -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "profileItToEnName": "IT -> EN",
+  "@profileItToEnName": {
+    "description": "Name of the built-in Italian-to-English profile (devices set to Italian). Translators: use the short form your language uses for \"Italian to English\"."
+  },
+  "profileItToEnIntent": "Translate Italian speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileItToEnIntent": {
+    "description": "Instruction of the IT -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
   "shellAlreadyRecording": "Shinsoku is already recording.",
   "@shellAlreadyRecording": {
     "description": "Snack bar when a second recording is requested."
