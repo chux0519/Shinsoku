@@ -13,6 +13,7 @@ import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
+import 'package:shinsoku_mobile/services/active_profile.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
@@ -55,6 +56,7 @@ class MobileShell extends StatefulWidget {
 class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   final ProviderSettingsStore _providerSettingsStore = ProviderSettingsStore();
   final VoiceProfileStore _voiceProfileStore = VoiceProfileStore();
+  final ActiveProfileStore _activeProfileStore = ActiveProfileStore();
   final AudioRecorder _audioRecorder = AudioRecorder();
 
   List<VoiceProfile> _profiles = List<VoiceProfile>.of(defaultVoiceProfiles);
@@ -65,7 +67,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   /// The page in the second pane on regular widths (1–3); follows the last
   /// non-Record page picked anywhere.
   int _secondaryTab = 1;
-  int _selectedProfileIndex = 0;
+
+  /// The profile resolved when the current recording started (PR1); used
+  /// for the transcript even if the selection changes mid-recording.
+  VoiceProfile? _recordingProfile;
   CaptureState _captureState = CaptureState.idle;
   bool _microphoneAllowed = false;
   bool _keyboardExtensionEnabled = false;
@@ -79,7 +84,16 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   StreamSubscription<Uint8List>? _recordingStreamSubscription;
   Object? _recordingStreamError;
 
-  VoiceProfile get _activeProfile => _profiles[_selectedProfileIndex];
+  /// Active profile per the profile-01 precedence (the app has no field
+  /// rule or keyboard session, so: stored selection, else default).
+  VoiceProfile get _activeProfile =>
+      resolveActive(_activeProfileStore.selection, _profiles).profile;
+
+  int get _selectedProfileIndex {
+    final id = _activeProfile.id;
+    final index = _profiles.indexWhere((profile) => profile.id == id);
+    return index < 0 ? 0 : index;
+  }
 
   @override
   void initState() {
@@ -115,6 +129,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshActiveProfile());
       unawaited(_consumeInitialDeepLink());
     }
   }
@@ -183,10 +198,16 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   Future<void> _selectProfile(int index) async {
     final profile = _profiles[index];
-    setState(() {
-      _selectedProfileIndex = index;
-    });
+    final pick = _activeProfileStore.selectManually(profile.id);
+    setState(() {});
+    await pick;
     await _ensurePostProcessingForProfile(profile);
+  }
+
+  /// The keyboard or an App Intent may have changed the selection.
+  Future<void> _refreshActiveProfile() async {
+    await _activeProfileStore.refresh();
+    if (mounted) setState(() {});
   }
 
   Future<void> _ensurePostProcessingForProfile(VoiceProfile profile) async {
@@ -282,6 +303,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   Future<void> _startRecording() async {
+    // PR1: resolve once, at the tap, from the shared selection.
+    await _refreshActiveProfile();
+    final profile = _activeProfile;
     final permission = await Permission.microphone.request();
     final hasPermission = permission.isGranted || permission.isLimited;
     if (!hasPermission) {
@@ -407,12 +431,15 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     setState(() {
       _microphoneAllowed = true;
       _captureState = CaptureState.listening;
+      _recordingProfile = profile;
       _smokeTestStatus = null;
     });
   }
 
   Future<void> _stopRecordingAndTranscribe() async {
     final stopTotalWatch = Stopwatch()..start();
+    final profile = _recordingProfile ?? _activeProfile;
+    _recordingProfile = null;
     final liveSession = _bailianLiveSession;
     final streamSubscription = _recordingStreamSubscription;
     _bailianLiveSession = null;
@@ -450,7 +477,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         }
         result = await service.finishBailianRealtimeSession(
           session: liveSession,
-          profile: _activeProfile,
+          profile: profile,
         );
       } else {
         if (path == null || !File(path).existsSync()) {
@@ -461,10 +488,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           throw StateError('Recording file is empty.');
         }
 
-        result = await service.transcribe(
-          wavBytes: audio,
-          profile: _activeProfile,
-        );
+        result = await service.transcribe(wavBytes: audio, profile: profile);
       }
       transcribeWatch.stop();
       stopTotalWatch.stop();
@@ -600,33 +624,26 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   Future<void> _loadVoiceProfiles() async {
     final profiles = await _voiceProfileStore.load();
+    // Migration + launch sync: publish ids/names, keep or create the shared
+    // selection (idempotent).
+    await _activeProfileStore.sync(profiles);
     if (!mounted) {
       return;
     }
     setState(() {
       _profiles = profiles;
-      if (_selectedProfileIndex >= _profiles.length) {
-        _selectedProfileIndex = _profiles.length - 1;
-      }
-      if (_selectedProfileIndex < 0) {
-        _selectedProfileIndex = 0;
-      }
     });
   }
 
   Future<void> _saveVoiceProfiles(List<VoiceProfile> profiles) async {
     await _voiceProfileStore.save(profiles);
+    // PR3: republish and repair a selection that points at a deleted id.
+    await _activeProfileStore.sync(profiles);
     if (!mounted) {
       return;
     }
     setState(() {
       _profiles = profiles;
-      if (_selectedProfileIndex >= _profiles.length) {
-        _selectedProfileIndex = _profiles.length - 1;
-      }
-      if (_selectedProfileIndex < 0) {
-        _selectedProfileIndex = 0;
-      }
     });
   }
 
@@ -643,12 +660,11 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     }
     profiles.add(profile);
     await _saveVoiceProfiles(profiles);
+    await _activeProfileStore.selectManually(profile.id);
     if (!mounted) {
       return;
     }
-    setState(() {
-      _selectedProfileIndex = profiles.length - 1;
-    });
+    setState(() {});
     await _ensurePostProcessingForProfile(profile);
   }
 
