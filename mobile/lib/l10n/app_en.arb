@@ -967,5 +967,119 @@
   "nearbyErrorGeneric": "Something went wrong with the desktop connection.",
   "@nearbyErrorGeneric": {
     "description": "Fallback error for the Desktop page."
+  },
+  "proName": "Shinsoku Pro",
+  "@proName": {
+    "description": "Name of the one-time in-app purchase; sheet title and Settings row. Usually kept as is."
+  },
+  "proBadge": "Pro",
+  "@proBadge": {
+    "description": "Small badge on rows and pages that need Shinsoku Pro. Keep it very short."
+  },
+  "proFeatureProfilesTitle": "Custom profiles",
+  "@proFeatureProfilesTitle": {
+    "description": "Pro sheet: first thing Pro adds (title)."
+  },
+  "proFeatureProfilesBody": "Create your own profiles and edit any profile's prompt and settings.",
+  "@proFeatureProfilesBody": {
+    "description": "Pro sheet: first thing Pro adds (one line)."
+  },
+  "proFeatureAutoTitle": "Automatic switching per app",
+  "@proFeatureAutoTitle": {
+    "description": "Pro sheet: second thing Pro adds (title)."
+  },
+  "proFeatureAutoBody": "Field rules and Shortcuts pick the profile for the app you're typing in.",
+  "@proFeatureAutoBody": {
+    "description": "Pro sheet: second thing Pro adds (one line)."
+  },
+  "proFeatureDesktopTitle": "Desktop",
+  "@proFeatureDesktopTitle": {
+    "description": "Pro sheet: third thing Pro adds (title); the Desktop tab."
+  },
+  "proFeatureDesktopBody": "Use this iPhone as the microphone for Shinsoku on your computer.",
+  "@proFeatureDesktopBody": {
+    "description": "Pro sheet: third thing Pro adds (one line)."
+  },
+  "proNote": "One-time purchase. Family Sharing included.",
+  "@proNote": {
+    "description": "Pro sheet: note under the list."
+  },
+  "proBuyWithPrice": "Unlock for {price}",
+  "@proBuyWithPrice": {
+    "description": "Pro sheet primary button with the App Store price, e.g. 'Unlock for $4.99'.",
+    "placeholders": {
+      "price": {
+        "type": "String",
+        "example": "$4.99"
+      }
+    }
+  },
+  "proBuy": "Unlock Shinsoku Pro",
+  "@proBuy": {
+    "description": "Primary button when the price is not known (store unreachable), and the action on locked pages."
+  },
+  "proPriceLoading": "Loading price…",
+  "@proPriceLoading": {
+    "description": "Pro sheet primary button while the App Store price loads."
+  },
+  "proRestore": "Restore Purchases",
+  "@proRestore": {
+    "description": "Button and Settings row: restore an earlier purchase (App Store wording)."
+  },
+  "proOwned": "Shinsoku Pro is unlocked. Thank you!",
+  "@proOwned": {
+    "description": "Pro sheet status when Pro is owned."
+  },
+  "proStatusUnlocked": "Unlocked",
+  "@proStatusUnlocked": {
+    "description": "Settings › Shinsoku Pro row value when owned."
+  },
+  "proSettingsSubtitle": "Custom profiles, per-app switching, Desktop",
+  "@proSettingsSubtitle": {
+    "description": "Settings › Shinsoku Pro row subtitle: what Pro adds."
+  },
+  "proNoticePending": "Waiting for approval. Pro unlocks as soon as the purchase is approved.",
+  "@proNoticePending": {
+    "description": "Pro sheet status: purchase pending (Ask to Buy / bank approval)."
+  },
+  "proNoticeCancelled": "Purchase cancelled. Nothing was charged.",
+  "@proNoticeCancelled": {
+    "description": "Pro sheet status: the user closed the payment sheet."
+  },
+  "proNoticeFailed": "The purchase didn't go through. Please try again.",
+  "@proNoticeFailed": {
+    "description": "Pro sheet status: purchase or restore failed."
+  },
+  "proNoticeUnavailable": "The App Store isn't available right now. Try again later.",
+  "@proNoticeUnavailable": {
+    "description": "Pro sheet status: the store cannot be reached."
+  },
+  "proNoticeRestored": "Purchase restored. Shinsoku Pro is unlocked.",
+  "@proNoticeRestored": {
+    "description": "Pro sheet status: restore found the purchase."
+  },
+  "proNoticeNothingToRestore": "No earlier purchase of Shinsoku Pro was found for this Apple Account.",
+  "@proNoticeNothingToRestore": {
+    "description": "Pro sheet status: restore found nothing."
+  },
+  "proLockedProfileEditor": "Editing profiles needs Shinsoku Pro. You can still pick this profile on the Record screen and in the keyboard.",
+  "@proLockedProfileEditor": {
+    "description": "Profile editor without Pro: why the fields are read-only."
+  },
+  "proLockedFieldRules": "Field rules need Shinsoku Pro. Rules you set are kept and apply again once Pro is unlocked.",
+  "@proLockedFieldRules": {
+    "description": "Field rules page without Pro."
+  },
+  "proLockedUseInApps": "Switching profiles from Shortcuts needs Shinsoku Pro.",
+  "@proLockedUseInApps": {
+    "description": "Use in apps page without Pro (same wording as the Shortcuts dialog)."
+  },
+  "proLockedDesktop": "Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro.",
+  "@proLockedDesktop": {
+    "description": "Desktop tab without Pro: what it is."
+  },
+  "proUnlockShort": "Get Pro",
+  "@proUnlockShort": {
+    "description": "Short button next to Cancel in the profile editor without Pro: opens the Shinsoku Pro sheet."
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
@@ -69,6 +70,9 @@ class _FieldRulesViewState extends State<FieldRulesView> {
   @override
   Widget build(BuildContext context) {
     final c = SkColors.of(context);
+    // pricing-01: field rules need Pro. Without it the page stays readable,
+    // the stored rules are kept (E3) and every row opens the Pro sheet.
+    final locked = !ProScope.ownedOf(context);
     return Scaffold(
       appBar: SkTopBar(
         title: context.l10n.fieldRulesTitle,
@@ -91,6 +95,10 @@ class _FieldRulesViewState extends State<FieldRulesView> {
                 context.l10n.fieldRulesSummary,
                 style: SkType.body.copyWith(color: c.textSecondary),
               ),
+              if (locked) ...[
+                const SizedBox(height: SkSpace.l),
+                SkProLockedNote(text: context.l10n.proLockedFieldRules),
+              ],
               const SizedBox(height: SkSpace.l),
               SkSection(
                 children: [
@@ -99,7 +107,9 @@ class _FieldRulesViewState extends State<FieldRulesView> {
                       title: fieldKindLabel(context.l10n, kind),
                       value: _nameOf(_rules[kind]),
                       chevron: true,
-                      onTap: () => _pick(kind),
+                      onTap: locked
+                          ? () => showProSheet(context)
+                          : () => _pick(kind),
                     ),
                 ],
               ),

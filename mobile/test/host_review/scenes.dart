@@ -15,6 +15,7 @@ import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/nearby/nearby_models.dart';
+import 'package:shinsoku_mobile/nearby/nearby_tab.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
@@ -24,8 +25,17 @@ import 'package:shinsoku_mobile/ui/ui.dart';
 import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/active_profile.dart';
 import 'package:shinsoku_mobile/services/profile_reason.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 
 typedef SceneBuilder = Widget Function();
+
+/// Shinsoku Pro for a scene (pricing-01): scenes of Pro features render
+/// owned unless they are the locked variant.
+Widget _pro(Widget child, {bool owned = true, FakeProEntitlement? pro}) =>
+    ProScope(
+      entitlement: pro ?? FakeProEntitlement(owned: owned),
+      child: child,
+    );
 
 const sampleTranscript =
     'Let us move the design review to Thursday afternoon, and send the '
@@ -68,7 +78,7 @@ Widget _tab(int index, {Widget? record, Widget? drafts, Widget? nearby}) =>
       pages: [
         record ?? _recordView(),
         drafts ?? _draftsView(sampleDrafts()),
-        nearby ?? const NearbyMicrophoneView(profiles: _nearbyProfiles),
+        nearby ?? const NearbyTab(profiles: _nearbyProfiles),
         _settingsView(),
       ],
     );
@@ -269,47 +279,80 @@ final scenes = <String, SceneBuilder>{
     onSave: (_) {},
     onCopy: (_) {},
   ),
-  'settings': _settings,
+  'settings': () => _pro(_settings()),
   'keyboard-setup': () => KeyboardSetupView(onOpenSettings: () async => true),
-  'use-in-apps': () => UseInAppsView(onOpenShortcuts: () async => true),
-  'field-rules': () => FieldRulesView(
-    profiles: defaultVoiceProfiles,
-    rules: const FieldRules({
-      FieldKind.search: 'chat',
-      FieldKind.email: 'review',
-    }),
-    onChanged: (_) async {},
-  ),
-  'profile-editor': () => _sheetOver(
-    _settings(),
-    const ProfileEditorSheet(profile: _dictation, canDelete: true),
-  ),
-  'nearby': () => _tab(2),
-  'nearby-pair': () => _tab(
-    2,
-    nearby: const NearbyMicrophoneView(
-      profiles: _nearbyProfiles,
-      initialDesktops: [
-        NearbyDesktop(
-          serviceName: 'example-desktop',
-          host: '192.0.2.10',
-          port: 39273,
-          certificateSha256:
-              '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
-          instanceId: 'example-instance',
-        ),
-        NearbyDesktop(
-          serviceName: 'example-laptop',
-          host: '192.0.2.11',
-          port: 39273,
-          certificateSha256:
-              'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
-          instanceId: 'example-instance-2',
-        ),
-      ],
+  'use-in-apps': () => _pro(UseInAppsView(onOpenShortcuts: () async => true)),
+  'field-rules': () => _pro(_fieldRules()),
+  'profile-editor': () => _pro(
+    _sheetOver(
+      _settings(),
+      const ProfileEditorSheet(profile: _dictation, canDelete: true),
     ),
   ),
+  'nearby': () => _pro(_tab(2)),
+  'nearby-pair': () => _pro(
+    _tab(
+      2,
+      nearby: const NearbyMicrophoneView(
+        profiles: _nearbyProfiles,
+        initialDesktops: [
+          NearbyDesktop(
+            serviceName: 'example-desktop',
+            host: '192.0.2.10',
+            port: 39273,
+            certificateSha256:
+                '3f9a1c2b7d4e8f60a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809',
+            instanceId: 'example-instance',
+          ),
+          NearbyDesktop(
+            serviceName: 'example-laptop',
+            host: '192.0.2.11',
+            port: 39273,
+            certificateSha256:
+                'aa11bb22cc33dd44ee55ff6600778899aabbccddeeff00112233445566778899',
+            instanceId: 'example-instance-2',
+          ),
+        ],
+      ),
+    ),
+  ),
+  // pricing-01: Shinsoku Pro.
+  'pro-sheet': () => _pro(
+    _sheetOver(_settings(), const SkProSheet()),
+    pro: FakeProEntitlement(),
+  ),
+  'pro-sheet-loading': () => _pro(
+    _sheetOver(_settings(), const SkProSheet()),
+    pro: FakeProEntitlement(price: null, busy: true),
+  ),
+  'pro-sheet-pending': () => _pro(
+    _sheetOver(_settings(), const SkProSheet()),
+    pro: FakeProEntitlement(notice: ProNotice.pending),
+  ),
+  'pro-sheet-owned': () => _pro(
+    _sheetOver(_settings(), const SkProSheet()),
+    pro: FakeProEntitlement(owned: true),
+  ),
+  // The Shinsoku Pro row heads Settings ('settings' is the owned one).
+  'settings-pro-locked': () => _pro(_settings(), owned: false),
+  'profile-editor-locked': () => _pro(
+    _sheetOver(_settings(), const ProfileEditorSheet(profile: _dictation)),
+    owned: false,
+  ),
+  'field-rules-locked': () => _pro(_fieldRules(), owned: false),
+  'use-in-apps-locked': () =>
+      _pro(UseInAppsView(onOpenShortcuts: () async => true), owned: false),
+  'nearby-locked': () => _pro(_tab(2), owned: false),
 };
+
+Widget _fieldRules() => FieldRulesView(
+  profiles: defaultVoiceProfiles,
+  rules: const FieldRules({
+    FieldKind.search: 'chat',
+    FieldKind.email: 'review',
+  }),
+  onChanged: (_) async {},
+);
 
 const _nearbyProfiles = [
   NearbyProfileOption(id: 'default', label: 'Dictation'),

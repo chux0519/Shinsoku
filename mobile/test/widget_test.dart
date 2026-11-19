@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/main.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'support/l10n.dart';
 
@@ -127,7 +128,9 @@ void main() {
     tester,
   ) async {
     _phone(tester);
-    await tester.pumpWidget(const ShinsokuMobileApp());
+    await tester.pumpWidget(
+      ShinsokuMobileApp(proEntitlement: FakeProEntitlement(owned: true)),
+    );
 
     await tester.tap(find.byIcon(Icons.wifi_tethering));
     await tester.pump(const Duration(milliseconds: 300));

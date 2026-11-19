@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/l10n/l10n.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/shortcuts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
@@ -40,6 +41,9 @@ class UseInAppsView extends StatelessWidget {
     ];
     final closeSteps = [l.useInAppsCloseStep1, l.useInAppsCloseStep2];
     final oldIos = iosMajorVersion != null && iosMajorVersion! < 16;
+    // pricing-01: Shortcuts profile switching needs Pro; the steps stay
+    // readable and the primary action opens the Pro sheet.
+    final locked = !ProScope.ownedOf(context);
     return Scaffold(
       appBar: SkTopBar(
         title: l.settingsUseInApps,
@@ -63,6 +67,13 @@ class UseInAppsView extends StatelessWidget {
                       l.useInAppsSummary,
                       style: SkType.body.copyWith(color: c.textSecondary),
                     ),
+                    if (locked) ...[
+                      const SizedBox(height: SkSpace.l),
+                      SkProLockedNote(
+                        text: l.proLockedUseInApps,
+                        action: false,
+                      ),
+                    ],
                     if (oldIos) ...[
                       const SizedBox(height: SkSpace.m),
                       SkStatusLine(
@@ -105,12 +116,19 @@ class UseInAppsView extends StatelessWidget {
                   top: SkSpace.s,
                   bottom: MediaQuery.paddingOf(context).bottom + SkSpace.l,
                 ),
-                child: SkButton(
-                  label: l.useInAppsOpenShortcuts,
-                  icon: Icons.open_in_new_rounded,
-                  expand: true,
-                  onPressed: onOpenShortcuts,
-                ),
+                child: locked
+                    ? SkButton(
+                        key: const ValueKey('use-in-apps-unlock'),
+                        label: l.proBuy,
+                        expand: true,
+                        onPressed: () => showProSheet(context),
+                      )
+                    : SkButton(
+                        label: l.useInAppsOpenShortcuts,
+                        icon: Icons.open_in_new_rounded,
+                        expand: true,
+                        onPressed: onOpenShortcuts,
+                      ),
               ),
             ],
           );
