@@ -49,3 +49,25 @@
 - **How to verify:** `cd mobile && flutter analyze && flutter test test/model/pro_model_test.dart`;
   `mobile/ios/ShinsokuKeyboard/ResolverChecks/run.sh`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
   `tool/ios_keyboard_scene.sh --build-only`.
+
+## Coordinator — acceptance round 01 (2026-11-19)
+- **Merged:** S1 (#40), S2 (#42); I5 (#41) translated the S1 strings. S3 folded into S2 (E1–E4, model test,
+  scene). DESIGN.md §5/§7 updated (Pro components, Settings › Shinsoku Pro first, Pro sheet).
+- **Tier A (main `5e85124`):** `flutter analyze` clean; `tool/test_diff.sh` no new failures; `review_lint.py`
+  all ok (R05–R07); host renders of the Pro screens (S1, I5 in ja/de/zh-Hans).
+- **Tier B (iPhone 17 iOS 27.2, `9080FE77`, main `5e85124`, light + dark):** `ProSceneTests` passed (1 test, 0
+  failures each look). Locked: Settings Pro row shows "$4.99", Field rules page shows the Pro lock with the
+  rules kept, Safari address bar stays on the default profile (Dictation). Owned: the same field picks
+  Review. Rule reset afterwards. Evidence: `build/ui-review/pricing-01/round-01/tierB-pro/{light,dark}/`.
+  The keyboard UI was in Chinese (simulator language) in all phases.
+- **Not covered by tier B:** a real StoreKit purchase and refund. The `.storekit` config applies only to Xcode
+  Run, not to XCUITest; the scene uses the DEBUG fixture, which drives the same `pro.v1` mirror. Purchase →
+  refund through StoreKit is covered by the model test (E1/E2) and goes to tier C: sandbox purchase on
+  TestFlight (user).
+- **IAP (App Store Connect):** `net.potafree.shinsoku.pro` id 6836728985, state **READY_TO_SUBMIT** (10
+  localizations, $4.99 USA, all territories except CHN, review screenshot 1290×2796 from the host render). It
+  is submitted together with the next app version.
+- **Decisions kept (coordinator, user may change):** Pro is removed only by a verified refund/revocation (not
+  when StoreKit simply knows no transaction); the keyboard skips a field rule silently without Pro; Settings ›
+  Shinsoku Pro first; deleting a profile is not gated.
+- **Next:** TestFlight build with sandbox purchase (ask the user first); release-01 plan.
