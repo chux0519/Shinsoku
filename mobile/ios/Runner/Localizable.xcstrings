@@ -785,6 +785,71 @@
         }
       }
     },
+    "Switching profiles from Shortcuts needs Shinsoku Pro." : {
+      "comment" : "Shortcuts dialog: Set Shinsoku Profile was run without Shinsoku Pro; nothing changed",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Wechseln von Profilen über Kurzbefehle brauchst du Shinsoku Pro."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switching profiles from Shortcuts needs Shinsoku Pro."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para cambiar de perfil desde Atajos necesitas Shinsoku Pro."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le changement de profil depuis Raccourcis nécessite Shinsoku Pro."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per cambiare profilo da Comandi Rapidi serve Shinsoku Pro."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「ショートカット」からプロファイルを切り替えるにはShinsoku Proが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축어에서 프로필을 전환하려면 Shinsoku Pro가 필요해요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para trocar de perfil pelo Atalhos, é preciso o Shinsoku Pro."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过“快捷指令”切换模式需要 Shinsoku Pro。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從「捷徑」切換模式需要 Shinsoku Pro。"
+          }
+        }
+      }
+    },
     "The Shinsoku profile \"%@\" no longer exists." : {
       "comment" : "Shortcuts error: the chosen profile was deleted; %@ is its name",
       "localizations" : {

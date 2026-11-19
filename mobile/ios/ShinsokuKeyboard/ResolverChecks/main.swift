@@ -64,6 +64,30 @@ check(rules == [.search: "b"], "parse rules drops empty/unknown/non-string")
 check(KeyboardProfileResolver.parseFieldRules(nil).isEmpty, "no rules")
 check(KeyboardProfileResolver.parseFieldRules("[1]").isEmpty, "wrong shape")
 
+// pricing-01: field rules apply only with Pro (`pro.v1`); a missing or malformed mirror is not Pro.
+let suiteName = "net.potafree.shinsoku.resolverchecks.\(ProcessInfo.processInfo.processIdentifier)"
+if let suite = UserDefaults(suiteName: suiteName) {
+    suite.set(#"{"search":"b"}"#, forKey: KeyboardProfileResolver.fieldRulesKey)
+    check(!ProfileGroup.proOwned(suite), "no mirror → not Pro")
+    check(KeyboardProfileResolver.readApplicableFieldRules(suite).isEmpty, "no mirror → no rule applies")
+    suite.set("garbage", forKey: ProfileGroup.proKey)
+    check(!ProfileGroup.proOwned(suite), "malformed mirror → not Pro")
+    suite.set(#"{"owned":"yes","updatedAt":"x"}"#, forKey: ProfileGroup.proKey)
+    check(!ProfileGroup.proOwned(suite), "non-bool owned → not Pro")
+    check(ProfileGroup.writePro(owned: true, to: suite), "write mirror")
+    check(ProfileGroup.proOwned(suite), "owned mirror → Pro")
+    check(KeyboardProfileResolver.readApplicableFieldRules(suite) == [.search: "b"], "Pro → rule applies")
+    check(ProfileGroup.writePro(owned: false, to: suite), "write revoked mirror")
+    check(KeyboardProfileResolver.readApplicableFieldRules(suite).isEmpty, "revoked → no rule applies")
+    check(suite.string(forKey: KeyboardProfileResolver.fieldRulesKey) == #"{"search":"b"}"#,
+          "E3: revocation leaves the stored rules alone")
+    suite.removePersistentDomain(forName: suiteName)
+} else {
+    check(false, "test defaults suite")
+}
+check(KeyboardProfileResolver.applicableFieldRules([.url: "c"], proOwned: false).isEmpty, "gate off")
+check(KeyboardProfileResolver.applicableFieldRules([.url: "c"], proOwned: true) == [.url: "c"], "gate on")
+
 // Cycling and the deep link.
 check(KeyboardProfileResolver.next(after: "a", in: profiles)?.id == "b", "cycle a→b")
 check(KeyboardProfileResolver.next(after: "c", in: profiles)?.id == "a", "cycle wraps")

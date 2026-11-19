@@ -119,6 +119,49 @@ enum ProfileGroup {
     return profiles.first.map { ($0, "default") }
   }
 
+  // MARK: Shinsoku Pro mirror (pricing-01, invariants E1–E4)
+
+  /// `pro.v1`: JSON object `{owned: bool, updatedAt: ISO 8601 UTC}`. Written only by the app's StoreKit service
+  /// (`ProStore`, E4); read by the app, the keyboard (field rules) and the App Intents (Set Profile).
+  static let proKey = "pro.v1"
+
+  struct ProMirror: Equatable {
+    let owned: Bool
+    let updatedAt: String
+  }
+
+  static func parsePro(_ raw: String?) -> ProMirror? {
+    guard
+      let object = decode(raw) as? [String: Any],
+      let owned = object["owned"] as? Bool,
+      let updatedAt = object["updatedAt"] as? String
+    else { return nil }
+    return ProMirror(owned: owned, updatedAt: updatedAt)
+  }
+
+  static func encodePro(_ mirror: ProMirror) -> String? {
+    jsonString(["owned": mirror.owned, "updatedAt": mirror.updatedAt])
+  }
+
+  static func readPro(_ shared: UserDefaults? = defaults) -> ProMirror? {
+    parsePro(shared?.string(forKey: proKey))
+  }
+
+  /// Fail closed: a missing or malformed mirror (or no App Group) is not Pro.
+  static func proOwned(_ shared: UserDefaults? = defaults) -> Bool {
+    readPro(shared)?.owned ?? false
+  }
+
+  /// Only `ProStore` calls this (E4). Returns false when the group is unavailable.
+  @discardableResult
+  static func writePro(owned: Bool, at date: Date = Date(), to shared: UserDefaults? = defaults) -> Bool {
+    guard let shared, let encoded = encodePro(ProMirror(owned: owned, updatedAt: timestamp(date))) else {
+      return false
+    }
+    shared.set(encoded, forKey: proKey)
+    return true
+  }
+
   /// Writes `{profileId, source, at: now}`. Returns false when the group is unavailable or the value is invalid.
   @discardableResult
   static func writeSelection(
