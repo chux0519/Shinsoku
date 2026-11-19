@@ -1,0 +1,25 @@
+{
+ "description": "Provider error message mid-stream: phase failed, committed kept.",
+ "on_start": [],
+ "during": [
+  {
+   "tokens": [
+    {
+     "text": "Example",
+     "start_ms": 100,
+     "end_ms": 400,
+     "confidence": 0.95,
+     "is_final": true
+    }
+   ],
+   "final_audio_proc_ms": 0,
+   "total_audio_proc_ms": 0
+  },
+  {
+   "error_code": 503,
+   "error_message": "example error"
+  }
+ ],
+ "expected_committed": "Example",
+ "expected_pending": ""
+}
