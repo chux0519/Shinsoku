@@ -442,6 +442,10 @@
   "@useInAppsKeyboardNote": {
     "description": "Note under the steps."
   },
+  "useInAppsReadyMade": "Each profile also has a ready-made action in the Shortcuts app, such as “Switch Shinsoku to Chat”. No setup needed.",
+  "@useInAppsReadyMade": {
+    "description": "Note under the steps: the app adds one Shortcuts action per profile by itself. The quoted example must match the Shortcuts phrase 'Switch ${applicationName} to ${profile}' in this language; 'Chat' is an example profile name."
+  },
   "useInAppsIosNote": "The Shortcuts actions need iOS 16 or later.",
   "@useInAppsIosNote": {
     "description": "Warning on old iOS versions."

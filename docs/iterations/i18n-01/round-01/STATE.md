@@ -37,3 +37,15 @@
   test/model/region_model_test.dart test/features/settings_save_test.dart`; `SHINSOKU_MODEL_SEEDS=1000` for a long
   model run; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
   `tool/host_review.sh i18n-01/round-01/i3 record-idle,record-result,record-listening-live,settings [… pseudo]`.
+
+## I4 — ready-made App Shortcuts per profile (branch `i18n-01-i4-shortcuts`)
+- **Done:** parameterized phrases "Switch Shinsoku to ${profile}" / "Use ${profile} in Shinsoku" on the Set
+  shortcut (first, so Shortcuts shows one tile per profile); `updateAppShortcutParameters()` on launch and when
+  the published profile list changes; phrases in `en.lproj/AppShortcuts.strings` (key form verified against
+  the compiler-extracted stringsdata); one ARB line on Use in apps. Notes: `I4-implementation.md`.
+- **In progress:** nothing; awaiting coordinator review.
+- **Next:** coordinator tier B (scene note in `I4-implementation.md`); I5 translates the two phrases and
+  `useInAppsReadyMade`.
+- **Open decisions:** none.
+- **How to verify:** same commands as I2 above, plus `tool/host_review.sh i18n-01/round-01/i4 use-in-apps`
+  (and `... '' '' pseudo`).
