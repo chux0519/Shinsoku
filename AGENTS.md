@@ -33,6 +33,12 @@ priorities are in [Roadmap.md](Roadmap.md).
 - Every change goes through a branch and a PR; the coordinator merges and pushes main right away.
 - Implementers: each small verifiable unit ends in check → commit → push. Nothing older than a few minutes
   lives only on this machine. Remote: `git@github.com:chux0519/Shinsoku.git` (SSH).
+- **Clean up after every feature (user, 2026-11-19):** once a unit's PR is MERGED (checked with `gh pr view`),
+  the coordinator removes its worktree (`git worktree remove`), deletes the local branch, ends its worker
+  (`hc kill <t>`) and shuts down any simulator it booted. At the end of an iteration, list what is left
+  (`git worktree list`, `hc ls`, `xcrun simctl list devices booted`, merged remote branches) and clean it up;
+  deleting remote branches needs the user's OK. Shared simulators booted by another project: ask that session
+  (`hc ls`, `hc send`), never shut them down unasked.
 - Every report and every pause writes `docs/iterations/<id>/round-NN/STATE.md` (done, in progress, next,
   open decisions, how to verify).
 
