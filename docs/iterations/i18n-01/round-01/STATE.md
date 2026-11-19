@@ -23,3 +23,17 @@
   --no-pub`; `tool/ios_keyboard_scene.sh --build-only`; `python3 tool/review_lint.py`;
   `python3 tool/check_xcstrings.py --stringsdata ~/Library/Developer/Xcode/DerivedData/Runner-*/Build/Intermediates.noindex/Runner.build/Debug-iphonesimulator`.
   Restore Flutter-regenerated tracked files (`AppFrameworkInfo.plist`, `Podfile.lock`, `Runner.xcscheme`) after a build.
+
+## I3 — region defaults (branch `i18n-01-i3-region`)
+- **Done:** `regionDefaultsFor` (Fun-ASR for Chinese incl. Cantonese, Soniox elsewhere; per-provider language
+  hints; translation profile from the device language), hints sent to Soniox / Fun-ASR, first-launch-only
+  applier with `region_defaults.v1` marker, invariants R1–R3 + unit/model tests, Settings save keeps hints.
+  Provider findings with sources: `I3-implementation.md`.
+- **In progress:** nothing; awaiting coordinator review.
+- **Next:** I5 translates the 16 new profile messages; I4/I5 decide keyboard `PrimaryLanguage` (recommend `mul`).
+- **Open decisions:** Bailian endpoint for non-mainland users (intl), hints visible in Settings, pre-I1 installs
+  without settings count as fresh — `I3-implementation.md` §Open decisions.
+- **How to verify:** `cd mobile && flutter analyze && flutter test test/services/region_defaults_test.dart
+  test/model/region_model_test.dart test/features/settings_save_test.dart`; `SHINSOKU_MODEL_SEEDS=1000` for a long
+  model run; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
+  `tool/host_review.sh i18n-01/round-01/i3 record-idle,record-result,record-listening-live,settings [… pseudo]`.
