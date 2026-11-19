@@ -39,3 +39,18 @@ missing (or stale) selection with the default. Still needed (step 5 must undo th
   frame + hittable before the next drag. New `waitHittable` guards the Search row (after the push) and the
   sheet option (after the sheet animation).
 - Verified: `--build-only` (Xcode 27.2) exit 0; `review_lint.py` ok. Not simulator-run.
+
+## Round 3 — a1c08c1 still failed at `field-rules-seed-entry`; deep link instead of scrolling
+- Product: `shinsoku://settings/field-rules` and `shinsoku://settings/use-in-apps`, handled in
+  `MobileShell._handleDeepLink` (same `DeepLinkBridge` path as `dictation`). They wait for the launch profile
+  load, select the Settings tab and push the page (the same widgets the Settings rows push). Unknown
+  `settings/<page>` and bare `settings` are ignored. The host can deliver a link up to 3 times (openURL, its
+  0.4 s retry, consumeInitialURL), so a link for the page already open is ignored; a different linked page
+  replaces it. The push is not awaited, so the host's `openURL` call returns right away.
+- Test: `mobile/test/app/settings_deep_link_test.dart`: both pages (Field rules: Search row + its sheet lists
+  Review; duplicate delivery pushes once; Back lands on Settings), unknown pages ignored.
+- Scene: `setSearchRule` opens the link with `openDeepLink` (accepts the open-in confirmation if shown), then
+  Search row → sheet → profile, as before. `scrollRunner` removed.
+- Rule M07 in `docs/review_rules.md` (don't scroll Flutter pages in scene tests).
+- Verified: `flutter analyze` clean; `tool/test_diff.sh` no new failures; `review_lint.py` ok;
+  `--build-only` (Xcode 27.2) exit 0. Not simulator-run.

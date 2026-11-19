@@ -14,7 +14,8 @@ import XCTest
 ///
 /// Seed (Runner Debug launch argument `-ShinsokuSceneResetSelection`, `AppDelegate.applySceneProfileArguments`):
 /// the selection is removed, so Dart's launch sync publishes the list and writes the default selection.
-/// Field rule `Search → Review` is set through the app's UI (Settings › Profiles › Field rules): Dart owns the
+/// Field rule `Search → Review` is set through the app's UI (`shinsoku://settings/field-rules` opens Settings ›
+/// Profiles › Field rules; scrolling Settings left Flutter's element tree stale): Dart owns the
 /// rules and mirrors its own copy to `fieldRules.v1` on every launch, so a native seed would be overwritten.
 /// A teardown block sets it back to None, also after a failure.
 ///
@@ -30,6 +31,7 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
 
     private static let seedArguments = ["-ShinsokuSceneResetSelection", "YES"]
     private static let searchKind = "Search"
+    private static let fieldRulesURL = URL(string: "shinsoku://settings/field-rules")!
     private static let noRule = "None"
     private static let lockedStatus = "Turn on Full Access to switch profiles"
     private static let cancel = ["Cancel", "取消"]
@@ -131,15 +133,12 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         runner.terminate()
     }
 
-    /// In the running app: Settings tab › Profiles › Field rules › Search → `profile` (a profile name or None),
+    /// In the running app: opens `shinsoku://settings/field-rules` (the app selects the Settings tab and pushes
+    /// Field rules; no scrolling, Search is the first row), sets Search → `profile` (a profile name or None),
     /// checks the row shows it, attaches `PHASE-xx-<step>` of the Field rules page, then goes back. Saving the
     /// pick mirrors the rules to `fieldRules.v1` (the keyboard reads it on its next appearance).
     private func setSearchRule(_ profile: String, step: String) {
-        let settingsTab = runner.buttons.matching(labelBeginsWith: ["Settings"]).firstMatch
-        tap(settingsTab, "\(step)-settings-tab")
-        let entry = runner.buttons.matching(labelBeginsWith: ["Field rules"]).firstMatch
-        scrollRunner(to: entry, step: "\(step)-entry")
-        entry.tap()
+        openDeepLink(Self.fieldRulesURL, step: "\(step)-link")
         let search = searchRow()
         waitHittable(search, "\(step)-search-row")
         if !search.label.contains(profile) {
@@ -175,31 +174,6 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
             Thread.sleep(forTimeInterval: 0.3)
         }
         check(element.exists && !element.frame.isEmpty && element.isHittable, step, "\(step): not hittable")
-    }
-
-    /// Scrolls the app's page up until `element` is hittable. Flutter updates its accessibility tree a few
-    /// frames after a scroll settles (rows outside the viewport report a zero frame until then), so each step is
-    /// a slow drag held before release (no fling), then a poll of up to 2 s before the next one.
-    private func scrollRunner(to element: XCUIElement, step: String) {
-        func reachable() -> Bool {
-            element.exists && !element.frame.isEmpty && element.isHittable
-        }
-        func settle() -> Bool {
-            let deadline = Date().addingTimeInterval(2)
-            repeat {
-                if reachable() { return true }
-                Thread.sleep(forTimeInterval: 0.3)
-            } while Date() < deadline
-            return false
-        }
-        var found = settle()
-        for _ in 0..<8 where !found {
-            let start = runner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-            let end = runner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
-            start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
-            found = settle()
-        }
-        check(found, step, "\(step): not reachable by scrolling")
     }
 
     /// Safari's address bar focused (keyboard type `.webSearch` → field kind search) with Shinsoku up.

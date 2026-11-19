@@ -11,8 +11,10 @@ import 'package:shinsoku_mobile/app/bridges.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
+import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
+import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
 import 'package:shinsoku_mobile/services/active_profile.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
@@ -94,6 +96,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   VoiceProfile get _activeProfile =>
       resolveActive(_activeProfileStore.selection, _profiles).profile;
 
+  /// Completes once the launch profile load (and field-rules sync) is done.
+  Future<void> _profilesLoaded = Future<void>.value();
+
+  /// The Settings sub-page a `shinsoku://settings/<page>` link pushed and that is still open.
+  String? _linkedSettingsPage;
+
   int get _selectedProfileIndex {
     final id = _activeProfile.id;
     final index = _profiles.indexWhere((profile) => profile.id == id);
@@ -117,7 +125,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       unawaited(_runBailianSmokeTest());
     }
     unawaited(_loadProviderSettings());
-    unawaited(_loadVoiceProfiles());
+    _profilesLoaded = _loadVoiceProfiles();
     unawaited(_refreshMicrophonePermission());
   }
 
@@ -166,7 +174,52 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     if (uri.host == 'dictation' || uri.pathSegments.contains('dictation')) {
       // PR1: the keyboard passes the profile it showed.
       await _handleKeyboardRecordRequest(uri.queryParameters['profile']);
+    } else if (uri.host == 'settings' && uri.pathSegments.length == 1) {
+      await _openSettingsPage(uri.pathSegments.single);
     }
+  }
+
+  /// Sub-pages reachable by `shinsoku://settings/<page>`. Unknown pages are ignored.
+  static const settingsLinkPages = {'field-rules', 'use-in-apps'};
+
+  /// `shinsoku://settings/field-rules` and `shinsoku://settings/use-in-apps`: select the Settings tab and push
+  /// the page, as tapping its row does. The host can deliver one link more than once (openURL, its retry,
+  /// consumeInitialURL), so a link for the page already open is ignored.
+  Future<void> _openSettingsPage(String page) async {
+    if (!settingsLinkPages.contains(page) || _linkedSettingsPage == page) {
+      return;
+    }
+    await _profilesLoaded;
+    if (!mounted || _linkedSettingsPage == page) {
+      return;
+    }
+    final navigator = Navigator.of(context);
+    if (_linkedSettingsPage != null) {
+      navigator.popUntil((route) => route.isFirst);
+    }
+    _selectTab(3);
+    _linkedSettingsPage = page;
+    // Not awaited: the host's openURL call returns now, not when the page closes.
+    unawaited(
+      navigator
+          .push(
+            MaterialPageRoute<void>(
+              builder: (context) => switch (page) {
+                'field-rules' => FieldRulesView(
+                  profiles: _profiles,
+                  rules: _fieldRules,
+                  onChanged: _saveFieldRules,
+                ),
+                _ => UseInAppsView.withSystemVersion(
+                  onOpenShortcuts: openShortcutsApp,
+                ),
+              },
+            ),
+          )
+          .whenComplete(() {
+            if (_linkedSettingsPage == page) _linkedSettingsPage = null;
+          }),
+    );
   }
 
   Future<void> _handleKeyboardRecordRequest(String? profileId) async {
@@ -254,8 +307,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       if (!mounted) {
         return;
@@ -326,7 +380,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         _microphoneAllowed = false;
         _smokeTestStatus = const SmokeTestStatus(
           label: 'Microphone access is off',
-          detail: 'Allow microphone access in iOS Settings, then try recording again.',
+          detail:
+              'Allow microphone access in iOS Settings, then try recording again.',
           failed: true,
           finished: true,
           fix: StatusFix.microphone,
@@ -344,7 +399,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         _microphoneAllowed = false;
         _smokeTestStatus = const SmokeTestStatus(
           label: 'Recording failed',
-          detail: 'Microphone permission was granted but the recorder is not ready.',
+          detail:
+              'Microphone permission was granted but the recorder is not ready.',
           failed: true,
           finished: true,
         );
@@ -625,8 +681,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       return;
     }
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Draft updated.')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Draft updated.')));
   }
 
   Future<void> _loadVoiceProfiles() async {
@@ -841,7 +898,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       _captureState = CaptureState.processing;
       _smokeTestStatus = const SmokeTestStatus(
         label: 'Real Bailian smoke test',
-        detail: 'Calling Bailian text, ASR, and realtime APIs from the iOS simulator.',
+        detail:
+            'Calling Bailian text, ASR, and realtime APIs from the iOS simulator.',
       );
     });
 

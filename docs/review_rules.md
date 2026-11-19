@@ -15,3 +15,4 @@ Pitfalls we have hit. `R*` rules are checked by `tool/review_lint.py` (run one w
 | M04 | New Flutter UI uses the `mobile/lib/ui/` component layer and DESIGN.md tokens, not raw Material widgets or literal colours. | DESIGN.md §5/§8. |
 | M05 | iPhone Duo: no text or control across the hinge; posture change never stops an active recording. | DESIGN.md §6. |
 | M06 | No API keys in app binaries; users enter keys in Settings. Before a submission run `strings` over the IPA's Runner binary and Flutter `App.framework` and look for key prefixes. | Same incident as R04; the lint covers source, this covers the artifact. |
+| M07 | Scene tests (XCUITest) don't scroll Flutter pages to reach a row: after a scroll Flutter's element tree can stay stale (old frames, zero-size rows). Reach the page by a `shinsoku://` deep link, or put the row on the first screen. | profile-01 scene-rules: Field rules was on screen but reported a zero frame after scrolling, in two runs. |
