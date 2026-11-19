@@ -71,3 +71,7 @@
   when StoreKit simply knows no transaction); the keyboard skips a field rule silently without Pro; Settings ›
   Shinsoku Pro first; deleting a profile is not gated.
 - **Next:** TestFlight build with sandbox purchase (ask the user first); release-01 plan.
+
+## Tier C — sandbox purchase (user, 2026-11-19)
+- TestFlight 0.1.0 (22) (`e91c8b6`, delivery 8398a16c-…): the user tested the sandbox purchase on their iPhone —
+  **passed**. pricing-01 is done. Next: release-01 (App Store submission), separate plan.
