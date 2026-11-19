@@ -348,6 +348,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'You can also tap the profile name in the keyboard to switch. It stays until an automation runs again.';
 
   @override
+  String get useInAppsReadyMade =>
+      'Each profile also has a ready-made action in the Shortcuts app, such as “Switch Shinsoku to Chat”. No setup needed.';
+
+  @override
   String get useInAppsIosNote => 'The Shortcuts actions need iOS 16 or later.';
 
   @override
@@ -1077,6 +1081,10 @@ class AppLocalizationsEnXa extends AppLocalizationsEn {
   @override
   String get useInAppsKeyboardNote =>
       '[Ýöü çàñ àlšö ţàp ţhé pröfîlé ñàmé îñ ţhé kéýböàrđ ţö šwîţçh. Îţ šţàýš üñţîl àñ àüţömàţîöñ rüñš àĝàîñ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür]';
+
+  @override
+  String get useInAppsReadyMade =>
+      '[Éàçh pröfîlé àlšö hàš à réàđý-màđé àçţîöñ îñ ţhé Šhörţçüţš àpp, šüçh àš “Šwîţçh Šhîñšökü ţö Çhàţ”. Ñö šéţüp ñééđéđ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîš]';
 
   @override
   String get useInAppsIosNote =>

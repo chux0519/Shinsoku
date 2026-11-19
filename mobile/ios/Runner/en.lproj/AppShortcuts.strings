@@ -2,6 +2,13 @@
    needs an iOS 17 deployment target; Runner targets iOS 15, so phrases live in <lang>.lproj/AppShortcuts.strings.
    I5 adds the other 9 languages as sibling .lproj folders. */
 
+/* Phrase for Set Shinsoku Profile; ${profile} is the user's profile name (keep it). Also the title of the
+   ready-made per-profile action in the Shortcuts app. */
+"Switch ${applicationName} to ${profile}" = "Switch ${applicationName} to ${profile}";
+
+/* Phrase for Set Shinsoku Profile; ${profile} is the user's profile name (keep it) */
+"Use ${profile} in ${applicationName}" = "Use ${profile} in ${applicationName}";
+
 /* Phrase for Set Shinsoku Profile */
 "Set ${applicationName} profile" = "Set ${applicationName} profile";
 

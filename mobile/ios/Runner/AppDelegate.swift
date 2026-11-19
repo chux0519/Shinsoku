@@ -185,6 +185,8 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
 #if DEBUG
     Self.applySceneLaunchArguments()
 #endif
+    // i18n-01 I4: the per-profile App Shortcuts list the profiles last published into the App Group.
+    ShinsokuShortcutParameters.refresh()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -376,8 +378,11 @@ enum ProfileGroupChannel {
           result(FlutterError(code: "invalid-arguments", message: "Bad profile list.", details: nil))
           return
         }
+        let changed = shared.string(forKey: ProfileGroup.profilesKey) != list
         shared.set(list, forKey: ProfileGroup.profilesKey)
-        log.notice("publishProfiles: bytes=\(list.utf8.count)")
+        log.notice("publishProfiles: bytes=\(list.utf8.count) changed=\(changed)")
+        // i18n-01 I4: a renamed, added or deleted profile updates the ready-made shortcuts.
+        if changed { ShinsokuShortcutParameters.refresh() }
         result(nil)
       case "setActive":
         guard let selection = ProfileGroup.sanitizedSelection(arguments?["selection"] as? String) else {

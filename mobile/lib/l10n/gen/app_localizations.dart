@@ -721,6 +721,12 @@ abstract class AppLocalizations {
   /// **'You can also tap the profile name in the keyboard to switch. It stays until an automation runs again.'**
   String get useInAppsKeyboardNote;
 
+  /// Note under the steps: the app adds one Shortcuts action per profile by itself. The quoted example must match the Shortcuts phrase 'Switch ${applicationName} to ${profile}' in this language; 'Chat' is an example profile name.
+  ///
+  /// In en, this message translates to:
+  /// **'Each profile also has a ready-made action in the Shortcuts app, such as “Switch Shinsoku to Chat”. No setup needed.'**
+  String get useInAppsReadyMade;
+
   /// Warning on old iOS versions.
   ///
   /// In en, this message translates to:

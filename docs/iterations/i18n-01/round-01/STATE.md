@@ -23,3 +23,15 @@
   --no-pub`; `tool/ios_keyboard_scene.sh --build-only`; `python3 tool/review_lint.py`;
   `python3 tool/check_xcstrings.py --stringsdata ~/Library/Developer/Xcode/DerivedData/Runner-*/Build/Intermediates.noindex/Runner.build/Debug-iphonesimulator`.
   Restore Flutter-regenerated tracked files (`AppFrameworkInfo.plist`, `Podfile.lock`, `Runner.xcscheme`) after a build.
+
+## I4 — ready-made App Shortcuts per profile (branch `i18n-01-i4-shortcuts`)
+- **Done:** parameterized phrases "Switch Shinsoku to ${profile}" / "Use ${profile} in Shinsoku" on the Set
+  shortcut (first, so Shortcuts shows one tile per profile); `updateAppShortcutParameters()` on launch and when
+  the published profile list changes; phrases in `en.lproj/AppShortcuts.strings` (key form verified against
+  the compiler-extracted stringsdata); one ARB line on Use in apps. Notes: `I4-implementation.md`.
+- **In progress:** nothing; awaiting coordinator review.
+- **Next:** coordinator tier B (scene note in `I4-implementation.md`); I5 translates the two phrases and
+  `useInAppsReadyMade`.
+- **Open decisions:** none.
+- **How to verify:** same commands as I2 above, plus `tool/host_review.sh i18n-01/round-01/i4 use-in-apps`
+  (and `... '' '' pseudo`).
