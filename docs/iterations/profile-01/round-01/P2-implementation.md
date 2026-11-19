@@ -65,3 +65,14 @@ Pending C (device): the Shortcuts *App is opened* automation with Run Immediatel
 - `python3 tool/review_lint.py` → all ok.
 - Flutter-regenerated tracked files (AppFrameworkInfo.plist, Podfile.lock, pbxproj SPM rewrite, scheme,
   pubspec.lock) restored before each commit. No Dart changes, so analyze / test diff are unaffected.
+
+## Round 1 tier-B fixes (coordinator run on iPhone 17, `build/ui-review/profile-01/round-01/iphone17-intent/`)
+Shortcuts did receive the English launch arguments (tiles read "Set Profile" / "Get Profile").
+- dark, `FAIL set-review-picker-Review`: the tap hit the tile container (`Other`, label "Set Profile"), which
+  does not react; now taps the icon `Button` inside it. The picker/dialog lookup only waited on one app; it now
+  polls Shortcuts, SpringBoard and Siri (`com.apple.siri`) together.
+- light, "Neither element nor any descendant has keyboard focus": the Shinsoku section was not there yet (first
+  launch after install, App Shortcuts still indexing), so the search fallback ran and typed without focus. Now
+  waits 10 s for the section first; the search taps until the keyboard is up (3 tries) and checks it
+  (`FAIL-<step>-search-focus`) before typing.
+- FAIL attachments: besides the foreground app's tree, `FAIL-<step>-springboard.txt` (system snippets).

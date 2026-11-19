@@ -19,6 +19,7 @@ import XCTest
 final class ProfileIntentSceneTests: XCTestCase {
     private let shortcuts = XCUIApplication(bundleIdentifier: "com.apple.shortcuts")
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    private let siri = XCUIApplication(bundleIdentifier: "com.apple.siri")
     private let runner = XCUIApplication()
 
     private static let englishArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
@@ -28,8 +29,6 @@ final class ProfileIntentSceneTests: XCTestCase {
 
     private enum L {
         static let shortcutsTab = ["Shortcuts", "快捷指令"]
-        static let allShortcuts = ["All Shortcuts", "所有快捷指令"]
-        static let search = ["Search", "搜索"]
         static let done = ["Done", "完成", "OK", "好"]
         static let allow = ["Allow", "允许", "Always Allow", "始终允许"]
     }
@@ -72,56 +71,66 @@ final class ProfileIntentSceneTests: XCTestCase {
 
     // MARK: Shortcuts
 
-    /// Opens Shinsoku's App Shortcuts in the Shortcuts app and taps the tile; when `pick` is set, chooses that
-    /// profile in the parameter picker.
+    /// Opens Shinsoku's App Shortcuts in the Shortcuts app and taps the tile's icon button (the tile container
+    /// itself does not react); when `pick` is set, chooses that profile in the parameter picker.
     private func runAppShortcut(_ titles: [String], step: String, pick: String?) {
-        openAppShortcuts()
-        let tile = shortcuts.descendants(matching: .any).matching(labelContainsAny: titles).firstMatch
-        tap(tile, "\(step)-tile")
+        openAppShortcuts(step: step)
+        let tile = shortcuts.descendants(matching: .any).matching(labelEquals: titles).firstMatch
+        require(tile, "\(step)-tile")
+        let button = tile.buttons.firstMatch
+        tap(button.exists ? button : tile, "\(step)-tile-button")
         if let pick {
-            let option = anyApp(labelEquals: [pick])
-            require(option, "\(step)-picker-\(pick)", timeout: 10)
+            // The parameter picker: a list in Shortcuts, or a system snippet (SpringBoard / Siri).
+            guard let option = waitInApps(labelEquals: [pick], timeout: 15) else {
+                check(false, "\(step)-picker-\(pick)", "\(step): picker with \(pick) not shown")
+                return
+            }
             shot("\(step)-picker")
             option.tap()
         }
     }
 
-    /// Shortcuts › Shortcuts tab › the Shinsoku app section. Falls back to the library search.
-    private func openAppShortcuts() {
+    /// Shortcuts › Shortcuts tab › the Shinsoku app section. The section appears once the system has indexed
+    /// the app's App Shortcuts (can take a few seconds after install); falls back to the library search.
+    private func openAppShortcuts(step: String) {
         shortcuts.terminate()
         shortcuts.launch()
         check(shortcuts.wait(for: .runningForeground, timeout: 20), "shortcuts-launch", "Shortcuts did not launch")
         let tab = shortcuts.tabBars.buttons.matching(labelEquals: L.shortcutsTab).firstMatch
         if tab.waitForExistence(timeout: 5) { tab.tap() }
-        // Walk back to the root (Shortcuts may restore a folder or an editor).
-        for _ in 0..<4 {
-            let back = shortcuts.navigationBars.buttons.element(boundBy: 0)
-            guard back.exists, back.isHittable, !shortcuts.cells.matching(labelEquals: L.allShortcuts).firstMatch
-                .exists else { break }
-            back.tap()
-        }
-        let section = shortcuts.descendants(matching: .any).matching(labelContainsAny: [Self.appName]).firstMatch
-        var swipes = 0
-        while !section.exists, swipes < 4 {
-            shortcuts.swipeUp()
-            swipes += 1
+        let section = shortcuts.buttons.matching(labelEquals: [Self.appName]).firstMatch
+        if !section.waitForExistence(timeout: 10) {
+            for _ in 0..<4 where !section.exists {
+                shortcuts.swipeUp()
+            }
         }
         if section.exists {
-            tap(section, "shortcuts-app-section")
+            tap(section, "\(step)-app-section")
         } else {
-            let search = shortcuts.searchFields.firstMatch
-            if !search.exists { shortcuts.swipeDown() }
-            tap(search, "shortcuts-search")
-            search.typeText(Self.appName)
+            search(Self.appName, step: step)
         }
-        shot("shortcuts-app-shortcuts")
+        shot("\(step)-app-shortcuts")
+    }
+
+    /// Taps the search field until it has keyboard focus, then types.
+    private func search(_ text: String, step: String) {
+        let field = shortcuts.searchFields.firstMatch
+        if !field.waitForExistence(timeout: 3) { shortcuts.swipeDown() }
+        require(field, "\(step)-search-field")
+        let keyboard = shortcuts.keyboards.firstMatch
+        for _ in 0..<3 where !keyboard.exists {
+            field.tap()
+            _ = keyboard.waitForExistence(timeout: 3)
+        }
+        check(keyboard.exists, "\(step)-search-focus", "\(step): search field has no keyboard focus")
+        field.typeText(text)
     }
 
     /// The intent's dialog (shown by Shortcuts or as a system snippet). Accepts a first-run permission prompt.
     private func expectDialog(_ text: String, step: String) {
-        let dialog = anyApp(labelContainsAny: [text])
+        var dialog: XCUIElement?
         let deadline = Date().addingTimeInterval(20)
-        while !dialog.exists, Date() < deadline {
+        while dialog == nil, Date() < deadline {
             let allow = [springboard, shortcuts]
                 .map { $0.alerts.buttons.matching(labelEquals: L.allow).firstMatch }
                 .first { $0.exists }
@@ -129,27 +138,42 @@ final class ProfileIntentSceneTests: XCTestCase {
                 print("SCENE \(step): permission prompt accepted")
                 allow.tap()
             }
-            _ = dialog.waitForExistence(timeout: 1)
+            dialog = waitInApps(labelContainsAny: [text], timeout: 1)
         }
-        require(dialog, "\(step)-dialog", timeout: 1)
+        guard let dialog else {
+            check(false, "\(step)-dialog", "\(step): dialog '\(text)' not shown")
+            return
+        }
         print("SCENE \(step): \(dialog.label)")
         shot("\(step)-dialog")
-        let done = [springboard, shortcuts]
+        let done = [shortcuts, springboard, siri]
             .map { $0.buttons.matching(labelEquals: L.done).firstMatch }
             .first { $0.exists }
         done?.tap()
     }
 
-    private func anyApp(labelEquals labels: [String]) -> XCUIElement {
-        let inShortcuts = shortcuts.descendants(matching: .any).matching(labelEquals: labels).firstMatch
-        return inShortcuts.exists
-            ? inShortcuts : springboard.descendants(matching: .any).matching(labelEquals: labels).firstMatch
+    /// Apps that can host the picker or the dialog snippet.
+    private var hosts: [XCUIApplication] { [shortcuts, springboard, siri] }
+
+    private func waitInApps(labelEquals labels: [String], timeout: TimeInterval) -> XCUIElement? {
+        waitInApps(timeout: timeout) { $0.descendants(matching: .any).matching(labelEquals: labels).firstMatch }
     }
 
-    private func anyApp(labelContainsAny parts: [String]) -> XCUIElement {
-        let inShortcuts = shortcuts.descendants(matching: .any).matching(labelContainsAny: parts).firstMatch
-        return inShortcuts.exists
-            ? inShortcuts : springboard.descendants(matching: .any).matching(labelContainsAny: parts).firstMatch
+    private func waitInApps(labelContainsAny parts: [String], timeout: TimeInterval) -> XCUIElement? {
+        waitInApps(timeout: timeout) { $0.descendants(matching: .any).matching(labelContainsAny: parts).firstMatch }
+    }
+
+    /// Polls every host app (an element query on one app does not see the others).
+    private func waitInApps(timeout: TimeInterval, _ query: (XCUIApplication) -> XCUIElement) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            for app in hosts {
+                let element = query(app)
+                if element.exists { return element }
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        } while Date() < deadline
+        return nil
     }
 
     // MARK: Helpers (same contract as KeyboardSceneTests)
@@ -180,11 +204,14 @@ final class ProfileIntentSceneTests: XCTestCase {
         attachment.name = "FAIL-\(step)"
         attachment.lifetime = .keepAlways
         add(attachment)
+        // Element trees: the foreground app as FAIL-<step>, plus SpringBoard (system snippets, alerts).
         let foreground = [shortcuts, runner, springboard].first { $0.state == .runningForeground } ?? springboard
-        let tree = XCTAttachment(string: foreground.debugDescription)
-        tree.name = "FAIL-\(step)"
-        tree.lifetime = .keepAlways
-        add(tree)
+        for (suffix, app) in [("", foreground), ("-springboard", springboard)] where suffix.isEmpty || app != foreground {
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.name = "FAIL-\(step)\(suffix)"
+            tree.lifetime = .keepAlways
+            add(tree)
+        }
         print("SCENE FAIL \(step): \(message)")
         XCTFail(message, file: file, line: line)
     }
