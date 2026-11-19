@@ -1,6 +1,6 @@
 # Iteration profile-01 — a different profile for each app (iOS)
 
-Status: **awaiting user confirmation** (2026-11-19). Base: `main` @ e17734e (TestFlight 0.1.0 (19)).
+Status: **confirmed by the user 2026-11-19** (approach + precedence). Base: `main` @ e17734e (TestFlight 0.1.0 (19)).
 
 ## Goal
 When the user dictates in Slack, Shinsoku uses "Chat"; in Mail, "Review"; in a translation app, "ZH → EN" —
