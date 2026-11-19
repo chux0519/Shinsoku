@@ -6,6 +6,7 @@ import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
 import 'package:shinsoku_mobile/services/active_profile.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/profile_reason.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/theme.dart';
@@ -26,10 +27,14 @@ class _Bridge implements FieldRulesBridge {
       mirrored = rules;
 }
 
-Widget _app(Widget home) => MaterialApp(
+Widget _app(Widget home, {bool owned = true}) => MaterialApp(
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   theme: buildSkTheme(Brightness.dark),
+  builder: (context, child) => ProScope(
+    entitlement: FakeProEntitlement(owned: owned),
+    child: child!,
+  ),
   home: home,
 );
 

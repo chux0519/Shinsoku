@@ -6,6 +6,7 @@ import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
 import 'package:shinsoku_mobile/main.dart';
 import 'package:shinsoku_mobile/services/active_profile.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 
 /// `shinsoku://settings/<page>` deep links (scene-rules): the shell selects
 /// the Settings tab and pushes the page; unknown pages are ignored; a link
@@ -41,7 +42,9 @@ void main() {
     tester.view.physicalSize = const Size(402, 874);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(const ShinsokuMobileApp());
+    await tester.pumpWidget(
+      ShinsokuMobileApp(proEntitlement: FakeProEntitlement(owned: true)),
+    );
     await tester.pumpAndSettle();
   }
 

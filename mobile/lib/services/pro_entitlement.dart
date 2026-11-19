@@ -164,7 +164,7 @@ class FakeProEntitlement extends _ProEntitlementBase {
     _set(
       applyRestoreResult(
         value,
-        restoreFinds ? ProPurchaseResult.purchased : ProPurchaseResult.failed,
+        ProPurchaseResult.purchased,
         ownedAfter: restoreFinds,
       ),
     );
@@ -251,6 +251,9 @@ class ChannelProEntitlement extends _ProEntitlementBase {
     'net.potafree.shinsoku/store/updates',
   );
 
+  /// How long `state` may take before the UI stops waiting for the price.
+  static const stateTimeout = Duration(seconds: 10);
+
   final MethodChannel _channel;
   final EventChannel _updates;
   StreamSubscription<Object?>? _subscription;
@@ -291,17 +294,41 @@ class ChannelProEntitlement extends _ProEntitlementBase {
 
   void _onUpdate(Object? event) => _applyStateMap(event);
 
+  /// Stops waiting for `state` after [stateTimeout]; cancelled on dispose
+  /// so no timer outlives the app (or a test).
+  Timer? _stateTimer;
+
   @override
   Future<void> refresh() async {
     _set(value.copyWith(busy: true));
-    try {
-      _applyStateMap(await _channel.invokeMethod<Object?>('state'));
-      _listenForUpdates();
-    } on MissingPluginException {
-      // No store here: keep what we have (not owned by default).
-    } catch (error) {
-      debugPrint('ShinsokuPro state error: $error');
-    }
+    final answer = Completer<Object?>();
+    _stateTimer?.cancel();
+    _stateTimer = Timer(stateTimeout, () {
+      if (answer.isCompleted) return;
+      // A store that does not answer must not keep "Loading price…" up:
+      // Buy falls back to the plain label (E1: owned unchanged).
+      debugPrint('ShinsokuPro state timed out');
+      answer.complete(null);
+    });
+    _channel
+        .invokeMethod<Object?>('state')
+        .then(
+          (raw) {
+            // A late answer still counts (only the spinner gave up).
+            _applyStateMap(raw);
+            _listenForUpdates();
+            if (!answer.isCompleted) answer.complete(null);
+          },
+          onError: (Object error) {
+            // No plugin here: keep what we have (not owned by default).
+            if (error is! MissingPluginException) {
+              debugPrint('ShinsokuPro state error: $error');
+            }
+            if (!answer.isCompleted) answer.complete(null);
+          },
+        );
+    await answer.future;
+    _stateTimer?.cancel();
     _set(value.copyWith(busy: _acting));
   }
 
@@ -361,6 +388,7 @@ class ChannelProEntitlement extends _ProEntitlementBase {
 
   @override
   void dispose() {
+    _stateTimer?.cancel();
     unawaited(_subscription?.cancel());
     super.dispose();
   }
