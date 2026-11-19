@@ -10,6 +10,7 @@ import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
 import '../model/scripted_pipeline.dart';
+import '../support/l10n.dart';
 
 const _field = ValueKey('record-transcript-field');
 const _iphone = Size(402, 874);
@@ -47,6 +48,9 @@ class ShellDriver {
     addTearDown(t.view.reset);
     await t.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+
         theme: buildSkTheme(Brightness.dark),
         home: MobileShell(
           pipelineFactory: () {
@@ -135,7 +139,7 @@ void main() {
     await d.settle();
     expect(d.area, 'Example heard. almost');
     expect(d.drafts, ['Example heard. almost']);
-    expect(d.status, SkStrings.recordingStopped);
+    expect(d.status, en.recordStopped);
     // Editable now; Record again offers a new recording.
     expect(t.widget<TextField>(find.byKey(_field)).readOnly, isFalse);
     await t.tap(find.byKey(const ValueKey('record-status-fix')));
@@ -168,7 +172,7 @@ void main() {
     await d.pipeline.process();
     await d.settle();
     expect(d.area, 'example raw');
-    expect(d.status, SkStrings.processing);
+    expect(d.status, en.recordProcessing);
     await d.pipeline.process();
     await d.settle();
     expect(d.area, 'EXAMPLE RAW');
@@ -191,7 +195,7 @@ void main() {
     await d.settle();
     expect(d.drafts, ['Example take, edited.']);
     expect(d.published.last, 'Example take, edited. ');
-    expect(d.status, SkStrings.savedInsert);
+    expect(d.status, en.recordSavedInsert);
   });
 
   testWidgets('Drafts editing the Record draft updates the Record area', (

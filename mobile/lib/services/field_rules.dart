@@ -7,15 +7,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// The kinds of text field the keyboard can tell apart (profile-01 P3). Wire
 /// names are shared with the keyboard through `fieldRules.v1`.
 enum FieldKind {
-  search('search', 'Search'),
-  url('url', 'Web address'),
-  email('email', 'Email'),
-  message('message', 'Message');
+  search('search'),
+  url('url'),
+  email('email'),
+  message('message');
 
-  const FieldKind(this.wireName, this.label);
+  const FieldKind(this.wireName);
 
   final String wireName;
-  final String label;
 }
 
 /// Field kind → profile id. A kind without an entry has no rule ("None").

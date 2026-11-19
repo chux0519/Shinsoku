@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'sk_pressable.dart';
 import 'tokens.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 enum SkRecordState {
   /// Ready: accent fill, microphone.
@@ -38,11 +39,11 @@ class SkRecordButton extends StatelessWidget {
   final double size;
   final String? semanticLabel;
 
-  String get _defaultLabel => switch (state) {
-    SkRecordState.idle => 'Start recording',
-    SkRecordState.listening => 'Stop recording',
-    SkRecordState.processing => 'Transcribing',
-    SkRecordState.unavailable => 'Recording unavailable',
+  String _defaultLabel(AppLocalizations l) => switch (state) {
+    SkRecordState.idle => l.recordButtonStart,
+    SkRecordState.listening => l.recordButtonStop,
+    SkRecordState.processing => l.recordStatusTranscribing,
+    SkRecordState.unavailable => l.recordButtonUnavailable,
   };
 
   @override
@@ -72,7 +73,7 @@ class SkRecordButton extends StatelessWidget {
               onPressed!();
             }
           : null,
-      semanticLabel: semanticLabel ?? _defaultLabel,
+      semanticLabel: semanticLabel ?? _defaultLabel(context.l10n),
       minSize: Size.square(size + 32),
       builder: (context, pressed) {
         final duration = SkMotion.of(context, SkMotion.fast);

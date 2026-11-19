@@ -21,6 +21,7 @@ import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import '../support/l10n.dart';
 
 typedef SceneBuilder = Widget Function();
 
@@ -218,11 +219,9 @@ final scenes = <String, SceneBuilder>{
   'record-editing': () => _withKeyboard(_record(status: _doneStatus)),
   // The connection dropped: what was heard stays, editable, with a retry.
   'record-dropped': () => _record(
-    status: const SmokeTestStatus(
-      label: SkStrings.recordingStopped,
-      detail:
-          '${SkStrings.heardTextKept} (Bailian connection closed before '
-          'the result.)',
+    status: SmokeTestStatus(
+      label: en.recordStopped,
+      detail: '${en.recordHeardTextKept} ${en.failureConnectionLost}',
       failed: true,
       finished: true,
       fix: StatusFix.retry,
@@ -234,8 +233,8 @@ final scenes = <String, SceneBuilder>{
   ),
   // Done after an edit: saved into the same draft and republished.
   'record-saved': () => _record(
-    status: const SmokeTestStatus(
-      label: SkStrings.savedInsert,
+    status: SmokeTestStatus(
+      label: en.recordSavedInsert,
       detail: '',
       finished: true,
     ),

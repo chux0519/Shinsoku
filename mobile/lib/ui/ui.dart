@@ -12,6 +12,5 @@ export 'sk_sheet.dart';
 export 'sk_status.dart';
 export 'sk_text_area.dart';
 export 'sk_transcript_area.dart';
-export 'strings.dart';
 export 'theme.dart';
 export 'tokens.dart';

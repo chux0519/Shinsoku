@@ -8,6 +8,7 @@ import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import '../support/l10n.dart';
 
 const _field = ValueKey('record-transcript-field');
 
@@ -19,6 +20,9 @@ class _World {
   CaptureState state = CaptureState.idle;
 
   Widget build() => MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+
     theme: buildSkTheme(Brightness.dark),
     home: Scaffold(
       body: RecordView(
@@ -69,14 +73,14 @@ void main() {
   ) async {
     final w = _World();
     await _phone(t, w);
-    expect(find.text(SkStrings.recordPlaceholder), findsOneWidget);
+    expect(find.text(en.recordPlaceholder), findsOneWidget);
     expect(_textField(t).readOnly, isFalse);
 
     w.state = CaptureState.listening;
     w.live.value = const LiveTranscript(phase: LivePhase.listening);
     await t.pumpWidget(w.build());
     expect(_textField(t).readOnly, isTrue);
-    expect(find.text(SkStrings.listeningPlaceholder), findsOneWidget);
+    expect(find.text(en.recordListeningPlaceholder), findsOneWidget);
 
     w.live.value = const LiveTranscript(
       committed: 'Move the review ',
@@ -117,7 +121,7 @@ void main() {
     await t.pumpWidget(w.build());
     expect(_textField(t).readOnly, isTrue);
     expect(_textField(t).style!.color, SkColors.dark.textSecondary);
-    expect(find.text(SkStrings.processing), findsOneWidget);
+    expect(find.text(en.recordProcessing), findsOneWidget);
 
     // Done: the processed text replaces it once, editable.
     w.state = CaptureState.idle;
@@ -217,14 +221,14 @@ void main() {
     await t.longPress(find.byKey(_field));
     await t.pumpAndSettle();
     // The Material toolbar on the test host folds extra items behind More.
-    if (find.text(SkStrings.clear).evaluate().isEmpty) {
+    if (find.text(en.commonClear).evaluate().isEmpty) {
       await t.tap(find.byTooltip('More'));
       await t.pumpAndSettle();
     }
-    expect(find.text(SkStrings.clear), findsOneWidget);
-    await t.tap(find.text(SkStrings.clear));
+    expect(find.text(en.commonClear), findsOneWidget);
+    await t.tap(find.text(en.commonClear));
     await t.pumpAndSettle();
     expect(_controller(t).text, isEmpty);
-    expect(find.text(SkStrings.clear), findsNothing);
+    expect(find.text(en.commonClear), findsNothing);
   });
 }

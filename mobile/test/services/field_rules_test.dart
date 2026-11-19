@@ -9,6 +9,7 @@ import 'package:shinsoku_mobile/services/field_rules.dart';
 import 'package:shinsoku_mobile/services/profile_reason.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/theme.dart';
+import '../support/l10n.dart';
 
 class _Storage implements FieldRulesStorage {
   String? value;
@@ -25,8 +26,12 @@ class _Bridge implements FieldRulesBridge {
       mirrored = rules;
 }
 
-Widget _app(Widget home) =>
-    MaterialApp(theme: buildSkTheme(Brightness.dark), home: home);
+Widget _app(Widget home) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  theme: buildSkTheme(Brightness.dark),
+  home: home,
+);
 
 void main() {
   group('FieldRulesStore', () {
@@ -101,7 +106,7 @@ void main() {
       _app(UseInAppsView(onOpenShortcuts: () async => ++opened > 0)),
     );
     expect(find.text('Open Shortcuts'), findsOneWidget);
-    expect(find.text(UseInAppsView.iosNote), findsNothing);
+    expect(find.text(en.useInAppsIosNote), findsNothing);
     await tester.tap(find.text('Open Shortcuts'));
     expect(opened, 1);
 
@@ -110,25 +115,25 @@ void main() {
         UseInAppsView(onOpenShortcuts: () async => true, iosMajorVersion: 15),
       ),
     );
-    expect(find.text(UseInAppsView.iosNote), findsOneWidget);
+    expect(find.text(en.useInAppsIosNote), findsOneWidget);
   });
 
   group('profile reason', () {
     test('wording per source', () {
       expect(
-        activeProfileReason('Chat', ProfileSource.manual),
+        activeProfileReason(en, 'Chat', ProfileSource.manual),
         'Chat · set by you',
       );
       expect(
-        activeProfileReason('Chat', ProfileSource.automation),
+        activeProfileReason(en, 'Chat', ProfileSource.automation),
         'Chat · set by automation',
       );
       expect(
-        activeProfileReason('Dictation', ProfileSource.byDefault),
+        activeProfileReason(en, 'Dictation', ProfileSource.byDefault),
         'Dictation · default',
       );
       expect(
-        activeProfileReason('Dictation', ProfileSource.fieldRule),
+        activeProfileReason(en, 'Dictation', ProfileSource.fieldRule),
         'Dictation · default',
       );
     });

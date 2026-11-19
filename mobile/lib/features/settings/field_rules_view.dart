@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
@@ -23,11 +24,6 @@ class FieldRulesView extends StatefulWidget {
   final FieldRules rules;
   final Future<void> Function(FieldRules rules) onChanged;
 
-  static const summary =
-      'Use a profile automatically in certain kinds of field. It applies only '
-      'when you have not picked a profile in the keyboard and no automation '
-      'has set one.';
-
   @override
   State<FieldRulesView> createState() => _FieldRulesViewState();
 }
@@ -39,18 +35,18 @@ class _FieldRulesViewState extends State<FieldRulesView> {
     for (final profile in widget.profiles) {
       if (profile.id == id) return profile.name;
     }
-    return 'None';
+    return context.l10n.fieldRulesNone;
   }
 
   Future<void> _pick(FieldKind kind) async {
     final pick = await showSkSheet<_Pick>(
       context: context,
       builder: (context) => SkSheet(
-        title: kind.label,
+        title: fieldKindLabel(context.l10n, kind),
         child: SkSection(
           children: [
             SkListRow(
-              title: 'None',
+              title: context.l10n.fieldRulesNone,
               selected: _rules[kind] == null,
               onTap: () => Navigator.of(context).pop(const _Pick(null)),
             ),
@@ -75,10 +71,10 @@ class _FieldRulesViewState extends State<FieldRulesView> {
     final c = SkColors.of(context);
     return Scaffold(
       appBar: SkTopBar(
-        title: 'Field rules',
+        title: context.l10n.fieldRulesTitle,
         leading: SkIconButton(
           icon: Icons.arrow_back_ios_new_rounded,
-          tooltip: 'Back',
+          tooltip: context.l10n.commonBack,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -92,7 +88,7 @@ class _FieldRulesViewState extends State<FieldRulesView> {
             ),
             children: [
               Text(
-                FieldRulesView.summary,
+                context.l10n.fieldRulesSummary,
                 style: SkType.body.copyWith(color: c.textSecondary),
               ),
               const SizedBox(height: SkSpace.l),
@@ -100,7 +96,7 @@ class _FieldRulesViewState extends State<FieldRulesView> {
                 children: [
                   for (final kind in FieldKind.values)
                     SkListRow(
-                      title: kind.label,
+                      title: fieldKindLabel(context.l10n, kind),
                       value: _nameOf(_rules[kind]),
                       chevron: true,
                       onTap: () => _pick(kind),
@@ -114,3 +110,11 @@ class _FieldRulesViewState extends State<FieldRulesView> {
     );
   }
 }
+
+/// The field kind's name as the list and the picker show it.
+String fieldKindLabel(AppLocalizations l, FieldKind kind) => switch (kind) {
+  FieldKind.search => l.fieldKindSearch,
+  FieldKind.url => l.fieldKindUrl,
+  FieldKind.email => l.fieldKindEmail,
+  FieldKind.message => l.fieldKindMessage,
+};

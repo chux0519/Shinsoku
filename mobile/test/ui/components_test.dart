@@ -3,8 +3,12 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 Widget _host(Widget child, {bool reduceMotion = false}) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+
   theme: buildSkTheme(Brightness.dark),
   home: MediaQuery(
     data: MediaQueryData(disableAnimations: reduceMotion),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'sk_button.dart';
 import 'tokens.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 /// DESIGN §5 sheet: raised surface, top radius 28, a grabber, a title, and the
 /// only shadow DESIGN allows (floating sheets). Content scrolls and stays above
@@ -127,7 +128,7 @@ Future<bool> showSkConfirm({
       title: title,
       actions: [
         SkButton.secondary(
-          label: 'Cancel',
+          label: context.l10n.commonCancel,
           expand: true,
           onPressed: () => Navigator.of(context).pop(false),
         ),

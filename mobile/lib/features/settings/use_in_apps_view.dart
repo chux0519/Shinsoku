@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/shortcuts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
@@ -28,39 +29,23 @@ class UseInAppsView extends StatelessWidget {
   /// Null: unknown / not iOS, so the iOS 16 note is not shown.
   final int? iosMajorVersion;
 
-  static const summary =
-      'Shinsoku can switch profile by itself when you open an app. '
-      'Shortcuts watches for the app; Shinsoku sets the profile.';
-
-  static const openSteps = [
-    'In Shortcuts, open Automation and tap New Automation.',
-    'Choose App, pick the app, and select Is Opened. Turn on Run Immediately.',
-    'Add the action Set Shinsoku Profile and choose the profile for that app.',
-  ];
-
-  static const closeSteps = [
-    'Add a second automation for the same app and select Is Closed. Turn on '
-        'Run Immediately.',
-    'Add Set Shinsoku Profile and choose your default profile, so other apps '
-        'go back to it.',
-  ];
-
-  static const keyboardNote =
-      'You can also tap the profile name in the keyboard to switch. It stays '
-      'until an automation runs again.';
-
-  static const iosNote = 'The Shortcuts actions need iOS 16 or later.';
-
   @override
   Widget build(BuildContext context) {
     final c = SkColors.of(context);
+    final l = context.l10n;
+    final openSteps = [
+      l.useInAppsOpenStep1,
+      l.useInAppsOpenStep2,
+      l.useInAppsOpenStep3,
+    ];
+    final closeSteps = [l.useInAppsCloseStep1, l.useInAppsCloseStep2];
     final oldIos = iosMajorVersion != null && iosMajorVersion! < 16;
     return Scaffold(
       appBar: SkTopBar(
-        title: 'Use in apps',
+        title: l.settingsUseInApps,
         leading: SkIconButton(
           icon: Icons.arrow_back_ios_new_rounded,
-          tooltip: 'Back',
+          tooltip: l.commonBack,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -75,20 +60,20 @@ class UseInAppsView extends StatelessWidget {
                   padding: insets.copyWith(top: SkSpace.s, bottom: SkSpace.xl),
                   children: [
                     Text(
-                      summary,
+                      l.useInAppsSummary,
                       style: SkType.body.copyWith(color: c.textSecondary),
                     ),
                     if (oldIos) ...[
                       const SizedBox(height: SkSpace.m),
-                      const SkStatusLine(
+                      SkStatusLine(
                         icon: Icons.info_outline_rounded,
                         tone: SkTone.warning,
-                        text: iosNote,
+                        text: l.useInAppsIosNote,
                       ),
                     ],
                     const SizedBox(height: SkSpace.l),
                     SkSection(
-                      label: 'When the app is opened',
+                      label: l.useInAppsWhenOpened,
                       children: [
                         for (var i = 0; i < openSteps.length; i++)
                           _StepRow(number: i + 1, text: openSteps[i]),
@@ -96,7 +81,7 @@ class UseInAppsView extends StatelessWidget {
                     ),
                     const SizedBox(height: SkSpace.l),
                     SkSection(
-                      label: 'When the app is closed',
+                      label: l.useInAppsWhenClosed,
                       children: [
                         for (var i = 0; i < closeSteps.length; i++)
                           _StepRow(number: i + 1, text: closeSteps[i]),
@@ -104,7 +89,7 @@ class UseInAppsView extends StatelessWidget {
                     ),
                     const SizedBox(height: SkSpace.l),
                     Text(
-                      keyboardNote,
+                      l.useInAppsKeyboardNote,
                       style: SkType.secondary.copyWith(color: c.textSecondary),
                     ),
                   ],
@@ -116,7 +101,7 @@ class UseInAppsView extends StatelessWidget {
                   bottom: MediaQuery.paddingOf(context).bottom + SkSpace.l,
                 ),
                 child: SkButton(
-                  label: 'Open Shortcuts',
+                  label: l.useInAppsOpenShortcuts,
                   icon: Icons.open_in_new_rounded,
                   expand: true,
                   onPressed: onOpenShortcuts,

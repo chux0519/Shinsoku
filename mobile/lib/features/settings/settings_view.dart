@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
 import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
+import 'package:shinsoku_mobile/l10n/failure_text.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
@@ -160,19 +162,26 @@ class _SettingsViewState extends State<SettingsView> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Provider settings saved')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.settingsSaved)));
     } catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.settingsSaveFailed(
+              describeFailure(context.l10n, error),
+            ),
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final providerConfigured = switch (_speechProvider) {
       'soniox' => _sonioxKeyController.text.trim().isNotEmpty,
       _ => _bailianKeyController.text.trim().isNotEmpty,
@@ -184,23 +193,23 @@ class _SettingsViewState extends State<SettingsView> {
     const fieldGap = SizedBox(height: SkSpace.m);
 
     return SkPage(
-      title: 'Settings',
+      title: l.settingsTitle,
       children: [
         SkSection(
-          label: 'Recognition',
+          label: l.settingsSectionRecognition,
           children: [
             SkListRow.toggle(
               leading: Icons.mic_none_rounded,
-              title: 'Microphone access',
+              title: l.settingsMicrophoneTitle,
               subtitle: widget.microphoneAllowed
-                  ? 'Allowed for voice capture'
-                  : 'Tap to allow microphone access',
+                  ? l.settingsMicrophoneAllowed
+                  : l.settingsMicrophoneTapToAllow,
               value: widget.microphoneAllowed,
               onChanged: (_) => widget.onMicrophonePressed(),
             ),
             SkSectionBody(
               child: SkSegmented<String>(
-                semanticLabel: 'Speech provider',
+                semanticLabel: l.settingsSpeechProvider,
                 segments: const [
                   SkSegment(value: 'bailian', label: 'Bailian'),
                   SkSegment(value: 'soniox', label: 'Soniox'),
@@ -211,18 +220,18 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             SkListRow.toggle(
               leading: Icons.translate_rounded,
-              title: 'Text post-processing',
-              subtitle: 'Use $textModel for cleanup or translation',
+              title: l.settingsPostProcessingTitle,
+              subtitle: l.settingsPostProcessingSubtitle(textModel),
               value: _textTransformEnabled,
               onChanged: (value) =>
                   setState(() => _textTransformEnabled = value),
             ),
             SkListRow.toggle(
               leading: Icons.cloud_outlined,
-              title: 'Cloud processing',
+              title: l.settingsCloudTitle,
               subtitle: providerConfigured
-                  ? 'Provider credentials are saved'
-                  : 'Save provider credentials before real transcription',
+                  ? l.settingsCloudSaved
+                  : l.settingsCloudNotSaved,
               value: widget.cloudProcessingEnabled,
               onChanged: widget.onCloudProcessingChanged,
             ),
@@ -230,7 +239,7 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         gap,
         if (widget.providerSettingsLoading) ...[
-          const SkStatusLine(text: 'Loading saved settings', busy: true),
+          SkStatusLine(text: l.settingsLoading, busy: true),
           const SizedBox(height: SkSpace.m),
         ],
         SkSection(
@@ -250,7 +259,7 @@ class _SettingsViewState extends State<SettingsView> {
                         fieldGap,
                         SkTextArea.field(
                           controller: _sonioxModelController,
-                          label: 'Realtime model',
+                          label: l.settingsRealtimeModel,
                         ),
                       ],
                     )
@@ -265,13 +274,13 @@ class _SettingsViewState extends State<SettingsView> {
                           ),
                         ),
                         fieldGap,
-                        _FieldLabel('Recognition mode'),
+                        _FieldLabel(l.settingsRecognitionMode),
                         SkSegmented<String>(
-                          semanticLabel: 'Recognition mode',
-                          segments: const [
+                          semanticLabel: l.settingsRecognitionMode,
+                          segments: [
                             SkSegment(
                               value: bailianAsrModeRealtime,
-                              label: 'Streaming',
+                              label: l.settingsModeStreaming,
                             ),
                             SkSegment(
                               value: bailianAsrModeQwen,
@@ -285,29 +294,29 @@ class _SettingsViewState extends State<SettingsView> {
                         fieldGap,
                         SkTextArea.field(
                           controller: bailianRealtimeModelController,
-                          label: 'Streaming ASR model',
+                          label: l.settingsStreamingModel,
                         ),
                         fieldGap,
                         SkTextArea.field(
                           controller: _bailianAsrModelController,
-                          label: 'Qwen-ASR batch model',
+                          label: l.settingsBatchModel,
                         ),
                         fieldGap,
                         SkTextArea.field(
                           controller: _bailianTextModelController,
-                          label: 'Post-processing OpenAI model',
-                          helper: 'Used only when Text post-processing is on',
+                          label: l.settingsPostProcessingModel,
+                          helper: l.settingsPostProcessingModelHelper,
                         ),
                         fieldGap,
                         SkTextArea.field(
                           controller: _bailianBaseController,
-                          label: 'OpenAI-compatible base URL',
+                          label: l.settingsBaseUrl,
                           keyboardType: TextInputType.url,
                         ),
                         fieldGap,
                         SkTextArea.field(
                           controller: bailianRealtimeUrlController,
-                          label: 'Realtime WebSocket URL',
+                          label: l.settingsRealtimeUrl,
                           keyboardType: TextInputType.url,
                         ),
                       ],
@@ -317,14 +326,16 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         const SizedBox(height: SkSpace.l),
         SkButton(
-          label: widget.providerSettingsSaving ? 'Saving' : 'Save Settings',
+          label: widget.providerSettingsSaving
+              ? l.settingsSaving
+              : l.settingsSave,
           busy: widget.providerSettingsSaving,
           expand: true,
           onPressed: _save,
         ),
         gap,
         SkSection(
-          label: 'Profiles',
+          label: l.settingsSectionProfiles,
           children: [
             for (final profile in widget.profiles)
               SkListRow(
@@ -338,14 +349,14 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             SkListRow(
               leading: Icons.add_rounded,
-              title: 'Add profile',
+              title: l.settingsAddProfile,
               accentTitle: true,
               onTap: widget.onProfileAdded,
             ),
             SkListRow(
               leading: Icons.apps_rounded,
-              title: 'Use in apps',
-              subtitle: 'Switch profile when you open an app',
+              title: l.settingsUseInApps,
+              subtitle: l.settingsUseInAppsSubtitle,
               chevron: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -359,8 +370,8 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             SkListRow(
               leading: Icons.text_fields_rounded,
-              title: 'Field rules',
-              subtitle: 'Search, web address, email, message',
+              title: l.settingsFieldRules,
+              subtitle: l.settingsFieldRulesSubtitle,
               chevron: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -376,12 +387,12 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         gap,
         SkSection(
-          label: 'Keyboard',
+          label: l.settingsSectionKeyboard,
           children: [
             SkListRow(
               leading: Icons.keyboard_alt_outlined,
-              title: 'Keyboard setup',
-              subtitle: 'Add Shinsoku and allow Full Access',
+              title: l.settingsKeyboardSetup,
+              subtitle: l.settingsKeyboardSetupSubtitle,
               chevron: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -402,10 +413,12 @@ class _SettingsViewState extends State<SettingsView> {
   }) {
     return SkTextArea.field(
       controller: controller,
-      label: 'API key',
+      label: context.l10n.settingsApiKey,
       obscureText: !show,
       trailing: SkIconButton(
-        tooltip: show ? 'Hide key' : 'Show key',
+        tooltip: show
+            ? context.l10n.settingsHideKey
+            : context.l10n.settingsShowKey,
         onPressed: onToggle,
         icon: show ? Icons.visibility_off_outlined : Icons.visibility_outlined,
       ),

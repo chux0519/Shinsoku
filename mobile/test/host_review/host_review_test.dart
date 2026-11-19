@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/ui/theme.dart';
 
 import 'scenes.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 class _Device {
   const _Device(this.size, this.padding, {this.textScale = 1, this.fold});
@@ -171,6 +172,9 @@ void main() {
             RepaintBoundary(
               key: boundary,
               child: MaterialApp(
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+
                 debugShowCheckedModeBanner: false,
                 theme: buildSkTheme(brightness),
                 themeAnimationStyle: AnimationStyle.noAnimation,

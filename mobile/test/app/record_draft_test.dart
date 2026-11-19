@@ -8,6 +8,7 @@ import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import '../support/l10n.dart';
 
 class _Capture implements DebugCapture {
   int takes = 0;
@@ -44,6 +45,9 @@ void main() {
     addTearDown(t.view.reset);
     await t.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+
         theme: buildSkTheme(Brightness.dark),
         home: MobileShell(debugCapture: _Capture()),
       ),
@@ -113,7 +117,7 @@ void main() {
     await pumpShell(t);
     await toggle(t);
     await toggle(t);
-    await openTab(t, ShellScaffold.tabs[1].label);
+    await openTab(t, ShellScaffold.tabsFor(en)[1].label);
     await t.tap(find.text('Take 1.'));
     await t.pumpAndSettle();
     expect(find.byType(SkTranscriptArea), findsOneWidget);
@@ -126,7 +130,7 @@ void main() {
     expect(draftTexts(t), ['Take 1, from Drafts.']);
 
     // Record still edits that same draft (L3), not a new one.
-    await openTab(t, ShellScaffold.tabs[0].label);
+    await openTab(t, ShellScaffold.tabsFor(en)[0].label);
     await t.enterText(find.byKey(_field), 'Take 1, from Record.');
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('record-done')));

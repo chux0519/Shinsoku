@@ -5,6 +5,7 @@ import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/theme.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 Widget _record({
   SmokeTestStatus? status,
@@ -14,6 +15,9 @@ Widget _record({
   VoidCallback? onCapture,
   ValueChanged<int>? onProfile,
 }) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+
   theme: buildSkTheme(Brightness.dark),
   home: Scaffold(
     body: RecordView(

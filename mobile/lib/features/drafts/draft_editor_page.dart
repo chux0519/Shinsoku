@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 /// A draft opened from Drafts, in the same borderless transcript editor as
 /// the Record screen (live-01). Top bar: back, Copy, Save. Leaving with
@@ -84,11 +85,11 @@ class _DraftEditorPageState extends State<DraftEditorPage> {
       },
       child: Scaffold(
         appBar: SkTopBar(
-          title: SkStrings.draftEditorTitle,
+          title: context.l10n.draftEditorTitle,
           leading: SkIconButton(
             key: const ValueKey('draft-editor-back'),
             icon: Icons.arrow_back_ios_new_rounded,
-            tooltip: SkStrings.back,
+            tooltip: context.l10n.commonBack,
             size: 20,
             onPressed: () => Navigator.of(context).maybePop(),
           ),
@@ -96,12 +97,12 @@ class _DraftEditorPageState extends State<DraftEditorPage> {
             SkIconButton(
               key: const ValueKey('draft-editor-copy'),
               icon: Icons.content_copy_outlined,
-              tooltip: SkStrings.copy,
+              tooltip: context.l10n.commonCopy,
               onPressed: _hasText ? _copy : null,
             ),
             SkButton.text(
               key: const ValueKey('draft-editor-save'),
-              label: SkStrings.save,
+              label: context.l10n.commonSave,
               onPressed: _hasText ? _save : null,
             ),
           ],
@@ -119,7 +120,7 @@ class _DraftEditorPageState extends State<DraftEditorPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    SkStrings.capturedWith(time, draft.profileName),
+                    context.l10n.draftEditorCaptured(time, draft.profileName),
                     style: SkType.caption.copyWith(color: c.textTertiary),
                   ),
                   const SizedBox(height: SkSpace.m),

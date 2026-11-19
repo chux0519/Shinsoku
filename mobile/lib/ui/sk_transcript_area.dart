@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import 'strings.dart';
 import 'tokens.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 /// The transcript's text. While a recording is live it holds committed +
 /// pending words and paints the pending tail lighter ([showLive]); after the
@@ -175,7 +175,7 @@ class _SkTranscriptAreaState extends State<SkTranscriptArea> {
     return Semantics(
       container: true,
       identifier: widget.semanticsIdentifier,
-      label: SkStrings.transcriptLabel,
+      label: context.l10n.recordTranscriptLabel,
       child: _IntrinsicHeight(
         height: widget.minHeight,
         child: TextField(
@@ -205,7 +205,7 @@ class _SkTranscriptAreaState extends State<SkTranscriptArea> {
               ...editable.contextMenuButtonItems,
               if (!widget.readOnly && widget.controller.text.isNotEmpty)
                 ContextMenuButtonItem(
-                  label: SkStrings.clear,
+                  label: context.l10n.commonClear,
                   onPressed: _clear,
                 ),
             ];
