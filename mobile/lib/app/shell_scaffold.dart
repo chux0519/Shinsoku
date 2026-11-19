@@ -15,6 +15,9 @@ import 'package:shinsoku_mobile/ui/ui.dart';
 ///   its top edge. Side by side when the fold is vertical (book, or landscape
 ///   when flat); stacked when it is horizontal (tabletop, or portrait when
 ///   flat), with Record in the lower half (content up, controls down).
+///   Stacked with the software keyboard up for a field in Record: the
+///   switchable pane steps aside and Record gets the whole window until the
+///   keyboard goes down (live-01 decision 2026-11-19, invariant D3).
 ///
 /// Each page keeps its element (and so its state) across compact ↔ regular
 /// switches: pages sit under [GlobalKey]s that move between the layouts.
@@ -177,15 +180,43 @@ class _ShellScaffoldState extends State<ShellScaffold> {
 
   bool _wasRegular = false;
 
+  /// Has focus somewhere inside the Record page (its transcript field).
+  final _recordFocus = FocusNode(
+    debugLabel: 'record page',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _recordFocus.addListener(_onRecordFocus);
+  }
+
+  @override
+  void dispose() {
+    _recordFocus.dispose();
+    super.dispose();
+  }
+
+  void _onRecordFocus() => setState(() {});
+
   /// Record is shown in compact although [ShellScaffold.tabIndex] is not 0
   /// yet (D2 fold, until the parent catches up or the user picks a tab).
   bool _showRecord = false;
 
-  Widget _page(int i, {required bool visible}) => KeyedSubtree(
-    key: _pageKeys[i],
+  Widget _page(int i, {required bool visible}) {
     // Hidden pages keep their state but not their animations.
-    child: TickerMode(enabled: visible, child: widget.pages[i]),
-  );
+    Widget page = TickerMode(enabled: visible, child: widget.pages[i]);
+    if (i == 0) {
+      page = Focus(
+        focusNode: _recordFocus,
+        includeSemantics: false,
+        child: page,
+      );
+    }
+    return KeyedSubtree(key: _pageKeys[i], child: page);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +266,11 @@ class _ShellScaffoldState extends State<ShellScaffold> {
 
   Widget _regular(BuildContext context, PaneSplit split) {
     final c = SkColors.of(context);
+    // D3: stacked, keyboard up for Record → Record takes the window.
+    final recordOnly =
+        !split.sideBySide &&
+        _recordFocus.hasFocus &&
+        MediaQuery.viewInsetsOf(context).bottom > 0;
     final record = _page(0, visible: true);
     final secondary = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,7 +298,7 @@ class _ShellScaffoldState extends State<ShellScaffold> {
     final (Widget first, Widget second) = split.sideBySide
         ? (record, secondary)
         : (secondary, record);
-    final gap = split.secondStart - split.firstEnd;
+    final gap = recordOnly ? 0.0 : split.secondStart - split.firstEnd;
     final seam = split.sideBySide
         ? Center(
             child: Container(width: SkShape.hairline, color: c.hairline),
@@ -277,12 +313,26 @@ class _ShellScaffoldState extends State<ShellScaffold> {
         children: [
           SizedBox(
             width: split.sideBySide ? split.firstEnd : null,
-            height: split.sideBySide ? null : split.firstEnd,
-            child: _Pane(
-              key: const ValueKey('pane-first'),
-              sideBySide: split.sideBySide,
-              first: true,
-              child: first,
+            height: split.sideBySide
+                ? null
+                : recordOnly
+                ? 0
+                : split.firstEnd,
+            // Stepped aside (D3): still built at its size, so its pages keep
+            // their state, but not painted, hit or read.
+            child: Offstage(
+              offstage: recordOnly,
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: split.sideBySide ? null : split.firstEnd,
+                maxHeight: split.sideBySide ? null : split.firstEnd,
+                child: _Pane(
+                  key: const ValueKey('pane-first'),
+                  sideBySide: split.sideBySide,
+                  first: true,
+                  child: first,
+                ),
+              ),
             ),
           ),
           // The fold: nothing interactive or text-bearing here.
@@ -296,6 +346,7 @@ class _ShellScaffoldState extends State<ShellScaffold> {
               key: const ValueKey('pane-second'),
               sideBySide: split.sideBySide,
               first: false,
+              whole: recordOnly,
               child: second,
             ),
           ),
@@ -313,21 +364,25 @@ class _Pane extends StatelessWidget {
     required this.sideBySide,
     required this.first,
     required this.child,
+    this.whole = false,
     super.key,
   });
 
   final bool sideBySide;
   final bool first;
+
+  /// The only pane on screen (D3): keeps every safe inset.
+  final bool whole;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return MediaQuery.removePadding(
       context: context,
-      removeLeft: sideBySide && !first,
-      removeRight: sideBySide && first,
-      removeTop: !sideBySide && !first,
-      removeBottom: !sideBySide && first,
+      removeLeft: !whole && sideBySide && !first,
+      removeRight: !whole && sideBySide && first,
+      removeTop: !whole && !sideBySide && !first,
+      removeBottom: !whole && !sideBySide && first,
       child: SafeArea(child: child),
     );
   }
