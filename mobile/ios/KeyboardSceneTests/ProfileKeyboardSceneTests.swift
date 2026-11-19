@@ -141,12 +141,12 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         scrollRunner(to: entry, step: "\(step)-entry")
         entry.tap()
         let search = searchRow()
-        require(search, "\(step)-search-row")
+        waitHittable(search, "\(step)-search-row")
         if !search.label.contains(profile) {
             search.tap()
             let option = runner.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@",
                                                              profile, "\(profile)\n")).firstMatch
-            require(option, "\(step)-option-\(profile)")
+            waitHittable(option, "\(step)-option-\(profile)")
             option.tap()
         }
         let picked = runner.buttons.matching(NSPredicate(
@@ -167,12 +167,39 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
         )).firstMatch
     }
 
-    /// Scrolls the app's page up until `element` is hittable.
-    private func scrollRunner(to element: XCUIElement, step: String) {
-        for _ in 0..<8 where !(element.exists && element.isHittable) {
-            runner.swipeUp()
+    /// Waits (up to `timeout`) until a Flutter element has a real frame and is hittable (after a push or a
+    /// sheet animation the tree lags the screen).
+    private func waitHittable(_ element: XCUIElement, _ step: String, timeout: TimeInterval = 10) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, !(element.exists && !element.frame.isEmpty && element.isHittable) {
+            Thread.sleep(forTimeInterval: 0.3)
         }
-        check(element.exists && element.isHittable, step, "\(step): not reachable by scrolling")
+        check(element.exists && !element.frame.isEmpty && element.isHittable, step, "\(step): not hittable")
+    }
+
+    /// Scrolls the app's page up until `element` is hittable. Flutter updates its accessibility tree a few
+    /// frames after a scroll settles (rows outside the viewport report a zero frame until then), so each step is
+    /// a slow drag held before release (no fling), then a poll of up to 2 s before the next one.
+    private func scrollRunner(to element: XCUIElement, step: String) {
+        func reachable() -> Bool {
+            element.exists && !element.frame.isEmpty && element.isHittable
+        }
+        func settle() -> Bool {
+            let deadline = Date().addingTimeInterval(2)
+            repeat {
+                if reachable() { return true }
+                Thread.sleep(forTimeInterval: 0.3)
+            } while Date() < deadline
+            return false
+        }
+        var found = settle()
+        for _ in 0..<8 where !found {
+            let start = runner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+            let end = runner.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+            start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+            found = settle()
+        }
+        check(found, step, "\(step): not reachable by scrolling")
     }
 
     /// Safari's address bar focused (keyboard type `.webSearch` → field kind search) with Shinsoku up.

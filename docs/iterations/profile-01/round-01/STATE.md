@@ -3,6 +3,8 @@
   The scene now sets Search → Review in Settings › Profiles › Field rules (PHASE shot of the page) and resets
   it to None in a teardown block; `-ShinsokuSceneFieldRules` removed, `-ShinsokuSceneResetSelection` kept.
   Details: `scene-rules-implementation.md`.
+- Round 2: the run of f2e2338 failed at `field-rules-seed-entry`. The row was on screen, but Flutter's
+  accessibility tree lagged the fast swipes. Scrolling now uses slow held drags and waits for a real frame.
 - In progress: none. Next: coordinator runs ProfileKeyboardSceneTests on iPhone 17 (light + dark).
 - Open: none.
 - Verify: `bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh --build-only`;

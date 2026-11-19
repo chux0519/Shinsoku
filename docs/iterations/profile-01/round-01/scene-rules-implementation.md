@@ -27,3 +27,15 @@ missing (or stale) selection with the default. Still needed (step 5 must undo th
 - `python3 tool/review_lint.py` → ok.
 - Run: `bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 env SCENE_TEST=KeyboardSceneTests/ProfileKeyboardSceneTests
   bash tool/ios_keyboard_scene.sh <UDID> <out-dir>`.
+
+## Round 2 — coordinator run of f2e2338 failed at `field-rules-seed-entry`
+- Evidence (`build/ui-review/profile-01/round-01/fix-ProfileKeyboard/light/FAIL-field-rules-seed-entry.*`): the
+  screenshot shows the Settings page scrolled to the end with Field rules on screen, but the element tree from
+  the same moment is out of date (Save Settings at y=356 vs ~121 pt in the image) and Field rules is
+  `{{0,0},{0,0}}`. The labels match what the scene looks for (`Field rules\nSearch, web address, email,
+  message`, tab button `Settings`). So the scroll worked; the check ran during 8 fast flings, before Flutter's
+  accessibility tree caught up.
+- Fix: `scrollRunner` drags slowly and holds before release (no fling), then polls up to 2 s for a non-zero
+  frame + hittable before the next drag. New `waitHittable` guards the Search row (after the push) and the
+  sheet option (after the sheet animation).
+- Verified: `--build-only` (Xcode 27.2) exit 0; `review_lint.py` ok. Not simulator-run.
