@@ -1,0 +1,151 @@
+{
+ "description": "Fun-ASR realtime: interim updates, two ended sentences, the last one ends after finish-task.",
+ "on_start": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "task-started",
+    "attributes": {}
+   },
+   "payload": {}
+  }
+ ],
+ "during": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 1000,
+      "end_time": null,
+      "text": "示例",
+      "words": [],
+      "sentence_id": 1,
+      "sentence_end": false
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 1000,
+      "end_time": null,
+      "text": "示例第一",
+      "words": [],
+      "sentence_id": 1,
+      "sentence_end": false
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 1000,
+      "end_time": 1900,
+      "text": "示例第一句。",
+      "words": [],
+      "sentence_id": 1,
+      "sentence_end": true
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 2000,
+      "end_time": null,
+      "text": "Example",
+      "words": [],
+      "sentence_id": 2,
+      "sentence_end": false
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 2000,
+      "end_time": null,
+      "text": "Example two",
+      "words": [],
+      "sentence_id": 2,
+      "sentence_end": false
+     }
+    },
+    "usage": null
+   }
+  }
+ ],
+ "on_finish": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 2000,
+      "end_time": 2900,
+      "text": "Example two.",
+      "words": [],
+      "sentence_id": 2,
+      "sentence_end": true
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "task-finished",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {},
+    "usage": {
+     "duration": 3
+    }
+   }
+  }
+ ],
+ "expected_final": "示例第一句。Example two."
+}

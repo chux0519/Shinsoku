@@ -1,0 +1,115 @@
+{
+ "description": "A message is delivered twice and a later message repeats already-final tokens: nothing duplicated.",
+ "on_start": [],
+ "during": [
+  {
+   "tokens": [
+    {
+     "text": "Example",
+     "start_ms": 100,
+     "end_ms": 400,
+     "confidence": 0.95,
+     "is_final": true
+    },
+    {
+     "text": " one",
+     "start_ms": 400,
+     "end_ms": 600,
+     "confidence": 0.95,
+     "is_final": false
+    }
+   ],
+   "final_audio_proc_ms": 0,
+   "total_audio_proc_ms": 0
+  },
+  {
+   "tokens": [
+    {
+     "text": "Example",
+     "start_ms": 100,
+     "end_ms": 400,
+     "confidence": 0.95,
+     "is_final": true
+    },
+    {
+     "text": " one",
+     "start_ms": 400,
+     "end_ms": 600,
+     "confidence": 0.95,
+     "is_final": false
+    }
+   ],
+   "final_audio_proc_ms": 0,
+   "total_audio_proc_ms": 0
+  },
+  {
+   "tokens": [
+    {
+     "text": " one",
+     "start_ms": 400,
+     "end_ms": 600,
+     "confidence": 0.95,
+     "is_final": true
+    },
+    {
+     "text": " two",
+     "start_ms": 600,
+     "end_ms": 800,
+     "confidence": 0.95,
+     "is_final": false
+    }
+   ],
+   "final_audio_proc_ms": 0,
+   "total_audio_proc_ms": 0
+  },
+  {
+   "tokens": [
+    {
+     "text": "Example",
+     "start_ms": 100,
+     "end_ms": 400,
+     "confidence": 0.95,
+     "is_final": true
+    },
+    {
+     "text": " one",
+     "start_ms": 400,
+     "end_ms": 600,
+     "confidence": 0.95,
+     "is_final": true
+    },
+    {
+     "text": " two",
+     "start_ms": 600,
+     "end_ms": 800,
+     "confidence": 0.95,
+     "is_final": true
+    }
+   ],
+   "final_audio_proc_ms": 0,
+   "total_audio_proc_ms": 0
+  }
+ ],
+ "on_finish": [
+  {
+   "tokens": [
+    {
+     "text": "<fin>",
+     "start_ms": 800,
+     "end_ms": 800,
+     "confidence": 0.95,
+     "is_final": true
+    }
+   ],
+   "final_audio_proc_ms": 0,
+   "total_audio_proc_ms": 0
+  },
+  {
+   "tokens": [],
+   "final_audio_proc_ms": 3000,
+   "total_audio_proc_ms": 3000,
+   "finished": true
+  }
+ ],
+ "expected_final": "Example one two"
+}

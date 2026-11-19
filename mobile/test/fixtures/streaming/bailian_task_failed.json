@@ -1,0 +1,47 @@
+{
+ "description": "Provider reports task-failed while listening: phase failed, committed kept.",
+ "on_start": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "task-started",
+    "attributes": {}
+   },
+   "payload": {}
+  }
+ ],
+ "during": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 1000,
+      "end_time": 1900,
+      "text": "示例一。",
+      "words": [],
+      "sentence_id": 1,
+      "sentence_end": true
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "task-failed",
+    "error_code": "ExampleError",
+    "error_message": "example failure",
+    "attributes": {}
+   },
+   "payload": {}
+  }
+ ],
+ "expected_committed": "示例一。",
+ "expected_pending": ""
+}
