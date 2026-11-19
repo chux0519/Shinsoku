@@ -17,8 +17,8 @@ class ProviderSettings {
     required this.bailianRealtimeModel,
     required this.sonioxApiKey,
     required this.sonioxModel,
-    this.sonioxLanguageHints = const [],
-    this.bailianLanguageHint = '',
+    required this.sonioxLanguageHints,
+    required this.bailianLanguageHint,
   });
 
   factory ProviderSettings.defaults() {
@@ -55,6 +55,8 @@ class ProviderSettings {
         'SONIOX_MODEL',
         defaultValue: 'stt-rt-v4',
       ),
+      sonioxLanguageHints: [],
+      bailianLanguageHint: '',
     );
   }
 
