@@ -1,0 +1,58 @@
+{
+ "description": "Connection drops while listening: phase failed, committed kept.",
+ "on_start": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "task-started",
+    "attributes": {}
+   },
+   "payload": {}
+  }
+ ],
+ "during": [
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 1000,
+      "end_time": 1900,
+      "text": "示例一。",
+      "words": [],
+      "sentence_id": 1,
+      "sentence_end": true
+     }
+    },
+    "usage": null
+   }
+  },
+  {
+   "header": {
+    "task_id": "example-task",
+    "event": "result-generated",
+    "attributes": {}
+   },
+   "payload": {
+    "output": {
+     "sentence": {
+      "begin_time": 2000,
+      "end_time": null,
+      "text": "示例",
+      "words": [],
+      "sentence_id": 2,
+      "sentence_end": false
+     }
+    },
+    "usage": null
+   }
+  }
+ ],
+ "drop_after_during": true,
+ "expected_committed": "示例一。",
+ "expected_pending": "示例"
+}
