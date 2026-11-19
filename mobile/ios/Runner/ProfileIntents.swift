@@ -103,12 +103,19 @@ struct GetShinsokuProfileIntent: AppIntent {
   }
 }
 
+// i18n-01 I4: the parameterized phrases come first, so the Shortcuts app and Spotlight show one ready-made
+// action per saved profile ("Switch Shinsoku to Chat", from `suggestedEntities()`) with no setup. The plain
+// phrases stay for Siri, which then asks for the profile. iOS re-reads the profiles only when
+// `updateAppShortcutParameters()` is called: on launch and whenever the app publishes a changed list
+// (`ShinsokuShortcuts.refreshParameters()`).
 @available(iOS 16.0, *)
 struct ShinsokuShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(
       intent: SetShinsokuProfileIntent(),
       phrases: [
+        "Switch \(.applicationName) to \(\.$profile)",
+        "Use \(\.$profile) in \(.applicationName)",
         "Set \(.applicationName) profile",
         "Switch \(.applicationName) profile",
       ],
@@ -121,5 +128,14 @@ struct ShinsokuShortcuts: AppShortcutsProvider {
       shortTitle: "Get Profile",
       systemImageName: "person.crop.circle.badge.questionmark"
     )
+  }
+}
+
+/// Called from code that is not itself gated on iOS 16 (AppDelegate, the profile channel).
+enum ShinsokuShortcutParameters {
+  static func refresh() {
+    if #available(iOS 16.0, *) {
+      ShinsokuShortcuts.updateAppShortcutParameters()
+    }
   }
 }

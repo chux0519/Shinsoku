@@ -92,6 +92,11 @@ class UseInAppsView extends StatelessWidget {
                       l.useInAppsKeyboardNote,
                       style: SkType.secondary.copyWith(color: c.textSecondary),
                     ),
+                    const SizedBox(height: SkSpace.s),
+                    Text(
+                      l.useInAppsReadyMade,
+                      style: SkType.secondary.copyWith(color: c.textSecondary),
+                    ),
                   ],
                 ),
               ),
