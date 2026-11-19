@@ -1,3 +1,15 @@
+# STATE — profile-01 P3 (keyboard)
+- Done: keyboard shows the active profile (resolver port incl. `selectionAtKeyboardAppear`), tap cycles,
+  long-press menu, manual write, field-kind rules (`fieldRules.v1`), read-only + lock without Full Access,
+  Record passes `?profile=<shown id>`. Details + tier-B checklist: `P3-implementation.md`.
+- Stacked on P2 (#15): shares `Runner/ProfileGroup.swift` by target membership. Merge #15 first.
+- In progress: none. Next: coordinator tier B (checklist in P3-implementation.md).
+- Open decisions: hostDidBecomeActive = new appearance; `.webSearch` → search; hide button when unknown.
+- Verify: `mobile/ios/ShinsokuKeyboard/ResolverChecks/run.sh`; `cd mobile && flutter build ios --simulator
+  --debug --no-pub` (restore regenerated files); `python3 tool/review_lint.py`.
+
+---
+
 # STATE — profile-01 P5 (model test)
 - Done: harness, model test PR1–PR4, two bugs fixed (keyboard record handoff carries the shown profile;
   field-rule check is clock-skew free). Details: `P5-implementation.md`.
