@@ -58,7 +58,7 @@
   runner launched in English; Chinese review package `docs/i18n/review-zh.md`; host renders for all 10 locales
   (CJK font fix), two component fixes (SkSegmented single long word, SkIconButton tooltip semantics). Notes:
   `I5-implementation.md`.
-- **Tested source state:** f289189 (builds, scene build-only, renders, test_diff, lint); later commits are docs only.
+- **Tested source state:** f289189 (builds, scene build-only, renders, test_diff, lint); after merging main (pricing-01 S1) the Pro translations were checked with analyze, test_diff, lint and Pro renders (no iOS build, no scene build).
 - **In progress:** nothing; awaiting coordinator review.
 - **Next:** user reviews the Chinese wording (`docs/i18n/review-zh.md`); coordinator tier B in zh-Hans and ja
   (reset the app's data first, see notes §For the coordinator 2); fix wording from the review via ARB /

@@ -787,6 +787,101 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get nearbyErrorGeneric =>
       'Algo deu errado com a conexão ao computador.';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => 'Perfis personalizados';
+
+  @override
+  String get proFeatureProfilesBody =>
+      'Crie seus próprios perfis e edite a instrução e os ajustes de qualquer perfil.';
+
+  @override
+  String get proFeatureAutoTitle => 'Troca automática por app';
+
+  @override
+  String get proFeatureAutoBody =>
+      'As regras de campo e o Atalhos escolhem o perfil do app em que você está digitando.';
+
+  @override
+  String get proFeatureDesktopTitle => 'Computador';
+
+  @override
+  String get proFeatureDesktopBody =>
+      'Use este iPhone como microfone do Shinsoku no seu computador.';
+
+  @override
+  String get proNote => 'Compra única. Inclui Compartilhamento Familiar.';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return 'Desbloquear por $price';
+  }
+
+  @override
+  String get proBuy => 'Desbloquear o Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => 'Carregando preço…';
+
+  @override
+  String get proRestore => 'Restaurar Compras';
+
+  @override
+  String get proOwned => 'O Shinsoku Pro está desbloqueado. Obrigado!';
+
+  @override
+  String get proStatusUnlocked => 'Desbloqueado';
+
+  @override
+  String get proSettingsSubtitle =>
+      'Perfis personalizados, troca por app, Computador';
+
+  @override
+  String get proNoticePending =>
+      'Aguardando aprovação. O Pro será desbloqueado assim que a compra for aprovada.';
+
+  @override
+  String get proNoticeCancelled => 'Compra cancelada. Nada foi cobrado.';
+
+  @override
+  String get proNoticeFailed => 'A compra não foi concluída. Tente de novo.';
+
+  @override
+  String get proNoticeUnavailable =>
+      'A App Store não está disponível agora. Tente mais tarde.';
+
+  @override
+  String get proNoticeRestored =>
+      'Compra restaurada. O Shinsoku Pro está desbloqueado.';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      'Nenhuma compra anterior do Shinsoku Pro foi encontrada para esta Conta Apple.';
+
+  @override
+  String get proLockedProfileEditor =>
+      'Para editar perfis, é preciso o Shinsoku Pro. Você ainda pode escolher este perfil na tela Gravar e no teclado.';
+
+  @override
+  String get proLockedFieldRules =>
+      'As regras de campo precisam do Shinsoku Pro. As regras que você definir ficam salvas e voltam a valer quando o Pro for desbloqueado.';
+
+  @override
+  String get proLockedUseInApps =>
+      'Para trocar de perfil pelo Atalhos, é preciso o Shinsoku Pro.';
+
+  @override
+  String get proLockedDesktop =>
+      'Use este iPhone como microfone sem fio do Shinsoku no seu Mac ou PC: você fala aqui e o texto aparece no computador. Computador faz parte do Shinsoku Pro.';
+
+  @override
+  String get proUnlockShort => 'Obter Pro';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -1572,4 +1667,99 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get nearbyErrorGeneric =>
       'Algo deu errado com a conexão ao computador.';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => 'Perfis personalizados';
+
+  @override
+  String get proFeatureProfilesBody =>
+      'Crie seus próprios perfis e edite a instrução e os ajustes de qualquer perfil.';
+
+  @override
+  String get proFeatureAutoTitle => 'Troca automática por app';
+
+  @override
+  String get proFeatureAutoBody =>
+      'As regras de campo e o Atalhos escolhem o perfil do app em que você está digitando.';
+
+  @override
+  String get proFeatureDesktopTitle => 'Computador';
+
+  @override
+  String get proFeatureDesktopBody =>
+      'Use este iPhone como microfone do Shinsoku no seu computador.';
+
+  @override
+  String get proNote => 'Compra única. Inclui Compartilhamento Familiar.';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return 'Desbloquear por $price';
+  }
+
+  @override
+  String get proBuy => 'Desbloquear o Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => 'Carregando preço…';
+
+  @override
+  String get proRestore => 'Restaurar Compras';
+
+  @override
+  String get proOwned => 'O Shinsoku Pro está desbloqueado. Obrigado!';
+
+  @override
+  String get proStatusUnlocked => 'Desbloqueado';
+
+  @override
+  String get proSettingsSubtitle =>
+      'Perfis personalizados, troca por app, Computador';
+
+  @override
+  String get proNoticePending =>
+      'Aguardando aprovação. O Pro será desbloqueado assim que a compra for aprovada.';
+
+  @override
+  String get proNoticeCancelled => 'Compra cancelada. Nada foi cobrado.';
+
+  @override
+  String get proNoticeFailed => 'A compra não foi concluída. Tente de novo.';
+
+  @override
+  String get proNoticeUnavailable =>
+      'A App Store não está disponível agora. Tente mais tarde.';
+
+  @override
+  String get proNoticeRestored =>
+      'Compra restaurada. O Shinsoku Pro está desbloqueado.';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      'Nenhuma compra anterior do Shinsoku Pro foi encontrada para esta Conta Apple.';
+
+  @override
+  String get proLockedProfileEditor =>
+      'Para editar perfis, é preciso o Shinsoku Pro. Você ainda pode escolher este perfil na tela Gravar e no teclado.';
+
+  @override
+  String get proLockedFieldRules =>
+      'As regras de campo precisam do Shinsoku Pro. As regras que você definir ficam salvas e voltam a valer quando o Pro for desbloqueado.';
+
+  @override
+  String get proLockedUseInApps =>
+      'Para trocar de perfil pelo Atalhos, é preciso o Shinsoku Pro.';
+
+  @override
+  String get proLockedDesktop =>
+      'Use este iPhone como microfone sem fio do Shinsoku no seu Mac ou PC: você fala aqui e o texto aparece no computador. Computador faz parte do Shinsoku Pro.';
+
+  @override
+  String get proUnlockShort => 'Obter Pro';
 }

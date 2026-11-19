@@ -751,4 +751,93 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get nearbyErrorGeneric => '데스크톱 연결에 문제가 발생했어요.';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => '사용자 프로필';
+
+  @override
+  String get proFeatureProfilesBody =>
+      '나만의 프로필을 만들고 모든 프로필의 프롬프트와 설정을 편집할 수 있어요.';
+
+  @override
+  String get proFeatureAutoTitle => '앱별 자동 전환';
+
+  @override
+  String get proFeatureAutoBody => '입력란 규칙과 단축어가 입력 중인 앱에 맞는 프로필을 골라요.';
+
+  @override
+  String get proFeatureDesktopTitle => '데스크톱';
+
+  @override
+  String get proFeatureDesktopBody =>
+      '이 iPhone을 컴퓨터에서 쓰는 Shinsoku의 마이크로 사용하세요.';
+
+  @override
+  String get proNote => '한 번만 구입하면 돼요. 가족 공유가 포함돼요.';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return '$price에 잠금 해제';
+  }
+
+  @override
+  String get proBuy => 'Shinsoku Pro 잠금 해제';
+
+  @override
+  String get proPriceLoading => '가격 불러오는 중…';
+
+  @override
+  String get proRestore => '구입 항목 복원';
+
+  @override
+  String get proOwned => 'Shinsoku Pro가 잠금 해제되었어요. 감사합니다!';
+
+  @override
+  String get proStatusUnlocked => '잠금 해제됨';
+
+  @override
+  String get proSettingsSubtitle => '사용자 프로필, 앱별 전환, 데스크톱';
+
+  @override
+  String get proNoticePending => '승인을 기다리는 중이에요. 구입이 승인되면 바로 Pro가 잠금 해제돼요.';
+
+  @override
+  String get proNoticeCancelled => '구입을 취소했어요. 결제된 금액은 없어요.';
+
+  @override
+  String get proNoticeFailed => '구입을 완료하지 못했어요. 다시 시도하세요.';
+
+  @override
+  String get proNoticeUnavailable => '지금은 App Store를 사용할 수 없어요. 나중에 다시 시도하세요.';
+
+  @override
+  String get proNoticeRestored => '구입 항목을 복원했어요. Shinsoku Pro가 잠금 해제되었어요.';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      '이 Apple 계정에서 Shinsoku Pro를 구입한 기록을 찾지 못했어요.';
+
+  @override
+  String get proLockedProfileEditor =>
+      '프로필을 편집하려면 Shinsoku Pro가 필요해요. 녹음 화면과 키보드에서 이 프로필을 계속 선택할 수 있어요.';
+
+  @override
+  String get proLockedFieldRules =>
+      '입력란 규칙을 사용하려면 Shinsoku Pro가 필요해요. 설정한 규칙은 유지되며 Pro를 잠금 해제하면 다시 적용돼요.';
+
+  @override
+  String get proLockedUseInApps => '단축어에서 프로필을 전환하려면 Shinsoku Pro가 필요해요.';
+
+  @override
+  String get proLockedDesktop =>
+      '이 iPhone을 Mac이나 PC에서 쓰는 Shinsoku의 무선 마이크로 사용하세요. 여기서 말하면 텍스트가 컴퓨터에 입력돼요. 데스크톱은 Shinsoku Pro 기능이에요.';
+
+  @override
+  String get proUnlockShort => 'Pro 받기';
 }

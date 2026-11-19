@@ -28,6 +28,7 @@ GROUPS = [
     ('shell', 'Messages (snack bars)'),
     ('failure', 'Error messages'),
     ('nearby', 'Desktop (Nearby microphone)'),
+    ('pro', 'Shinsoku Pro (purchase, locks)'),
 ]
 NATIVE_GROUPS = {
     'mobile/ios/ShinsokuKeyboard/Localizable.xcstrings': 'Keyboard (keys, status, VoiceOver)',

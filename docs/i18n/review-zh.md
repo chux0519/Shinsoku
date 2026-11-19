@@ -289,6 +289,38 @@ How to review: mark a row (or write the better wording next to it) and send it b
 | The desktop sent an unexpected response. Update Shinsoku on both devices and try again. | 电脑返回了意外的响应。请在两台设备上更新 Shinsoku 后再试一次。 | 電腦傳回了非預期的回應。請在兩部裝置上更新 Shinsoku 後再試一次。 |
 | Something went wrong with the desktop connection. | 电脑连接出了点问题。 | 電腦連線發生問題。 |
 
+## Shinsoku Pro (purchase, locks)
+
+| English | 简体中文 (zh-Hans) | 繁體中文 (zh-Hant) |
+|---|---|---|
+| Shinsoku Pro | Shinsoku Pro | Shinsoku Pro |
+| Pro | Pro | Pro |
+| Custom profiles | 自定模式 | 自訂模式 |
+| Create your own profiles and edit any profile's prompt and settings. | 创建自己的模式，并编辑任何模式的提示词和设置。 | 建立自己的模式，並編輯任何模式的提示詞和設定。 |
+| Automatic switching per app | 按 App 自动切换 | 依 App 自動切換 |
+| Field rules and Shortcuts pick the profile for the app you're typing in. | 输入框规则和“快捷指令”会为你正在输入的 App 选择模式。 | 欄位規則和「捷徑」會為你正在輸入的 App 選擇模式。 |
+| Desktop | 电脑 | 電腦 |
+| Use this iPhone as the microphone for Shinsoku on your computer. | 把这部 iPhone 用作电脑上 Shinsoku 的麦克风。 | 將這部 iPhone 當作電腦上 Shinsoku 的麥克風。 |
+| One-time purchase. Family Sharing included. | 一次性购买，支持家人共享。 | 一次性購買，支援家人共享。 |
+| Unlock for {price} | 以 {price} 解锁 | 以 {price} 解鎖 |
+| Unlock Shinsoku Pro | 解锁 Shinsoku Pro | 解鎖 Shinsoku Pro |
+| Loading price… | 正在载入价格… | 正在載入價格… |
+| Restore Purchases | 恢复购买 | 恢復購買 |
+| Shinsoku Pro is unlocked. Thank you! | Shinsoku Pro 已解锁。谢谢你！ | Shinsoku Pro 已解鎖。謝謝你！ |
+| Unlocked | 已解锁 | 已解鎖 |
+| Custom profiles, per-app switching, Desktop | 自定模式、按 App 切换、电脑 | 自訂模式、依 App 切換、電腦 |
+| Waiting for approval. Pro unlocks as soon as the purchase is approved. | 正在等待批准。购买获批后，Pro 会立即解锁。 | 正在等待核准。購買獲得核准後，Pro 就會立即解鎖。 |
+| Purchase cancelled. Nothing was charged. | 已取消购买，不会收取任何费用。 | 已取消購買，不會收取任何費用。 |
+| The purchase didn't go through. Please try again. | 购买未完成。请再试一次。 | 購買未完成。請再試一次。 |
+| The App Store isn't available right now. Try again later. | 目前无法使用 App Store。请稍后再试。 | 目前無法使用 App Store。請稍後再試。 |
+| Purchase restored. Shinsoku Pro is unlocked. | 已恢复购买。Shinsoku Pro 已解锁。 | 已恢復購買。Shinsoku Pro 已解鎖。 |
+| No earlier purchase of Shinsoku Pro was found for this Apple Account. | 此 Apple 账户没有 Shinsoku Pro 的购买记录。 | 這個 Apple 帳號沒有 Shinsoku Pro 的購買紀錄。 |
+| Editing profiles needs Shinsoku Pro. You can still pick this profile on the Record screen and in the keyboard. | 编辑模式需要 Shinsoku Pro。你仍可以在录音界面和键盘中选择这个模式。 | 編輯模式需要 Shinsoku Pro。你仍可在錄音畫面和鍵盤中選擇這個模式。 |
+| Field rules need Shinsoku Pro. Rules you set are kept and apply again once Pro is unlocked. | 输入框规则需要 Shinsoku Pro。你设置的规则会保留，解锁 Pro 后会再次生效。 | 欄位規則需要 Shinsoku Pro。你設定的規則會保留，解鎖 Pro 後會再次生效。 |
+| Switching profiles from Shortcuts needs Shinsoku Pro. | 通过“快捷指令”切换模式需要 Shinsoku Pro。 | 從「捷徑」切換模式需要 Shinsoku Pro。 |
+| Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro. | 把这部 iPhone 用作 Mac 或 PC 上 Shinsoku 的无线麦克风：在这里说话，文字就会出现在电脑上。电脑功能属于 Shinsoku Pro。 | 將這部 iPhone 當作 Mac 或 PC 上 Shinsoku 的無線麥克風：在這裡說話，文字就會出現在電腦上。電腦功能屬於 Shinsoku Pro。 |
+| Get Pro | 获取 Pro | 取得 Pro |
+
 ## Keyboard (keys, status, VoiceOver)
 
 | English | 简体中文 (zh-Hans) | 繁體中文 (zh-Hant) |

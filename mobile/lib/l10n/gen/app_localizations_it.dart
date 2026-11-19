@@ -793,4 +793,100 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get nearbyErrorGeneric =>
       'Si è verificato un problema con la connessione al computer.';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => 'Profili personalizzati';
+
+  @override
+  String get proFeatureProfilesBody =>
+      'Crea i tuoi profili e modifica istruzione e impostazioni di qualsiasi profilo.';
+
+  @override
+  String get proFeatureAutoTitle => 'Cambio automatico per app';
+
+  @override
+  String get proFeatureAutoBody =>
+      'Le regole dei campi e Comandi Rapidi scelgono il profilo per l’app in cui stai scrivendo.';
+
+  @override
+  String get proFeatureDesktopTitle => 'Computer';
+
+  @override
+  String get proFeatureDesktopBody =>
+      'Usa questo iPhone come microfono per Shinsoku sul tuo computer.';
+
+  @override
+  String get proNote => 'Acquisto una tantum. In famiglia incluso.';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return 'Sblocca a $price';
+  }
+
+  @override
+  String get proBuy => 'Sblocca Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => 'Caricamento del prezzo…';
+
+  @override
+  String get proRestore => 'Ripristina acquisti';
+
+  @override
+  String get proOwned => 'Shinsoku Pro è sbloccato. Grazie!';
+
+  @override
+  String get proStatusUnlocked => 'Sbloccato';
+
+  @override
+  String get proSettingsSubtitle =>
+      'Profili personalizzati, cambio per app, Computer';
+
+  @override
+  String get proNoticePending =>
+      'In attesa di approvazione. Pro si sblocca appena l’acquisto viene approvato.';
+
+  @override
+  String get proNoticeCancelled =>
+      'Acquisto annullato. Non è stato addebitato nulla.';
+
+  @override
+  String get proNoticeFailed => 'L’acquisto non è andato a buon fine. Riprova.';
+
+  @override
+  String get proNoticeUnavailable =>
+      'L’App Store non è disponibile al momento. Riprova più tardi.';
+
+  @override
+  String get proNoticeRestored =>
+      'Acquisto ripristinato. Shinsoku Pro è sbloccato.';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      'Nessun acquisto precedente di Shinsoku Pro trovato per questo Account Apple.';
+
+  @override
+  String get proLockedProfileEditor =>
+      'Per modificare i profili serve Shinsoku Pro. Puoi comunque scegliere questo profilo nella schermata Registra e nella tastiera.';
+
+  @override
+  String get proLockedFieldRules =>
+      'Le regole dei campi richiedono Shinsoku Pro. Le regole impostate restano salvate e tornano attive quando sblocchi Pro.';
+
+  @override
+  String get proLockedUseInApps =>
+      'Per cambiare profilo da Comandi Rapidi serve Shinsoku Pro.';
+
+  @override
+  String get proLockedDesktop =>
+      'Usa questo iPhone come microfono wireless per Shinsoku sul tuo Mac o PC: parli qui e il testo arriva sul computer. Computer fa parte di Shinsoku Pro.';
+
+  @override
+  String get proUnlockShort => 'Ottieni Pro';
 }

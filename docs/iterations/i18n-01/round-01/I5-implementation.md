@@ -82,3 +82,15 @@ STATE.md; renders and builds were run on the commits listed there).
 4. Keyboard `PrimaryLanguage` (I2/I3 open point, recommend `mul`) is still `en-US`: not in this brief.
 5. Translation-profile prompts stay English (ARB descriptions). If the user prefers prompts in the device
    language, it is a 9-line ARB change per language.
+
+## Update: pricing-01 S1 strings (merged origin/main with PR #40)
+- Translated the 27 new `pro*` keys in all 9 languages (+ `zh`/`pt` fallbacks). "Shinsoku Pro" and "Pro"
+  untranslated; Apple wording for Restore Purchases (購入を復元, 恢復購買, 구입 항목 복원, Käufe wiederherstellen,
+  Restaurar compras, 恢复购买, Restaurer les achats, Restaurar Compras, Ripristina acquisti), Family Sharing
+  (ファミリー共有, 家人共享, 가족 공유, Familienfreigabe, En familia, Partage familial, Compartilhamento Familiar,
+  In famiglia) and Apple Account; glossary rows added. `review-zh.md` regenerated (318 strings, new "Shinsoku Pro"
+  section). No native strings were added by S1 (R06 clean).
+- Checks: `flutter analyze` clean, `tool/test_diff.sh` no new failures, `review_lint.py` R01–R07 ok. Renders of the
+  Pro and locked scenes plus Settings / Field rules / Use in apps / Desktop in ja, de, zh-Hans and pseudo
+  (`build/ui-review/i18n-01/round-01/i5-pro-<locale>/`, 118 images each): no overflow, no clipped text.
+  `ios_keyboard_scene.sh` not rerun (as asked).

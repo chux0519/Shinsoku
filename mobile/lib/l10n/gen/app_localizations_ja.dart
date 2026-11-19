@@ -753,4 +753,93 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get nearbyErrorGeneric => 'デスクトップとの接続で問題が発生しました。';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => 'カスタムプロファイル';
+
+  @override
+  String get proFeatureProfilesBody =>
+      '自分だけのプロファイルを作成し、どのプロファイルのプロンプトや設定も編集できます。';
+
+  @override
+  String get proFeatureAutoTitle => 'Appごとに自動切り替え';
+
+  @override
+  String get proFeatureAutoBody => '入力欄ルールと「ショートカット」が、入力中のAppに合ったプロファイルを選びます。';
+
+  @override
+  String get proFeatureDesktopTitle => 'デスクトップ';
+
+  @override
+  String get proFeatureDesktopBody => 'このiPhoneを、コンピュータで使うShinsokuのマイクにできます。';
+
+  @override
+  String get proNote => '1回限りの購入です。ファミリー共有に対応しています。';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return '$priceで購入';
+  }
+
+  @override
+  String get proBuy => 'Shinsoku Proを購入';
+
+  @override
+  String get proPriceLoading => '価格を読み込み中…';
+
+  @override
+  String get proRestore => '購入を復元';
+
+  @override
+  String get proOwned => 'Shinsoku Proのロックが解除されています。ありがとうございます！';
+
+  @override
+  String get proStatusUnlocked => 'ロック解除済み';
+
+  @override
+  String get proSettingsSubtitle => 'カスタムプロファイル、Appごとの切り替え、デスクトップ';
+
+  @override
+  String get proNoticePending => '承認待ちです。購入が承認されるとすぐにProのロックが解除されます。';
+
+  @override
+  String get proNoticeCancelled => '購入をキャンセルしました。請求はありません。';
+
+  @override
+  String get proNoticeFailed => '購入を完了できませんでした。もう一度お試しください。';
+
+  @override
+  String get proNoticeUnavailable => '現在App Storeを利用できません。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get proNoticeRestored => '購入を復元しました。Shinsoku Proのロックが解除されました。';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      'このAppleアカウントでは、Shinsoku Proの過去の購入が見つかりませんでした。';
+
+  @override
+  String get proLockedProfileEditor =>
+      'プロファイルの編集にはShinsoku Proが必要です。このプロファイルは録音画面やキーボードで引き続き選べます。';
+
+  @override
+  String get proLockedFieldRules =>
+      '入力欄ルールにはShinsoku Proが必要です。設定したルールは保持され、Proのロックを解除すると再び適用されます。';
+
+  @override
+  String get proLockedUseInApps =>
+      '「ショートカット」からプロファイルを切り替えるにはShinsoku Proが必要です。';
+
+  @override
+  String get proLockedDesktop =>
+      'このiPhoneを、MacやPCで使うShinsokuのワイヤレスマイクにできます。ここで話すと、テキストがコンピュータに入力されます。デスクトップはShinsoku Proの機能です。';
+
+  @override
+  String get proUnlockShort => 'Proを入手';
 }

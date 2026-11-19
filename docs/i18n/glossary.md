@@ -12,7 +12,7 @@ pt-BR/it: the form Apple's own iOS text uses — de "du", es "tú", pt-BR "você
 overseas readers: mainland-neutral, no mainland-only slang. `pt-BR` is also the `pt` fallback. `es` is neutral
 Spanish (Apple's `es` wording: *Ajustes*, *Añadir*).
 
-**Never translated:** Shinsoku, Bailian, Soniox, Qwen-ASR, Fun-ASR, OpenAI, WebSocket, WSS, `wss://`, SHA-256,
+**Never translated:** Shinsoku, Shinsoku Pro, Pro (badge), Bailian, Soniox, Qwen-ASR, Fun-ASR, OpenAI, WebSocket, WSS, `wss://`, SHA-256,
 API key (kept as "API" + the local word for key), Wi-Fi (de: WLAN, as on iOS), iOS.
 
 ## Product terms
@@ -37,6 +37,8 @@ API key (kept as "API" + the local word for key), Wi-Fi (de: WLAN, as on iOS), i
 | pair / pairing code | ペアリング / ペアリングコード | 配對 / 配對碼 | 페어링 / 페어링 코드 | koppeln / Kopplungscode | vincular / código de vinculación | 配对 / 配对码 | jumeler / code de jumelage | parear / código de pareamento | abbinare / codice di abbinamento |
 | fingerprint (certificate) | フィンガープリント | 指紋 | 지문 | Fingerabdruck | huella digital | 指纹 | empreinte | impressão digital | impronta |
 | microphone | マイク | 麥克風 | 마이크 | Mikrofon | micrófono | 麦克风 | micro | microfone | microfono |
+| unlock (Pro) | ロック解除 / 購入 (button) | 解鎖 | 잠금 해제 | freischalten | desbloquear | 解锁 | débloquer | desbloquear | sbloccare |
+| custom profiles | カスタムプロファイル | 自訂模式 | 사용자 프로필 | eigene Profile | perfiles propios | 自定模式 | profils personnalisés | perfis personalizados | profili personalizzati |
 | automation | オートメーション | 自動化操作 | 자동화 | Automation | automatización | 自动化 | automatisation | automação | automazione |
 
 ## Built-in profile names
@@ -70,6 +72,9 @@ short form; the rest are filled for completeness (e.g. ja `韓→英`, zh `日�
 | App (trigger) | App | App | 앱 | App | App | App | App | App | App |
 | Is Opened / Is Closed | 開いている / 閉じている | 已打開 / 已關閉 | 열림 / 닫힘 | Wird geöffnet / Wird geschlossen | Se abre / Se cierra | 已打开 / 已关闭 | Est ouverte / Est fermée | É Aberto / É Fechado | Viene aperta / Viene chiusa |
 | Run Immediately | すぐに実行 | 立即執行 | 즉시 실행 | Sofort ausführen | Ejecutar inmediatamente | 立即运行 | Exécuter immédiatement | Executar Imediatamente | Esegui immediatamente |
+| Restore Purchases | 購入を復元 | 恢復購買 | 구입 항목 복원 | Käufe wiederherstellen | Restaurar compras | 恢复购买 | Restaurer les achats | Restaurar Compras | Ripristina acquisti |
+| Family Sharing | ファミリー共有 | 家人共享 | 가족 공유 | Familienfreigabe | En familia | 家人共享 | Partage familial | Compartilhamento Familiar | In famiglia |
+| Apple Account | Appleアカウント | Apple 帳號 | Apple 계정 | Apple Account | cuenta de Apple | Apple 账户 | compte Apple | Conta Apple | Account Apple |
 | Home Screen | ホーム画面 | 主畫面 | 홈 화면 | Home-Bildschirm | pantalla de inicio | 主屏幕 | écran d'accueil | Tela de Início | schermata Home |
 | Next keyboard (globe, VoiceOver) | 次のキーボード | 下一個鍵盤 | 다음 키보드 | Nächste Tastatur | Siguiente teclado | 下一个键盘 | Clavier suivant | Próximo teclado | Tastiera successiva |
 

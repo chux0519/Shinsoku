@@ -739,6 +739,92 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nearbyErrorGeneric => '电脑连接出了点问题。';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => '自定模式';
+
+  @override
+  String get proFeatureProfilesBody => '创建自己的模式，并编辑任何模式的提示词和设置。';
+
+  @override
+  String get proFeatureAutoTitle => '按 App 自动切换';
+
+  @override
+  String get proFeatureAutoBody => '输入框规则和“快捷指令”会为你正在输入的 App 选择模式。';
+
+  @override
+  String get proFeatureDesktopTitle => '电脑';
+
+  @override
+  String get proFeatureDesktopBody => '把这部 iPhone 用作电脑上 Shinsoku 的麦克风。';
+
+  @override
+  String get proNote => '一次性购买，支持家人共享。';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return '以 $price 解锁';
+  }
+
+  @override
+  String get proBuy => '解锁 Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => '正在载入价格…';
+
+  @override
+  String get proRestore => '恢复购买';
+
+  @override
+  String get proOwned => 'Shinsoku Pro 已解锁。谢谢你！';
+
+  @override
+  String get proStatusUnlocked => '已解锁';
+
+  @override
+  String get proSettingsSubtitle => '自定模式、按 App 切换、电脑';
+
+  @override
+  String get proNoticePending => '正在等待批准。购买获批后，Pro 会立即解锁。';
+
+  @override
+  String get proNoticeCancelled => '已取消购买，不会收取任何费用。';
+
+  @override
+  String get proNoticeFailed => '购买未完成。请再试一次。';
+
+  @override
+  String get proNoticeUnavailable => '目前无法使用 App Store。请稍后再试。';
+
+  @override
+  String get proNoticeRestored => '已恢复购买。Shinsoku Pro 已解锁。';
+
+  @override
+  String get proNoticeNothingToRestore => '此 Apple 账户没有 Shinsoku Pro 的购买记录。';
+
+  @override
+  String get proLockedProfileEditor =>
+      '编辑模式需要 Shinsoku Pro。你仍可以在录音界面和键盘中选择这个模式。';
+
+  @override
+  String get proLockedFieldRules =>
+      '输入框规则需要 Shinsoku Pro。你设置的规则会保留，解锁 Pro 后会再次生效。';
+
+  @override
+  String get proLockedUseInApps => '通过“快捷指令”切换模式需要 Shinsoku Pro。';
+
+  @override
+  String get proLockedDesktop =>
+      '把这部 iPhone 用作 Mac 或 PC 上 Shinsoku 的无线麦克风：在这里说话，文字就会出现在电脑上。电脑功能属于 Shinsoku Pro。';
+
+  @override
+  String get proUnlockShort => '获取 Pro';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1476,6 +1562,92 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get nearbyErrorGeneric => '电脑连接出了点问题。';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => '自定模式';
+
+  @override
+  String get proFeatureProfilesBody => '创建自己的模式，并编辑任何模式的提示词和设置。';
+
+  @override
+  String get proFeatureAutoTitle => '按 App 自动切换';
+
+  @override
+  String get proFeatureAutoBody => '输入框规则和“快捷指令”会为你正在输入的 App 选择模式。';
+
+  @override
+  String get proFeatureDesktopTitle => '电脑';
+
+  @override
+  String get proFeatureDesktopBody => '把这部 iPhone 用作电脑上 Shinsoku 的麦克风。';
+
+  @override
+  String get proNote => '一次性购买，支持家人共享。';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return '以 $price 解锁';
+  }
+
+  @override
+  String get proBuy => '解锁 Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => '正在载入价格…';
+
+  @override
+  String get proRestore => '恢复购买';
+
+  @override
+  String get proOwned => 'Shinsoku Pro 已解锁。谢谢你！';
+
+  @override
+  String get proStatusUnlocked => '已解锁';
+
+  @override
+  String get proSettingsSubtitle => '自定模式、按 App 切换、电脑';
+
+  @override
+  String get proNoticePending => '正在等待批准。购买获批后，Pro 会立即解锁。';
+
+  @override
+  String get proNoticeCancelled => '已取消购买，不会收取任何费用。';
+
+  @override
+  String get proNoticeFailed => '购买未完成。请再试一次。';
+
+  @override
+  String get proNoticeUnavailable => '目前无法使用 App Store。请稍后再试。';
+
+  @override
+  String get proNoticeRestored => '已恢复购买。Shinsoku Pro 已解锁。';
+
+  @override
+  String get proNoticeNothingToRestore => '此 Apple 账户没有 Shinsoku Pro 的购买记录。';
+
+  @override
+  String get proLockedProfileEditor =>
+      '编辑模式需要 Shinsoku Pro。你仍可以在录音界面和键盘中选择这个模式。';
+
+  @override
+  String get proLockedFieldRules =>
+      '输入框规则需要 Shinsoku Pro。你设置的规则会保留，解锁 Pro 后会再次生效。';
+
+  @override
+  String get proLockedUseInApps => '通过“快捷指令”切换模式需要 Shinsoku Pro。';
+
+  @override
+  String get proLockedDesktop =>
+      '把这部 iPhone 用作 Mac 或 PC 上 Shinsoku 的无线麦克风：在这里说话，文字就会出现在电脑上。电脑功能属于 Shinsoku Pro。';
+
+  @override
+  String get proUnlockShort => '获取 Pro';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2214,4 +2386,90 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get nearbyErrorGeneric => '電腦連線發生問題。';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => '自訂模式';
+
+  @override
+  String get proFeatureProfilesBody => '建立自己的模式，並編輯任何模式的提示詞和設定。';
+
+  @override
+  String get proFeatureAutoTitle => '依 App 自動切換';
+
+  @override
+  String get proFeatureAutoBody => '欄位規則和「捷徑」會為你正在輸入的 App 選擇模式。';
+
+  @override
+  String get proFeatureDesktopTitle => '電腦';
+
+  @override
+  String get proFeatureDesktopBody => '將這部 iPhone 當作電腦上 Shinsoku 的麥克風。';
+
+  @override
+  String get proNote => '一次性購買，支援家人共享。';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return '以 $price 解鎖';
+  }
+
+  @override
+  String get proBuy => '解鎖 Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => '正在載入價格…';
+
+  @override
+  String get proRestore => '恢復購買';
+
+  @override
+  String get proOwned => 'Shinsoku Pro 已解鎖。謝謝你！';
+
+  @override
+  String get proStatusUnlocked => '已解鎖';
+
+  @override
+  String get proSettingsSubtitle => '自訂模式、依 App 切換、電腦';
+
+  @override
+  String get proNoticePending => '正在等待核准。購買獲得核准後，Pro 就會立即解鎖。';
+
+  @override
+  String get proNoticeCancelled => '已取消購買，不會收取任何費用。';
+
+  @override
+  String get proNoticeFailed => '購買未完成。請再試一次。';
+
+  @override
+  String get proNoticeUnavailable => '目前無法使用 App Store。請稍後再試。';
+
+  @override
+  String get proNoticeRestored => '已恢復購買。Shinsoku Pro 已解鎖。';
+
+  @override
+  String get proNoticeNothingToRestore => '這個 Apple 帳號沒有 Shinsoku Pro 的購買紀錄。';
+
+  @override
+  String get proLockedProfileEditor =>
+      '編輯模式需要 Shinsoku Pro。你仍可在錄音畫面和鍵盤中選擇這個模式。';
+
+  @override
+  String get proLockedFieldRules =>
+      '欄位規則需要 Shinsoku Pro。你設定的規則會保留，解鎖 Pro 後會再次生效。';
+
+  @override
+  String get proLockedUseInApps => '從「捷徑」切換模式需要 Shinsoku Pro。';
+
+  @override
+  String get proLockedDesktop =>
+      '將這部 iPhone 當作 Mac 或 PC 上 Shinsoku 的無線麥克風：在這裡說話，文字就會出現在電腦上。電腦功能屬於 Shinsoku Pro。';
+
+  @override
+  String get proUnlockShort => '取得 Pro';
 }
