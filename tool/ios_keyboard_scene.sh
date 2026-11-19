@@ -11,7 +11,8 @@
 # The shared simulators run in Chinese; the scene launches Settings/Safari in English and also matches Chinese
 # labels. Never change the simulator's language.
 #
-# Run from a shell where `proxy_on; nvm use --lts` was done (flutter may fetch packages).
+# Packages must already be resolved (`cd mobile && flutter pub get` once). The script never runs pub itself:
+# a hung `pub get` holds the machine-wide Flutter startup lock and blocks other projects (2026-11-19).
 # Output: <out-dir>/{light,dark}/PHASE-xx-<name>.png (+ FAIL-<step>.png and FAIL-<step>.txt, the element
 # tree of the foreground app, where a run stopped), <look>.xcresult, <look>.log, <look>-scene.txt
 # (the SCENE lines: phases and any paste banner seen).
@@ -84,7 +85,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== flutter config (SwiftPM / pods)"
-(cd "$MOBILE" && nice -n 10 flutter build ios --simulator --debug --config-only)
+# --no-pub, and a hard limit so a stuck flutter never holds the shared Flutter lock for long.
+(cd "$MOBILE" && perl -e 'alarm shift; exec @ARGV' 600 nice -n 10 flutter build ios --simulator --debug --config-only --no-pub) || {
+  echo "flutter config step failed or exceeded 10 min (the Flutter lock is shared with other projects)" >&2
+  exit 1
+}
 
 XCB=(xcodebuild -workspace "$MOBILE/ios/Runner.xcworkspace" -scheme Runner -configuration Debug
   -sdk iphonesimulator -derivedDataPath "$DD" "${SIGN_ARGS[@]}")

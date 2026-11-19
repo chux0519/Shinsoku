@@ -1,3 +1,12 @@
+# STATE — live-01 round 01 (coordinator, 2026-11-19)
+
+- Done: T1–T3 merged; tier A and tier B (4 scenes on main) pass. See acceptance.md.
+- In progress: none. No workers, no worktrees.
+- Next: TestFlight 21 (ask the user); then i18n-01 planning with the user.
+- Open decisions: none.
+
+---
+Earlier unit sections:
 # STATE — live-01 T3 (wire live transcript; L1–L4; model test)
 - Done: RecordingPipeline per recording (mic + T1 service, DebugCapture, DEBUG fixture replay); failure keeps
   committed + pending as the draft (Record again); decisions a–d (Duo stacked + keyboard → Record only, D3;

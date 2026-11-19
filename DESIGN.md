@@ -70,7 +70,8 @@ Own component layer (`mobile/lib/ui/`), new UI uses it, not raw Material widgets
   hinge: one pane is always Record (status, transcript, record button); the other shows Drafts, Desktop or
   Settings, chosen with a top switcher (no side rail: Record never needs navigating to). Landscape: Record left.
   Portrait / tabletop (horizontal hinge): the switchable pane on top, Record at the bottom (content up,
-  controls down; primary action in the bottom third). Nothing interactive or text-bearing
+  controls down; primary action in the bottom third). While the software keyboard is up in a stacked split,
+  the switchable pane collapses and Record gets the whole window (2026-11-19, live-01 D3). Nothing interactive or text-bearing
   crosses the hinge; use the display-feature APIs, not a width guess. Posture changes keep state (an active
   recording never stops because the device folded). Follow the `iphone-duo-*` skills.
 - Keyboard extension: fixed height that fits the system keyboard; top row status + mode; primary row
@@ -78,10 +79,14 @@ Own component layer (`mobile/lib/ui/`), new UI uses it, not raw Material widgets
   settings inside the keyboard beyond mode switching.
 
 ## 7. Screens
-- **Record (home):** status line, transcript area, one record button. Empty state: one line on how to start.
-  Errors: inline status line with the fix (e.g. "Microphone access is off — Open Settings").
-- **Drafts / history:** date-grouped list, row = first two lines (dictations are usually one paragraph) + time + source; tap to edit; swipe to delete
-  with undo.
+- **Record (home):** status line + profile reason line; the middle is one borderless text area
+  (`SkTranscriptArea`, 2026-11-19 live-01): live text while recording (committed in text colour, pending in
+  text-tertiary), dimmed raw text while processing, editable in place when done. Bottom row: Copy (left),
+  Record/Stop (centre), Done (right, while editing). Clear lives in the text area's context menu. Errors: inline
+  status line with the fix; a failed stream keeps what was heard ("Record again").
+- **Drafts / history:** date-grouped list, row = first two lines (dictations are usually one paragraph) + time +
+  source; tap opens the same borderless editor (top bar: back, Copy, Save; back saves); swipe to delete with
+  undo.
 - **Settings:** grouped sections (Recognition, Profiles, Keyboard, Nearby, About); one detail per row.
 - **Nearby microphone:** pairing code large and mono, connection state as status line.
 - **Keyboard setup guide:** numbered steps, one "Open Settings" action.
