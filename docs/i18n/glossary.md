@@ -6,14 +6,14 @@ everywhere it is used.
 
 **Tone:** short, plain, friendly — like Apple's own UI in that language. Sentences end the way Apple ends them
 (ja: です/ます is avoided in labels, used in full sentences; ko: 해요체 in sentences, nouns in labels; de/fr/es/
-pt/it: informal "du/tu/tú/você/tu" like Apple's consumer apps).
+pt-BR/it: the form Apple's own iOS text uses — de "du", es "tú", pt-BR "você", it "tu", fr "vous").
 
 **Variants:** `zh-Hant` uses Taiwan wording (HK falls back to it). `zh-Hans` targets Singapore, Malaysia and
 overseas readers: mainland-neutral, no mainland-only slang. `pt-BR` is also the `pt` fallback. `es` is neutral
 Spanish (Apple's `es` wording: *Ajustes*, *Añadir*).
 
 **Never translated:** Shinsoku, Bailian, Soniox, Qwen-ASR, Fun-ASR, OpenAI, WebSocket, WSS, `wss://`, SHA-256,
-API key (kept as "API" + the local word for key), Wi-Fi, iOS.
+API key (kept as "API" + the local word for key), Wi-Fi (de: WLAN, as on iOS), iOS.
 
 ## Product terms
 
@@ -24,6 +24,7 @@ API key (kept as "API" + the local word for key), Wi-Fi, iOS.
 | draft | 下書き | 草稿 | 초안 | Entwurf | borrador | 草稿 | brouillon | rascunho | bozza |
 | insert (text) | 挿入 | 插入 | 삽입 | einfügen | insertar | 插入 | insérer | inserir | inserire |
 | record / recording | 録音 | 錄音 | 녹음 | aufnehmen / Aufnahme | grabar / grabación | 录音 | enregistrer / enregistrement | gravar / gravação | registrare / registrazione |
+| Record (tab, Record key) | 録音 | 錄音 | 녹음 | Aufnahme | Grabar | 录音 | Dicter | Gravar | Registra |
 | transcript | テキスト | 文字 | 텍스트 | Text | texto | 文本 | texte | texto | testo |
 | transcribe | 文字起こし | 轉成文字 | 텍스트로 변환 | transkribieren | transcribir | 转写 | transcrire | transcrever | trascrivere |
 | post-processing | 後処理 | 後處理 | 후처리 | Nachbearbeitung | posprocesado | 后处理 | post-traitement | pós-processamento | post-elaborazione |
@@ -112,4 +113,5 @@ action per profile, and `useInAppsReadyMade` quotes it with the translated "Chat
 - **ja:** katakana プロファイル (same as iOS's own "profile" elsewhere); full-width punctuation 「」 for quotes.
 - **ko:** particles are avoided around placeholders (no 을/를 after a name we do not know).
 - **de:** "Computer" for the Desktop tab (Desktop is not used for a PC in German UI text).
+- **fr:** the Record tab and key say "Dicter": "Enregistrer" is already Save.
 - **fr/es/it/pt-BR:** typographic quotes: « » (fr, with narrow spaces), “ ” (es, pt-BR, it).

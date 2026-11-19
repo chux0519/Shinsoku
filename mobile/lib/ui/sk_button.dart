@@ -149,13 +149,16 @@ class SkIconButton extends StatelessWidget {
     final fg = enabled
         ? (color ?? c.textSecondary)
         : c.textTertiary.withValues(alpha: 0.5);
-    return Tooltip(
-      message: tooltip,
-      excludeFromSemantics: true,
-      child: SkPressable(
-        onTap: onPressed,
-        semanticLabel: tooltip,
-        builder: (context, pressed) => SizedBox.square(
+    // The tooltip sits inside the pressable: its overlay portal then never
+    // becomes the parent of the button's semantics node (a partly clipped
+    // portal produced an invisible node, i18n-01 I5, German at 200 % text).
+    return SkPressable(
+      onTap: onPressed,
+      semanticLabel: tooltip,
+      builder: (context, pressed) => Tooltip(
+        message: tooltip,
+        excludeFromSemantics: true,
+        child: SizedBox.square(
           dimension: SkShape.minTarget,
           child: Center(
             child: SkFill(
