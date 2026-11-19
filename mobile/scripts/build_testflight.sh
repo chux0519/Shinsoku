@@ -28,13 +28,27 @@ for name in \
   fi
 done
 
-flutter build ipa --release \
-  "${DART_DEFINES[@]}" \
-  --export-options-plist=ios/ExportOptionsAppStore.plist
+KEY_PATH="${APPSTORE_API_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY}.p8}"
+ARCHIVE="build/ios/archive/Runner.xcarchive"
+EXPORT_DIR="build/ios/ipa"
 
-IPA_PATH="$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)"
+# Generate Flutter's xcconfig (build name/number, dart-defines) without signing, then archive with
+# xcodebuild so automatic signing may create a development profile that carries the App Group.
+flutter build ios --release --config-only "${DART_DEFINES[@]}"
+
+rm -rf "${ARCHIVE:?}" "${EXPORT_DIR:?}"
+xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" \
+  -allowProvisioningUpdates \
+  -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$API_KEY" -authenticationKeyIssuerID "$API_ISSUER" \
+  archive
+
+xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$EXPORT_DIR" \
+  -exportOptionsPlist ios/ExportOptionsAppStore.plist
+
+IPA_PATH="$(find "$EXPORT_DIR" -maxdepth 1 -name '*.ipa' -print -quit)"
 if [[ -z "$IPA_PATH" ]]; then
-  echo "No IPA found under build/ios/ipa" >&2
+  echo "No IPA found under $EXPORT_DIR" >&2
   exit 1
 fi
 
