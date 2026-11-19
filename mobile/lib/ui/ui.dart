@@ -5,6 +5,7 @@ library;
 export 'sk_button.dart';
 export 'sk_layout.dart';
 export 'sk_pressable.dart';
+export 'sk_pro.dart';
 export 'sk_record_button.dart';
 export 'sk_section.dart';
 export 'sk_segmented.dart';

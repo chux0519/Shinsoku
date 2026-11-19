@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
@@ -88,6 +89,9 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
   Widget build(BuildContext context) {
     final editing = widget.profile != null;
     final l = context.l10n;
+    // pricing-01: editing any profile needs Pro; without it the sheet is
+    // read-only and offers the Pro sheet (selecting stays free, E3).
+    final locked = !ProScope.ownedOf(context);
     return SkSheet(
       title: editing ? l.profileEditTitle : l.profileNewTitle,
       actions: [
@@ -96,13 +100,42 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
           expand: true,
           onPressed: () => Navigator.of(context).pop(),
         ),
-        SkButton(label: l.commonSave, expand: true, onPressed: _save),
+        if (locked)
+          SkButton(
+            key: const ValueKey('profile-unlock'),
+            label: l.proBuy,
+            expand: true,
+            onPressed: () => showProSheet(context),
+          )
+        else
+          SkButton(
+            key: const ValueKey('profile-save'),
+            label: l.commonSave,
+            expand: true,
+            onPressed: _save,
+          ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (locked) ...[
+            const Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: SkProBadge(),
+            ),
+            const SizedBox(height: SkSpace.s),
+            Text(
+              l.proLockedProfileEditor,
+              key: const ValueKey('profile-locked-note'),
+              style: SkType.secondary.copyWith(
+                color: SkColors.of(context).textSecondary,
+              ),
+            ),
+            const SizedBox(height: SkSpace.l),
+          ],
           SkTextArea.field(
             controller: _name,
+            enabled: !locked,
             label: l.profileNameLabel,
             autocorrect: true,
             textCapitalization: TextCapitalization.words,
@@ -110,6 +143,7 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
           const SizedBox(height: SkSpace.l),
           SkTextArea(
             controller: _intent,
+            enabled: !locked,
             label: l.profilePromptLabel,
             helper: l.profilePromptHelper,
             minLines: 3,
@@ -138,7 +172,9 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
               ),
             ],
             selected: _suffix,
-            onChanged: (value) => setState(() => _suffix = value),
+            onChanged: locked
+                ? null
+                : (value) => setState(() => _suffix = value),
           ),
           const SizedBox(height: SkSpace.m),
           ClipRRect(
@@ -149,7 +185,9 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
                 title: l.profileAutoCommit,
                 subtitle: l.profileAutoCommitSubtitle,
                 value: _autoCommit,
-                onChanged: (value) => setState(() => _autoCommit = value),
+                onChanged: locked
+                    ? null
+                    : (value) => setState(() => _autoCommit = value),
               ),
             ),
           ),

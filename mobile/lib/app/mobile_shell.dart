@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
+import 'package:shinsoku_mobile/nearby/nearby_tab.dart';
 import 'package:shinsoku_mobile/app/bridges.dart';
 import 'package:shinsoku_mobile/app/live_fixture_pipeline.dart';
 import 'package:shinsoku_mobile/app/recording_pipeline.dart';
@@ -1095,7 +1096,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           message: context.l10n.draftsCopied,
         ),
       ),
-      NearbyMicrophoneView(
+      NearbyTab(
         profiles: [
           for (final profile in _profiles)
             NearbyProfileOption(

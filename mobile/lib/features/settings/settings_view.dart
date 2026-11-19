@@ -7,6 +7,7 @@ import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
 import 'package:shinsoku_mobile/l10n/failure_text.dart';
 import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/transcription_service.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
@@ -194,6 +195,7 @@ class _SettingsViewState extends State<SettingsView> {
         : _bailianTextModelController.text.trim();
     const gap = SizedBox(height: SkSpace.xl);
     const fieldGap = SizedBox(height: SkSpace.m);
+    final owned = ProScope.ownedOf(context);
 
     return SkPage(
       title: l.settingsTitle,
@@ -337,6 +339,8 @@ class _SettingsViewState extends State<SettingsView> {
           onPressed: _save,
         ),
         gap,
+        _ProSection(),
+        gap,
         SkSection(
           label: l.settingsSectionProfiles,
           children: [
@@ -350,16 +354,23 @@ class _SettingsViewState extends State<SettingsView> {
                     ? null
                     : () => widget.onProfileOpened!(profile),
               ),
+            // Creating a profile needs Pro (pricing-01); without it the row
+            // opens the Pro sheet.
             SkListRow(
+              key: const ValueKey('settings-add-profile'),
               leading: Icons.add_rounded,
               title: l.settingsAddProfile,
               accentTitle: true,
-              onTap: widget.onProfileAdded,
+              trailing: owned ? null : const SkProBadge(),
+              onTap: owned
+                  ? widget.onProfileAdded
+                  : () => showProSheet(context),
             ),
             SkListRow(
               leading: Icons.apps_rounded,
               title: l.settingsUseInApps,
               subtitle: l.settingsUseInAppsSubtitle,
+              trailing: owned ? null : const SkProBadge(),
               chevron: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -375,6 +386,7 @@ class _SettingsViewState extends State<SettingsView> {
               leading: Icons.text_fields_rounded,
               title: l.settingsFieldRules,
               subtitle: l.settingsFieldRulesSubtitle,
+              trailing: owned ? null : const SkProBadge(),
               chevron: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -444,6 +456,45 @@ class _FieldLabel extends StatelessWidget {
           color: SkColors.of(context).textSecondary,
         ),
       ),
+    );
+  }
+}
+
+/// Settings › Shinsoku Pro (pricing-01): status, buy (opens the sheet),
+/// Restore Purchases.
+class _ProSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final entitlement = ProScope.of(context);
+    final state = entitlement.value;
+    return SkSection(
+      children: [
+        SkListRow(
+          key: const ValueKey('settings-pro'),
+          leading: Icons.workspace_premium_outlined,
+          title: l.proName,
+          subtitle: l.proSettingsSubtitle,
+          value: state.owned ? l.proStatusUnlocked : state.productPrice,
+          chevron: true,
+          onTap: () => showProSheet(context),
+        ),
+        if (!state.owned)
+          SkListRow(
+            key: const ValueKey('settings-pro-restore'),
+            leading: Icons.restore_rounded,
+            title: l.proRestore,
+            accentTitle: true,
+            onTap: state.busy
+                ? null
+                : () async {
+                    await entitlement.restore();
+                    if (context.mounted && entitlement.value.notice != null) {
+                      await showProSheet(context);
+                    }
+                  },
+          ),
+      ],
     );
   }
 }
