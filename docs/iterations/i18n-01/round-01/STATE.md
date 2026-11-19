@@ -49,3 +49,23 @@
 - **Open decisions:** none.
 - **How to verify:** same commands as I2 above, plus `tool/host_review.sh i18n-01/round-01/i4 use-in-apps`
   (and `... '' '' pseudo`).
+
+## I5 — translations + glossary (branch `i18n-01-i5-translations`)
+- **Done:** glossary (`docs/i18n/glossary.md`); ARB for ja, zh-Hant, ko, de, es, zh-Hans, fr, pt-BR, it (+ `zh`,
+  `pt` fallbacks); native catalogs + 9 `<lang>.lproj/AppShortcuts.strings` (generated from
+  `tool/i18n/native.json`, registered in the variant group); checks R06 (all languages, placeholders) and R07
+  (`check_arb.py`, quoted Shortcuts names, generated files in sync), rule M12; scene match lists with zh-Hans,
+  runner launched in English; Chinese review package `docs/i18n/review-zh.md`; host renders for all 10 locales
+  (CJK font fix), two component fixes (SkSegmented single long word, SkIconButton tooltip semantics). Notes:
+  `I5-implementation.md`.
+- **Tested source state:** f289189 (builds, scene build-only, renders, test_diff, lint); later commits are docs only.
+- **In progress:** nothing; awaiting coordinator review.
+- **Next:** user reviews the Chinese wording (`docs/i18n/review-zh.md`); coordinator tier B in zh-Hans and ja
+  (reset the app's data first, see notes §For the coordinator 2); fix wording from the review via ARB /
+  native.json + `tool/i18n_native.py` + `tool/i18n_review_zh.py`.
+- **Open decisions:** keyboard `PrimaryLanguage` (`mul` recommended, untouched); translation-profile prompts
+  stay English; automation trigger names to confirm on device per language (tier C).
+- **How to verify:** `cd mobile && flutter analyze`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
+  `cd mobile && perl -e 'alarm shift; exec @ARGV' 900 flutter build ios --simulator --debug --no-pub`;
+  `tool/ios_keyboard_scene.sh --build-only`; `tool/host_review.sh i18n-01/round-01/i5 '' '' '' <locale>` for
+  en, ja, de (full review) and the others (automated; `grep ^CLIPPED build/ui-review/…/run.log`).
