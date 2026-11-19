@@ -47,6 +47,7 @@ class SceneTestCase: XCTestCase {
         static let deny = ["Don", "不允许"]
         static let nextKeyboard = ["Next keyboard", "下一个键盘", "切换键盘"]
         static let address = ["Address", "地址"]
+        static let addressPlaceholder = ["Search or enter website name", "搜索或输入网站名称"]
         static let open = ["Open", "打开"]
         static let allowExact = ["Allow", "允许", "OK", "好"]
         static let pastePrompt = ["Allow Paste", "pasted from", "允许粘贴", "粘贴自", "已粘贴"]
@@ -221,10 +222,13 @@ class SceneTestCase: XCTestCase {
         require(key("Record"), step, timeout: 2)
     }
 
-    /// Safari's address bar (the tab bar item before editing; any element labelled Address).
+    /// Safari's address bar before editing: the tab bar item, iOS 27's minimized capsule (`CapsuleNavigationBar?…`,
+    /// no label; shown while a page field has focus), or any element labelled Address / the search placeholder.
     func safariAddressBar() -> XCUIElement {
         safari.descendants(matching: .any).matching(NSPredicate(
-            format: "identifier IN {'TabBarItemTitle', 'URL', 'Address'} OR label IN %@", L.address
+            format: "identifier IN {'TabBarItemTitle', 'URL', 'Address'}"
+                + " OR identifier BEGINSWITH 'CapsuleNavigationBar' OR label IN %@ OR label IN %@",
+            L.address, L.addressPlaceholder
         )).firstMatch
     }
 

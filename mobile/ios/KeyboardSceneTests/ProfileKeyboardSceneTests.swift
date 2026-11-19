@@ -122,18 +122,52 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
     }
 
     /// Safari's address bar focused (keyboard type `.webSearch` → field kind search) with Shinsoku up.
+    /// iOS 27: while the page's textarea has focus the bar is a minimized, unlabelled capsule; end the page edit
+    /// (form toolbar Done), then tap the bar (capsule → expanded → editing may take two taps) until an address
+    /// text field has keyboard focus.
     private func focusAddressBarWithShinsoku(step: String) {
         if safari.state == .notRunning {
             safari.launch()
         } else {
             safari.activate()
         }
-        let input = safari.textFields.firstMatch
-        if !input.waitForExistence(timeout: 2) {
-            tap(safariAddressBar(), "\(step)-address-bar")
+        var input = focusedAddressInput()
+        if input == nil {
+            let done = safari.buttons.matching(labelEquals: L.done).firstMatch
+            if done.waitForExistence(timeout: 2), field().exists, hasKeyboardFocus(field()) {
+                done.tap()
+            }
         }
-        require(input, "\(step)-address-field", timeout: 5)
+        for _ in 0..<4 where input == nil {
+            let bar = safariAddressBar()
+            if bar.waitForExistence(timeout: 3) {
+                bar.tap()
+            } else {
+                // Bars can stay hidden after a scroll: a small drag down brings them back.
+                safari.swipeDown()
+            }
+            Thread.sleep(forTimeInterval: 1)
+            input = focusedAddressInput()
+        }
+        guard let input else {
+            check(false, "\(step)-address-field", "\(step): no focused address field")
+            return
+        }
+        print("SCENE \(step): address field '\(input.label)' focused")
         switchToShinsoku(retapping: input, step: "\(step)-shinsoku-keyboard")
+    }
+
+    /// The address bar's text field (or search field) when it has keyboard focus.
+    private func focusedAddressInput() -> XCUIElement? {
+        for query in [safari.textFields, safari.searchFields] {
+            let focused = query.matching(NSPredicate(format: "hasKeyboardFocus == YES")).firstMatch
+            if focused.exists { return focused }
+        }
+        return nil
+    }
+
+    private func hasKeyboardFocus(_ element: XCUIElement) -> Bool {
+        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
     }
 
     /// Ends address-bar editing (Cancel), so the page's textarea is reachable again.
