@@ -46,6 +46,16 @@ enum KeyboardProfileResolver {
         parseFieldRules(shared?.string(forKey: fieldRulesKey))
     }
 
+    /// pricing-01: field rules apply only with Shinsoku Pro (`pro.v1.owned`, E4). Without Pro the stored rules
+    /// stay untouched (E3) but none applies; manual switching is unaffected.
+    static func applicableFieldRules(_ rules: [FieldKind: String], proOwned: Bool) -> [FieldKind: String] {
+        proOwned ? rules : [:]
+    }
+
+    static func readApplicableFieldRules(_ shared: UserDefaults? = ProfileGroup.defaults) -> [FieldKind: String] {
+        applicableFieldRules(readFieldRules(shared), proOwned: ProfileGroup.proOwned(shared))
+    }
+
     /// Parses `at` as written by Dart (`toIso8601String`, micro- or milliseconds) or Swift (`timestamp`).
     static func instant(_ at: String) -> Date? {
         let fractional = ISO8601DateFormatter()

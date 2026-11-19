@@ -259,7 +259,8 @@ final class KeyboardViewController: UIInputViewController {
         fieldKind = FieldKind.detect(textDocumentProxy)
         if hasFullAccess {
             profiles = ProfileGroup.readProfiles()
-            let rules = KeyboardProfileResolver.readFieldRules()
+            // pricing-01: no Shinsoku Pro → no field rule applies (the rules stay stored).
+            let rules = KeyboardProfileResolver.readApplicableFieldRules()
             let resolved = KeyboardProfileResolver.resolve(
                 selection: ProfileGroup.readSelection(),
                 profiles: profiles,

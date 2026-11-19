@@ -76,6 +76,13 @@ struct SetShinsokuProfileIntent: AppIntent {
   }
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
+    // pricing-01: switching profiles from Shortcuts is Shinsoku Pro. Without it nothing is written and the
+    // action answers with a dialog (never a raw error); Get Shinsoku Profile stays free. Reads the App Group
+    // mirror `pro.v1` (E4); a missing mirror is not Pro.
+    guard ProfileGroup.proOwned() else {
+      Self.log.notice("intent setActive: skipped, no Pro")
+      return .result(dialog: "Switching profiles from Shortcuts needs Shinsoku Pro.")
+    }
     // A renamed profile keeps its id; a deleted one must not become the selection (PR3).
     guard let current = ProfileGroup.readProfiles().first(where: { $0.id == profile.id }) else {
       throw ProfileIntentError.profileMissing(profile.name)

@@ -28,6 +28,8 @@
 		8A6D124001B1C0D000000001 /* KeyboardProfileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */; };
 		8A6D124201B1C0D000000001 /* KeyboardProfileButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */; };
 		8A6D124401B1C0D000000001 /* ProfileGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123101B1C0D000000001 /* ProfileGroup.swift */; };
+		8A6D125001B1C0D000000001 /* ProStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D125101B1C0D000000001 /* ProStore.swift */; };
+		8A6D125401B1C0D000000001 /* ProSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D125501B1C0D000000001 /* ProSceneTests.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -124,6 +126,9 @@
 		8A6D123701B1C0D000000001 /* SceneSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSupport.swift; sourceTree = "<group>"; };
 		8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileKeyboardSceneTests.swift; sourceTree = "<group>"; };
 		8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSceneTests.swift; sourceTree = "<group>"; };
+		8A6D125101B1C0D000000001 /* ProStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProStore.swift; sourceTree = "<group>"; };
+		8A6D125301B1C0D000000001 /* Shinsoku.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Shinsoku.storekit; sourceTree = "<group>"; };
+		8A6D125501B1C0D000000001 /* ProSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProSceneTests.swift; sourceTree = "<group>"; };
 		8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardProfileResolver.swift; sourceTree = "<group>"; };
 		8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardProfileButton.swift; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
@@ -219,6 +224,7 @@
 				8A6D123701B1C0D000000001 /* SceneSupport.swift */,
 				8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */,
 				8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */,
+				8A6D125501B1C0D000000001 /* ProSceneTests.swift */,
 			);
 			path = KeyboardSceneTests;
 			sourceTree = "<group>";
@@ -244,6 +250,7 @@
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				8A6D122301B1C0D000000001 /* KeyboardSceneTests */,
+				8A6D125301B1C0D000000001 /* Shinsoku.storekit */,
 				C410147CA7869066F23D0A56 /* Pods */,
 				546261B0EC18D09506AB8439 /* Frameworks */,
 			);
@@ -274,6 +281,7 @@
 				8A6D122F01B1C0D000000001 /* SceneDelegate.swift */,
 				8A6D123101B1C0D000000001 /* ProfileGroup.swift */,
 				8A6D123301B1C0D000000001 /* ProfileIntents.swift */,
+				8A6D125101B1C0D000000001 /* ProStore.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				65392598F43DDF39185E4689 /* Localizable.xcstrings */,
 				32CF91D2671E0AE1BB54761C /* InfoPlist.xcstrings */,
@@ -605,6 +613,7 @@
 				8A6D123601B1C0D000000001 /* SceneSupport.swift in Sources */,
 				8A6D123801B1C0D000000001 /* ProfileKeyboardSceneTests.swift in Sources */,
 				8A6D123A01B1C0D000000001 /* LiveSceneTests.swift in Sources */,
+				8A6D125401B1C0D000000001 /* ProSceneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -616,6 +625,7 @@
 				8A6D122E01B1C0D000000001 /* SceneDelegate.swift in Sources */,
 				8A6D123001B1C0D000000001 /* ProfileGroup.swift in Sources */,
 				8A6D123201B1C0D000000001 /* ProfileIntents.swift in Sources */,
+				8A6D125001B1C0D000000001 /* ProStore.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

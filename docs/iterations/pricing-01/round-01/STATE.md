@@ -24,3 +24,28 @@
   test/features/pro_gates_test.dart`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
   `tool/host_review.sh pricing-01/round-01/s1 pro-sheet,pro-sheet-loading,pro-sheet-pending,pro-sheet-owned,settings-pro-locked,profile-editor-locked,field-rules-locked,use-in-apps-locked,nearby-locked '' '' en`
   (and `pseudo` as 5th argument). Renders: `build/ui-review/pricing-01/round-01/s1{,-pseudo}/index.html`.
+
+## S2 — native StoreKit 2, mirror, gates, scene (branch `pricing-01-s2-native`, implementer, 2026-11-19)
+- **Done:** `ProStore.swift` (StoreKit 2: products, purchase, restore = `AppStore.sync`, `Transaction.updates`
+  from launch, `currentEntitlements`, revocation), store channels per the S1 contract, App Group mirror
+  `pro.v1` (only writer; E1 keep-on-unknown rule), keyboard field-rule gate, Set Profile intent gate + dialog
+  (10 languages), `Shinsoku.storekit` in the Runner scheme's Run action, DEBUG `-ShinsokuSceneProFixture`, E1–E4
+  in `state_invariants.md`, seeded model test, `ProSceneTests` (build-only), the two profile scenes now launch
+  with the owned fixture. Details: `S2-implementation.md`.
+- **Tested source:** branch head after the commit that adds this section: `flutter analyze` clean;
+  `tool/test_diff.sh` no new failures (0 known); `flutter test test/model/pro_model_test.dart` (also with
+  `SHINSOKU_MODEL_SEEDS=300`); `ResolverChecks/run.sh` all passed; `flutter build ios --simulator --debug
+  --no-pub` built; `tool/ios_keyboard_scene.sh --build-only` built; `check_xcstrings.py --stringsdata` 0
+  problems; `python3 tool/review_lint.py` all ok. Flutter-regenerated files restored before committing.
+- **In progress:** nothing; awaiting coordinator review.
+- **Next (coordinator, tier B):** `SCENE_TEST=KeyboardSceneTests/ProSceneTests tool/ios_keyboard_scene.sh`;
+  rerun ProfileKeyboardSceneTests / ProfileIntentSceneTests (now with the fixture); StoreKit-config purchase
+  and **Refund** from Xcode (Run action) → Pro row, field rule, Shortcuts.
+- **Open decisions (coordinator):**
+  1. E1 rule: Pro is removed only by a verified revoked transaction. Deleting a transaction in Xcode's manager,
+     or signing out of the Apple Account, keeps Pro (no evidence). OK, or downgrade when StoreKit knows no
+     transaction at all while online?
+  2. The keyboard shows nothing about Pro (rules silently don't apply). Add a hint?
+- **How to verify:** `cd mobile && flutter analyze && flutter test test/model/pro_model_test.dart`;
+  `mobile/ios/ShinsokuKeyboard/ResolverChecks/run.sh`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
+  `tool/ios_keyboard_scene.sh --build-only`.

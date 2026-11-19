@@ -106,6 +106,29 @@ unit tests `mobile/test/services/region_defaults_test.dart`; seeded model test
   profiles before region defaults run keeps its values (an absent provider still reads as `bailian`) and only
   gets the marker (`kept`). Absent language hints read as empty = auto-detect, i.e. today's requests.
 
+## E. Shinsoku Pro entitlement (pricing-01)
+Events: `buy` (purchased | pending | cancelled | StoreKit error), `approve` (a pending purchase approved later,
+delivered by `Transaction.updates`), `refund` (refund or Family Sharing removed: the transaction is revoked;
+delivered now, or once back online), `offline` / `online`, `restore` (`AppStore.sync`), `relaunch`. Writer: the
+app's StoreKit service `mobile/ios/Runner/ProStore.swift` (`ownedAfter`: a verified live entitlement → owned, a
+verified revoked transaction without another live one → not owned, anything else keeps the mirror). Readers: Dart
+`ChannelProEntitlement` (`mobile/lib/services/pro_entitlement.dart`), the keyboard
+(`KeyboardProfileResolver.readApplicableFieldRules`), the App Intents (`SetShinsokuProfileIntent`). Seeded model
+test `mobile/test/model/pro_model_test.dart` (Dart entitlement over the store channels + a port of `ProStore`;
+same seeds and `SHINSOKU_MODEL_SEEDS` as PR) with named regressions; mirror reader checks in
+`mobile/ios/ShinsokuKeyboard/ResolverChecks`.
+- **E1 A purchase is never lost.** Pro comes from StoreKit's verified transactions; offline, on a StoreKit error,
+  or when StoreKit knows no transaction, the last known state (App Group mirror `pro.v1`) holds. Errors,
+  cancelled or failed purchases and restores never downgrade (Dart applies `purchase`/`restore` answers only
+  upwards).
+- **E2 Revocation removes Pro** at the next transaction update (refund, revoked Family Sharing): the mirror is
+  written `owned=false` and the running app is told over `store/updates`.
+- **E3 Downgrade never deletes or rewrites user data.** Profiles, field rules (`fieldRules.v1` stays stored;
+  the keyboard just stops applying it), drafts and the active selection are untouched.
+- **E4 One source of truth.** The app, keyboard and App Intents read the same mirror `pro.v1`
+  (`{owned, updatedAt}`), written only by `ProStore` (and, in Debug builds, by the scene fixture
+  `-ShinsokuSceneProFixture` through `ProStore`). A missing or malformed mirror is not Pro.
+
 ## Process
 - Seeds are fixed in CI. A failing seed prints its shrunk sequence and is kept as a named regression case.
 - Three layers: pure model test → real UI driven with fakes (clock, network, payments) → device scenario
