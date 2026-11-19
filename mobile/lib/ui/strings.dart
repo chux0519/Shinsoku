@@ -13,6 +13,12 @@ abstract final class SkStrings {
   static const back = 'Back';
   static const copied = 'Copied. Insert it from the keyboard or paste it.';
   static const saved = 'Saved.';
+  static const savedInsert = 'Saved. Insert it from the keyboard.';
+  static const resultCopied =
+      'Copied. Paste it anywhere, or insert it from the keyboard.';
+  static const recordingStopped = 'Recording stopped';
+  static const heardTextKept = 'What was heard is kept here and in Drafts.';
+  static const tryAgain = 'Record again';
 
   // Drafts editor.
   static const draftEditorTitle = 'Draft';

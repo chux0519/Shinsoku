@@ -85,6 +85,7 @@ class SkTranscriptArea extends StatefulWidget {
     this.fieldKey,
     this.minHeight = 120,
     this.onClear,
+    this.semanticsIdentifier,
     super.key,
   });
 
@@ -108,6 +109,11 @@ class SkTranscriptArea extends StatefulWidget {
 
   /// Called after Clear empties the text (the default clears it).
   final VoidCallback? onClear;
+
+  /// Stable id for UI tests (iOS `accessibilityIdentifier`): XCUITest sees
+  /// the area as an element of varying type (a read-only field merges into
+  /// its container), so scenes find it by this id.
+  final String? semanticsIdentifier;
 
   @override
   State<SkTranscriptArea> createState() => _SkTranscriptAreaState();
@@ -168,6 +174,7 @@ class _SkTranscriptAreaState extends State<SkTranscriptArea> {
     );
     return Semantics(
       container: true,
+      identifier: widget.semanticsIdentifier,
       label: SkStrings.transcriptLabel,
       child: _IntrinsicHeight(
         height: widget.minHeight,

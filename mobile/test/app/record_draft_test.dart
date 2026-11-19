@@ -91,7 +91,9 @@ void main() {
     await t.tap(find.byKey(const ValueKey('record-copy')));
     await t.pump();
     expect(draftTexts(t), ['Take 1, edited twice.']);
-    expect(published.last, 'Take 1, edited twice.');
+    // Dictation (the default profile) adds a space when publishing; the
+    // draft stays plain.
+    expect(published.last, 'Take 1, edited twice. ');
 
     // A second take gets its own draft; editing it leaves the first alone.
     await t.enterText(find.byKey(_field), 'Take 1, unsaved.');

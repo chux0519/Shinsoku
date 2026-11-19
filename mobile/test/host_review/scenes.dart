@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/draft_editor_page.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
-import 'package:shinsoku_mobile/features/record/live_transcript.dart';
+import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';
@@ -216,6 +216,34 @@ final scenes = <String, SceneBuilder>{
   ),
   // Editing the result with the software keyboard up (see sceneSetups).
   'record-editing': () => _withKeyboard(_record(status: _doneStatus)),
+  // The connection dropped: what was heard stays, editable, with a retry.
+  'record-dropped': () => _record(
+    status: const SmokeTestStatus(
+      label: SkStrings.recordingStopped,
+      detail:
+          '${SkStrings.heardTextKept} (Bailian connection closed before '
+          'the result.)',
+      failed: true,
+      finished: true,
+      fix: StatusFix.retry,
+    ),
+    live: const LiveTranscript(
+      committed: '$_liveCommitted$_livePending',
+      phase: LivePhase.failed,
+    ),
+  ),
+  // Done after an edit: saved into the same draft and republished.
+  'record-saved': () => _record(
+    status: const SmokeTestStatus(
+      label: SkStrings.savedInsert,
+      detail: '',
+      finished: true,
+    ),
+    live: const LiveTranscript(
+      committed: sampleTranscript,
+      phase: LivePhase.done,
+    ),
+  ),
   'record-error': () => _record(
     microphoneAllowed: false,
     status: const SmokeTestStatus(

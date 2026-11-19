@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/app/bridges.dart';
+import 'package:shinsoku_mobile/app/live_fixture_pipeline.dart';
+import 'package:shinsoku_mobile/app/recording_pipeline.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/draft_editor_page.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
@@ -19,6 +20,7 @@ import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
 import 'package:shinsoku_mobile/services/active_profile.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/field_rules.dart';
+import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/profile_reason.dart';
 import 'package:shinsoku_mobile/services/shortcuts.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
@@ -28,15 +30,8 @@ import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
-/// Stands in for the recorder and provider pipeline in widget tests, so
-/// capture state can be driven without plugins or network.
-@visibleForTesting
-abstract interface class DebugCapture {
-  Future<void> start();
-
-  /// Returns the transcript.
-  Future<String> stop();
-}
+export 'package:shinsoku_mobile/app/recording_pipeline.dart'
+    show DebugCapture, RecordingPipeline;
 
 /// Owns everything that must survive a layout switch (DESIGN §6, invariant
 /// D1): capture state, the recorder, the current transcript and status,
@@ -46,6 +41,7 @@ class MobileShell extends StatefulWidget {
     this.initialDrafts = const [],
     this.initialTabIndex = 0,
     this.debugCapture,
+    this.pipelineFactory,
     super.key,
   });
 
@@ -54,6 +50,11 @@ class MobileShell extends StatefulWidget {
 
   @visibleForTesting
   final DebugCapture? debugCapture;
+
+  /// Makes each recording's pipeline instead of the microphone + provider
+  /// (model tests drive live words through it).
+  @visibleForTesting
+  final RecordingPipeline Function()? pipelineFactory;
 
   @override
   State<MobileShell> createState() => _MobileShellState();
@@ -90,10 +91,26 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   bool _providerSettingsSaving = false;
   ProviderSettings _providerSettings = ProviderSettings.defaults();
   SmokeTestStatus? _smokeTestStatus;
-  String? _recordingPath;
-  BailianRealtimeLiveSession? _bailianLiveSession;
-  StreamSubscription<Uint8List>? _recordingStreamSubscription;
-  Object? _recordingStreamError;
+
+  /// The current (or last) recording; one per recording.
+  RecordingPipeline? _pipeline;
+
+  /// Completes when [_pipeline] has started (or failed to).
+  Future<void>? _pipelineStarted;
+
+  /// What the Record area shows: the pipeline's live text, then the result
+  /// or the words kept from a failed recording.
+  final _live = ValueNotifier<LiveTranscript>(LiveTranscript.idle);
+
+  final _recordKey = GlobalKey<RecordViewState>();
+
+  /// Bumped when Drafts edits the Record screen's draft, so the area shows
+  /// the new text (one source: the draft).
+  RecordExternalEdit? _recordExternalEdit;
+
+  /// DEBUG only: `-ShinsokuSceneLiveFixture <name>` replays this fixture
+  /// instead of the microphone and provider.
+  LiveFixture? _liveFixture;
 
   /// Active profile per the profile-01 precedence (the app has no field
   /// rule or keyboard session, so: stored selection, else default).
@@ -131,14 +148,23 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     unawaited(_loadProviderSettings());
     _profilesLoaded = _loadVoiceProfiles();
     unawaited(_refreshMicrophonePermission());
+    if (kDebugMode) unawaited(_loadLiveFixture());
+  }
+
+  Future<void> _loadLiveFixture() async {
+    final fixture = await LiveFixture.fromLaunchArgument();
+    if (fixture == null || !mounted) return;
+    debugPrint('SHINSOKU_LIVE_FIXTURE ${fixture.name}');
+    setState(() => _liveFixture = fixture);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     DeepLinkBridge.channel.setMethodCallHandler(null);
-    unawaited(_recordingStreamSubscription?.cancel());
-    unawaited(_bailianLiveSession?.close());
+    _pipeline?.live.removeListener(_onPipelineLive);
+    unawaited(_pipeline?.dispose());
+    _live.dispose();
     unawaited(_audioRecorder.dispose());
     super.dispose();
   }
@@ -302,13 +328,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _publishTextWithFeedback(
-    String text, {
-    required String message,
-  }) async {
+  /// Publishes [text] as the keyboard's latest (App Group) and the
+  /// clipboard; [message] (if any) confirms it in a snack bar.
+  Future<void> _publishTextWithFeedback(String text, {String? message}) async {
     try {
       await KeyboardBridge.publishText(text);
-      if (!mounted) {
+      if (!mounted || message == null) {
         return;
       }
       ScaffoldMessenger.of(
@@ -325,68 +350,108 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   }
 
   Future<void> _toggleCapture() async {
-    final debug = widget.debugCapture;
-    if (debug != null) {
-      await _toggleDebugCapture(debug);
-      return;
-    }
-    if (_captureState == CaptureState.idle) {
-      await _startRecording();
-      return;
-    }
-
-    await _stopRecordingAndTranscribe();
-  }
-
-  Future<void> _toggleDebugCapture(DebugCapture debug) async {
     switch (_captureState) {
       case CaptureState.idle:
-        await debug.start();
-        if (!mounted) return;
-        setState(() {
-          _captureState = CaptureState.listening;
-          _smokeTestStatus = null;
-        });
+        await _startRecording();
       case CaptureState.listening:
-        setState(() => _captureState = CaptureState.processing);
-        final text = await debug.stop();
-        if (!mounted) return;
-        final draft = DraftEntry(
-          text: text,
-          profileName: _activeProfile.name,
-          createdAt: DateTime.now(),
-        );
-        setState(() {
-          _captureState = CaptureState.idle;
-          _drafts.insert(0, draft);
-          _recordDraft = draft;
-          _smokeTestStatus = SmokeTestStatus(
-            label: 'Recording transcribed',
-            detail: '',
-            transcript: text,
-            finished: true,
-          );
-        });
+        await _stopRecording();
       case CaptureState.processing:
+        // The result is on its way; the button shows progress.
         return;
     }
   }
 
+  /// A stand-in for the microphone and provider (widget tests, the DEBUG
+  /// live fixture): no permission or key checks.
+  bool get _simulatedCapture =>
+      widget.debugCapture != null ||
+      widget.pipelineFactory != null ||
+      _liveFixture != null;
+
+  RecordingPipeline _newPipeline() {
+    final debug = widget.debugCapture;
+    if (debug != null) return DebugCapturePipeline(debug);
+    final factory = widget.pipelineFactory;
+    if (factory != null) return factory();
+    final fixture = _liveFixture;
+    if (kDebugMode && fixture != null) return LiveFixturePipeline(fixture);
+    return MicrophonePipeline(
+      settings: _providerSettings,
+      recorder: _audioRecorder,
+    );
+  }
+
+  void _onPipelineLive() {
+    final pipeline = _pipeline;
+    if (pipeline == null) return;
+    final value = pipeline.live.value;
+    _live.value = value;
+    // The provider dropped while the user is still talking: stop now, keep
+    // what was heard (L2).
+    if (value.phase == LivePhase.failed &&
+        _captureState == CaptureState.listening) {
+      unawaited(_stopRecording());
+    }
+  }
+
+  Future<void> _releasePipeline() async {
+    final old = _pipeline;
+    _pipeline = null;
+    old?.live.removeListener(_onPipelineLive);
+    await old?.dispose();
+  }
+
   Future<void> _startRecording({String? requestedProfileId}) async {
+    if (_captureState != CaptureState.idle) return;
+    // L3/L4: unsaved Record edits (IME composition committed) go into their
+    // draft before the area is reused, however the recording was started.
+    _recordKey.currentState?.keepEdits();
     // PR1: resolve once, at the tap: the profile the keyboard showed, else
-    // the shared selection.
-    await _refreshActiveProfile();
+    // the shared selection. (DebugCapture widget tests have no host.)
+    if (widget.debugCapture == null) await _refreshActiveProfile();
+    if (!mounted || _captureState != CaptureState.idle) return;
     final profile = profileForRecordStart(
       _activeProfileStore.selection,
       _profiles,
       requestedProfileId: requestedProfileId,
     );
+    if (!_simulatedCapture && !await _microphoneAndProviderReady()) return;
+    if (!mounted || _captureState != CaptureState.idle) return;
+
+    await _releasePipeline();
+    final pipeline = _newPipeline();
+    _pipeline = pipeline;
+    pipeline.live.addListener(_onPipelineLive);
+    setState(() {
+      _captureState = CaptureState.listening;
+      _recordingProfile = profile;
+      _smokeTestStatus = null;
+    });
+    final started = pipeline.start();
+    _pipelineStarted = started.then((_) {}, onError: (_) {});
+    try {
+      await started;
+    } catch (error) {
+      if (!mounted || !identical(_pipeline, pipeline)) return;
+      // Nothing was recorded yet; the area keeps nothing new.
+      await _finishFailed(
+        pipeline,
+        error,
+        label: 'Recording failed',
+        profile: profile,
+      );
+      return;
+    }
+    if (mounted && !_simulatedCapture) {
+      setState(() => _microphoneAllowed = true);
+    }
+  }
+
+  Future<bool> _microphoneAndProviderReady() async {
     final permission = await Permission.microphone.request();
     final hasPermission = permission.isGranted || permission.isLimited;
     if (!hasPermission) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return false;
       setState(() {
         _microphoneAllowed = false;
         _smokeTestStatus = const SmokeTestStatus(
@@ -398,14 +463,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           fix: StatusFix.microphone,
         );
       });
-      return;
+      return false;
     }
 
     final recorderReady = await _audioRecorder.hasPermission(request: false);
     if (!recorderReady) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return false;
       setState(() {
         _microphoneAllowed = false;
         _smokeTestStatus = const SmokeTestStatus(
@@ -416,10 +479,11 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           finished: true,
         );
       });
-      return;
+      return false;
     }
 
     if (!_providerSettings.activeProviderConfigured) {
+      if (!mounted) return false;
       setState(() {
         _microphoneAllowed = true;
         _smokeTestStatus = const SmokeTestStatus(
@@ -430,107 +494,16 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           fix: StatusFix.providerSettings,
         );
       });
-      return;
+      return false;
     }
-
-    _recordingStreamError = null;
-    _recordingPath = null;
-    _bailianLiveSession = null;
-    await _recordingStreamSubscription?.cancel();
-    _recordingStreamSubscription = null;
-
-    try {
-      final shouldStreamBailian =
-          _providerSettings.speechProvider == 'bailian' &&
-          _providerSettings.bailianAsrMode == bailianAsrModeRealtime;
-      if (!shouldStreamBailian) {
-        final tempDir = await getTemporaryDirectory();
-        final path =
-            '${tempDir.path}/shinsoku-${DateTime.now().microsecondsSinceEpoch}.wav';
-        await _audioRecorder.start(
-          const RecordConfig(
-            encoder: AudioEncoder.wav,
-            sampleRate: bailianRealtimeSampleRate,
-            numChannels: bailianRealtimeChannels,
-          ),
-          path: path,
-        );
-        _recordingPath = path;
-      } else {
-        final session = await BailianRealtimeLiveSession.start(
-          _providerSettings,
-        );
-        try {
-          final stream = await _audioRecorder.startStream(
-            const RecordConfig(
-              encoder: AudioEncoder.pcm16bits,
-              sampleRate: bailianRealtimeSampleRate,
-              numChannels: bailianRealtimeChannels,
-              streamBufferSize: bailianRealtimeStreamBufferSize,
-            ),
-          );
-          _bailianLiveSession = session;
-          _recordingStreamSubscription = stream.listen(
-            session.addPcm,
-            onError: (Object error) {
-              _recordingStreamError = error;
-              unawaited(session.close());
-            },
-          );
-        } catch (_) {
-          await session.close();
-          rethrow;
-        }
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _microphoneAllowed = true;
-        _captureState = CaptureState.idle;
-        _smokeTestStatus = SmokeTestStatus(
-          label: 'Recording failed',
-          detail: error.toString(),
-          failed: true,
-          finished: true,
-        );
-      });
-      return;
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _microphoneAllowed = true;
-      _captureState = CaptureState.listening;
-      _recordingProfile = profile;
-      _smokeTestStatus = null;
-    });
+    return true;
   }
 
-  Future<void> _stopRecordingAndTranscribe() async {
-    final stopTotalWatch = Stopwatch()..start();
+  Future<void> _stopRecording() async {
+    final pipeline = _pipeline;
+    if (pipeline == null || _captureState != CaptureState.listening) return;
     final profile = _recordingProfile ?? _activeProfile;
     _recordingProfile = null;
-    final liveSession = _bailianLiveSession;
-    final streamSubscription = _recordingStreamSubscription;
-    _bailianLiveSession = null;
-    _recordingStreamSubscription = null;
-    final recorderStopWatch = Stopwatch()..start();
-    final path = await _audioRecorder.stop() ?? _recordingPath;
-    recorderStopWatch.stop();
-    final streamCancelWatch = Stopwatch()..start();
-    await streamSubscription?.cancel();
-    streamCancelWatch.stop();
-    _recordingPath = null;
-
-    if (!mounted) {
-      return;
-    }
-
     setState(() {
       _captureState = CaptureState.processing;
       _smokeTestStatus = const SmokeTestStatus(
@@ -539,83 +512,98 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       );
     });
 
+    // Stop tapped while the provider is still connecting: let it finish.
+    await _pipelineStarted;
+    if (!mounted ||
+        !identical(_pipeline, pipeline) ||
+        _captureState != CaptureState.processing) {
+      return;
+    }
+    final RealTranscriptionResult result;
     try {
-      final streamError = _recordingStreamError;
-      _recordingStreamError = null;
-      final service = RealTranscriptionService(settings: _providerSettings);
-      late final RealTranscriptionResult result;
-      final transcribeWatch = Stopwatch()..start();
-      if (liveSession != null) {
-        if (streamError != null) {
-          await liveSession.close();
-          throw StateError('Recording stream failed: $streamError');
-        }
-        result = await service.finishBailianRealtimeSession(
-          session: liveSession,
-          profile: profile,
-        );
-      } else {
-        if (path == null || !File(path).existsSync()) {
-          throw StateError('Recording file was not created.');
-        }
-        final audio = await File(path).readAsBytes();
-        if (audio.isEmpty) {
-          throw StateError('Recording file is empty.');
-        }
-
-        result = await service.transcribe(wavBytes: audio, profile: profile);
-      }
-      transcribeWatch.stop();
-      stopTotalWatch.stop();
-      final finalDetail =
-          '${result.detail} appRecorderStop=${recorderStopWatch.elapsedMilliseconds}ms '
-          'appStreamCancel=${streamCancelWatch.elapsedMilliseconds}ms '
-          'appTranscribe=${transcribeWatch.elapsedMilliseconds}ms '
-          'appStopToDraft=${stopTotalWatch.elapsedMilliseconds}ms';
-      debugPrint('SHINSOKU_RECORDING_E2E $finalDetail');
-
-      final draft = DraftEntry(
-        text: result.text,
-        profileName: result.provider,
-        createdAt: DateTime.now(),
+      result = await pipeline.stop(profile);
+    } catch (error) {
+      if (!mounted || !identical(_pipeline, pipeline)) return;
+      await _finishFailed(
+        pipeline,
+        error,
+        label: SkStrings.recordingStopped,
+        profile: profile,
       );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _captureState = CaptureState.idle;
+      return;
+    }
+    if (!mounted || !identical(_pipeline, pipeline)) return;
+    debugPrint('SHINSOKU_RECORDING_E2E ${result.detail}');
+    // The draft holds the plain text; the profile's suffix is added when it
+    // is published or copied (decision 2026-11-19).
+    final draft = DraftEntry(
+      text: result.text.trim(),
+      profileName: result.provider,
+      createdAt: DateTime.now(),
+      commitSuffix: profile.commitSuffix,
+    );
+    pipeline.live.removeListener(_onPipelineLive);
+    setState(() {
+      _captureState = CaptureState.idle;
+      _drafts.insert(0, draft);
+      _recordDraft = draft;
+      _live.value = pipeline.live.value.phase == LivePhase.done
+          ? pipeline.live.value
+          : LiveTranscript(committed: draft.text, phase: LivePhase.done);
+      _smokeTestStatus = SmokeTestStatus(
+        label: 'Recording transcribed',
+        detail: result.detail,
+        transcript: draft.text,
+        finished: true,
+      );
+    });
+    // Coordinator decision 2026-11-19: each new result is still published
+    // to the keyboard and the clipboard. The status line says so; a snack
+    // bar would cover Copy and Done.
+    await _publishTextWithFeedback(draft.publishText);
+  }
+
+  /// A failed recording: whatever was heard (committed + pending) becomes
+  /// this recording's draft, shown editable in the area; nothing is lost
+  /// (L2/L3). The status line says why and offers to record again.
+  Future<void> _finishFailed(
+    RecordingPipeline pipeline,
+    Object error, {
+    required String label,
+    required VoiceProfile profile,
+  }) async {
+    pipeline.live.removeListener(_onPipelineLive);
+    final heard = pipeline.live.value.text.trim();
+    final draft = heard.isEmpty
+        ? null
+        : DraftEntry(
+            text: heard,
+            profileName: profile.name,
+            createdAt: DateTime.now(),
+            commitSuffix: profile.commitSuffix,
+          );
+    setState(() {
+      _captureState = CaptureState.idle;
+      _tabIndex = 0;
+      if (draft != null) {
         _drafts.insert(0, draft);
         _recordDraft = draft;
-        _smokeTestStatus = SmokeTestStatus(
-          label: 'Recording transcribed',
-          detail: finalDetail,
-          transcript: result.text,
-          finished: true,
-        );
-      });
-      await _publishTextWithFeedback(
-        draft.text,
-        message: 'Transcript copied to clipboard.',
+      }
+      _live.value = LiveTranscript(
+        committed: heard,
+        phase: LivePhase.failed,
+        error: error.toString(),
       );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _captureState = CaptureState.idle;
-        _tabIndex = 0;
-        _smokeTestStatus = SmokeTestStatus(
-          label: 'Recording failed',
-          detail: error.toString(),
-          failed: true,
-          finished: true,
-        );
-      });
-    } finally {
-      if (path != null) {
-        unawaited(File(path).delete().catchError((_) => File(path)));
-      }
-    }
+      _smokeTestStatus = SmokeTestStatus(
+        label: label,
+        detail: draft == null
+            ? error.toString()
+            : '${SkStrings.heardTextKept} ($error)',
+        failed: true,
+        finished: true,
+        fix: StatusFix.retry,
+      );
+    });
   }
 
   Future<void> _refreshMicrophonePermission() async {
@@ -687,6 +675,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       text: text,
       profileName: _activeProfile.name,
       createdAt: DateTime.now(),
+      commitSuffix: _activeProfile.commitSuffix,
     );
     setState(() {
       _drafts.insert(0, draft);
@@ -694,16 +683,58 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     });
   }
 
+  /// The Record text as Insert and the clipboard get it: with the suffix of
+  /// the profile its draft was recorded with.
+  String _recordPublishText(String text) =>
+      withCommitSuffix(text, _recordDraft?.commitSuffix ?? CommitSuffix.none);
+
   void _copyRecordText(String text) {
     _saveRecordText(text);
-    unawaited(_publishTextWithFeedback(text, message: SkStrings.copied));
+    unawaited(
+      _publishTextWithFeedback(
+        _recordPublishText(text),
+        message: SkStrings.copied,
+      ),
+    );
   }
 
-  Future<void> _showDraftEditor(DraftEntry draft) async {
+  /// Record › Done after an edit: saved into the same draft and republished
+  /// as the keyboard's latest and the clipboard (coordinator decision
+  /// 2026-11-19); the status line says so.
+  void _doneRecordText(String text) {
+    _saveRecordText(text);
+    setState(() {
+      _smokeTestStatus = const SmokeTestStatus(
+        label: SkStrings.savedInsert,
+        detail: '',
+        finished: true,
+      );
+    });
+    unawaited(_publishTextWithFeedback(_recordPublishText(text)));
+  }
+
+  Future<void> _showDraftEditor(DraftEntry tapped) async {
+    var draft = tapped;
+    if (identical(draft, _recordDraft)) {
+      // Unsaved Record edits first, so the editor opens on the newest text.
+      _recordKey.currentState?.keepEdits();
+      draft = _recordDraft ?? draft;
+    }
     var current = draft;
     void save(String text) {
+      final isRecordDraft = identical(current, _recordDraft);
       final updated = _replaceDraft(current, text);
-      if (updated != null) current = updated;
+      if (updated == null) return;
+      current = updated;
+      // One source: the Record area follows its draft (decision 2026-11-19).
+      if (isRecordDraft) {
+        setState(() {
+          _recordExternalEdit = RecordExternalEdit(
+            (_recordExternalEdit?.revision ?? 0) + 1,
+            text,
+          );
+        });
+      }
     }
 
     await Navigator.of(context).push<void>(
@@ -714,7 +745,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           onCopy: (text) {
             save(text);
             unawaited(
-              _publishTextWithFeedback(text, message: SkStrings.copied),
+              _publishTextWithFeedback(
+                withCommitSuffix(text, current.commitSuffix),
+                message: SkStrings.copied,
+              ),
             );
           },
         ),
@@ -1010,6 +1044,10 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       RecordView(
+        key: _recordKey,
+        transcript: _live,
+        externalEdit: _recordExternalEdit,
+        onDoneText: _doneRecordText,
         profiles: _profiles,
         selectedProfileIndex: _selectedProfileIndex,
         captureState: _captureState,
@@ -1033,7 +1071,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         onDelete: _deleteDraft,
         onEdit: _showDraftEditor,
         onCopy: (draft) => _publishTextWithFeedback(
-          draft.text,
+          draft.publishText,
           message: 'Draft copied to clipboard.',
         ),
       ),

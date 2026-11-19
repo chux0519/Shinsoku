@@ -33,7 +33,8 @@ DEFAULT_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
 read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-$DEFAULT_SIGN_ARGS}"
 KEYBOARD_ID=net.potafree.shinsoku.keyboard
 # Which scene: the keyboard scene by default; profile-01 P2: SCENE_TEST=KeyboardSceneTests/ProfileIntentSceneTests;
-# profile-01 P3 (keyboard profile switch): SCENE_TEST=KeyboardSceneTests/ProfileKeyboardSceneTests.
+# profile-01 P3 (keyboard profile switch): SCENE_TEST=KeyboardSceneTests/ProfileKeyboardSceneTests;
+# live-01 T3 (live transcript, edit, Insert; dropped connection): SCENE_TEST=KeyboardSceneTests/LiveSceneTests.
 SCENE_TEST=${SCENE_TEST:-KeyboardSceneTests/KeyboardSceneTests}
 
 usage() {

@@ -1,3 +1,16 @@
+# STATE — live-01 T3 (wire live transcript; L1–L4; model test)
+- Done: RecordingPipeline per recording (mic + T1 service, DebugCapture, DEBUG fixture replay); failure keeps
+  committed + pending as the draft (Record again); decisions a–d (Duo stacked + keyboard → Record only, D3;
+  Drafts ↔ Record one source; Done saves + republishes; back saves); L1–L4 + D3 in state_invariants.md; seeded
+  model test + 8 named cases + 8 wiring tests; `-ShinsokuSceneLiveFixture <name>`. Details: `T3-implementation.md`.
+- Review follow-ups done: drafts store plain text, suffix only when publishing/copying; tier-B scene
+  `KeyboardSceneTests/LiveSceneTests` (build-only checked).
+- In progress: none. Next: coordinator runs `SCENE_TEST=KeyboardSceneTests/LiveSceneTests
+  tool/ios_keyboard_scene.sh <UDID> <out>` on iPhone 17.
+- Open decisions: failure-status wording (raw error text), see T3-implementation.md §Open.
+- Verify: `cd mobile && flutter analyze`; `tool/test_diff.sh`; `python3 tool/review_lint.py`;
+  `cd mobile && flutter test test/model test/app`; `tool/host_review.sh live-01/round-01/t3`.
+
 # STATE — live-01 T2 (Record screen: the transcript is the text field)
 - Done: SkTranscriptArea + controller, Record redesign (Copy · Record · Done), Drafts editor page (old framed
   editor removed), SkStrings table, temp LiveTranscript copy, minimal shell wiring, tests, host scenes.

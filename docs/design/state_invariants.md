@@ -23,6 +23,40 @@ Events: `resize(window)` (iPhone, Duo outer, inner landscape / portrait, with or
   Record (with Stop), whichever page was picked before. Regression: seed 7, "tab away on the phone, unfold,
   fold".
 
+- **D3 Stacked + keyboard: Record gets the window.** In a stacked split (tabletop, or portrait when flat), while
+  a field in Record has focus and the software keyboard is up, the switchable pane steps aside (kept offstage,
+  its state intact) and Record fills the window, so its text, status and bottom row (Copy · Record · Done) stay
+  above the keyboard; when the keyboard goes down or focus leaves Record, the split returns. A field in the
+  switchable pane never collapses it (live-01 decision 2026-11-19). Tests: `mobile/test/model/record_model_test.dart`,
+  `mobile/test/app/live_wiring_test.dart` ("D3: …").
+
+## L. Live transcript and the Record area (live-01)
+Events: `new_recording(post)` (Record tap), `keyboard_record(post)` (`shinsoku://dictation`), `partial(words)`,
+`final(words)` (provider), `drop` (connection lost or provider error, while listening or after Stop), `stop`,
+`process` (provider result; a post-processing profile takes two: raw text, then the processed text), `edit(text)`,
+`compose(text)` (IME marked text), `done`, `open_draft_elsewhere(text)` (Drafts edits the Record draft),
+`keyboard_up` / `keyboard_down` (iPhone Duo, stacked). The shell (`mobile/lib/app/mobile_shell.dart`) creates
+one `RecordingPipeline` per recording and mirrors its `LiveTranscript` into the Record area. Seeded model test:
+`mobile/test/model/record_model_test.dart` (seeds 1 / 7 / 42 / 99 / 2026; `SHINSOKU_MODEL_SEEDS=<n>`), real
+MobileShell on the Duo inner display with a scripted pipeline (`test/model/scripted_pipeline.dart`); named cases
+in `mobile/test/model/record_regressions_test.dart`; provider replay for L1/L2 in
+`mobile/test/services/live_transcript_replay_test.dart` (T1).
+- **L1 Committed only grows.** During listening (and finishing), committed text only grows: each value extends
+  the previous one, nothing in it changes or disappears; pending text (the provider's interim words, drawn in
+  text-tertiary) may change. The Record area shows exactly committed + pending.
+- **L2 Nothing heard is lost or doubled.** On stop, the final text equals committed + the provider's final
+  segments (no word lost, none duplicated); a post-processing profile replaces it once with the processed text.
+  If the connection drops or the provider fails (while listening or after Stop), the recording stops and
+  committed + pending become this recording's draft, shown editable in the area; the status line says
+  "Recording stopped" and offers "Record again".
+- **L3 One recording, one draft.** A recording's text never lands in a different draft, and editing never
+  creates a second one: Done, Copy, a new recording over unsaved edits, and Drafts editing the Record draft all
+  update the same entry in place. Record and Drafts show one source: after Drafts edits the Record draft, the
+  Record area shows that text. Done after an edit also republishes it (keyboard's latest + clipboard).
+- **L4 No composition crosses a record start.** Before a recording starts (Record tap, keyboard, Shortcuts),
+  unsaved Record edits are saved with any IME composition committed first; the new recording never starts over
+  marked text.
+
 ## PR. Active profile (profile-01)
 Events: `automation_set(id, at)` (App Intent), `manual_pick(id, at)` (keyboard or app Record selector),
 `field_change(kind)` (keyboard), `keyboard_appear(at)`, `app_record_start`, `app_relaunch`, `profile_delete(id)`,

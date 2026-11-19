@@ -3,7 +3,7 @@
 // Copy hands the text to the publish path.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shinsoku_mobile/features/record/live_transcript.dart';
+import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
