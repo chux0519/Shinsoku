@@ -781,6 +781,102 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get nearbyErrorGeneric =>
       'Something went wrong with the desktop connection.';
+
+  @override
+  String get proName => 'Shinsoku Pro';
+
+  @override
+  String get proBadge => 'Pro';
+
+  @override
+  String get proFeatureProfilesTitle => 'Custom profiles';
+
+  @override
+  String get proFeatureProfilesBody =>
+      'Create your own profiles and edit any profile\'s prompt and settings.';
+
+  @override
+  String get proFeatureAutoTitle => 'Automatic switching per app';
+
+  @override
+  String get proFeatureAutoBody =>
+      'Field rules and Shortcuts pick the profile for the app you\'re typing in.';
+
+  @override
+  String get proFeatureDesktopTitle => 'Desktop';
+
+  @override
+  String get proFeatureDesktopBody =>
+      'Use this iPhone as the microphone for Shinsoku on your computer.';
+
+  @override
+  String get proNote => 'One-time purchase. Family Sharing included.';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return 'Unlock for $price';
+  }
+
+  @override
+  String get proBuy => 'Unlock Shinsoku Pro';
+
+  @override
+  String get proPriceLoading => 'Loading price…';
+
+  @override
+  String get proRestore => 'Restore Purchases';
+
+  @override
+  String get proOwned => 'Shinsoku Pro is unlocked. Thank you!';
+
+  @override
+  String get proStatusUnlocked => 'Unlocked';
+
+  @override
+  String get proSettingsSubtitle =>
+      'Custom profiles, per-app switching, Desktop';
+
+  @override
+  String get proNoticePending =>
+      'Waiting for approval. Pro unlocks as soon as the purchase is approved.';
+
+  @override
+  String get proNoticeCancelled => 'Purchase cancelled. Nothing was charged.';
+
+  @override
+  String get proNoticeFailed =>
+      'The purchase didn\'t go through. Please try again.';
+
+  @override
+  String get proNoticeUnavailable =>
+      'The App Store isn\'t available right now. Try again later.';
+
+  @override
+  String get proNoticeRestored =>
+      'Purchase restored. Shinsoku Pro is unlocked.';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      'No earlier purchase of Shinsoku Pro was found for this Apple Account.';
+
+  @override
+  String get proLockedProfileEditor =>
+      'Editing profiles needs Shinsoku Pro. You can still pick this profile on the Record screen and in the keyboard.';
+
+  @override
+  String get proLockedFieldRules =>
+      'Field rules need Shinsoku Pro. Rules you set are kept and apply again once Pro is unlocked.';
+
+  @override
+  String get proLockedUseInApps =>
+      'Switching profiles from Shortcuts needs Shinsoku Pro.';
+
+  @override
+  String get proLockedDesktop =>
+      'Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro.';
+
+  @override
+  String get proUnlockShort => 'Get Pro';
 }
 
 /// The translations for English (`en_XA`).
@@ -1588,4 +1684,102 @@ class AppLocalizationsEnXa extends AppLocalizationsEn {
   @override
   String get nearbyErrorGeneric =>
       '[Šöméţhîñĝ wéñţ wröñĝ wîţh ţhé đéškţöp çöññéçţîöñ. lörém îpšüm đölör š]';
+
+  @override
+  String get proName => '[Šhîñšökü Prö löré]';
+
+  @override
+  String get proBadge => '[Prö lö]';
+
+  @override
+  String get proFeatureProfilesTitle => '[Çüšţöm pröfîléš lörém]';
+
+  @override
+  String get proFeatureProfilesBody =>
+      '[Çréàţé ýöür öwñ pröfîléš àñđ éđîţ àñý pröfîlé\'š prömpţ àñđ šéţţîñĝš. lörém îpšüm đölör šîţ àméţ]';
+
+  @override
+  String get proFeatureAutoTitle => '[Àüţömàţîç šwîţçhîñĝ pér àpp lörém îpšü]';
+
+  @override
+  String get proFeatureAutoBody =>
+      '[Fîélđ rüléš àñđ Šhörţçüţš pîçk ţhé pröfîlé för ţhé àpp ýöü\'ré ţýpîñĝ îñ. lörém îpšüm đölör šîţ àméţ ç]';
+
+  @override
+  String get proFeatureDesktopTitle => '[Đéškţöp lö]';
+
+  @override
+  String get proFeatureDesktopBody =>
+      '[Üšé ţhîš îPhöñé àš ţhé mîçröphöñé för Šhîñšökü öñ ýöür çömpüţér. lörém îpšüm đölör šîţ àmé]';
+
+  @override
+  String get proNote =>
+      '[Öñé-ţîmé pürçhàšé. Fàmîlý Šhàrîñĝ îñçlüđéđ. lörém îpšüm đölö]';
+
+  @override
+  String proBuyWithPrice(String price) {
+    return '[Üñlöçk för  lör$price]';
+  }
+
+  @override
+  String get proBuy => '[Üñlöçk Šhîñšökü Prö lörém î]';
+
+  @override
+  String get proPriceLoading => '[Löàđîñĝ prîçé… lörém]';
+
+  @override
+  String get proRestore => '[Réšţöré Pürçhàšéš lörém]';
+
+  @override
+  String get proOwned => '[Šhîñšökü Prö îš üñlöçkéđ. Ţhàñk ýöü! lörém îpšüm đ]';
+
+  @override
+  String get proStatusUnlocked => '[Üñlöçkéđ lö]';
+
+  @override
+  String get proSettingsSubtitle =>
+      '[Çüšţöm pröfîléš, pér-àpp šwîţçhîñĝ, Đéškţöp lörém îpšüm đölö]';
+
+  @override
+  String get proNoticePending =>
+      '[Wàîţîñĝ för àpprövàl. Prö üñlöçkš àš šööñ àš ţhé pürçhàšé îš àpprövéđ. lörém îpšüm đölör šîţ àméţ]';
+
+  @override
+  String get proNoticeCancelled =>
+      '[Pürçhàšé çàñçélléđ. Ñöţhîñĝ wàš çhàrĝéđ. lörém îpšüm đöl]';
+
+  @override
+  String get proNoticeFailed =>
+      '[Ţhé pürçhàšé đîđñ\'ţ ĝö ţhröüĝh. Pléàšé ţrý àĝàîñ. lörém îpšüm đölör š]';
+
+  @override
+  String get proNoticeUnavailable =>
+      '[Ţhé Àpp Šţöré îšñ\'ţ àvàîlàblé rîĝhţ ñöw. Ţrý àĝàîñ làţér. lörém îpšüm đölör šîţ]';
+
+  @override
+  String get proNoticeRestored =>
+      '[Pürçhàšé réšţöréđ. Šhîñšökü Prö îš üñlöçkéđ. lörém îpšüm đölör]';
+
+  @override
+  String get proNoticeNothingToRestore =>
+      '[Ñö éàrlîér pürçhàšé öf Šhîñšökü Prö wàš föüñđ för ţhîš Àpplé Àççöüñţ. lörém îpšüm đölör šîţ àméţ]';
+
+  @override
+  String get proLockedProfileEditor =>
+      '[Éđîţîñĝ pröfîléš ñééđš Šhîñšökü Prö. Ýöü çàñ šţîll pîçk ţhîš pröfîlé öñ ţhé Réçörđ šçrééñ àñđ îñ ţhé kéýböàrđ. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîp]';
+
+  @override
+  String get proLockedFieldRules =>
+      '[Fîélđ rüléš ñééđ Šhîñšökü Prö. Rüléš ýöü šéţ àré képţ àñđ àpplý àĝàîñ öñçé Prö îš üñlöçkéđ. lörém îpšüm đölör šîţ àméţ çöñšéçţé]';
+
+  @override
+  String get proLockedUseInApps =>
+      '[Šwîţçhîñĝ pröfîléš fröm Šhörţçüţš ñééđš Šhîñšökü Prö. lörém îpšüm đölör šî]';
+
+  @override
+  String get proLockedDesktop =>
+      '[Üšé ţhîš îPhöñé àš à wîréléšš mîçröphöñé för Šhîñšökü öñ ýöür Màç ör PÇ: špéàk héré, ţhé ţéxţ làñđš öñ ţhé çömpüţér. Đéškţöp îš pàrţ öf Šhîñšökü Prö. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçîñĝ élîţ šéđ]';
+
+  @override
+  String get proUnlockShort => '[Ĝéţ Prö lö]';
 }

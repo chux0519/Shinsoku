@@ -7,6 +7,7 @@ import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/app/mobile_shell.dart';
+import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
@@ -96,15 +97,18 @@ class _Harness {
         supportedLocales: AppLocalizations.supportedLocales,
 
         theme: buildSkTheme(Brightness.dark),
-        builder: (context, child) => ValueListenableBuilder(
-          valueListenable: window,
-          builder: (context, w, _) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              padding: w.padding,
-              viewPadding: w.padding,
-              displayFeatures: w.features,
+        builder: (context, child) => ProScope(
+          entitlement: _owned,
+          child: ValueListenableBuilder(
+            valueListenable: window,
+            builder: (context, w, _) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                padding: w.padding,
+                viewPadding: w.padding,
+                displayFeatures: w.features,
+              ),
+              child: child!,
             ),
-            child: child!,
           ),
         ),
         home: MobileShell(debugCapture: capture),
@@ -153,6 +157,9 @@ class _Harness {
   State settingsState() =>
       t.state(find.byType(SettingsView, skipOffstage: false));
 }
+
+/// Desktop is Pro (pricing-01); D1 checks its pairing state survives.
+final _owned = FakeProEntitlement(owned: true);
 
 void main() {
   testWidgets('D1: a recording and its transcript survive 402 → 951 → 402 '

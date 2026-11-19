@@ -1446,6 +1446,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong with the desktop connection.'**
   String get nearbyErrorGeneric;
+
+  /// Name of the one-time in-app purchase; sheet title and Settings row. Usually kept as is.
+  ///
+  /// In en, this message translates to:
+  /// **'Shinsoku Pro'**
+  String get proName;
+
+  /// Small badge on rows and pages that need Shinsoku Pro. Keep it very short.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro'**
+  String get proBadge;
+
+  /// Pro sheet: first thing Pro adds (title).
+  ///
+  /// In en, this message translates to:
+  /// **'Custom profiles'**
+  String get proFeatureProfilesTitle;
+
+  /// Pro sheet: first thing Pro adds (one line).
+  ///
+  /// In en, this message translates to:
+  /// **'Create your own profiles and edit any profile\'s prompt and settings.'**
+  String get proFeatureProfilesBody;
+
+  /// Pro sheet: second thing Pro adds (title).
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic switching per app'**
+  String get proFeatureAutoTitle;
+
+  /// Pro sheet: second thing Pro adds (one line).
+  ///
+  /// In en, this message translates to:
+  /// **'Field rules and Shortcuts pick the profile for the app you\'re typing in.'**
+  String get proFeatureAutoBody;
+
+  /// Pro sheet: third thing Pro adds (title); the Desktop tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop'**
+  String get proFeatureDesktopTitle;
+
+  /// Pro sheet: third thing Pro adds (one line).
+  ///
+  /// In en, this message translates to:
+  /// **'Use this iPhone as the microphone for Shinsoku on your computer.'**
+  String get proFeatureDesktopBody;
+
+  /// Pro sheet: note under the list.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time purchase. Family Sharing included.'**
+  String get proNote;
+
+  /// Pro sheet primary button with the App Store price, e.g. 'Unlock for $4.99'.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock for {price}'**
+  String proBuyWithPrice(String price);
+
+  /// Primary button when the price is not known (store unreachable), and the action on locked pages.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Shinsoku Pro'**
+  String get proBuy;
+
+  /// Pro sheet primary button while the App Store price loads.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading price…'**
+  String get proPriceLoading;
+
+  /// Button and Settings row: restore an earlier purchase (App Store wording).
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Purchases'**
+  String get proRestore;
+
+  /// Pro sheet status when Pro is owned.
+  ///
+  /// In en, this message translates to:
+  /// **'Shinsoku Pro is unlocked. Thank you!'**
+  String get proOwned;
+
+  /// Settings › Shinsoku Pro row value when owned.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked'**
+  String get proStatusUnlocked;
+
+  /// Settings › Shinsoku Pro row subtitle: what Pro adds.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom profiles, per-app switching, Desktop'**
+  String get proSettingsSubtitle;
+
+  /// Pro sheet status: purchase pending (Ask to Buy / bank approval).
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval. Pro unlocks as soon as the purchase is approved.'**
+  String get proNoticePending;
+
+  /// Pro sheet status: the user closed the payment sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase cancelled. Nothing was charged.'**
+  String get proNoticeCancelled;
+
+  /// Pro sheet status: purchase or restore failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The purchase didn\'t go through. Please try again.'**
+  String get proNoticeFailed;
+
+  /// Pro sheet status: the store cannot be reached.
+  ///
+  /// In en, this message translates to:
+  /// **'The App Store isn\'t available right now. Try again later.'**
+  String get proNoticeUnavailable;
+
+  /// Pro sheet status: restore found the purchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase restored. Shinsoku Pro is unlocked.'**
+  String get proNoticeRestored;
+
+  /// Pro sheet status: restore found nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No earlier purchase of Shinsoku Pro was found for this Apple Account.'**
+  String get proNoticeNothingToRestore;
+
+  /// Profile editor without Pro: why the fields are read-only.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing profiles needs Shinsoku Pro. You can still pick this profile on the Record screen and in the keyboard.'**
+  String get proLockedProfileEditor;
+
+  /// Field rules page without Pro.
+  ///
+  /// In en, this message translates to:
+  /// **'Field rules need Shinsoku Pro. Rules you set are kept and apply again once Pro is unlocked.'**
+  String get proLockedFieldRules;
+
+  /// Use in apps page without Pro (same wording as the Shortcuts dialog).
+  ///
+  /// In en, this message translates to:
+  /// **'Switching profiles from Shortcuts needs Shinsoku Pro.'**
+  String get proLockedUseInApps;
+
+  /// Desktop tab without Pro: what it is.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro.'**
+  String get proLockedDesktop;
+
+  /// Short button next to Cancel in the profile editor without Pro: opens the Shinsoku Pro sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Pro'**
+  String get proUnlockShort;
 }
 
 class _AppLocalizationsDelegate
