@@ -123,6 +123,11 @@ VoiceProfile defaultProfileOf(List<VoiceProfile> profiles) =>
 ///    event made at or after [keyboardAppearedAt]. Without
 ///    [keyboardAppearedAt] (no keyboard session, e.g. recording in the app)
 ///    a field rule never overrides an explicit selection.
+///    With [selectionAtKeyboardAppear] (what the keyboard read when it
+///    appeared) "made after the keyboard appeared" means "differs from that
+///    selection", without comparing clocks: the App Intent, the app and the
+///    keyboard each stamp `at` with their own clock, which may disagree by a
+///    second or two (P5, PR2).
 /// 2. Otherwise the stored selection, if its profile still exists.
 /// 3. Otherwise the default profile (missing id → default, PR3).
 ResolvedProfile resolveActive(
@@ -130,6 +135,7 @@ ResolvedProfile resolveActive(
   List<VoiceProfile> profiles, {
   FieldRuleMatch? fieldRuleMatch,
   DateTime? keyboardAppearedAt,
+  ProfileSelection? selectionAtKeyboardAppear,
 }) {
   VoiceProfile? find(String id) {
     for (final profile in profiles) {
@@ -143,10 +149,14 @@ ResolvedProfile resolveActive(
       : find(fieldRuleMatch.profileId);
   if (fieldProfile != null) {
     final explicit = selection != null && selection.source.isExplicit;
-    final explicitIsNewer =
-        explicit &&
-        (keyboardAppearedAt == null ||
-            !selection.at.isBefore(keyboardAppearedAt));
+    final bool explicitIsNewer;
+    if (!explicit || keyboardAppearedAt == null) {
+      explicitIsNewer = explicit;
+    } else if (selectionAtKeyboardAppear != null) {
+      explicitIsNewer = selection != selectionAtKeyboardAppear;
+    } else {
+      explicitIsNewer = !selection.at.isBefore(keyboardAppearedAt);
+    }
     if (!explicitIsNewer) {
       return ResolvedProfile(fieldProfile, ProfileSource.fieldRule);
     }
@@ -157,6 +167,24 @@ ResolvedProfile resolveActive(
     return ResolvedProfile(selected, selection!.source);
   }
   return ResolvedProfile(defaultProfileOf(profiles), ProfileSource.byDefault);
+}
+
+/// The profile a recording uses, resolved once at the Record tap (PR1).
+///
+/// A tap in the keyboard passes the profile the keyboard showed
+/// (`shinsoku://dictation?profile=<id>`): the keyboard may show a field-rule
+/// profile, or a stale one when it has no Full Access (PR4), and the app
+/// can't know either. The app records with it while it still exists;
+/// otherwise (and for a tap in the app) it resolves the stored selection.
+VoiceProfile profileForRecordStart(
+  ProfileSelection? selection,
+  List<VoiceProfile> profiles, {
+  String? requestedProfileId,
+}) {
+  for (final profile in profiles) {
+    if (profile.id == requestedProfileId) return profile;
+  }
+  return resolveActive(selection, profiles).profile;
 }
 
 /// Native side of the App Group mirror. Keys: `profiles.v1` (JSON array of
