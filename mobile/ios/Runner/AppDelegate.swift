@@ -108,7 +108,7 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
   private var divisionRegions: DivisionRegionHook?
 
   /// Shared with the keyboard extension (both targets carry this App Group).
-  static let appGroup = "group.net.potafree.shinsoku"
+  static let appGroup = ProfileGroup.appGroup
   private static let log = Logger(subsystem: "net.potafree.shinsoku.app", category: "latest")
 
   /// Hands the latest text to the keyboard through the App Group and puts it on the clipboard for the
@@ -332,73 +332,38 @@ final class DeepLinkRouter: NSObject, FlutterSceneLifeCycleDelegate {
 /// can never land in the group even if Dart sent them. Values are JSON strings.
 enum ProfileGroupChannel {
   static let channelName = "net.potafree.shinsoku/profiles"
-  static let profilesKey = "profiles.v1"
-  static let activeKey = "activeProfile.v1"
-  private static let sources: Set<String> = ["manual", "automation", "fieldRule", "default"]
   private static let log = Logger(subsystem: "net.potafree.shinsoku.app", category: "profiles")
 
   static func register(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(name: channelName, binaryMessenger: messenger)
     channel.setMethodCallHandler { call, result in
-      guard let shared = UserDefaults(suiteName: AppDelegate.appGroup) else {
+      guard let shared = ProfileGroup.defaults else {
         result(FlutterError(code: "no-app-group", message: "App Group unavailable.", details: nil))
         return
       }
       let arguments = call.arguments as? [String: Any]
       switch call.method {
       case "publishProfiles":
-        guard let list = sanitizedProfiles(arguments?["profiles"] as? String) else {
+        guard let list = ProfileGroup.sanitizedProfiles(arguments?["profiles"] as? String) else {
           result(FlutterError(code: "invalid-arguments", message: "Bad profile list.", details: nil))
           return
         }
-        shared.set(list, forKey: profilesKey)
+        shared.set(list, forKey: ProfileGroup.profilesKey)
         log.notice("publishProfiles: bytes=\(list.utf8.count)")
         result(nil)
       case "setActive":
-        guard let selection = sanitizedSelection(arguments?["selection"] as? String) else {
+        guard let selection = ProfileGroup.sanitizedSelection(arguments?["selection"] as? String) else {
           result(FlutterError(code: "invalid-arguments", message: "Bad selection.", details: nil))
           return
         }
-        shared.set(selection, forKey: activeKey)
+        shared.set(selection, forKey: ProfileGroup.activeKey)
         log.notice("setActive: bytes=\(selection.utf8.count)")
         result(nil)
       case "readActive":
-        result(shared.string(forKey: activeKey))
+        result(shared.string(forKey: ProfileGroup.activeKey))
       default:
         result(FlutterMethodNotImplemented)
       }
     }
-  }
-
-  private static func jsonString(_ object: Any) -> String? {
-    guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
-      return nil
-    }
-    return String(data: data, encoding: .utf8)
-  }
-
-  private static func decode(_ raw: String?) -> Any? {
-    guard let data = raw?.data(using: .utf8) else { return nil }
-    return try? JSONSerialization.jsonObject(with: data)
-  }
-
-  static func sanitizedProfiles(_ raw: String?) -> String? {
-    guard let items = decode(raw) as? [[String: Any]] else { return nil }
-    var list: [[String: String]] = []
-    for item in items {
-      guard let id = item["id"] as? String, !id.isEmpty, let name = item["name"] as? String else { return nil }
-      list.append(["id": id, "name": name])
-    }
-    return jsonString(list)
-  }
-
-  static func sanitizedSelection(_ raw: String?) -> String? {
-    guard
-      let object = decode(raw) as? [String: Any],
-      let id = object["profileId"] as? String, !id.isEmpty,
-      let source = object["source"] as? String, sources.contains(source),
-      let at = object["at"] as? String, !at.isEmpty
-    else { return nil }
-    return jsonString(["profileId": id, "source": source, "at": at])
   }
 }
