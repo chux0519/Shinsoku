@@ -1,3 +1,10 @@
+/// A manual-entry mistake; [code] picks the localized wording.
+class NearbyInputException extends FormatException {
+  const NearbyInputException(super.message, this.code);
+
+  final String code;
+}
+
 class NearbyDesktop {
   const NearbyDesktop({
     required this.serviceName,
@@ -31,11 +38,15 @@ class NearbyDesktop {
         uri.host.isEmpty ||
         uri.port <= 0 ||
         uri.port > 65535) {
-      throw const FormatException('Enter a valid wss:// host and port.');
+      throw const NearbyInputException(
+        'Enter a valid wss:// host and port.',
+        'endpoint_invalid',
+      );
     }
     if (!isCertificateFingerprint(fingerprint)) {
-      throw const FormatException(
+      throw const NearbyInputException(
         'Enter the desktop certificate SHA-256 fingerprint.',
+        'fingerprint_invalid',
       );
     }
     return NearbyDesktop(
@@ -81,11 +92,20 @@ enum NearbyConnectionState {
 class NearbyClientStatus {
   const NearbyClientStatus({
     required this.state,
-    required this.message,
+    required this.logText,
+    this.code,
+    this.arg,
     this.missingFrames = 0,
   });
 
   final NearbyConnectionState state;
-  final String message;
+
+  /// English detail for logs; the UI shows text chosen by [code] (see
+  /// `nearby_text.dart`).
+  final String logText;
+  final String? code;
+
+  /// The value a coded message mentions (a desktop name or a count).
+  final String? arg;
   final int missingFrames;
 }

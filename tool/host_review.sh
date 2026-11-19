@@ -1,8 +1,10 @@
 #!/bin/bash
 # Tier A UI review: render real Flutter screens on the host (no simulator) and
 # write PNGs plus an index.html contact sheet.
-#   tool/host_review.sh <run> [scene,…] [theme,…] [device,…]
+#   tool/host_review.sh <run> [scene,…] [theme,…] [device,…] [locale]
 # <run> is a path under build/ui-review/, e.g. ios-ui-01/round-01/u3-after.
+# Locale: en (default) or pseudo (accented, ~40% longer text; fails on clipped text) or a locale tag; a locale other
+# than en writes to <run>-<locale> so it never overwrites the English renders.
 # Themes: dark,light. Devices: iphone, iphone-text200, duo-outer,
 # duo-inner-portrait, duo-inner-landscape, duo-inner-portrait-fold, duo-inner-landscape-fold (fake
 # centre fold; a few scenes). Empty filters mean all.
@@ -12,6 +14,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 RUN=${1:?usage: tool/host_review.sh <run under build/ui-review/> [scenes] [themes] [devices]}
 case "$RUN" in /*|*..*) echo "run must be a relative path without .." >&2; exit 2 ;; esac
+LOCALE=${5:-en}
+case "$LOCALE" in *[!A-Za-z-]*|'') echo "bad locale" >&2; exit 2 ;; esac
+[ "$LOCALE" = en ] || RUN="$RUN-$LOCALE"
 OUT="$PWD/build/ui-review/$RUN"
 if [ -z "${2:-}${3:-}${4:-}" ] && [ -d "$OUT" ]; then
   find "$OUT" -name '*.png' -delete
@@ -24,7 +29,8 @@ set +e
   SHINSOKU_HOST_REVIEW_SCENES="${2:-}" \
   SHINSOKU_HOST_REVIEW_THEMES="${3:-}" \
   SHINSOKU_HOST_REVIEW_DEVICES="${4:-}" \
-  nice -n 10 flutter test test/host_review/host_review_test.dart) > "$OUT/run.log" 2>&1
+  SHINSOKU_HOST_REVIEW_LOCALE="$LOCALE" \
+  nice -n 10 flutter test --no-pub test/host_review/host_review_test.dart) > "$OUT/run.log" 2>&1
 status=$?
 set -e
 tail -3 "$OUT/run.log"

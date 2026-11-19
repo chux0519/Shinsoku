@@ -14,6 +14,8 @@ import 'package:shinsoku_mobile/features/drafts/draft_editor_page.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
+import 'package:shinsoku_mobile/l10n/failure_text.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/features/settings/profile_editor_sheet.dart';
 import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/features/settings/use_in_apps_view.dart';
@@ -262,7 +264,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
     if (_captureState != CaptureState.idle) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Shinsoku is already recording.')),
+        SnackBar(content: Text(context.l10n.shellAlreadyRecording)),
       );
       return;
     }
@@ -313,7 +315,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Text post-processing enabled for ${profile.name}.'),
+          content: Text(context.l10n.shellPostProcessingEnabled(profile.name)),
         ),
       );
     } catch (error) {
@@ -322,7 +324,11 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Post-processing setting was not saved: $error'),
+          content: Text(
+            context.l10n.shellPostProcessingNotSaved(
+              describeFailure(context.l10n, error),
+            ),
+          ),
         ),
       );
     }
@@ -344,7 +350,13 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Clipboard update failed: $error')),
+        SnackBar(
+          content: Text(
+            context.l10n.shellClipboardFailed(
+              describeFailure(context.l10n, error),
+            ),
+          ),
+        ),
       );
     }
   }
@@ -437,7 +449,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       await _finishFailed(
         pipeline,
         error,
-        label: 'Recording failed',
+        label: context.l10n.recordFailed,
         profile: profile,
       );
       return;
@@ -454,10 +466,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       if (!mounted) return false;
       setState(() {
         _microphoneAllowed = false;
-        _smokeTestStatus = const SmokeTestStatus(
-          label: 'Microphone access is off',
-          detail:
-              'Allow microphone access in iOS Settings, then try recording again.',
+        _smokeTestStatus = SmokeTestStatus(
+          label: context.l10n.recordMicOffLabel,
+          detail: context.l10n.recordMicOffDetail,
           failed: true,
           finished: true,
           fix: StatusFix.microphone,
@@ -471,10 +482,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       if (!mounted) return false;
       setState(() {
         _microphoneAllowed = false;
-        _smokeTestStatus = const SmokeTestStatus(
-          label: 'Recording failed',
-          detail:
-              'Microphone permission was granted but the recorder is not ready.',
+        _smokeTestStatus = SmokeTestStatus(
+          label: context.l10n.recordFailed,
+          detail: context.l10n.recordRecorderNotReady,
           failed: true,
           finished: true,
         );
@@ -486,9 +496,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       if (!mounted) return false;
       setState(() {
         _microphoneAllowed = true;
-        _smokeTestStatus = const SmokeTestStatus(
-          label: 'Provider settings required',
-          detail: 'Save a Bailian or Soniox API key before recording.',
+        _smokeTestStatus = SmokeTestStatus(
+          label: context.l10n.recordKeyRequiredLabel,
+          detail: context.l10n.recordKeyRequiredDetail,
           failed: true,
           finished: true,
           fix: StatusFix.providerSettings,
@@ -506,9 +516,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     _recordingProfile = null;
     setState(() {
       _captureState = CaptureState.processing;
-      _smokeTestStatus = const SmokeTestStatus(
-        label: 'Transcribing recording',
-        detail: 'Uploading recorded audio to the selected provider.',
+      _smokeTestStatus = SmokeTestStatus(
+        label: context.l10n.recordStatusTranscribing,
+        detail: context.l10n.recordTranscribingDetail,
       );
     });
 
@@ -527,7 +537,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       await _finishFailed(
         pipeline,
         error,
-        label: SkStrings.recordingStopped,
+        label: context.l10n.recordStopped,
         profile: profile,
       );
       return;
@@ -551,7 +561,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
           ? pipeline.live.value
           : LiveTranscript(committed: draft.text, phase: LivePhase.done);
       _smokeTestStatus = SmokeTestStatus(
-        label: 'Recording transcribed',
+        label: context.l10n.recordTranscribed,
         detail: result.detail,
         transcript: draft.text,
         finished: true,
@@ -594,11 +604,12 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         phase: LivePhase.failed,
         error: error.toString(),
       );
+      final reason = describeFailure(context.l10n, error);
       _smokeTestStatus = SmokeTestStatus(
         label: label,
         detail: draft == null
-            ? error.toString()
-            : '${SkStrings.heardTextKept} ($error)',
+            ? reason
+            : '${context.l10n.recordHeardTextKept} $reason',
         failed: true,
         finished: true,
         fix: StatusFix.retry,
@@ -637,9 +648,9 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: const Text('Draft deleted'),
+          content: Text(context.l10n.draftsDeleted),
           action: SnackBarAction(
-            label: 'Undo',
+            label: context.l10n.commonUndo,
             onPressed: () {
               if (!mounted || _drafts.contains(draft)) {
                 return;
@@ -693,7 +704,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     unawaited(
       _publishTextWithFeedback(
         _recordPublishText(text),
-        message: SkStrings.copied,
+        message: context.l10n.recordCopied,
       ),
     );
   }
@@ -704,8 +715,8 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
   void _doneRecordText(String text) {
     _saveRecordText(text);
     setState(() {
-      _smokeTestStatus = const SmokeTestStatus(
-        label: SkStrings.savedInsert,
+      _smokeTestStatus = SmokeTestStatus(
+        label: context.l10n.recordSavedInsert,
         detail: '',
         finished: true,
       );
@@ -747,7 +758,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
             unawaited(
               _publishTextWithFeedback(
                 withCommitSuffix(text, current.commitSuffix),
-                message: SkStrings.copied,
+                message: context.l10n.recordCopied,
               ),
             );
           },
@@ -839,16 +850,16 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
 
   Future<void> _confirmDeleteVoiceProfile(VoiceProfile profile) async {
     if (_profiles.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keep at least one profile')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.profileKeepOne)));
       return;
     }
     final confirmed = await showSkConfirm(
       context: context,
-      title: 'Delete profile',
-      message: 'Delete "${profile.name}"?',
-      confirmLabel: 'Delete',
+      title: context.l10n.profileDelete,
+      message: context.l10n.profileDeleteConfirm(profile.name),
+      confirmLabel: context.l10n.commonDelete,
       destructive: true,
     );
     if (confirmed) {
@@ -902,6 +913,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     }
   }
 
+  // i18n-ignore-start: developer smoke tests (SHINSOKU_SMOKE_TEST), English only.
   Future<void> _runSonioxSmokeTest() async {
     setState(() {
       _captureState = CaptureState.processing;
@@ -1039,6 +1051,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       });
     }
   }
+  // i18n-ignore-end
 
   @override
   Widget build(BuildContext context) {
@@ -1062,6 +1075,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         onOpenMicrophoneSettings: _handleMicrophoneSettingsPressed,
         onOpenSettings: () => _selectTab(3),
         profileReason: activeProfileReason(
+          context.l10n,
           _activeProfile.name,
           resolveActive(_activeProfileStore.selection, _profiles).source,
         ),
@@ -1072,7 +1086,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
         onEdit: _showDraftEditor,
         onCopy: (draft) => _publishTextWithFeedback(
           draft.publishText,
-          message: 'Draft copied to clipboard.',
+          message: context.l10n.draftsCopied,
         ),
       ),
       NearbyMicrophoneView(

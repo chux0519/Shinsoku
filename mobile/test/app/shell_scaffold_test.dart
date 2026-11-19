@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 DisplayFeature _hinge(Rect bounds) => DisplayFeature(
   bounds: bounds,
@@ -99,6 +100,9 @@ void main() {
       addTearDown(t.view.reset);
       await t.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+
           theme: buildSkTheme(Brightness.dark),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(

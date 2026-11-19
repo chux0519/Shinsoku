@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:intl/intl.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
@@ -22,11 +24,11 @@ class DraftsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (drafts.isEmpty) {
-      return const SkPage(
-        title: 'Drafts',
+      return SkPage(
+        title: context.l10n.draftsTitle,
         children: [
-          SizedBox(height: SkSpace.xl),
-          SkEmptyLine('Your transcripts appear here after you record.'),
+          const SizedBox(height: SkSpace.xl),
+          SkEmptyLine(context.l10n.draftsEmpty),
         ],
       );
     }
@@ -36,7 +38,7 @@ class DraftsView extends StatelessWidget {
       groups.putIfAbsent(DateTime(d.year, d.month, d.day), () => []).add(draft);
     }
     return SkPage(
-      title: 'Drafts',
+      title: context.l10n.draftsTitle,
       children: [
         for (final MapEntry(key: day, value: items) in groups.entries) ...[
           SkSection(
@@ -62,9 +64,12 @@ class DraftsView extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final diff = today.difference(day).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    return MaterialLocalizations.of(context).formatMediumDate(day);
+    final l = context.l10n;
+    if (diff == 0) return l.draftsToday;
+    if (diff == 1) return l.draftsYesterday;
+    return DateFormat.yMMMMd(
+      Localizations.localeOf(context).toString(),
+    ).format(day);
   }
 }
 
@@ -104,7 +109,10 @@ class DraftRow extends StatelessWidget {
               children: [
                 Icon(Icons.delete_outline, color: c.onAccent),
                 const SizedBox(width: SkSpace.s),
-                Text('Delete', style: SkType.title.copyWith(color: c.onAccent)),
+                Text(
+                  context.l10n.commonDelete,
+                  style: SkType.title.copyWith(color: c.onAccent),
+                ),
               ],
             ),
           ),
@@ -113,8 +121,8 @@ class DraftRow extends StatelessWidget {
       child: SkPressable(
         onTap: onEdit,
         customSemanticsActions: {
-          const CustomSemanticsAction(label: 'Copy'): onCopy,
-          const CustomSemanticsAction(label: 'Delete'): onDelete,
+          CustomSemanticsAction(label: context.l10n.commonCopy): onCopy,
+          CustomSemanticsAction(label: context.l10n.commonDelete): onDelete,
         },
         builder: (context, pressed) => AnimatedContainer(
           duration: SkMotion.of(context, SkMotion.fast),
@@ -148,7 +156,7 @@ class DraftRow extends StatelessWidget {
               ),
               SkIconButton(
                 icon: Icons.content_copy_outlined,
-                tooltip: 'Copy draft',
+                tooltip: context.l10n.draftsCopyDraft,
                 size: 20,
                 onPressed: onCopy,
               ),

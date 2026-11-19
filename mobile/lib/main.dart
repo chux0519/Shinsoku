@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 import 'package:shinsoku_mobile/app/mobile_shell.dart';
 import 'package:shinsoku_mobile/platform/division_regions.dart';
@@ -23,6 +25,13 @@ class ShinsokuMobileApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Shinsoku',
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: appSupportedLocales,
       debugShowCheckedModeBanner: false,
       // DESIGN.md §2: the theme follows the system; dark is the reference.
       themeMode: ThemeMode.system,

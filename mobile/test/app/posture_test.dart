@@ -13,6 +13,7 @@ import 'package:shinsoku_mobile/features/settings/settings_view.dart';
 import 'package:shinsoku_mobile/nearby/nearby_microphone_view.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import '../support/l10n.dart';
 
 class _FakeCapture implements DebugCapture {
   int starts = 0;
@@ -91,6 +92,9 @@ class _Harness {
     addTearDown(t.view.reset);
     await t.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+
         theme: buildSkTheme(Brightness.dark),
         builder: (context, child) => ValueListenableBuilder(
           valueListenable: window,
@@ -267,7 +271,7 @@ void main() {
           }
         } else if (roll < 8) {
           final page = 1 + random.nextInt(3);
-          final label = ShellScaffold.tabs[page].label;
+          final label = ShellScaffold.tabsFor(en)[page].label;
           log.add('pick($label)');
           final scope = before.regular
               ? find.byKey(const ValueKey('pane-switcher'))

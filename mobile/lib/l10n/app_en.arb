@@ -1,0 +1,903 @@
+{
+  "@@locale": "en",
+  "commonBack": "Back",
+  "@commonBack": {
+    "description": "Tooltip of back buttons and the accessibility label of the back arrow."
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Button that dismisses a sheet or dialog without changing anything."
+  },
+  "commonSave": "Save",
+  "@commonSave": {
+    "description": "Button that saves the current edit."
+  },
+  "commonDelete": "Delete",
+  "@commonDelete": {
+    "description": "Button or swipe label that deletes an item."
+  },
+  "commonCopy": "Copy",
+  "@commonCopy": {
+    "description": "Button label and tooltip that copies text to the clipboard."
+  },
+  "commonDone": "Done",
+  "@commonDone": {
+    "description": "Button that finishes editing the transcript on the Record screen."
+  },
+  "commonClear": "Clear",
+  "@commonClear": {
+    "description": "Menu item that empties the transcript text."
+  },
+  "commonUndo": "Undo",
+  "@commonUndo": {
+    "description": "Snack bar action that restores something just deleted."
+  },
+  "commonOpenSettings": "Open Settings",
+  "@commonOpenSettings": {
+    "description": "Button that opens the iOS Settings app."
+  },
+  "tabRecord": "Record",
+  "@tabRecord": {
+    "description": "Bottom tab: the recording screen. One word."
+  },
+  "tabDrafts": "Drafts",
+  "@tabDrafts": {
+    "description": "Bottom tab: the list of saved transcripts. One word."
+  },
+  "tabDesktop": "Desktop",
+  "@tabDesktop": {
+    "description": "Bottom tab: use the phone as a microphone for a computer. One word."
+  },
+  "tabSettings": "Settings",
+  "@tabSettings": {
+    "description": "Bottom tab: app settings. One word."
+  },
+  "paneSwitcherLabel": "Pane",
+  "@paneSwitcherLabel": {
+    "description": "Accessibility label of the switch that chooses which page the second pane shows (Drafts, Desktop, Settings) on a foldable."
+  },
+  "recordPlaceholder": "Tap the microphone and start speaking.",
+  "@recordPlaceholder": {
+    "description": "Placeholder in the empty transcript area on the Record screen."
+  },
+  "recordListeningPlaceholder": "Listening…",
+  "@recordListeningPlaceholder": {
+    "description": "Placeholder in the transcript area while the microphone is open and nothing was heard yet."
+  },
+  "recordProcessing": "Processing…",
+  "@recordProcessing": {
+    "description": "Status text while the final text is being produced."
+  },
+  "recordTranscriptLabel": "Transcript",
+  "@recordTranscriptLabel": {
+    "description": "Accessibility label of the transcript text area."
+  },
+  "recordCopied": "Copied. Insert it from the keyboard or paste it.",
+  "@recordCopied": {
+    "description": "Snack bar after copying the transcript."
+  },
+  "recordSavedInsert": "Saved. Insert it from the keyboard.",
+  "@recordSavedInsert": {
+    "description": "Status line after tapping Done on an edited transcript."
+  },
+  "recordResultCopied": "Copied. Paste it anywhere, or insert it from the keyboard.",
+  "@recordResultCopied": {
+    "description": "Status line detail after a recording finished; the text was copied automatically."
+  },
+  "recordStopped": "Recording stopped",
+  "@recordStopped": {
+    "description": "Status when a recording ended early because of a problem."
+  },
+  "recordHeardTextKept": "What was heard is kept here and in Drafts.",
+  "@recordHeardTextKept": {
+    "description": "Status detail: the words recognized before a failure are not lost."
+  },
+  "recordTryAgain": "Record again",
+  "@recordTryAgain": {
+    "description": "Button on the status line that starts a new recording after a failure."
+  },
+  "recordStatusReady": "Ready to record",
+  "@recordStatusReady": {
+    "description": "Status line when idle."
+  },
+  "recordStatusListening": "Listening",
+  "@recordStatusListening": {
+    "description": "Status line while recording."
+  },
+  "recordStatusListeningDetail": "Tap stop when you are done speaking.",
+  "@recordStatusListeningDetail": {
+    "description": "Detail under the Listening status."
+  },
+  "recordStatusTranscribing": "Transcribing",
+  "@recordStatusTranscribing": {
+    "description": "Status line and accessibility label while the recording is turned into text."
+  },
+  "recordTranscribed": "Recording transcribed",
+  "@recordTranscribed": {
+    "description": "Status line after a recording was turned into text."
+  },
+  "recordTranscribingDetail": "Uploading recorded audio to the selected provider.",
+  "@recordTranscribingDetail": {
+    "description": "Detail while the recording is sent to the speech provider."
+  },
+  "recordFailed": "Recording failed",
+  "@recordFailed": {
+    "description": "Status line when a recording could not start or finish."
+  },
+  "recordMicOffLabel": "Microphone access is off",
+  "@recordMicOffLabel": {
+    "description": "Status line when the microphone permission is denied."
+  },
+  "recordMicOffDetail": "Allow microphone access in iOS Settings, then try recording again.",
+  "@recordMicOffDetail": {
+    "description": "Detail telling how to fix the denied microphone permission."
+  },
+  "recordRecorderNotReady": "Microphone permission was granted but the recorder is not ready. Try again.",
+  "@recordRecorderNotReady": {
+    "description": "Detail when the recorder cannot start."
+  },
+  "recordKeyRequiredLabel": "Provider settings required",
+  "@recordKeyRequiredLabel": {
+    "description": "Status line when no speech provider key is saved."
+  },
+  "recordKeyRequiredDetail": "Save a Bailian or Soniox API key before recording.",
+  "@recordKeyRequiredDetail": {
+    "description": "Detail asking for an API key. Bailian and Soniox are provider names."
+  },
+  "recordProfileLabel": "Profile",
+  "@recordProfileLabel": {
+    "description": "Accessibility label of the profile selector under the transcript."
+  },
+  "recordButtonStart": "Start recording",
+  "@recordButtonStart": {
+    "description": "Accessibility label of the record button when idle."
+  },
+  "recordButtonStop": "Stop recording",
+  "@recordButtonStop": {
+    "description": "Accessibility label of the record button while recording."
+  },
+  "recordButtonUnavailable": "Recording unavailable",
+  "@recordButtonUnavailable": {
+    "description": "Accessibility label of the record button when it cannot be used."
+  },
+  "profileReasonLine": "{name} · {why}",
+  "@profileReasonLine": {
+    "description": "Line under the status: the active profile and why it is active. {why} is one of the next three strings.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "why": {
+        "type": "String"
+      }
+    }
+  },
+  "profileReasonManual": "set by you",
+  "@profileReasonManual": {
+    "description": "Why the profile is active: the user picked it."
+  },
+  "profileReasonAutomation": "set by automation",
+  "@profileReasonAutomation": {
+    "description": "Why the profile is active: a Shortcuts automation set it."
+  },
+  "profileReasonDefault": "default",
+  "@profileReasonDefault": {
+    "description": "Why the profile is active: it is the default."
+  },
+  "draftsTitle": "Drafts",
+  "@draftsTitle": {
+    "description": "Page title of the saved transcripts list."
+  },
+  "draftsEmpty": "Your transcripts appear here after you record.",
+  "@draftsEmpty": {
+    "description": "Empty state of the Drafts list."
+  },
+  "draftsToday": "Today",
+  "@draftsToday": {
+    "description": "Date group heading."
+  },
+  "draftsYesterday": "Yesterday",
+  "@draftsYesterday": {
+    "description": "Date group heading."
+  },
+  "draftsCopyDraft": "Copy draft",
+  "@draftsCopyDraft": {
+    "description": "Tooltip of the copy button on a draft row."
+  },
+  "draftsDeleted": "Draft deleted",
+  "@draftsDeleted": {
+    "description": "Snack bar after deleting a draft."
+  },
+  "draftsCopied": "Draft copied to clipboard.",
+  "@draftsCopied": {
+    "description": "Snack bar after copying a draft."
+  },
+  "draftEditorTitle": "Draft",
+  "@draftEditorTitle": {
+    "description": "Title of the draft editor page."
+  },
+  "draftEditorCaptured": "{time} · {profile}",
+  "@draftEditorCaptured": {
+    "description": "Caption in the draft editor: when it was recorded and with which profile.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "profile": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "Page title."
+  },
+  "settingsSectionRecognition": "Recognition",
+  "@settingsSectionRecognition": {
+    "description": "Section label for speech recognition settings."
+  },
+  "settingsMicrophoneTitle": "Microphone access",
+  "@settingsMicrophoneTitle": {
+    "description": "Settings row title."
+  },
+  "settingsMicrophoneAllowed": "Allowed for voice capture",
+  "@settingsMicrophoneAllowed": {
+    "description": "Row subtitle when the microphone permission is granted."
+  },
+  "settingsMicrophoneTapToAllow": "Tap to allow microphone access",
+  "@settingsMicrophoneTapToAllow": {
+    "description": "Row subtitle when the microphone permission is not granted."
+  },
+  "settingsSpeechProvider": "Speech provider",
+  "@settingsSpeechProvider": {
+    "description": "Accessibility label of the provider switch (Bailian / Soniox)."
+  },
+  "settingsPostProcessingTitle": "Text post-processing",
+  "@settingsPostProcessingTitle": {
+    "description": "Settings row: use an AI model to clean up or translate the transcript."
+  },
+  "settingsPostProcessingSubtitle": "Use {model} for cleanup or translation",
+  "@settingsPostProcessingSubtitle": {
+    "description": "Subtitle of the post-processing row. {model} is a model name.",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCloudTitle": "Cloud processing",
+  "@settingsCloudTitle": {
+    "description": "Settings row title."
+  },
+  "settingsCloudSaved": "Provider credentials are saved",
+  "@settingsCloudSaved": {
+    "description": "Row subtitle when an API key is stored."
+  },
+  "settingsCloudNotSaved": "Save provider credentials before real transcription",
+  "@settingsCloudNotSaved": {
+    "description": "Row subtitle when no API key is stored."
+  },
+  "settingsLoading": "Loading saved settings",
+  "@settingsLoading": {
+    "description": "Status while stored settings load."
+  },
+  "settingsRealtimeModel": "Realtime model",
+  "@settingsRealtimeModel": {
+    "description": "Field label for the Soniox real-time model name."
+  },
+  "settingsRecognitionMode": "Recognition mode",
+  "@settingsRecognitionMode": {
+    "description": "Label and accessibility label of the Bailian mode switch."
+  },
+  "settingsModeStreaming": "Streaming",
+  "@settingsModeStreaming": {
+    "description": "Mode option: text appears while speaking."
+  },
+  "settingsStreamingModel": "Streaming ASR model",
+  "@settingsStreamingModel": {
+    "description": "Field label for the streaming recognition model name."
+  },
+  "settingsBatchModel": "Qwen-ASR batch model",
+  "@settingsBatchModel": {
+    "description": "Field label for the batch recognition model name."
+  },
+  "settingsPostProcessingModel": "Post-processing OpenAI model",
+  "@settingsPostProcessingModel": {
+    "description": "Field label for the text model used for post-processing."
+  },
+  "settingsPostProcessingModelHelper": "Used only when Text post-processing is on",
+  "@settingsPostProcessingModelHelper": {
+    "description": "Helper text under the post-processing model field."
+  },
+  "settingsBaseUrl": "OpenAI-compatible base URL",
+  "@settingsBaseUrl": {
+    "description": "Field label for the API address."
+  },
+  "settingsRealtimeUrl": "Realtime WebSocket URL",
+  "@settingsRealtimeUrl": {
+    "description": "Field label for the real-time WebSocket address."
+  },
+  "settingsSave": "Save Settings",
+  "@settingsSave": {
+    "description": "Button that saves the provider settings."
+  },
+  "settingsSaving": "Saving",
+  "@settingsSaving": {
+    "description": "Button label while saving."
+  },
+  "settingsSaved": "Provider settings saved",
+  "@settingsSaved": {
+    "description": "Snack bar after saving."
+  },
+  "settingsSaveFailed": "Settings were not saved. {reason}",
+  "@settingsSaveFailed": {
+    "description": "Snack bar when saving failed. {reason} is a short explanation sentence.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSectionProfiles": "Profiles",
+  "@settingsSectionProfiles": {
+    "description": "Section label for voice profiles."
+  },
+  "settingsAddProfile": "Add profile",
+  "@settingsAddProfile": {
+    "description": "Row that creates a new profile."
+  },
+  "settingsUseInApps": "Use in apps",
+  "@settingsUseInApps": {
+    "description": "Row and page title: switch profile automatically when an app opens."
+  },
+  "settingsUseInAppsSubtitle": "Switch profile when you open an app",
+  "@settingsUseInAppsSubtitle": {
+    "description": "Subtitle of the Use in apps row."
+  },
+  "settingsFieldRules": "Field rules",
+  "@settingsFieldRules": {
+    "description": "Row and page title: choose a profile per kind of text field."
+  },
+  "settingsFieldRulesSubtitle": "Search, web address, email, message",
+  "@settingsFieldRulesSubtitle": {
+    "description": "Subtitle listing the field kinds."
+  },
+  "settingsSectionKeyboard": "Keyboard",
+  "@settingsSectionKeyboard": {
+    "description": "Section label for the keyboard."
+  },
+  "settingsKeyboardSetup": "Keyboard setup",
+  "@settingsKeyboardSetup": {
+    "description": "Row title: how to add the Shinsoku keyboard."
+  },
+  "settingsKeyboardSetupSubtitle": "Add Shinsoku and allow Full Access",
+  "@settingsKeyboardSetupSubtitle": {
+    "description": "Subtitle of the keyboard setup row."
+  },
+  "settingsApiKey": "API key",
+  "@settingsApiKey": {
+    "description": "Field label for the provider API key."
+  },
+  "settingsShowKey": "Show key",
+  "@settingsShowKey": {
+    "description": "Tooltip of the button that reveals the API key."
+  },
+  "settingsHideKey": "Hide key",
+  "@settingsHideKey": {
+    "description": "Tooltip of the button that hides the API key."
+  },
+  "keyboardSetupTitle": "Keyboard",
+  "@keyboardSetupTitle": {
+    "description": "Page title of the keyboard setup guide."
+  },
+  "keyboardSetupIntro": "Use Shinsoku from any text field.",
+  "@keyboardSetupIntro": {
+    "description": "Intro line of the keyboard setup guide."
+  },
+  "keyboardStep1": "Open Settings › General › Keyboard › Keyboards.",
+  "@keyboardStep1": {
+    "description": "Step 1. Use the exact iOS menu names of this language."
+  },
+  "keyboardStep2": "Tap Add New Keyboard and choose Shinsoku.",
+  "@keyboardStep2": {
+    "description": "Step 2. Use the exact iOS button name of this language."
+  },
+  "keyboardStep3": "Tap Shinsoku and turn on Allow Full Access, so the keyboard can insert your latest text.",
+  "@keyboardStep3": {
+    "description": "Step 3. Use the exact iOS switch name of this language."
+  },
+  "useInAppsSummary": "Shinsoku can switch profile by itself when you open an app. Shortcuts watches for the app; Shinsoku sets the profile.",
+  "@useInAppsSummary": {
+    "description": "Intro of the Use in apps page. Shortcuts is the iOS app name."
+  },
+  "useInAppsWhenOpened": "When the app is opened",
+  "@useInAppsWhenOpened": {
+    "description": "Section label for the automation that runs when an app opens."
+  },
+  "useInAppsWhenClosed": "When the app is closed",
+  "@useInAppsWhenClosed": {
+    "description": "Section label for the automation that runs when an app closes."
+  },
+  "useInAppsOpenStep1": "In Shortcuts, open Automation and tap New Automation.",
+  "@useInAppsOpenStep1": {
+    "description": "Step. Use the exact iOS names of this language."
+  },
+  "useInAppsOpenStep2": "Choose App, pick the app, and select Is Opened. Turn on Run Immediately.",
+  "@useInAppsOpenStep2": {
+    "description": "Step. Use the exact iOS names of this language."
+  },
+  "useInAppsOpenStep3": "Add the action Set Shinsoku Profile and choose the profile for that app.",
+  "@useInAppsOpenStep3": {
+    "description": "Step. 'Set Shinsoku Profile' is the action name shown in Shortcuts."
+  },
+  "useInAppsCloseStep1": "Add a second automation for the same app and select Is Closed. Turn on Run Immediately.",
+  "@useInAppsCloseStep1": {
+    "description": "Step. Use the exact iOS names of this language."
+  },
+  "useInAppsCloseStep2": "Add Set Shinsoku Profile and choose your default profile, so other apps go back to it.",
+  "@useInAppsCloseStep2": {
+    "description": "Step."
+  },
+  "useInAppsKeyboardNote": "You can also tap the profile name in the keyboard to switch. It stays until an automation runs again.",
+  "@useInAppsKeyboardNote": {
+    "description": "Note under the steps."
+  },
+  "useInAppsIosNote": "The Shortcuts actions need iOS 16 or later.",
+  "@useInAppsIosNote": {
+    "description": "Warning on old iOS versions."
+  },
+  "useInAppsOpenShortcuts": "Open Shortcuts",
+  "@useInAppsOpenShortcuts": {
+    "description": "Button that opens the Shortcuts app."
+  },
+  "fieldRulesTitle": "Field rules",
+  "@fieldRulesTitle": {
+    "description": "Page title."
+  },
+  "fieldRulesSummary": "Use a profile automatically in certain kinds of field. It applies only when you have not picked a profile in the keyboard and no automation has set one.",
+  "@fieldRulesSummary": {
+    "description": "Intro of the Field rules page."
+  },
+  "fieldRulesNone": "None",
+  "@fieldRulesNone": {
+    "description": "Choice meaning no profile rule for this kind of field."
+  },
+  "fieldKindSearch": "Search",
+  "@fieldKindSearch": {
+    "description": "Kind of text field: a search box."
+  },
+  "fieldKindUrl": "Web address",
+  "@fieldKindUrl": {
+    "description": "Kind of text field: a URL box."
+  },
+  "fieldKindEmail": "Email",
+  "@fieldKindEmail": {
+    "description": "Kind of text field: an email address or email body."
+  },
+  "fieldKindMessage": "Message",
+  "@fieldKindMessage": {
+    "description": "Kind of text field: a chat message."
+  },
+  "profileNewTitle": "New profile",
+  "@profileNewTitle": {
+    "description": "Sheet title."
+  },
+  "profileEditTitle": "Edit profile",
+  "@profileEditTitle": {
+    "description": "Sheet title."
+  },
+  "profileNameLabel": "Name",
+  "@profileNameLabel": {
+    "description": "Field label for the profile name."
+  },
+  "profilePromptLabel": "Post-processing prompt",
+  "@profilePromptLabel": {
+    "description": "Field label for the instruction given to the AI model."
+  },
+  "profilePromptHelper": "Example: Translate Chinese speech into natural English.",
+  "@profilePromptHelper": {
+    "description": "Helper text with an example instruction."
+  },
+  "profileAfterText": "After the text",
+  "@profileAfterText": {
+    "description": "Label and accessibility label of what is typed after the inserted text."
+  },
+  "profileSuffixNothing": "Nothing",
+  "@profileSuffixNothing": {
+    "description": "Option: add nothing after the text."
+  },
+  "profileSuffixSpace": "Space",
+  "@profileSuffixSpace": {
+    "description": "Option: add a space after the text."
+  },
+  "profileSuffixNewLine": "New line",
+  "@profileSuffixNewLine": {
+    "description": "Option: add a line break after the text."
+  },
+  "profileAutoCommit": "Auto commit",
+  "@profileAutoCommit": {
+    "description": "Switch title: insert the text without a review step."
+  },
+  "profileAutoCommitSubtitle": "Insert without a review step",
+  "@profileAutoCommitSubtitle": {
+    "description": "Switch subtitle."
+  },
+  "profileDelete": "Delete profile",
+  "@profileDelete": {
+    "description": "Button and dialog title that deletes a profile."
+  },
+  "profileDeleteConfirm": "Delete \"{name}\"?",
+  "@profileDeleteConfirm": {
+    "description": "Confirmation question. {name} is the profile name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileKeepOne": "Keep at least one profile",
+  "@profileKeepOne": {
+    "description": "Snack bar when trying to delete the last profile."
+  },
+  "profileUntitled": "Untitled",
+  "@profileUntitled": {
+    "description": "Name given to a profile saved without a name."
+  },
+  "profileDefaultIntent": "Clean up the transcript. Return only the final text.",
+  "@profileDefaultIntent": {
+    "description": "Default instruction for a new profile. It is sent to an AI model; keep it a clear instruction."
+  },
+  "profileDictationName": "Dictation",
+  "@profileDictationName": {
+    "description": "Name of the built-in profile for plain dictation."
+  },
+  "profileDictationIntent": "Clean speech into natural prose",
+  "@profileDictationIntent": {
+    "description": "Instruction of the Dictation profile."
+  },
+  "profileChatName": "Chat",
+  "@profileChatName": {
+    "description": "Name of the built-in profile for chat messages."
+  },
+  "profileChatIntent": "Make the text concise and conversational",
+  "@profileChatIntent": {
+    "description": "Instruction of the Chat profile."
+  },
+  "profileReviewName": "Review",
+  "@profileReviewName": {
+    "description": "Name of the built-in profile that holds text for manual review."
+  },
+  "profileReviewIntent": "Hold transcript for manual review",
+  "@profileReviewIntent": {
+    "description": "Description of the Review profile."
+  },
+  "profileZhToEnName": "ZH -> EN",
+  "@profileZhToEnName": {
+    "description": "Name of the built-in Chinese-to-English profile."
+  },
+  "profileZhToEnIntent": "Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
+  "@profileZhToEnIntent": {
+    "description": "Instruction of the ZH -> EN profile. It is sent to an AI model; keep it a clear instruction in English."
+  },
+  "shellAlreadyRecording": "Shinsoku is already recording.",
+  "@shellAlreadyRecording": {
+    "description": "Snack bar when a second recording is requested."
+  },
+  "shellPostProcessingEnabled": "Text post-processing enabled for {profile}.",
+  "@shellPostProcessingEnabled": {
+    "description": "Snack bar when a profile needs post-processing and it was switched on. {profile} is the profile name.",
+    "placeholders": {
+      "profile": {
+        "type": "String"
+      }
+    }
+  },
+  "shellPostProcessingNotSaved": "Post-processing setting was not saved. {reason}",
+  "@shellPostProcessingNotSaved": {
+    "description": "Snack bar when switching post-processing on failed. {reason} is a short explanation sentence.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "shellClipboardFailed": "Could not copy the text. {reason}",
+  "@shellClipboardFailed": {
+    "description": "Snack bar when copying failed. {reason} is a short explanation sentence.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "failureTimeout": "The provider took too long to answer. Check your connection and try again.",
+  "@failureTimeout": {
+    "description": "Friendly error: a request timed out."
+  },
+  "failureNetwork": "No connection to the provider. Check your network and try again.",
+  "@failureNetwork": {
+    "description": "Friendly error: network failure."
+  },
+  "failureConnectionLost": "The connection was lost. Try again.",
+  "@failureConnectionLost": {
+    "description": "Friendly error: a streaming connection dropped."
+  },
+  "failureKeyMissing": "No API key is saved. Add one in Settings.",
+  "@failureKeyMissing": {
+    "description": "Friendly error: provider key missing."
+  },
+  "failureKeyInvalid": "The provider did not accept your API key. Check it in Settings.",
+  "@failureKeyInvalid": {
+    "description": "Friendly error: key rejected."
+  },
+  "failureQuota": "The provider reports no quota left or too many requests. Check your account.",
+  "@failureQuota": {
+    "description": "Friendly error: quota or rate limit."
+  },
+  "failureNothingHeard": "No speech was recognized. Try again.",
+  "@failureNothingHeard": {
+    "description": "Friendly error: empty result."
+  },
+  "failureRecording": "The recording could not be completed. Try again.",
+  "@failureRecording": {
+    "description": "Friendly error: recorder problem."
+  },
+  "failureMicrophone": "The microphone is not available. Check microphone access in Settings.",
+  "@failureMicrophone": {
+    "description": "Friendly error: microphone problem."
+  },
+  "failureGeneric": "Something went wrong. Try again.",
+  "@failureGeneric": {
+    "description": "Fallback friendly error."
+  },
+  "nearbyTitle": "Desktop Mic",
+  "@nearbyTitle": {
+    "description": "Title of the Desktop tab page (use the phone as a microphone for a computer)."
+  },
+  "nearbySubtitle": "Private local connection",
+  "@nearbySubtitle": {
+    "description": "Subtitle of the Desktop page: the connection stays on the local network."
+  },
+  "nearbySectionDesktop": "Desktop",
+  "@nearbySectionDesktop": {
+    "description": "Section label above the list of desktops."
+  },
+  "nearbyFindDesktops": "Find Desktops",
+  "@nearbyFindDesktops": {
+    "description": "Button that searches the local network for Shinsoku desktops."
+  },
+  "nearbyAddManually": "Add desktop manually",
+  "@nearbyAddManually": {
+    "description": "Tooltip of the icon button that reveals manual entry."
+  },
+  "nearbyEndpointLabel": "WSS endpoint",
+  "@nearbyEndpointLabel": {
+    "description": "Field label: a secure WebSocket address such as wss://host:port. Keep 'WSS'."
+  },
+  "nearbyCertificateLabel": "Certificate SHA-256",
+  "@nearbyCertificateLabel": {
+    "description": "Field label for the desktop certificate's SHA-256 fingerprint."
+  },
+  "nearbyAdd": "Add",
+  "@nearbyAdd": {
+    "description": "Button that adds the manually entered desktop."
+  },
+  "nearbySectionTrust": "Trust",
+  "@nearbySectionTrust": {
+    "description": "Section label for verifying the desktop's certificate."
+  },
+  "nearbyTrustedDesktop": "Trusted desktop",
+  "@nearbyTrustedDesktop": {
+    "description": "Heading when this desktop has been paired before."
+  },
+  "nearbyCertificateFingerprint": "Certificate fingerprint",
+  "@nearbyCertificateFingerprint": {
+    "description": "Heading above the desktop certificate fingerprint to verify."
+  },
+  "nearbyMatchesTitle": "Matches desktop Settings",
+  "@nearbyMatchesTitle": {
+    "description": "Switch title: the user confirms the fingerprint equals the one on the desktop."
+  },
+  "nearbyMatchesSubtitle": "Compare it with Settings on the desktop",
+  "@nearbyMatchesSubtitle": {
+    "description": "Switch subtitle explaining where to compare the fingerprint."
+  },
+  "nearbyPairingCodeLabel": "Pairing code shown on the desktop",
+  "@nearbyPairingCodeLabel": {
+    "description": "Field label for the two-digit pairing code."
+  },
+  "nearbyDisconnect": "Disconnect",
+  "@nearbyDisconnect": {
+    "description": "Button that closes the connection to the desktop."
+  },
+  "nearbyConnect": "Connect",
+  "@nearbyConnect": {
+    "description": "Button that connects to an already trusted desktop."
+  },
+  "nearbyPairAndConnect": "Pair and Connect",
+  "@nearbyPairAndConnect": {
+    "description": "Button that pairs with a new desktop and connects."
+  },
+  "nearbyForget": "Forget desktop",
+  "@nearbyForget": {
+    "description": "Tooltip of the icon button that removes trust of the desktop."
+  },
+  "nearbySectionRemoteInput": "Remote input",
+  "@nearbySectionRemoteInput": {
+    "description": "Section label for the dictation controls of the Desktop page."
+  },
+  "nearbyProfileRow": "Profile",
+  "@nearbyProfileRow": {
+    "description": "Row title for choosing which profile the desktop uses."
+  },
+  "nearbyProfileAutomatic": "Desktop automatic",
+  "@nearbyProfileAutomatic": {
+    "description": "Profile choice meaning the desktop picks its own profile."
+  },
+  "nearbyProfileSheetTitle": "Desktop profile",
+  "@nearbyProfileSheetTitle": {
+    "description": "Title of the sheet to choose the desktop profile."
+  },
+  "nearbyStopAndTranscribe": "Stop and transcribe",
+  "@nearbyStopAndTranscribe": {
+    "description": "Label of the record button and hint while dictating into the desktop."
+  },
+  "nearbyStartRemote": "Start remote dictation",
+  "@nearbyStartRemote": {
+    "description": "Label of the record button and hint when connected."
+  },
+  "nearbyConnectToDictate": "Connect to a desktop to dictate into it",
+  "@nearbyConnectToDictate": {
+    "description": "Hint below the disabled record button when not connected."
+  },
+  "nearbyConnectingTo": "Connecting to {name}",
+  "@nearbyConnectingTo": {
+    "description": "Status while connecting. {name} is the desktop's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyConnectedTo": "Connected to {name}",
+  "@nearbyConnectedTo": {
+    "description": "Status when connected. {name} is the desktop's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyStreaming": "Streaming microphone audio",
+  "@nearbyStreaming": {
+    "description": "Status while the microphone audio is sent to the desktop."
+  },
+  "nearbyStreamingGaps": "{count, plural, =1{Streaming with 1 missing frame} other{Streaming with {count} missing frames}}",
+  "@nearbyStreamingGaps": {
+    "description": "Status when some audio frames did not arrive. {count} is the number of missing frames.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "nearbyRecordingSent": "Recording sent to desktop",
+  "@nearbyRecordingSent": {
+    "description": "Status after dictation finished and was delivered."
+  },
+  "nearbyNotConnected": "Not connected",
+  "@nearbyNotConnected": {
+    "description": "Status when there is no connection to a desktop."
+  },
+  "nearbyDisconnected": "Desktop disconnected",
+  "@nearbyDisconnected": {
+    "description": "Status when the desktop closed the connection."
+  },
+  "nearbySearching": "Searching the local network",
+  "@nearbySearching": {
+    "description": "Status while looking for desktops."
+  },
+  "nearbyNoneFound": "No Shinsoku desktop found",
+  "@nearbyNoneFound": {
+    "description": "Status when the search found nothing."
+  },
+  "nearbyDesktopsFound": "{count, plural, =1{1 desktop found} other{{count} desktops found}}",
+  "@nearbyDesktopsFound": {
+    "description": "Status after the search. {count} is how many desktops were found.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "nearbyTrustedSelected": "Trusted desktop selected",
+  "@nearbyTrustedSelected": {
+    "description": "Status after choosing a desktop that was paired before."
+  },
+  "nearbyVerifyFingerprint": "Verify the desktop fingerprint",
+  "@nearbyVerifyFingerprint": {
+    "description": "Status asking the user to compare the certificate fingerprint."
+  },
+  "nearbyTrustRemoved": "Local trust removed",
+  "@nearbyTrustRemoved": {
+    "description": "Status after forgetting a desktop."
+  },
+  "nearbyErrorPairingCodeRequired": "Enter the two-digit code shown on desktop.",
+  "@nearbyErrorPairingCodeRequired": {
+    "description": "Error: the pairing code is missing."
+  },
+  "nearbyErrorFingerprintInvalid": "The certificate fingerprint is not valid. Enter all 64 hexadecimal characters.",
+  "@nearbyErrorFingerprintInvalid": {
+    "description": "Error for a malformed certificate fingerprint."
+  },
+  "nearbyErrorEndpointInvalid": "Enter a valid wss:// host and port.",
+  "@nearbyErrorEndpointInvalid": {
+    "description": "Error for a malformed address. Keep 'wss://'."
+  },
+  "nearbyErrorCertificateChanged": "The desktop certificate has changed. Forget it and pair again.",
+  "@nearbyErrorCertificateChanged": {
+    "description": "Error when the desktop's certificate differs from the trusted one."
+  },
+  "nearbyErrorCredentialMissing": "This desktop remembers this device, but the local credential is missing. Revoke it on the desktop and pair again.",
+  "@nearbyErrorCredentialMissing": {
+    "description": "Error: the desktop trusts the phone but the phone lost its credential."
+  },
+  "nearbyErrorPairingUnavailable": "Create a pairing code in desktop Settings, then connect again.",
+  "@nearbyErrorPairingUnavailable": {
+    "description": "Error: no pairing code is active on the desktop."
+  },
+  "nearbyErrorPairingExpired": "The desktop pairing code expired. Create a new one.",
+  "@nearbyErrorPairingExpired": {
+    "description": "Error: pairing code expired."
+  },
+  "nearbyErrorWrongCode": "The pairing code is incorrect.",
+  "@nearbyErrorWrongCode": {
+    "description": "Error: wrong pairing code."
+  },
+  "nearbyErrorAttemptsExhausted": "Pairing attempts are used up. Create a new code on the desktop.",
+  "@nearbyErrorAttemptsExhausted": {
+    "description": "Error: too many wrong pairing codes."
+  },
+  "nearbyErrorDesktopBusy": "The desktop is already recording or processing audio.",
+  "@nearbyErrorDesktopBusy": {
+    "description": "Error: the desktop cannot start a new dictation."
+  },
+  "nearbyErrorConnectFirst": "Connect to a desktop before recording.",
+  "@nearbyErrorConnectFirst": {
+    "description": "Error: tried to record without a connection."
+  },
+  "nearbyErrorTimeout": "The desktop did not respond in time.",
+  "@nearbyErrorTimeout": {
+    "description": "Error: no answer from the desktop."
+  },
+  "nearbyErrorConnectionLost": "The connection to the desktop was lost.",
+  "@nearbyErrorConnectionLost": {
+    "description": "Error: the connection closed or failed."
+  },
+  "nearbyErrorMicDenied": "Microphone access is required. Allow it in Settings.",
+  "@nearbyErrorMicDenied": {
+    "description": "Error: microphone permission denied."
+  },
+  "nearbyErrorRecorderNotReady": "The microphone is not ready. Try again.",
+  "@nearbyErrorRecorderNotReady": {
+    "description": "Error: the recorder is not ready."
+  },
+  "nearbyErrorMicStream": "The microphone stopped unexpectedly.",
+  "@nearbyErrorMicStream": {
+    "description": "Error: the audio stream failed."
+  },
+  "nearbyErrorDiscovery": "Could not search the local network. Check Wi-Fi and try again.",
+  "@nearbyErrorDiscovery": {
+    "description": "Error: discovery of desktops failed."
+  },
+  "nearbyErrorUnexpectedResponse": "The desktop sent an unexpected response. Update Shinsoku on both devices and try again.",
+  "@nearbyErrorUnexpectedResponse": {
+    "description": "Error: protocol mismatch or invalid reply."
+  },
+  "nearbyErrorGeneric": "Something went wrong with the desktop connection.",
+  "@nearbyErrorGeneric": {
+    "description": "Fallback error for the Desktop page."
+  }
+}

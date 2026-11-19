@@ -249,6 +249,9 @@ class SkListRow extends StatelessWidget {
                 const SizedBox(width: SkSpace.m),
               ],
               Expanded(
+                // A trailing value gets the larger share: it is a choice
+                // that may be long in translation, the title can wrap.
+                flex: value == null ? 1 : 2,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -273,9 +276,10 @@ class SkListRow extends StatelessWidget {
               if (value != null) ...[
                 const SizedBox(width: SkSpace.s),
                 Flexible(
+                  flex: 3,
                   child: Text(
                     value!,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
                     style: SkType.body.copyWith(color: c.textSecondary),

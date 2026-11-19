@@ -16,6 +16,7 @@ import 'package:shinsoku_mobile/ui/ui.dart';
 
 import 'harness.dart';
 import 'scripted_pipeline.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 // ── Events ────────────────────────────────────────────────────────────────
 
@@ -338,6 +339,9 @@ class RecordSystem {
     await t.pumpWidget(const SizedBox());
     await t.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+
         key: UniqueKey(),
         theme: buildSkTheme(Brightness.dark),
         home: MobileShell(

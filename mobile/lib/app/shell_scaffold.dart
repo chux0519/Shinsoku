@@ -3,6 +3,7 @@ import 'dart:ui' show DisplayFeature, DisplayFeatureType;
 
 import 'package:flutter/material.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 /// App chrome around the four pages (Record, Drafts, Desktop, Settings),
 /// chosen from the constraints, never from the device model.
@@ -63,22 +64,26 @@ class ShellScaffold extends StatefulWidget {
   /// 24 pt pane gap inner display; the real region is used when wider).
   static const double foldGap = 24;
 
-  static const tabs = [
-    SkTabItem(icon: Icons.mic_none, selectedIcon: Icons.mic, label: 'Record'),
+  static List<SkTabItem> tabsFor(AppLocalizations l) => [
+    SkTabItem(
+      icon: Icons.mic_none,
+      selectedIcon: Icons.mic,
+      label: l.tabRecord,
+    ),
     SkTabItem(
       icon: Icons.description_outlined,
       selectedIcon: Icons.description,
-      label: 'Drafts',
+      label: l.tabDrafts,
     ),
     SkTabItem(
       icon: Icons.wifi_tethering,
       selectedIcon: Icons.podcasts,
-      label: 'Desktop',
+      label: l.tabDesktop,
     ),
     SkTabItem(
       icon: Icons.tune_outlined,
       selectedIcon: Icons.tune,
-      label: 'Settings',
+      label: l.tabSettings,
     ),
   ];
 
@@ -254,7 +259,7 @@ class _ShellScaffoldState extends State<ShellScaffold> {
         ),
       ),
       bottomNavigationBar: SkTabBar(
-        items: ShellScaffold.tabs,
+        items: ShellScaffold.tabsFor(context.l10n),
         selectedIndex: index,
         onSelected: (i) {
           _showRecord = false;
@@ -404,11 +409,14 @@ class _PaneSwitcher extends StatelessWidget {
           padding: insets.copyWith(top: SkSpace.s, bottom: SkSpace.s),
           child: SkSegmented<int>(
             key: const ValueKey('pane-switcher'),
-            semanticLabel: 'Pane',
+            semanticLabel: context.l10n.paneSwitcherLabel,
             segments: [
               for (var i = 1; i < 4; i++)
                 // Labels only: three icons + labels do not fit a ~380 pt pane.
-                SkSegment(value: i, label: ShellScaffold.tabs[i].label),
+                SkSegment(
+                  value: i,
+                  label: ShellScaffold.tabsFor(context.l10n)[i].label,
+                ),
             ],
             selected: selected,
             onChanged: onSelected,

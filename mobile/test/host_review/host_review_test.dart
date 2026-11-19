@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/ui/theme.dart';
 
 import 'scenes.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 class _Device {
   const _Device(this.size, this.padding, {this.textScale = 1, this.fold});
@@ -118,6 +119,24 @@ void main() {
   final onlyScenes = _envSet('SHINSOKU_HOST_REVIEW_SCENES');
   final onlyDevices = _envSet('SHINSOKU_HOST_REVIEW_DEVICES');
   final themes = _envSet('SHINSOKU_HOST_REVIEW_THEMES');
+  // en (default), pseudo (accented, ~40% longer: unextracted strings stay
+  // plain English, overflow shows), or a locale tag such as ja or zh-Hant.
+  final localeName =
+      Platform.environment['SHINSOKU_HOST_REVIEW_LOCALE'] ?? 'en';
+  final pseudo = localeName == 'pseudo';
+  final locale = pseudo
+      ? pseudoLocale
+      : Locale.fromSubtags(
+          languageCode: localeName.split('-').first,
+          scriptCode:
+              localeName.contains('-') && localeName.split('-')[1].length == 4
+              ? localeName.split('-')[1]
+              : null,
+          countryCode:
+              localeName.contains('-') && localeName.split('-').last.length == 2
+              ? localeName.split('-').last
+              : null,
+        );
 
   final runs = <(String scene, String device, _Device spec)>[
     for (final scene in scenes.keys) ...[
@@ -171,6 +190,9 @@ void main() {
             RepaintBoundary(
               key: boundary,
               child: MaterialApp(
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                locale: locale,
                 debugShowCheckedModeBanner: false,
                 theme: buildSkTheme(brightness),
                 themeAnimationStyle: AnimationStyle.noAnimation,
@@ -199,6 +221,13 @@ void main() {
           await sceneSetups[scene]?.call(t, device);
           // Overflow and layout errors fail the scene.
           expect(t.takeException(), isNull);
+          // So does localized text cut off by its line limit (pseudo strings
+          // start with '[', which an ellipsis would replace at the end); the
+          // image is written first so the cut can be looked at.
+          // (Not at 200% text: pseudo text that long is beyond the goal.)
+          final clipped = pseudo && spec.textScale == 1
+              ? _clippedLocalizedText(t.binding.rootElement!)
+              : const <String>[];
           await t.runAsync(() async {
             final image =
                 await (boundary.currentContext!.findRenderObject()!
@@ -226,6 +255,7 @@ void main() {
                   'left': spec.padding.left,
                   'right': spec.padding.right,
                 },
+                'locale': localeName,
                 'textScale': spec.textScale,
                 if (spec.fold case final fold?)
                   'fold': {
@@ -238,6 +268,7 @@ void main() {
               }),
             );
           });
+          expect(clipped, isEmpty, reason: 'clipped text: $clipped');
         } finally {
           await t.pumpWidget(const SizedBox.shrink());
           t.view.reset();
@@ -248,4 +279,24 @@ void main() {
       });
     }
   }
+}
+
+/// Pseudo-locale paragraphs that did not fit their max lines.
+List<String> _clippedLocalizedText(Element root) {
+  final clipped = <String>[];
+  void visit(RenderObject object) {
+    if (object is RenderParagraph &&
+        object.didExceedMaxLines &&
+        object.text.toPlainText().startsWith('[')) {
+      final owner = (object.debugCreator as DebugCreator).element;
+      clipped.add(
+        '${object.text.toPlainText()} in ${owner.debugGetCreatorChain(8)}',
+      );
+    }
+    object.visitChildren(visit);
+  }
+
+  final render = root.renderObject;
+  if (render != null) visit(render);
+  return clipped;
 }

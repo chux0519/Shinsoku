@@ -5,6 +5,7 @@ import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 /// Text for the Record area that changed elsewhere (Drafts edited the
 /// Record screen's draft). A new [revision] replaces the area's text once.
@@ -299,7 +300,8 @@ class RecordViewState extends State<RecordView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (showHeader) const SkPageHeader(title: 'Shinsoku'),
+                    if (showHeader)
+                      const SkPageHeader(title: 'Shinsoku'), // brand
                     _statusLine(context, status),
                     if (widget.profileReason != null)
                       Padding(
@@ -328,9 +330,9 @@ class RecordViewState extends State<RecordView> {
                         followEnd: _readOnly,
                         minHeight: 72,
                         placeholder: switch (_phase) {
-                          LivePhase.connecting ||
-                          LivePhase.listening => SkStrings.listeningPlaceholder,
-                          LivePhase.idle => SkStrings.recordPlaceholder,
+                          LivePhase.connecting || LivePhase.listening =>
+                            context.l10n.recordListeningPlaceholder,
+                          LivePhase.idle => context.l10n.recordPlaceholder,
                           _ => null,
                         },
                       ),
@@ -339,7 +341,7 @@ class RecordViewState extends State<RecordView> {
                     if (!editing) ...[
                       Center(
                         child: SkSegmented<int>(
-                          semanticLabel: 'Profile',
+                          semanticLabel: context.l10n.recordProfileLabel,
                           scrollable: true,
                           segments: [
                             for (var i = 0; i < widget.profiles.length; i++)
@@ -366,7 +368,7 @@ class RecordViewState extends State<RecordView> {
                               child: SkIconButton(
                                 key: const ValueKey('record-copy'),
                                 icon: Icons.content_copy_outlined,
-                                tooltip: SkStrings.copy,
+                                tooltip: context.l10n.commonCopy,
                                 onPressed: canCopy ? _copy : null,
                               ),
                             ),
@@ -390,7 +392,7 @@ class RecordViewState extends State<RecordView> {
                               visible: canDone,
                               child: SkButton.text(
                                 key: const ValueKey('record-done'),
-                                label: SkStrings.done,
+                                label: context.l10n.commonDone,
                                 onPressed: canDone ? _done : null,
                               ),
                             ),
@@ -412,12 +414,15 @@ class RecordViewState extends State<RecordView> {
     if (status != null && status.failed) {
       final (String? label, VoidCallback? action) = switch (status.fix) {
         StatusFix.microphone => (
-          'Open Settings',
+          context.l10n.commonOpenSettings,
           widget.onOpenMicrophoneSettings,
         ),
-        StatusFix.providerSettings => ('Open Settings', widget.onOpenSettings),
+        StatusFix.providerSettings => (
+          context.l10n.commonOpenSettings,
+          widget.onOpenSettings,
+        ),
         StatusFix.retry => (
-          SkStrings.tryAgain,
+          context.l10n.recordTryAgain,
           widget.captureState == CaptureState.idle ? _record : null,
         ),
         StatusFix.none => (null, null),
@@ -433,19 +438,19 @@ class RecordViewState extends State<RecordView> {
       );
     }
     return switch (widget.captureState) {
-      CaptureState.listening => const SkStatusLine(
+      CaptureState.listening => SkStatusLine(
         icon: Icons.fiber_manual_record_rounded,
         tone: SkTone.danger,
-        text: 'Listening',
-        detail: 'Tap stop when you are done speaking.',
+        text: context.l10n.recordStatusListening,
+        detail: context.l10n.recordStatusListeningDetail,
       ),
       // The record button carries the one indeterminate indicator (DESIGN §4).
       CaptureState.processing => SkStatusLine(
         icon: Icons.hourglass_empty_rounded,
         tone: SkTone.accent,
         text: _phase == LivePhase.processing && _controller.text.isNotEmpty
-            ? SkStrings.processing
-            : status?.label ?? 'Transcribing',
+            ? context.l10n.recordProcessing
+            : status?.label ?? context.l10n.recordStatusTranscribing,
         detail: status?.detail,
       ),
       CaptureState.idle when status != null && status.finished => SkStatusLine(
@@ -457,12 +462,12 @@ class RecordViewState extends State<RecordView> {
         detail: SmokeTestConfig.enabled
             ? status.detail
             : status.transcript != null
-            ? SkStrings.resultCopied
+            ? context.l10n.recordResultCopied
             : null,
       ),
-      CaptureState.idle => const SkStatusLine(
+      CaptureState.idle => SkStatusLine(
         icon: Icons.mic_none_rounded,
-        text: 'Ready to record',
+        text: context.l10n.recordStatusReady,
       ),
     };
   }

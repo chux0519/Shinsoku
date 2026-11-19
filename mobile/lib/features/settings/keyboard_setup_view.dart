@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
 /// DESIGN §7 keyboard setup guide: numbered steps, one "Open Settings".
@@ -8,22 +9,17 @@ class KeyboardSetupView extends StatelessWidget {
 
   final Future<bool> Function() onOpenSettings;
 
-  static const steps = [
-    'Open Settings › General › Keyboard › Keyboards.',
-    'Tap Add New Keyboard and choose Shinsoku.',
-    'Tap Shinsoku and turn on Allow Full Access, so the keyboard can insert '
-        'your latest text.',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final c = SkColors.of(context);
+    final l = context.l10n;
+    final steps = [l.keyboardStep1, l.keyboardStep2, l.keyboardStep3];
     return Scaffold(
       appBar: SkTopBar(
-        title: 'Keyboard',
+        title: l.keyboardSetupTitle,
         leading: SkIconButton(
           icon: Icons.arrow_back_ios_new_rounded,
-          tooltip: 'Back',
+          tooltip: l.commonBack,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -38,7 +34,7 @@ class KeyboardSetupView extends StatelessWidget {
                   padding: insets.copyWith(top: SkSpace.s, bottom: SkSpace.xl),
                   children: [
                     Text(
-                      'Use Shinsoku from any text field.',
+                      l.keyboardSetupIntro,
                       style: SkType.body.copyWith(color: c.textSecondary),
                     ),
                     const SizedBox(height: SkSpace.l),
@@ -57,7 +53,7 @@ class KeyboardSetupView extends StatelessWidget {
                   bottom: MediaQuery.paddingOf(context).bottom + SkSpace.l,
                 ),
                 child: SkButton(
-                  label: 'Open Settings',
+                  label: l.commonOpenSettings,
                   icon: Icons.settings_outlined,
                   expand: true,
                   onPressed: onOpenSettings,

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
-
-const defaultProfileIntent =
-    'Clean up the transcript. Return only the final text.';
 
 /// What the profile sheet decided: a profile to save, or a delete request.
 class ProfileEditResult {
@@ -44,11 +42,22 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
     text: widget.profile?.name ?? '',
   );
   late final TextEditingController _intent = TextEditingController(
-    text: widget.profile?.intent ?? defaultProfileIntent,
+    text: widget.profile?.intent ?? '',
   );
+  bool _intentSeeded = false;
   late CommitSuffix _suffix =
       widget.profile?.commitSuffix ?? CommitSuffix.space;
   late bool _autoCommit = widget.profile?.autoCommit ?? true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A new profile starts with the default prompt in the app's language.
+    if (!_intentSeeded && widget.profile == null) {
+      _intent.text = context.l10n.profileDefaultIntent;
+    }
+    _intentSeeded = true;
+  }
 
   @override
   void dispose() {
@@ -66,8 +75,8 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
           id:
               widget.profile?.id ??
               'profile_${DateTime.now().microsecondsSinceEpoch}',
-          name: name.isEmpty ? 'Untitled' : name,
-          intent: intent.isEmpty ? defaultProfileIntent : intent,
+          name: name.isEmpty ? context.l10n.profileUntitled : name,
+          intent: intent.isEmpty ? context.l10n.profileDefaultIntent : intent,
           commitSuffix: _suffix,
           autoCommit: _autoCommit,
         ),
@@ -78,48 +87,55 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final editing = widget.profile != null;
+    final l = context.l10n;
     return SkSheet(
-      title: editing ? 'Edit profile' : 'New profile',
+      title: editing ? l.profileEditTitle : l.profileNewTitle,
       actions: [
         SkButton.secondary(
-          label: 'Cancel',
+          label: l.commonCancel,
           expand: true,
           onPressed: () => Navigator.of(context).pop(),
         ),
-        SkButton(label: 'Save', expand: true, onPressed: _save),
+        SkButton(label: l.commonSave, expand: true, onPressed: _save),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SkTextArea.field(
             controller: _name,
-            label: 'Name',
+            label: l.profileNameLabel,
             autocorrect: true,
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: SkSpace.l),
           SkTextArea(
             controller: _intent,
-            label: 'Post-processing prompt',
-            helper: 'Example: Translate Chinese speech into natural English.',
+            label: l.profilePromptLabel,
+            helper: l.profilePromptHelper,
             minLines: 3,
             maxLines: 6,
             textCapitalization: TextCapitalization.sentences,
           ),
           const SizedBox(height: SkSpace.l),
           Text(
-            'After the text',
+            l.profileAfterText,
             style: SkType.secondary.copyWith(
               color: SkColors.of(context).textSecondary,
             ),
           ),
           const SizedBox(height: 6),
           SkSegmented<CommitSuffix>(
-            semanticLabel: 'After the text',
-            segments: const [
-              SkSegment(value: CommitSuffix.none, label: 'Nothing'),
-              SkSegment(value: CommitSuffix.space, label: 'Space'),
-              SkSegment(value: CommitSuffix.newline, label: 'New line'),
+            semanticLabel: l.profileAfterText,
+            segments: [
+              SkSegment(
+                value: CommitSuffix.none,
+                label: l.profileSuffixNothing,
+              ),
+              SkSegment(value: CommitSuffix.space, label: l.profileSuffixSpace),
+              SkSegment(
+                value: CommitSuffix.newline,
+                label: l.profileSuffixNewLine,
+              ),
             ],
             selected: _suffix,
             onChanged: (value) => setState(() => _suffix = value),
@@ -130,8 +146,8 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
             child: ColoredBox(
               color: SkColors.of(context).frame,
               child: SkListRow.toggle(
-                title: 'Auto commit',
-                subtitle: 'Insert without a review step',
+                title: l.profileAutoCommit,
+                subtitle: l.profileAutoCommitSubtitle,
                 value: _autoCommit,
                 onChanged: (value) => setState(() => _autoCommit = value),
               ),
@@ -141,7 +157,7 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
             const SizedBox(height: SkSpace.m),
             Center(
               child: SkButton.text(
-                label: 'Delete profile',
+                label: l.profileDelete,
                 destructive: true,
                 onPressed: () =>
                     Navigator.of(context).pop(const ProfileEditResult.delete()),

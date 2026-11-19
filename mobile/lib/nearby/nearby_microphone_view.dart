@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
 
 import 'nearby_discovery.dart';
 import 'nearby_models.dart';
 import 'nearby_protocol.dart';
+import 'nearby_text.dart';
 
 class NearbyProfileOption {
   const NearbyProfileOption({required this.id, required this.label});
@@ -40,7 +42,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   final AudioRecorder _recorder = AudioRecorder();
   final TextEditingController _pairingCodeController = TextEditingController();
   final TextEditingController _manualEndpointController = TextEditingController(
-    text: 'wss://192.168.1.2:39273',
+    text: 'wss://192.168.1.2:39273', // i18n-ignore: example address
   );
   final TextEditingController _manualFingerprintController =
       TextEditingController();
@@ -51,7 +53,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   NearbyDesktop? _selectedDesktop;
   NearbyClientStatus _status = const NearbyClientStatus(
     state: NearbyConnectionState.disconnected,
-    message: 'Not connected',
+    logText: 'Not connected',
+    code: 'not_connected_status',
   );
   String _selectedProfileId = '';
   bool _busy = false;
@@ -72,7 +75,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       _selectedDesktop = widget.initialDesktops.first;
       _status = const NearbyClientStatus(
         state: NearbyConnectionState.disconnected,
-        message: 'Verify the desktop fingerprint',
+        logText: 'Verify the desktop fingerprint',
+        code: 'verify_fingerprint',
       );
     }
     _statusSubscription = _client.statuses.listen((status) {
@@ -109,7 +113,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       _busy = true;
       _status = const NearbyClientStatus(
         state: NearbyConnectionState.discovering,
-        message: 'Searching the local network',
+        logText: 'Searching the local network',
+        code: 'searching',
       );
     });
     try {
@@ -121,16 +126,16 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         _desktops = desktops;
         _status = NearbyClientStatus(
           state: NearbyConnectionState.disconnected,
-          message: desktops.isEmpty
-              ? 'No Shinsoku desktop found'
-              : '${desktops.length} desktop${desktops.length == 1 ? '' : 's'} found',
+          logText: '${desktops.length} desktop(s) found',
+          code: desktops.isEmpty ? 'none_found' : 'found',
+          arg: '${desktops.length}',
         );
       });
       if (desktops.length == 1) {
         await _selectDesktop(desktops.first);
       }
     } catch (error) {
-      _setError('Discovery failed: $error');
+      _setError(error, fallback: 'discovery_failed');
     } finally {
       if (mounted) {
         setState(() {
@@ -158,9 +163,10 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       _pairingCodeController.clear();
       _status = NearbyClientStatus(
         state: NearbyConnectionState.disconnected,
-        message: trusted
+        logText: trusted
             ? 'Trusted desktop selected'
             : 'Verify the desktop fingerprint',
+        code: trusted ? 'trusted_selected' : 'verify_fingerprint',
       );
     });
   }
@@ -181,7 +187,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       });
       await _selectDesktop(desktop);
     } on FormatException catch (error) {
-      _setError(error.message);
+      _setError(error);
     }
   }
 
@@ -210,7 +216,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
     } catch (error) {
       if (error is! NearbyProtocolException ||
           error.code != 'pairing_code_required') {
-        _setError(error.toString());
+        _setError(error);
       }
     } finally {
       if (mounted) {
@@ -248,7 +254,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         _busy = false;
         _status = const NearbyClientStatus(
           state: NearbyConnectionState.disconnected,
-          message: 'Local trust removed',
+          logText: 'Local trust removed',
+          code: 'trust_removed',
         );
       });
     }
@@ -264,11 +271,15 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
     try {
       final permission = await Permission.microphone.request();
       if (!permission.isGranted && !permission.isLimited) {
-        throw const NearbyProtocolException('Microphone access is required.');
+        throw const NearbyProtocolException(
+          'Microphone access is required.',
+          code: 'mic_denied',
+        );
       }
       if (!await _recorder.hasPermission(request: false)) {
         throw const NearbyProtocolException(
           'The microphone recorder is not ready.',
+          code: 'recorder_not_ready',
         );
       }
 
@@ -285,7 +296,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         _audioSubscription = audio.listen(
           _client.sendPcm,
           onError: (Object error) {
-            _setError('Microphone stream failed: $error');
+            _setError(error, fallback: 'mic_stream_failed');
             unawaited(_stopRecording());
           },
         );
@@ -294,7 +305,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         rethrow;
       }
     } catch (error) {
-      _setError(error.toString());
+      _setError(error);
     } finally {
       if (mounted) {
         setState(() {
@@ -322,7 +333,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         await _client.stopAudio();
       }
     } catch (error) {
-      _setError(error.toString());
+      _setError(error);
     } finally {
       if (ownsBusyState && mounted) {
         setState(() {
@@ -349,14 +360,17 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
     }
   }
 
-  void _setError(String message) {
+  /// Shows a failure as a coded status; the raw detail goes to the log.
+  void _setError(Object error, {String? fallback}) {
     if (!mounted) {
       return;
     }
+    final code = nearbyErrorCode(error);
     setState(() {
       _status = NearbyClientStatus(
         state: NearbyConnectionState.error,
-        message: message.replaceFirst('NearbyProtocolException: ', ''),
+        logText: error.toString(),
+        code: code == 'unknown' ? fallback : code,
       );
     });
   }
@@ -364,9 +378,10 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   @override
   Widget build(BuildContext context) {
     final c = SkColors.of(context);
+    final l = context.l10n;
     final selected = _selectedDesktop;
     final profiles = [
-      const NearbyProfileOption(id: '', label: 'Desktop automatic'),
+      NearbyProfileOption(id: '', label: l.nearbyProfileAutomatic),
       ...widget.profiles,
     ];
     final profileLabel = profiles
@@ -378,13 +393,13 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
     const gap = SizedBox(height: SkSpace.xl);
 
     return SkPage(
-      title: 'Desktop Mic',
-      subtitle: 'Private local connection',
+      title: l.nearbyTitle,
+      subtitle: l.nearbySubtitle,
       children: [
         _NearbyStatusLine(status: _status),
         gap,
         SkSection(
-          label: 'Desktop',
+          label: l.nearbySectionDesktop,
           children: [
             SkSectionBody(
               child: Row(
@@ -392,7 +407,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                   Expanded(
                     child: SkButton.secondary(
                       key: const ValueKey('nearby-discover-button'),
-                      label: 'Find Desktops',
+                      label: l.nearbyFindDesktops,
                       icon: Icons.radar,
                       expand: true,
                       onPressed: _busy || _recording ? null : _discover,
@@ -400,7 +415,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                   ),
                   const SizedBox(width: SkSpace.s),
                   SkIconButton(
-                    tooltip: 'Add desktop manually',
+                    tooltip: l.nearbyAddManually,
                     icon: Icons.add_link,
                     onPressed: _recording
                         ? null
@@ -416,13 +431,13 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                   children: [
                     SkTextArea.field(
                       controller: _manualEndpointController,
-                      label: 'WSS endpoint',
+                      label: l.nearbyEndpointLabel,
                       keyboardType: TextInputType.url,
                     ),
                     const SizedBox(height: SkSpace.m),
                     SkTextArea.field(
                       controller: _manualFingerprintController,
-                      label: 'Certificate SHA-256',
+                      label: l.nearbyCertificateLabel,
                       style: SkType.body.merge(SkType.mono),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
@@ -434,7 +449,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: SkButton.secondary(
-                        label: 'Add',
+                        label: l.nearbyAdd,
                         icon: Icons.add,
                         onPressed: _addManualDesktop,
                       ),
@@ -457,7 +472,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         if (selected != null) ...[
           gap,
           SkSection(
-            label: 'Trust',
+            label: l.nearbySectionTrust,
             children: [
               SkSectionBody(
                 child: Column(
@@ -476,8 +491,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                         Expanded(
                           child: Text(
                             _trusted
-                                ? 'Trusted desktop'
-                                : 'Certificate fingerprint',
+                                ? l.nearbyTrustedDesktop
+                                : l.nearbyCertificateFingerprint,
                             style: SkType.title.copyWith(color: c.text),
                           ),
                         ),
@@ -496,8 +511,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
               ),
               if (!_trusted) ...[
                 SkListRow.toggle(
-                  title: 'Matches desktop Settings',
-                  subtitle: 'Compare it with Settings on the desktop',
+                  title: l.nearbyMatchesTitle,
+                  subtitle: l.nearbyMatchesSubtitle,
                   value: _fingerprintConfirmed,
                   onChanged: (value) =>
                       setState(() => _fingerprintConfirmed = value),
@@ -506,7 +521,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                   child: SkTextArea.field(
                     fieldKey: const ValueKey('nearby-pairing-code-field'),
                     controller: _pairingCodeController,
-                    label: 'Pairing code shown on the desktop',
+                    label: l.nearbyPairingCodeLabel,
                     placeholder: '--',
                     enabled: !_connected,
                     keyboardType: TextInputType.number,
@@ -528,14 +543,16 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                     Expanded(
                       child: _connected
                           ? SkButton.secondary(
-                              label: 'Disconnect',
+                              label: l.nearbyDisconnect,
                               icon: Icons.link_off,
                               expand: true,
                               onPressed: _busy ? null : _disconnect,
                             )
                           : SkButton(
                               key: const ValueKey('nearby-connect-button'),
-                              label: _trusted ? 'Connect' : 'Pair and Connect',
+                              label: _trusted
+                                  ? l.nearbyConnect
+                                  : l.nearbyPairAndConnect,
                               icon: Icons.link,
                               expand: true,
                               onPressed:
@@ -547,7 +564,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                     if (_trusted && !_recording) ...[
                       const SizedBox(width: SkSpace.s),
                       SkIconButton(
-                        tooltip: 'Forget desktop',
+                        tooltip: l.nearbyForget,
                         icon: Icons.delete_outline,
                         onPressed: _busy ? null : _forget,
                       ),
@@ -560,12 +577,12 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         ],
         gap,
         SkSection(
-          label: 'Remote input',
+          label: l.nearbySectionRemoteInput,
           children: [
             SkListRow(
               key: const ValueKey('nearby-profile-field'),
               leading: Icons.tune,
-              title: 'Profile',
+              title: l.nearbyProfileRow,
               value: profileLabel,
               chevron: true,
               onTap: _recording ? null : () => _pickProfile(profiles),
@@ -584,8 +601,8 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
                 ? SkRecordState.processing
                 : SkRecordState.idle,
             semanticLabel: _recording
-                ? 'Stop and transcribe'
-                : 'Start remote dictation',
+                ? l.nearbyStopAndTranscribe
+                : l.nearbyStartRemote,
             onPressed: !_connected || _busy
                 ? null
                 : _recording
@@ -596,10 +613,10 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         const SizedBox(height: SkSpace.s),
         Text(
           _recording
-              ? 'Stop and transcribe'
+              ? l.nearbyStopAndTranscribe
               : _connected
-              ? 'Start remote dictation'
-              : 'Connect to a desktop to dictate into it',
+              ? l.nearbyStartRemote
+              : l.nearbyConnectToDictate,
           textAlign: TextAlign.center,
           style: SkType.secondary.copyWith(color: c.textSecondary),
         ),
@@ -611,7 +628,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
     final picked = await showSkSheet<String>(
       context: context,
       builder: (context) => SkSheet(
-        title: 'Desktop profile',
+        title: context.l10n.nearbyProfileSheetTitle,
         child: SkSection(
           children: [
             for (final profile in profiles)
@@ -637,32 +654,33 @@ class _NearbyStatusLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = nearbyStatusText(context.l10n, status);
     return switch (status.state) {
       NearbyConnectionState.error => SkStatusLine(
         icon: Icons.error_outline_rounded,
         tone: SkTone.danger,
-        text: status.message,
+        text: text,
       ),
-      NearbyConnectionState.discovering || NearbyConnectionState.connecting =>
-        SkStatusLine(busy: true, text: status.message),
+      NearbyConnectionState.discovering ||
+      NearbyConnectionState.connecting => SkStatusLine(busy: true, text: text),
       NearbyConnectionState.pairingRequired => SkStatusLine(
         icon: Icons.pin_outlined,
         tone: SkTone.warning,
-        text: status.message,
+        text: text,
       ),
       NearbyConnectionState.authenticated => SkStatusLine(
         icon: Icons.check_circle_outline_rounded,
         tone: SkTone.success,
-        text: status.message,
+        text: text,
       ),
       NearbyConnectionState.streaming => SkStatusLine(
         icon: Icons.fiber_manual_record_rounded,
         tone: SkTone.danger,
-        text: status.message,
+        text: text,
       ),
       NearbyConnectionState.disconnected => SkStatusLine(
         icon: Icons.info_outline_rounded,
-        text: status.message,
+        text: text,
       ),
     };
   }

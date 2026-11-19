@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/main.dart';
 import 'package:shinsoku_mobile/services/drafts.dart';
-import 'package:shinsoku_mobile/ui/strings.dart';
+import 'support/l10n.dart';
 
 /// An iPhone-sized window: these flows test the compact (phone) shell. The
 /// default 800 × 600 test window is a regular (two-pane) size.
@@ -90,7 +90,7 @@ void main() {
     // Tapping the row opens it in the borderless editor (live-01).
     await tester.tap(find.text('Original transcript.'));
     await tester.pumpAndSettle();
-    expect(find.text(SkStrings.draftEditorTitle), findsOneWidget);
+    expect(find.text(en.draftEditorTitle), findsOneWidget);
 
     const editedText = 'A revised transcript ready to paste.';
     await tester.enterText(
@@ -100,7 +100,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('draft-editor-copy')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text(SkStrings.copied), findsOneWidget);
+    expect(find.text(en.recordCopied), findsOneWidget);
     expect(publishedTexts.last, editedText);
 
     // Back: the list shows the same draft, edited (L3: no second draft).

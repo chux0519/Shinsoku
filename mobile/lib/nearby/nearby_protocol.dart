@@ -199,12 +199,14 @@ class NearbyProtocolClient {
     if (!isCertificateFingerprint(fingerprint)) {
       throw const NearbyProtocolException(
         'The desktop certificate fingerprint is invalid.',
+        code: 'fingerprint_invalid',
       );
     }
     final stored = await _credentialStore.read(fingerprint);
     if (stored != null && stored.certificateSha256 != fingerprint) {
       throw const NearbyProtocolException(
         'The desktop certificate has changed. Forget it and pair again.',
+        code: 'certificate_changed',
       );
     }
 
@@ -213,6 +215,8 @@ class NearbyProtocolClient {
     _emit(
       NearbyConnectionState.connecting,
       'Connecting to ${desktop.serviceName}',
+      code: 'connecting',
+      arg: desktop.serviceName,
     );
 
     final securityContext = SecurityContext(withTrustedRoots: false);
@@ -268,6 +272,7 @@ class NearbyProtocolClient {
             _emit(
               NearbyConnectionState.pairingRequired,
               'Enter the two-digit code shown on desktop.',
+              code: 'pairing_code_required',
             );
             throw const NearbyProtocolException(
               'Enter the two-digit code shown on desktop.',
@@ -284,15 +289,22 @@ class NearbyProtocolClient {
         default:
           throw const NearbyProtocolException(
             'The desktop sent an unexpected handshake response.',
+            code: 'handshake_unexpected',
           );
       }
       _emit(
         NearbyConnectionState.authenticated,
         'Connected to ${desktop.serviceName}',
+        code: 'connected',
+        arg: desktop.serviceName,
       );
     } catch (error) {
       if (_state != NearbyConnectionState.pairingRequired) {
-        _emit(NearbyConnectionState.error, error.toString());
+        _emit(
+          NearbyConnectionState.error,
+          error.toString(),
+          code: error is NearbyProtocolException ? error.code : null,
+        );
       }
       await _closeTransport();
       rethrow;
@@ -308,6 +320,7 @@ class NearbyProtocolClient {
     if (challengeId is! String || nonce is! String) {
       throw const NearbyProtocolException(
         'The desktop sent an invalid authentication challenge.',
+        code: 'challenge_invalid',
       );
     }
     await _sendAndWait(
@@ -334,6 +347,7 @@ class NearbyProtocolClient {
     if (pairingId is! String) {
       throw const NearbyProtocolException(
         'The desktop sent an invalid pairing prompt.',
+        code: 'pairing_prompt_invalid',
       );
     }
     final response = await _sendAndWait(
@@ -353,6 +367,7 @@ class NearbyProtocolClient {
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(credential)) {
       throw const NearbyProtocolException(
         'The desktop returned an invalid trust credential.',
+        code: 'credential_invalid',
       );
     }
     await _credentialStore.write(
@@ -367,6 +382,7 @@ class NearbyProtocolClient {
     if (!authenticated || _channel == null || _streamId != null) {
       throw const NearbyProtocolException(
         'Connect to a desktop before recording.',
+        code: 'not_connected',
       );
     }
     final random = Random.secure();
@@ -388,7 +404,11 @@ class NearbyProtocolClient {
     _sequence = 0;
     _partialPcm = Uint8List(0);
     _missingFrames = 0;
-    _emit(NearbyConnectionState.streaming, 'Streaming microphone audio');
+    _emit(
+      NearbyConnectionState.streaming,
+      'Streaming microphone audio',
+      code: 'streaming',
+    );
   }
 
   void sendPcm(Uint8List chunk) {
@@ -431,7 +451,11 @@ class NearbyProtocolClient {
       {'type': 'audio.stop', 'stream_id': streamId},
       {'audio.stopped'},
     );
-    _emit(NearbyConnectionState.authenticated, 'Recording sent to desktop');
+    _emit(
+      NearbyConnectionState.authenticated,
+      'Recording sent to desktop',
+      code: 'recording_sent',
+    );
   }
 
   Future<void> disconnect() async {
@@ -444,7 +468,11 @@ class NearbyProtocolClient {
     }
     await _closeTransport();
     _desktop = null;
-    _emit(NearbyConnectionState.disconnected, 'Not connected');
+    _emit(
+      NearbyConnectionState.disconnected,
+      'Not connected',
+      code: 'not_connected_status',
+    );
   }
 
   Future<Map<String, dynamic>> _sendAndWait(
@@ -453,7 +481,10 @@ class NearbyProtocolClient {
   ) {
     final channel = _channel;
     if (channel == null) {
-      throw const NearbyProtocolException('The desktop connection is closed.');
+      throw const NearbyProtocolException(
+        'The desktop connection is closed.',
+        code: 'connection_closed',
+      );
     }
     final completer = Completer<Map<String, dynamic>>();
     late final _ResponseWaiter waiter;
@@ -461,7 +492,10 @@ class NearbyProtocolClient {
       _waiters.remove(waiter);
       if (!completer.isCompleted) {
         completer.completeError(
-          const NearbyProtocolException('The desktop did not respond in time.'),
+          const NearbyProtocolException(
+            'The desktop did not respond in time.',
+            code: 'timeout',
+          ),
         );
       }
     });
@@ -484,7 +518,12 @@ class NearbyProtocolClient {
       final type = message['type'];
       if (type == 'audio.gap') {
         _missingFrames += (message['missing_frames'] as num?)?.toInt() ?? 0;
-        _emit(_state, 'Streaming with $_missingFrames missing frame(s)');
+        _emit(
+          _state,
+          'Streaming with $_missingFrames missing frame(s)',
+          code: 'streaming_gaps',
+          arg: '$_missingFrames',
+        );
         return;
       }
       final waiterIndex = _waiters.indexWhere(
@@ -510,7 +549,12 @@ class NearbyProtocolClient {
         waiter.completer.complete(message);
       }
     } catch (error) {
-      _failWaiters(NearbyProtocolException('Invalid desktop response: $error'));
+      _failWaiters(
+        NearbyProtocolException(
+          'Invalid desktop response: $error',
+          code: 'response_invalid',
+        ),
+      );
     }
   }
 
@@ -528,17 +572,35 @@ class NearbyProtocolClient {
   }
 
   void _handleTransportError(Object error, StackTrace stackTrace) {
-    _failWaiters(NearbyProtocolException('Desktop connection failed: $error'));
+    _failWaiters(
+      NearbyProtocolException(
+        'Desktop connection failed: $error',
+        code: 'connection_failed',
+      ),
+    );
     _clearClosedTransport();
-    _emit(NearbyConnectionState.error, 'Desktop connection failed');
+    _emit(
+      NearbyConnectionState.error,
+      'Desktop connection failed',
+      code: 'connection_failed',
+    );
   }
 
   void _handleTransportDone() {
-    _failWaiters(const NearbyProtocolException('The desktop disconnected.'));
+    _failWaiters(
+      const NearbyProtocolException(
+        'The desktop disconnected.',
+        code: 'disconnected',
+      ),
+    );
     _clearClosedTransport();
     if (_state != NearbyConnectionState.disconnected &&
         _state != NearbyConnectionState.error) {
-      _emit(NearbyConnectionState.disconnected, 'Desktop disconnected');
+      _emit(
+        NearbyConnectionState.disconnected,
+        'Desktop disconnected',
+        code: 'disconnected',
+      );
     }
   }
 
@@ -563,7 +625,10 @@ class NearbyProtocolClient {
 
   Future<void> _closeTransport() async {
     _failWaiters(
-      const NearbyProtocolException('The desktop connection closed.'),
+      const NearbyProtocolException(
+        'The desktop connection closed.',
+        code: 'disconnected',
+      ),
     );
     final subscription = _subscription;
     final channel = _channel;
@@ -579,13 +644,20 @@ class NearbyProtocolClient {
     _httpClient = null;
   }
 
-  void _emit(NearbyConnectionState state, String message) {
+  void _emit(
+    NearbyConnectionState state,
+    String message, {
+    String? code,
+    String? arg,
+  }) {
     _state = state;
     if (!_statusController.isClosed) {
       _statusController.add(
         NearbyClientStatus(
           state: state,
-          message: message,
+          logText: message,
+          code: code,
+          arg: arg,
           missingFrames: _missingFrames,
         ),
       );

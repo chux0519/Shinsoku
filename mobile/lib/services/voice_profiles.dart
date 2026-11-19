@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
 
 import 'package:shinsoku_mobile/services/capture_types.dart';
 
@@ -54,7 +55,7 @@ class VoiceProfile {
           : DateTime.now().microsecondsSinceEpoch.toString(),
       name: json['name'] is String && (json['name'] as String).trim().isNotEmpty
           ? json['name'] as String
-          : 'Untitled',
+          : 'Untitled', // corrupt data only; the editor never saves blank names
       intent: json['intent'] is String
           ? json['intent'] as String
           : defaultVoiceProfiles.first.intent,
@@ -69,6 +70,10 @@ class VoiceProfile {
   }
 }
 
+/// The built-in profiles in English: the seed for tests and the list shown
+/// before the stored profiles load. New installs get
+/// [localizedDefaultProfiles] instead, written to storage once, so their names
+/// are user data from then on (i18n-01).
 const defaultVoiceProfiles = [
   VoiceProfile(
     id: 'dictation',
@@ -101,16 +106,59 @@ const defaultVoiceProfiles = [
   ),
 ];
 
+/// The built-in profiles with names and prompts in [l]'s language, for
+/// creating the first stored list.
+List<VoiceProfile> localizedDefaultProfiles(AppLocalizations l) => [
+  VoiceProfile(
+    id: 'dictation',
+    name: l.profileDictationName,
+    intent: l.profileDictationIntent,
+    commitSuffix: CommitSuffix.space,
+    autoCommit: true,
+  ),
+  VoiceProfile(
+    id: 'chat',
+    name: l.profileChatName,
+    intent: l.profileChatIntent,
+    commitSuffix: CommitSuffix.newline,
+    autoCommit: true,
+  ),
+  VoiceProfile(
+    id: 'review',
+    name: l.profileReviewName,
+    intent: l.profileReviewIntent,
+    commitSuffix: CommitSuffix.none,
+    autoCommit: false,
+  ),
+  VoiceProfile(
+    id: 'zh_to_en',
+    name: l.profileZhToEnName,
+    intent: l.profileZhToEnIntent,
+    commitSuffix: CommitSuffix.space,
+    autoCommit: true,
+  ),
+];
+
 class VoiceProfileStore {
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
   static const _key = 'voice_profiles.v1';
 
-  Future<List<VoiceProfile>> load() async {
+  /// Stored profiles; on first launch the built-in ones in the system
+  /// language ([l10n], or the resolved system locale), saved right away.
+  Future<List<VoiceProfile>> load({AppLocalizations? l10n}) async {
     final raw = await _storage.read(key: _key);
     if (raw == null || raw.trim().isEmpty) {
-      return List<VoiceProfile>.of(defaultVoiceProfiles);
+      final created = localizedDefaultProfiles(
+        l10n ?? await systemAppLocalizations(),
+      );
+      try {
+        await save(created);
+      } catch (_) {
+        // Storage unavailable: the defaults still work this session.
+      }
+      return created;
     }
     try {
       final decoded = jsonDecode(raw);
