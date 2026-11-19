@@ -1,3 +1,13 @@
+# STATE — profile-01 round 01 (coordinator, 2026-11-19)
+
+- Done: P0–P5 + scene work merged; tier A and tier B (3 scenes on main) pass. See acceptance.md.
+- In progress: none. No workers running; no worktrees.
+- Next: TestFlight 20 (needs user approval; users must enter keys in Settings once); M06 `strings` IPA check.
+- Open decisions: none.
+- Verify: commands in acceptance.md.
+
+---
+Earlier unit sections:
 # STATE — profile-01 scene-rules (ProfileKeyboardSceneTests vs P4 field-rule mirroring)
 - Done: cause confirmed (Dart mirrors its empty rules to `fieldRules.v1` on launch, overwriting the DEBUG seed).
   The scene now sets Search → Review in Settings › Profiles › Field rules (PHASE shot of the page) and resets
