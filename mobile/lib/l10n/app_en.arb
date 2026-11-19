@@ -76,10 +76,6 @@
   "@recordCopied": {
     "description": "Snack bar after copying the transcript."
   },
-  "recordSaved": "Saved.",
-  "@recordSaved": {
-    "description": "Confirmation that an edit was saved."
-  },
   "recordSavedInsert": "Saved. Insert it from the keyboard.",
   "@recordSavedInsert": {
     "description": "Status line after tapping Done on an edited transcript."

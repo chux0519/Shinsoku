@@ -655,7 +655,7 @@ class NearbyProtocolClient {
       _statusController.add(
         NearbyClientStatus(
           state: state,
-          message: message,
+          logText: message,
           code: code,
           arg: arg,
           missingFrames: _missingFrames,

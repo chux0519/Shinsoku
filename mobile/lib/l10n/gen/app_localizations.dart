@@ -211,12 +211,6 @@ abstract class AppLocalizations {
   /// **'Copied. Insert it from the keyboard or paste it.'**
   String get recordCopied;
 
-  /// Confirmation that an edit was saved.
-  ///
-  /// In en, this message translates to:
-  /// **'Saved.'**
-  String get recordSaved;
-
   /// Status line after tapping Done on an edited transcript.
   ///
   /// In en, this message translates to:

@@ -21,7 +21,9 @@ import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
-import '../support/l10n.dart';
+import 'package:shinsoku_mobile/l10n/l10n.dart';
+import 'package:shinsoku_mobile/services/active_profile.dart';
+import 'package:shinsoku_mobile/services/profile_reason.dart';
 
 typedef SceneBuilder = Widget Function();
 
@@ -71,31 +73,41 @@ Widget _tab(int index, {Widget? record, Widget? drafts, Widget? nearby}) =>
       ],
     );
 
+/// A status built from the scene's localized strings (so pseudo renders show
+/// pseudo text, not English).
+typedef _StatusOf = SmokeTestStatus Function(AppLocalizations l);
+
 Widget _recordView({
   CaptureState state = CaptureState.idle,
   bool microphoneAllowed = true,
-  SmokeTestStatus? status,
+  _StatusOf? status,
   LiveTranscript? live,
-}) => RecordView(
-  transcript: live == null ? null : ValueNotifier(live),
-  onSaveText: (_) {},
-  onCopyText: (_) {},
-  profiles: defaultVoiceProfiles,
-  selectedProfileIndex: 0,
-  captureState: state,
-  microphoneAllowed: microphoneAllowed,
-  smokeTestStatus: status,
-  onProfileSelected: (_) {},
-  onCapturePressed: () {},
-  onOpenMicrophoneSettings: () {},
-  onOpenSettings: () {},
-  profileReason: 'Dictation · default',
+}) => Builder(
+  builder: (context) => RecordView(
+    transcript: live == null ? null : ValueNotifier(live),
+    onSaveText: (_) {},
+    onCopyText: (_) {},
+    profiles: defaultVoiceProfiles,
+    selectedProfileIndex: 0,
+    captureState: state,
+    microphoneAllowed: microphoneAllowed,
+    smokeTestStatus: status?.call(context.l10n),
+    onProfileSelected: (_) {},
+    onCapturePressed: () {},
+    onOpenMicrophoneSettings: () {},
+    onOpenSettings: () {},
+    profileReason: activeProfileReason(
+      context.l10n,
+      'Dictation',
+      ProfileSource.byDefault,
+    ),
+  ),
 );
 
 Widget _record({
   CaptureState state = CaptureState.idle,
   bool microphoneAllowed = true,
-  SmokeTestStatus? status,
+  _StatusOf? status,
   LiveTranscript? live,
 }) => _tab(
   0,
@@ -113,8 +125,8 @@ const _liveCommitted =
     'Let us move the design review to Thursday afternoon, and send the ';
 const _livePending = 'updated keyboard screen';
 
-const _doneStatus = SmokeTestStatus(
-  label: 'Recording transcribed',
+SmokeTestStatus _doneStatus(AppLocalizations l) => SmokeTestStatus(
+  label: l.recordTranscribed,
   detail: 'provider=bailian appStopToDraft=640ms',
   transcript: sampleTranscript,
   finished: true,
@@ -202,9 +214,9 @@ final scenes = <String, SceneBuilder>{
   // Batch provider waiting for the text.
   'record-processing': () => _record(
     state: CaptureState.processing,
-    status: const SmokeTestStatus(
-      label: 'Transcribing recording',
-      detail: 'Uploading recorded audio to the selected provider.',
+    status: (l) => SmokeTestStatus(
+      label: l.recordStatusTranscribing,
+      detail: l.recordTranscribingDetail,
     ),
   ),
   // Post-processing profile: the raw words dimmed until the result swaps in.
@@ -219,9 +231,9 @@ final scenes = <String, SceneBuilder>{
   'record-editing': () => _withKeyboard(_record(status: _doneStatus)),
   // The connection dropped: what was heard stays, editable, with a retry.
   'record-dropped': () => _record(
-    status: SmokeTestStatus(
-      label: en.recordStopped,
-      detail: '${en.recordHeardTextKept} ${en.failureConnectionLost}',
+    status: (l) => SmokeTestStatus(
+      label: l.recordStopped,
+      detail: '${l.recordHeardTextKept} ${l.failureConnectionLost}',
       failed: true,
       finished: true,
       fix: StatusFix.retry,
@@ -233,11 +245,8 @@ final scenes = <String, SceneBuilder>{
   ),
   // Done after an edit: saved into the same draft and republished.
   'record-saved': () => _record(
-    status: SmokeTestStatus(
-      label: en.recordSavedInsert,
-      detail: '',
-      finished: true,
-    ),
+    status: (l) =>
+        SmokeTestStatus(label: l.recordSavedInsert, detail: '', finished: true),
     live: const LiveTranscript(
       committed: sampleTranscript,
       phase: LivePhase.done,
@@ -245,10 +254,9 @@ final scenes = <String, SceneBuilder>{
   ),
   'record-error': () => _record(
     microphoneAllowed: false,
-    status: const SmokeTestStatus(
-      label: 'Microphone access is off',
-      detail:
-          'Allow microphone access in iOS Settings, then try recording again.',
+    status: (l) => SmokeTestStatus(
+      label: l.recordMicOffLabel,
+      detail: l.recordMicOffDetail,
       failed: true,
       finished: true,
       fix: StatusFix.microphone,

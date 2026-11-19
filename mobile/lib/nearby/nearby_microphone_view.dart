@@ -42,7 +42,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   final AudioRecorder _recorder = AudioRecorder();
   final TextEditingController _pairingCodeController = TextEditingController();
   final TextEditingController _manualEndpointController = TextEditingController(
-    text: 'wss://192.168.1.2:39273',
+    text: 'wss://192.168.1.2:39273', // i18n-ignore: example address
   );
   final TextEditingController _manualFingerprintController =
       TextEditingController();
@@ -53,7 +53,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   NearbyDesktop? _selectedDesktop;
   NearbyClientStatus _status = const NearbyClientStatus(
     state: NearbyConnectionState.disconnected,
-    message: 'Not connected',
+    logText: 'Not connected',
     code: 'not_connected_status',
   );
   String _selectedProfileId = '';
@@ -75,7 +75,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       _selectedDesktop = widget.initialDesktops.first;
       _status = const NearbyClientStatus(
         state: NearbyConnectionState.disconnected,
-        message: 'Verify the desktop fingerprint',
+        logText: 'Verify the desktop fingerprint',
         code: 'verify_fingerprint',
       );
     }
@@ -113,7 +113,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       _busy = true;
       _status = const NearbyClientStatus(
         state: NearbyConnectionState.discovering,
-        message: 'Searching the local network',
+        logText: 'Searching the local network',
         code: 'searching',
       );
     });
@@ -126,7 +126,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         _desktops = desktops;
         _status = NearbyClientStatus(
           state: NearbyConnectionState.disconnected,
-          message: '${desktops.length} desktop(s) found',
+          logText: '${desktops.length} desktop(s) found',
           code: desktops.isEmpty ? 'none_found' : 'found',
           arg: '${desktops.length}',
         );
@@ -163,7 +163,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
       _pairingCodeController.clear();
       _status = NearbyClientStatus(
         state: NearbyConnectionState.disconnected,
-        message: trusted
+        logText: trusted
             ? 'Trusted desktop selected'
             : 'Verify the desktop fingerprint',
         code: trusted ? 'trusted_selected' : 'verify_fingerprint',
@@ -254,7 +254,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         _busy = false;
         _status = const NearbyClientStatus(
           state: NearbyConnectionState.disconnected,
-          message: 'Local trust removed',
+          logText: 'Local trust removed',
           code: 'trust_removed',
         );
       });
@@ -369,7 +369,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
     setState(() {
       _status = NearbyClientStatus(
         state: NearbyConnectionState.error,
-        message: error.toString(),
+        logText: error.toString(),
         code: code == 'unknown' ? fallback : code,
       );
     });

@@ -57,7 +57,10 @@ class SkSegmented<T> extends StatelessWidget {
               : pressed
               ? c.pressed
               : c.text.withValues(alpha: 0),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: EdgeInsets.symmetric(
+            horizontal: scrollable ? 14 : 10,
+            vertical: 9,
+          ),
           alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -69,7 +72,10 @@ class SkSegmented<T> extends StatelessWidget {
               Flexible(
                 child: Text(
                   s.label,
-                  maxLines: 1,
+                  // Equal-width segments wrap a long translation before they
+                  // cut it; open-ended lists scroll instead.
+                  maxLines: scrollable ? 1 : 2,
+                  textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                   style: (isSelected ? SkType.title : SkType.body).copyWith(
                     color: fg,

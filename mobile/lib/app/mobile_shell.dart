@@ -913,6 +913,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
     }
   }
 
+  // i18n-ignore-start: developer smoke tests (SHINSOKU_SMOKE_TEST), English only.
   Future<void> _runSonioxSmokeTest() async {
     setState(() {
       _captureState = CaptureState.processing;
@@ -1050,6 +1051,7 @@ class _MobileShellState extends State<MobileShell> with WidgetsBindingObserver {
       });
     }
   }
+  // i18n-ignore-end
 
   @override
   Widget build(BuildContext context) {

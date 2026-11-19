@@ -66,9 +66,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recordCopied => 'Copied. Insert it from the keyboard or paste it.';
 
   @override
-  String get recordSaved => 'Saved.';
-
-  @override
   String get recordSavedInsert => 'Saved. Insert it from the keyboard.';
 
   @override
@@ -788,9 +785,6 @@ class AppLocalizationsEnXa extends AppLocalizationsEn {
   @override
   String get recordCopied =>
       '[Çöpîéđ. Îñšérţ îţ fröm ţhé kéýböàrđ ör pàšţé îţ. lörém îpšüm đölör]';
-
-  @override
-  String get recordSaved => '[Šàvéđ. lö]';
 
   @override
   String get recordSavedInsert =>

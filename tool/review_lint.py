@@ -90,6 +90,39 @@ def no_compiled_keys():
                 problems.append(f'{f.relative_to(ROOT).as_posix()}:{n}: {st}')
     return problems
 
+R05_KEYS = (r'Text|SelectableText|SkEmptyLine|SkPageHeader|SkStatusLine|SnackBar|'
+            r'(?:label|title|subtitle|tooltip|semanticLabel|helper|placeholder|hintText|hint|text|message|detail|'
+            r'confirmLabel|actionLabel|value|content|description|summary)\s*:')
+R05_LITERAL = re.compile(r'(?:\b(?:' + R05_KEYS + r')\s*)\(?\s*(?:const\s+)?(r?)([\'"])((?:\\.|(?!\2).)*)\2', re.S)
+R05_ALLOWED = {'Shinsoku', 'Bailian', 'Soniox', 'Qwen-ASR', 'Fun-ASR', 'OpenAI', 'SHA-256', 'WSS'}
+
+
+@rule('R05', 'No literal user-facing string in UI code (features, ui, nearby, shell): use the ARB (M10)')
+def no_literal_ui_strings():
+    problems = []
+    for f in tracked('mobile/lib/features/**/*.dart', 'mobile/lib/ui/**/*.dart', 'mobile/lib/nearby/*.dart',
+                     'mobile/lib/app/shell_scaffold.dart', 'mobile/lib/app/mobile_shell.dart'):
+        if not f.is_file():
+            continue
+        text = f.read_text(errors='ignore')
+        # Developer-only regions (smoke tests) are exempt.
+        text = re.sub(r'// i18n-ignore-start.*?// i18n-ignore-end', lambda m: '\n' * m.group(0).count('\n'), text,
+                      flags=re.S)
+        for m in R05_LITERAL.finditer(text):
+            body = m.group(3)
+            line = text.count('\n', 0, m.start(3)) + 1
+            src = text.splitlines()[line - 1]
+            if not re.search(r'[A-Za-z]{2}', re.sub(r'\$\{[^}]*\}|\$\w+', '', body)):
+                continue  # punctuation, numbers, interpolation only
+            if body in R05_ALLOWED or 'i18n-ignore' in src or src.lstrip().startswith(('///', '//')):
+                continue
+            if re.search(r'(?:key|Key|identifier|semanticsIdentifier|fieldKey)\s*[:(]', src) or 'ValueKey(' in src:
+                continue
+            if re.search(r'value\s*:', src) and re.fullmatch(r'[a-z_.\-]+', body):
+                continue  # wire/identifier values such as value: 'soniox'
+            problems.append(f'{f.relative_to(ROOT).as_posix()}:{line}: {src.strip()}')
+    return problems
+
 
 def main(argv):
     selected = argv or sorted(RULES)

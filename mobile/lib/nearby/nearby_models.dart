@@ -92,7 +92,7 @@ enum NearbyConnectionState {
 class NearbyClientStatus {
   const NearbyClientStatus({
     required this.state,
-    required this.message,
+    required this.logText,
     this.code,
     this.arg,
     this.missingFrames = 0,
@@ -102,7 +102,7 @@ class NearbyClientStatus {
 
   /// English detail for logs; the UI shows text chosen by [code] (see
   /// `nearby_text.dart`).
-  final String message;
+  final String logText;
   final String? code;
 
   /// The value a coded message mentions (a desktop name or a count).
