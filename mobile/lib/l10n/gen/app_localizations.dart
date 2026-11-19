@@ -919,6 +919,102 @@ abstract class AppLocalizations {
   /// **'Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
   String get profileZhToEnIntent;
 
+  /// Name of the built-in profile that translates speech in any language into English (devices whose language has no own translation profile, e.g. English).
+  ///
+  /// In en, this message translates to:
+  /// **'Translate -> EN'**
+  String get profileTranslateToEnName;
+
+  /// Instruction of the Translate -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate the speech into natural English, whatever language it is in. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileTranslateToEnIntent;
+
+  /// Name of the built-in Japanese-to-English profile (devices set to Japanese). Translators: use the short form your language uses for "Japanese to English".
+  ///
+  /// In en, this message translates to:
+  /// **'JA -> EN'**
+  String get profileJaToEnName;
+
+  /// Instruction of the JA -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate Japanese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileJaToEnIntent;
+
+  /// Name of the built-in Korean-to-English profile (devices set to Korean). Translators: use the short form your language uses for "Korean to English".
+  ///
+  /// In en, this message translates to:
+  /// **'KO -> EN'**
+  String get profileKoToEnName;
+
+  /// Instruction of the KO -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate Korean speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileKoToEnIntent;
+
+  /// Name of the built-in German-to-English profile (devices set to German). Translators: use the short form your language uses for "German to English".
+  ///
+  /// In en, this message translates to:
+  /// **'DE -> EN'**
+  String get profileDeToEnName;
+
+  /// Instruction of the DE -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate German speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileDeToEnIntent;
+
+  /// Name of the built-in Spanish-to-English profile (devices set to Spanish). Translators: use the short form your language uses for "Spanish to English".
+  ///
+  /// In en, this message translates to:
+  /// **'ES -> EN'**
+  String get profileEsToEnName;
+
+  /// Instruction of the ES -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate Spanish speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileEsToEnIntent;
+
+  /// Name of the built-in French-to-English profile (devices set to French). Translators: use the short form your language uses for "French to English".
+  ///
+  /// In en, this message translates to:
+  /// **'FR -> EN'**
+  String get profileFrToEnName;
+
+  /// Instruction of the FR -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate French speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileFrToEnIntent;
+
+  /// Name of the built-in Portuguese-to-English profile (devices set to Portuguese). Translators: use the short form your language uses for "Portuguese to English".
+  ///
+  /// In en, this message translates to:
+  /// **'PT -> EN'**
+  String get profilePtToEnName;
+
+  /// Instruction of the PT -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate Portuguese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profilePtToEnIntent;
+
+  /// Name of the built-in Italian-to-English profile (devices set to Italian). Translators: use the short form your language uses for "Italian to English".
+  ///
+  /// In en, this message translates to:
+  /// **'IT -> EN'**
+  String get profileItToEnName;
+
+  /// Instruction of the IT -> EN profile. It is sent to an AI model; keep it a clear instruction in English.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate Italian speech into natural English. Preserve the meaning, keep it concise, and return only the English text.'**
+  String get profileItToEnIntent;
+
   /// Snack bar when a second recording is requested.
   ///
   /// In en, this message translates to:
