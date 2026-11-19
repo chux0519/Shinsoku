@@ -21,20 +21,87 @@ class SceneTestCase: XCTestCase {
     static let englishArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
     static let keyboardName = "Shinsoku"
     static let appName = "Shinsoku"
-    static let setTitles = ["Set Profile", "Set Shinsoku Profile"]
-    static let getTitles = ["Get Profile", "Get Shinsoku Profile"]
-    static let idleStatus = ["Ready to record"]
+    static let setTitles = ["Set Profile", "Set Shinsoku Profile", "设置模式", "设置 Shinsoku 模式"]
+    static let getTitles = ["Get Profile", "Get Shinsoku Profile", "获取模式", "获取 Shinsoku 模式"]
+    /// Runner (Flutter) labels in English and zh-Hans: scenes launch the runner in English, but a runner the
+    /// keyboard opens (`shinsoku://dictation`) follows the system language.
+    static let recordTab = ["Record", "录音"]
+    static let idleStatus = ["Ready to record", "可以录音"]
     /// Statuses the record path reaches after `shinsoku://dictation` (mobile_shell `_startRecording`):
     /// recording, or a stop on the way (no provider on the simulator, permission off, recorder not ready),
     /// or the warm-path note when a recording is already running.
     static let dictationStatuses = [
         "Listening", "Provider settings required", "Microphone access is off", "Recording failed",
         "already recording",
+        "正在聆听", "需要设置服务", "麦克风访问已关闭", "录音失败", "已在录音",
     ]
     static let pageHTML = "<meta name=viewport content='width=device-width'>"
         + "<textarea id=t aria-label='Scene field' style='width:95%;height:30vh;font-size:20px'></textarea>"
     static let pageURLString = "data:text/html;charset=utf-8,"
         + pageHTML.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+
+    /// Shinsoku's own keyboard strings in zh-Hans (i18n-01 I5). The keyboard extension runs in the system
+    /// language (the shared simulators are Chinese; `-AppleLanguages` does not reach it), so every keyboard
+    /// match accepts the English text and its zh-Hans translation. Generated from `tool/i18n/native.json`
+    /// (ShinsokuKeyboard catalog); keep in sync when a keyboard string changes.
+    static let keyboardZhHans: [String: String] = [
+        "Already inserted": "已插入",
+        "Call": "紧急呼叫",
+        "Continue": "继续",
+        "Delete": "删除",
+        "Done": "完成",
+        "Go": "前往",
+        "Insert": "插入",
+        "Insert latest text": "插入最新的文本",
+        "Inserted": "已插入",
+        "Inserted again": "已再次插入",
+        "Join": "加入",
+        "Latest text ready": "最新的文本已就绪",
+        "Needs Full Access": "需要完全访问",
+        "New Shinsoku text": "新的 Shinsoku 文本",
+        "Next": "下一步",
+        "Next keyboard": "下一个键盘",
+        "Nothing yet": "暂无内容",
+        "Nothing yet — tap Record": "暂无内容 — 轻点“录音”",
+        "Open Shinsoku from the Home Screen": "请从主屏幕打开 Shinsoku",
+        "Opening Shinsoku…": "正在打开 Shinsoku…",
+        "Opens Shinsoku to record": "打开 Shinsoku 进行录音",
+        "Profile": "模式",
+        "Ready": "就绪",
+        "Record": "录音",
+        "Return": "换行",
+        "Route": "路线",
+        "Search": "搜索",
+        "Send": "发送",
+        "Space": "空格",
+        "Switches to the next profile. Long press for the list.": "切换到下一个模式。长按显示列表。",
+        "Turn on Full Access to insert": "开启完全访问才能插入",
+        "Turn on Full Access to switch profiles": "开启完全访问才能切换模式",
+        "call": "紧急呼叫",
+        "continue": "继续",
+        "done": "完成",
+        "go": "前往",
+        "join": "加入",
+        "next": "下一步",
+        "return": "换行",
+        "route": "路线",
+        "search": "搜索",
+        "send": "发送",
+        "space": "空格",
+    ]
+
+    /// The labels a Shinsoku string can have on screen: English plus zh-Hans. Covers the keyboard strings,
+    /// "<name>, read only" and the intent dialog "Shinsoku profile: <name>".
+    static func variants(_ english: String) -> [String] {
+        if let zh = keyboardZhHans[english] { return [english, zh] }
+        if english.hasSuffix(", read only") {
+            return [english, english.dropLast(", read only".count) + "，只读"]
+        }
+        if english.hasPrefix("Shinsoku profile: ") {
+            return [english, "Shinsoku 模式：" + english.dropFirst("Shinsoku profile: ".count)]
+        }
+        return [english]
+    }
 
     /// System labels, English first then Chinese (zh-Hans).
     enum L {
@@ -63,6 +130,7 @@ class SceneTestCase: XCTestCase {
         settings.launchArguments = Self.englishArguments
         safari.launchArguments = Self.englishArguments
         shortcuts.launchArguments = Self.englishArguments
+        runner.launchArguments = Self.englishArguments
         // Relaunch so the English launch arguments apply.
         settings.terminate()
         safari.terminate()
@@ -276,11 +344,11 @@ class SceneTestCase: XCTestCase {
     }
 
     func key(_ label: String) -> XCUIElement {
-        safari.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+        safari.descendants(matching: .any).matching(labelEquals: Self.variants(label)).firstMatch
     }
 
     func statusText(_ text: String) -> XCUIElement {
-        safari.staticTexts.matching(NSPredicate(format: "label == %@", text)).firstMatch
+        safari.staticTexts.matching(labelEquals: Self.variants(text)).firstMatch
     }
 
     func returnLabel() -> String {
@@ -295,7 +363,9 @@ class SceneTestCase: XCTestCase {
     /// Launches Shinsoku (Debug build) with scene launch arguments handled in `AppDelegate`.
     func launchRunner(_ arguments: [String], shotName: String? = nil) {
         let app = XCUIApplication()
-        app.launchArguments = arguments
+        // English app UI and English built-in profile names on a first launch (the simulators run in Chinese);
+        // the keyboard still follows the system language, see `variants`.
+        app.launchArguments = arguments.contains("-AppleLanguages") ? arguments : arguments + Self.englishArguments
         app.launch()
         check(app.wait(for: .runningForeground, timeout: 20), "runner-launch", "Shinsoku did not launch")
         // The seed/reset runs in didFinishLaunching; give the app a moment on screen before leaving it.
@@ -340,7 +410,7 @@ class SceneTestCase: XCTestCase {
         }
         require(status, "\(step)-dictation-status", timeout: 1)
         print("SCENE \(step): status \(status.label)")
-        require(runner.descendants(matching: .any).matching(labelContainsAny: ["Record"]).firstMatch,
+        require(runner.descendants(matching: .any).matching(labelContainsAny: Self.recordTab).firstMatch,
                 "\(step)-record-tab", timeout: 3)
     }
 
@@ -419,7 +489,7 @@ class SceneTestCase: XCTestCase {
 
     /// If the Shinsoku keyboard is up (its Record key exists), taps the globe until it is gone.
     func ensureSystemKeyboard(in app: XCUIApplication, step: String) {
-        let record = app.keys.matching(labelEquals: ["Record"]).firstMatch
+        let record = app.keys.matching(labelEquals: Self.variants("Record")).firstMatch
         let globe = app.buttons.matching(labelEquals: L.nextKeyboard).firstMatch
         for _ in 0..<6 where record.waitForExistence(timeout: 1) {
             guard globe.exists else { break }
@@ -440,7 +510,7 @@ class SceneTestCase: XCTestCase {
                 print("SCENE \(step): permission prompt accepted")
                 allow.tap()
             }
-            dialog = waitInApps(labelContainsAny: [text], timeout: 1)
+            dialog = waitInApps(labelContainsAny: Self.variants(text), timeout: 1)
         }
         guard let dialog else {
             check(false, "\(step)-dialog", "\(step): dialog '\(text)' not shown")

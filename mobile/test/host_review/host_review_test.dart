@@ -72,13 +72,40 @@ Set<String> _envSet(String name) => (Platform.environment[name] ?? '')
     .where((s) => s.isNotEmpty)
     .toSet();
 
-Future<void> _loadFonts() async {
+/// The host font that stands in for the iOS system font: SF Pro, or for a CJK
+/// language the system CJK font (SF has no CJK glyphs and the test engine has
+/// no per-character fallback, so CJK text would render as boxes). Latin text in
+/// those renders uses the CJK font's Latin glyphs, slightly wider than SF.
+String _uiFontPath(String localeName) {
+  final language = localeName.split('-').first;
+  if (language == 'ja') return '/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc';
+  if (language == 'ko') return '/System/Library/Fonts/AppleSDGothicNeo.ttc';
+  if (language == 'zh') {
+    // PingFang ships as a font asset: AssetsV2/com_apple_MobileAsset_Font*/
+    // <hash>.asset/AssetData/PingFang.ttc (other AssetsV2 folders are not
+    // readable).
+    String? pingFang;
+    try {
+      for (final fonts in Directory('/System/Library/AssetsV2').listSync()) {
+        if (!fonts.path.contains('com_apple_MobileAsset_Font')) continue;
+        for (final asset in Directory(fonts.path).listSync()) {
+          final file = File('${asset.path}/AssetData/PingFang.ttc');
+          if (file.existsSync()) pingFang ??= file.path;
+        }
+      }
+    } on FileSystemException {
+      pingFang = null;
+    }
+    return pingFang ?? '/System/Library/Fonts/Hiragino Sans GB.ttc';
+  }
+  return '/System/Library/Fonts/SFNS.ttf';
+}
+
+Future<void> _loadFonts(String uiFontPath) async {
   // SF Pro from the host so text metrics match iOS. iOS typography asks for
   // CupertinoSystemText/Display; unnamed styles fall back to the test fonts,
   // so those map to SF too.
-  final sf = ByteData.sublistView(
-    await File('/System/Library/Fonts/SFNS.ttf').readAsBytes(),
-  );
+  final sf = ByteData.sublistView(await File(uiFontPath).readAsBytes());
   for (final name in [
     'CupertinoSystemText',
     'CupertinoSystemDisplay',
@@ -138,6 +165,8 @@ void main() {
               : null,
         );
 
+  final uiFontPath = _uiFontPath(localeName);
+
   final runs = <(String scene, String device, _Device spec)>[
     for (final scene in scenes.keys) ...[
       for (final MapEntry(key: device, value: spec) in _devices.entries)
@@ -166,7 +195,7 @@ void main() {
         (_) async => null,
       );
     }
-    await _loadFonts();
+    await _loadFonts(uiFontPath);
   });
 
   for (final (scene, device, spec) in runs) {
@@ -225,9 +254,17 @@ void main() {
           // start with '[', which an ellipsis would replace at the end); the
           // image is written first so the cut can be looked at.
           // (Not at 200% text: pseudo text that long is beyond the goal.)
-          final clipped = pseudo && spec.textScale == 1
-              ? _clippedLocalizedText(t.binding.rootElement!)
+          // Other locales: cut paragraphs are listed in the .json and the
+          // log (sample transcripts may be cut by design), not failed.
+          final clipped = localeName != 'en' && spec.textScale == 1
+              ? _clippedLocalizedText(
+                  t.binding.rootElement!,
+                  pseudoOnly: pseudo,
+                )
               : const <String>[];
+          for (final text in clipped) {
+            debugPrint('CLIPPED $device/$scene-$theme: $text');
+          }
           await t.runAsync(() async {
             final image =
                 await (boundary.currentContext!.findRenderObject()!
@@ -264,11 +301,14 @@ void main() {
                     'width': fold.width,
                     'height': fold.height,
                   },
-                'uiFont': 'host SF Pro (SFNS.ttf)',
+                'uiFont': uiFontPath.split('/').last,
+                if (clipped.isNotEmpty) 'clippedText': clipped,
               }),
             );
           });
-          expect(clipped, isEmpty, reason: 'clipped text: $clipped');
+          if (pseudo) {
+            expect(clipped, isEmpty, reason: 'clipped text: $clipped');
+          }
         } finally {
           await t.pumpWidget(const SizedBox.shrink());
           t.view.reset();
@@ -281,16 +321,18 @@ void main() {
   }
 }
 
-/// Pseudo-locale paragraphs that did not fit their max lines.
-List<String> _clippedLocalizedText(Element root) {
+/// Paragraphs that did not fit their max lines; with [pseudoOnly], only
+/// pseudo-locale strings (they start with '[').
+List<String> _clippedLocalizedText(Element root, {required bool pseudoOnly}) {
   final clipped = <String>[];
   void visit(RenderObject object) {
     if (object is RenderParagraph &&
         object.didExceedMaxLines &&
-        object.text.toPlainText().startsWith('[')) {
+        (!pseudoOnly || object.text.toPlainText().startsWith('['))) {
       final owner = (object.debugCreator as DebugCreator).element;
       clipped.add(
-        '${object.text.toPlainText()} in ${owner.debugGetCreatorChain(8)}',
+        '${object.text.toPlainText()} in '
+        '${owner.debugGetCreatorChain(pseudoOnly ? 8 : 3)}',
       );
     }
     object.visitChildren(visit);

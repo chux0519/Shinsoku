@@ -16,8 +16,10 @@ final List<Locale> appSupportedLocales = [
     if (locale != pseudoLocale) locale,
 ];
 
-/// The ten languages of i18n-01, in rollout order. Each gets an
-/// `app_<tag>.arb` in I5; until then it falls back to English.
+/// The ten languages of i18n-01, in rollout order. Each has an
+/// `app_<tag>.arb` (`zh_Hans`, `zh_Hant`, `pt_BR`); `app_zh.arb` and
+/// `app_pt.arb` are the plain-language fallbacks gen-l10n needs (copies of
+/// zh-Hans and pt-BR).
 const plannedLocaleTags = [
   'en',
   'ja',

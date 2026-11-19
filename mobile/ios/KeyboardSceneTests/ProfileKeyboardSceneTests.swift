@@ -125,7 +125,7 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
     /// `searchRule`, sets Search → that profile in Settings › Profiles › Field rules before leaving.
     private func launchSeededRunner(_ name: String, searchRule: String? = nil) {
         launchRunner(Self.seedArguments, shotName: "runner-\(name)")
-        require(runner.descendants(matching: .any).matching(labelContainsAny: ["Record"]).firstMatch,
+        require(runner.descendants(matching: .any).matching(labelContainsAny: Self.recordTab).firstMatch,
                 "runner-\(name)-ready", timeout: 15)
         if let searchRule {
             setSearchRule(searchRule, step: "field-rules-\(name)")
@@ -254,15 +254,17 @@ final class ProfileKeyboardSceneTests: SceneTestCase {
     // MARK: Elements
 
     private func profileButton() -> XCUIElement {
-        safari.buttons.matching(NSPredicate(format: "label == 'Profile'")).firstMatch
+        safari.buttons.matching(labelEquals: Self.variants("Profile")).firstMatch
     }
 
     private func profileShows(_ value: String) -> Bool {
-        (profileButton().value as? String) == value
+        Self.variants(value).contains((profileButton().value as? String) ?? "")
     }
 
     private func expectProfile(_ value: String, step: String) {
-        let shown = safari.buttons.matching(NSPredicate(format: "label == 'Profile' AND value == %@", value)).firstMatch
+        let shown = safari.buttons.matching(NSPredicate(
+            format: "label IN %@ AND value IN %@", Self.variants("Profile"), Self.variants(value)
+        )).firstMatch
         if !shown.waitForExistence(timeout: 5) {
             let actual = profileButton().exists ? (profileButton().value as? String ?? "nil") : "no profile button"
             check(false, step, "\(step): keyboard should show '\(value)', shows '\(actual)'")

@@ -69,19 +69,7 @@ class SkSegmented<T> extends StatelessWidget {
                 Icon(s.icon, size: 18, color: fg),
                 const SizedBox(width: 6),
               ],
-              Flexible(
-                child: Text(
-                  s.label,
-                  // Equal-width segments wrap a long translation before they
-                  // cut it; open-ended lists scroll instead.
-                  maxLines: scrollable ? 1 : 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: (isSelected ? SkType.title : SkType.body).copyWith(
-                    color: fg,
-                  ),
-                ),
-              ),
+              Flexible(child: _label(s.label, isSelected, fg)),
             ],
           ),
         ),
@@ -116,6 +104,26 @@ class SkSegmented<T> extends StatelessWidget {
       label: semanticLabel,
       explicitChildNodes: true,
       child: body,
+    );
+  }
+
+  /// Equal-width segments wrap a long translation to two lines before they
+  /// cut it; a single long word ("Einstellungen" in a Duo pane) shrinks a
+  /// little instead of breaking mid-word. Open-ended lists scroll instead.
+  Widget _label(String label, bool isSelected, Color fg) {
+    final style = (isSelected ? SkType.title : SkType.body).copyWith(color: fg);
+    if (!scrollable && !label.trim().contains(RegExp(r'\s'))) {
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(label, maxLines: 1, style: style),
+      );
+    }
+    return Text(
+      label,
+      maxLines: scrollable ? 1 : 2,
+      textAlign: TextAlign.center,
+      overflow: TextOverflow.ellipsis,
+      style: style,
     );
   }
 }
