@@ -16,6 +16,14 @@ keyboard add, Full Access off/on, edit keys + delete repeat, App Group latest-re
 insert again, deep link shinsoku://dictation cold + warm (Record, mic alert, "Provider settings required").
 No paste banner in any phase.
 
+## Tier B — iPhone Duo, iOS 27.1, Xcode 27.2 build (shared sim 2F378AB1), 2026-11-19
+Postures driven through DeviceHub (Closed / Open / Rotate Right / Partially Open), screenshots per display
+(`simctl io --display=1` outer, `--display=3` inner) under build/ui-review/ios-ui-01/round-01/duo/:
+closed → iPhone layout, trailing system bar clear; open landscape → Record left | Drafts right split at the
+centre hinge, trailing bar clear; open rotated + partially open → switchable pane top, Record bottom, divider
+at the hinge; closed again (incl. after rotation) → iPhone layout, state kept. PASS.
+Not distinguishable on a centred hinge: bridge region vs centre fallback (pending C on device).
+
 ## Findings fixed during the round
 - P1 privacy: keyboard read and previewed arbitrary clipboard content → removed.
 - P1: iOS 27 redacts pasteboard content for keyboard extensions (types visible, values nil) → App Group
@@ -24,13 +32,10 @@ No paste banner in any phase.
 - Harness: Xcode 26.0.1 cannot drive iOS 27 simulators; use Xcode 27.2.
 
 ## Pending
-- **B (Duo)**: real division-region values, posture changes via DeviceHub, layout after fold/unfold. Needs
-  DeviceHub in front, Automation + Screen Recording permissions, and the Flutter SDK patch check
-  (see Shinphony docs/ui_review_process.md §2). Waiting for the user to schedule.
 - **C**: live recording across fold (needs a provider key / device), VoiceOver, largest accessibility text
   size, haptics, TestFlight build with Xcode 27.2.
 
-## Design conflicts for the user
+## Design conflicts — resolved 2026-11-19: all adopted, written to DESIGN.md
 | Item | DESIGN.md | Implemented | Recommendation |
 |---|---|---|---|
 | Section rows background | frame | raised | adopt |
