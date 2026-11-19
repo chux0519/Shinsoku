@@ -81,3 +81,13 @@ cloud only).
   per-app switching.
 - Minimum OS: **iOS 26 / macOS 26**.
 - Still open: Windows payments (Stripe Managed Payments recommended).
+
+## Name check (2026-11-19, delegated web research; official trademark databases still need a manual search)
+- **Hisoka: not recommended.** App Store name probably free (US), but hisoka.com/.app/.ai/.dev are all taken,
+  search results are dominated by the Hunter × Hunter villain (a creepy-stalker image is the wrong signal for an
+  app that listens to the microphone), and hisoka-io is an existing crypto-privacy project.
+- **Hisoyaka (密やか, "quiet, private") — suggested instead:** no App Store hit, hisoyaka.app / .ai /
+  gethisoyaka.com look free, near-zero search noise.
+- Hisohiso (ひそひそ, "whispering"): an app "hisohiso" exists → needs a suffix. Sasayaki: app exists, .app taken.
+- Before committing: manual USPTO / EUIPO / WIPO / J-PlatPat search (classes 9, 42) and the Japanese App Store.
+- **User to decide** between Hisoka and Hisoyaka (or another).
