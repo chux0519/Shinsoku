@@ -76,3 +76,15 @@ Shortcuts did receive the English launch arguments (tiles read "Set Profile" / "
   waits 10 s for the section first; the search taps until the keyboard is up (3 tries) and checks it
   (`FAIL-<step>-search-focus`) before typing.
 - FAIL attachments: besides the foreground app's tree, `FAIL-<step>-springboard.txt` (system snippets).
+
+## Round 1 tier-B fixes, second run (at 290d1a1)
+Both looks stopped at `set-review-search-focus`. Trees: Shortcuts restored its "All Shortcuts" page (the
+Shinsoku section is on the root page), so the search fallback ran; the field had focus, but the Shinsoku
+keyboard (left selected by `KeyboardSceneTests`) was up, and my focus check looked for a system `Keyboard`
+element, which a custom keyboard does not expose.
+- No typing on the normal path: `openAppShortcuts` walks back to the root by tapping the nav back button
+  (`BackButton` / Back / 返回 / Shortcuts / 快捷指令), else a left-edge drag, until the Shinsoku section shows.
+- Search fallback: focus is read from `hasKeyboardFocus`; `ensureSystemKeyboard()` taps the globe
+  (Next keyboard / 下一个键盘 / 切换键盘) until the Record key is gone (`FAIL-<step>-system-keyboard`).
+- `KeyboardSceneTests` step 9 `restoreSystemKeyboard()`: focuses the Safari field and switches back to the
+  system keyboard (best effort, logs `SCENE system keyboard restored: <bool>`).

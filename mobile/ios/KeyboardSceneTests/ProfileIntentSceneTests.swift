@@ -28,7 +28,8 @@ final class ProfileIntentSceneTests: XCTestCase {
     private static let getTitles = ["Get Profile", "Get Shinsoku Profile"]
 
     private enum L {
-        static let shortcutsTab = ["Shortcuts", "快捷指令"]
+        static let back = ["Back", "返回", "Shortcuts", "快捷指令"]
+        static let nextKeyboard = ["Next keyboard", "下一个键盘", "切换键盘"]
         static let done = ["Done", "完成", "OK", "好"]
         static let allow = ["Allow", "允许", "Always Allow", "始终允许"]
     }
@@ -90,40 +91,67 @@ final class ProfileIntentSceneTests: XCTestCase {
         }
     }
 
-    /// Shortcuts › Shortcuts tab › the Shinsoku app section. The section appears once the system has indexed
-    /// the app's App Shortcuts (can take a few seconds after install); falls back to the library search.
+    /// Shortcuts › the Shinsoku app section (on the root page, next to the library). Shortcuts restores the
+    /// last page (e.g. "All Shortcuts"), so walk back by tapping (back button, else an edge swipe) until the
+    /// section shows; no typing needed. The section appears once the system has indexed the app's App Shortcuts
+    /// (a few seconds after install). Last resort: the library search.
     private func openAppShortcuts(step: String) {
         shortcuts.terminate()
         shortcuts.launch()
         check(shortcuts.wait(for: .runningForeground, timeout: 20), "shortcuts-launch", "Shortcuts did not launch")
-        let tab = shortcuts.tabBars.buttons.matching(labelEquals: L.shortcutsTab).firstMatch
-        if tab.waitForExistence(timeout: 5) { tab.tap() }
-        let section = shortcuts.buttons.matching(labelEquals: [Self.appName]).firstMatch
-        if !section.waitForExistence(timeout: 10) {
-            for _ in 0..<4 where !section.exists {
+        let section = shortcuts.buttons.matching(labelContainsAny: [Self.appName]).firstMatch
+        for attempt in 0..<6 where !section.waitForExistence(timeout: attempt == 0 ? 5 : 2) {
+            let back = shortcuts.navigationBars.buttons.matching(
+                NSPredicate(format: "identifier == 'BackButton' OR label IN %@", L.back)
+            ).firstMatch
+            if back.exists, back.isHittable {
+                back.tap()
+            } else if attempt % 2 == 0 {
+                // Interactive pop: drag from the left edge.
+                let start = shortcuts.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+                start.press(forDuration: 0.05, thenDragTo: shortcuts.coordinate(
+                    withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5)))
+            } else {
                 shortcuts.swipeUp()
             }
         }
         if section.exists {
             tap(section, "\(step)-app-section")
         } else {
+            print("SCENE \(step): Shinsoku section not found, using search")
             search(Self.appName, step: step)
         }
         shot("\(step)-app-shortcuts")
     }
 
-    /// Taps the search field until it has keyboard focus, then types.
+    /// Focuses the search field, makes sure the system keyboard is up (not the Shinsoku keyboard, which an
+    /// earlier scene may have left selected and which cannot type letters), then types.
     private func search(_ text: String, step: String) {
         let field = shortcuts.searchFields.firstMatch
         if !field.waitForExistence(timeout: 3) { shortcuts.swipeDown() }
         require(field, "\(step)-search-field")
-        let keyboard = shortcuts.keyboards.firstMatch
-        for _ in 0..<3 where !keyboard.exists {
+        for _ in 0..<3 where !hasFocus(field) {
             field.tap()
-            _ = keyboard.waitForExistence(timeout: 3)
+            Thread.sleep(forTimeInterval: 1)
         }
-        check(keyboard.exists, "\(step)-search-focus", "\(step): search field has no keyboard focus")
+        check(hasFocus(field), "\(step)-search-focus", "\(step): search field has no keyboard focus")
+        ensureSystemKeyboard(in: shortcuts, step: step)
         field.typeText(text)
+    }
+
+    private func hasFocus(_ element: XCUIElement) -> Bool {
+        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
+    }
+
+    /// If the Shinsoku keyboard is up (its Record key exists), taps the globe until it is gone.
+    private func ensureSystemKeyboard(in app: XCUIApplication, step: String) {
+        let record = app.keys.matching(labelEquals: ["Record"]).firstMatch
+        let globe = app.buttons.matching(labelEquals: L.nextKeyboard).firstMatch
+        for _ in 0..<6 where record.waitForExistence(timeout: 1) {
+            guard globe.exists else { break }
+            globe.tap()
+        }
+        check(!record.exists, "\(step)-system-keyboard", "\(step): Shinsoku keyboard still selected")
     }
 
     /// The intent's dialog (shown by Shortcuts or as a system snippet). Accepts a first-run permission prompt.

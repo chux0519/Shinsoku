@@ -148,6 +148,9 @@ final class KeyboardSceneTests: XCTestCase {
         shot("deeplink-warm")
         runner.terminate()
 
+        // 9. Leave the system keyboard selected, so the next scene (ProfileIntentSceneTests) can type.
+        restoreSystemKeyboard()
+
         let summary = pasteBannerSeen.isEmpty ? "none" : pasteBannerSeen.joined(separator: ", ")
         print("SCENE paste-banner phases: \(summary)")
         XCTContext.runActivity(named: "paste banner phases: \(summary)") { _ in }
@@ -304,6 +307,23 @@ final class KeyboardSceneTests: XCTestCase {
         let input = safari.textFields.firstMatch
         require(input, "safari-address-field", timeout: 5)
         input.typeText(Self.pageURLString + "\n")
+    }
+
+    /// Best effort, never fails the scene: focuses the Safari field and taps the globe until the Shinsoku
+    /// keyboard (its Record key) is gone.
+    private func restoreSystemKeyboard() {
+        safari.activate()
+        guard field().waitForExistence(timeout: 5) else {
+            print("SCENE system keyboard: field not found, not restored")
+            return
+        }
+        field().tap()
+        for _ in 0..<6 where key("Record").waitForExistence(timeout: 2) {
+            let globe = globeButton()
+            guard globe.exists else { break }
+            globe.tap()
+        }
+        print("SCENE system keyboard restored: \(!key("Record").exists)")
     }
 
     private func globeButton() -> XCUIElement {
