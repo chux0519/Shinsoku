@@ -32,6 +32,8 @@ DD="$ROOT/build/ios-keyboard-scene/DerivedData"
 DEFAULT_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER="
 read -r -a SIGN_ARGS <<<"${SCENE_SIGN_ARGS:-$DEFAULT_SIGN_ARGS}"
 KEYBOARD_ID=net.potafree.shinsoku.keyboard
+# Which scene: the keyboard scene by default; profile-01 P2: SCENE_TEST=KeyboardSceneTests/ProfileIntentSceneTests.
+SCENE_TEST=${SCENE_TEST:-KeyboardSceneTests/KeyboardSceneTests}
 
 usage() {
   echo "usage: $0 <UDID> <out-dir under build/> | $0 --build-only" >&2
@@ -199,7 +201,7 @@ for look in light dark; do
   xcrun simctl ui "$UDID" appearance "$look"
   RESULT="$OUT/$look.xcresult"
   if [[ -e $RESULT ]]; then rm -rf "${RESULT:?}"; fi
-  if ! nice -n 10 "${XCB[@]}" -destination "$DEST" -only-testing:KeyboardSceneTests \
+  if ! nice -n 10 "${XCB[@]}" -destination "$DEST" -only-testing:"$SCENE_TEST" \
       -resultBundlePath "$RESULT" test-without-building >"$OUT/$look.log" 2>&1; then
     echo "  scene failed ($look); see $OUT/$look.log" >&2
     STATUS=1

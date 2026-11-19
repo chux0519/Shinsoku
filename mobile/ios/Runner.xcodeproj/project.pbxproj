@@ -24,6 +24,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		98FC2696506E68CC99C3B9EA /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1044C17DED9AB817672C967 /* Pods_RunnerTests.framework */; };
 		8A6D122001B1C0D000000001 /* KeyboardSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D122101B1C0D000000001 /* KeyboardSceneTests.swift */; };
+		8A6D123401B1C0D000000001 /* ProfileIntentSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123501B1C0D000000001 /* ProfileIntentSceneTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -109,6 +110,7 @@
 		B1044C17DED9AB817672C967 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDDBD316491413880A19B2CC /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A6D122101B1C0D000000001 /* KeyboardSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardSceneTests.swift; sourceTree = "<group>"; };
+		8A6D123501B1C0D000000001 /* ProfileIntentSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileIntentSceneTests.swift; sourceTree = "<group>"; };
 		8A6D122201B1C0D000000001 /* KeyboardSceneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KeyboardSceneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -248,6 +250,7 @@
 			isa = PBXGroup;
 			children = (
 				8A6D122101B1C0D000000001 /* KeyboardSceneTests.swift */,
+				8A6D123501B1C0D000000001 /* ProfileIntentSceneTests.swift */,
 			);
 			path = KeyboardSceneTests;
 			sourceTree = "<group>";
@@ -565,6 +568,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8A6D122001B1C0D000000001 /* KeyboardSceneTests.swift in Sources */,
+				8A6D123401B1C0D000000001 /* ProfileIntentSceneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import OSLog
 
 // profile-01 P2: Shortcuts actions "Set Shinsoku Profile" / "Get Shinsoku Profile". They read and write the
 // App Group store (`ProfileGroup`), so they run without opening the app: a personal automation
@@ -59,6 +60,7 @@ struct SetShinsokuProfileIntent: AppIntent {
   static var description = IntentDescription(
     "Sets the profile Shinsoku uses for the next dictation, for example from an automation when an app opens.")
   static var openAppWhenRun = false
+  private static let log = Logger(subsystem: "net.potafree.shinsoku.app", category: "profiles")
 
   @Parameter(title: "Profile")
   var profile: ProfileEntity
@@ -79,8 +81,10 @@ struct SetShinsokuProfileIntent: AppIntent {
       throw ProfileIntentError.profileMissing(profile.name)
     }
     guard ProfileGroup.writeSelection(profileId: current.id, source: "automation") else {
+      Self.log.error("intent setActive: App Group unavailable")
       throw ProfileIntentError.storeUnavailable
     }
+    Self.log.notice("intent setActive: source=automation")
     return .result(dialog: "Shinsoku profile: \(current.name)")
   }
 }
