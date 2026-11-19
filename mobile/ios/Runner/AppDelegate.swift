@@ -223,6 +223,18 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
         }
         AppDelegate.publishLatestText(text)
         result(nil)
+#if DEBUG
+      case "sceneLiveFixture":
+        // live-01 T3 scene hook (Debug builds only): `-ShinsokuSceneLiveFixture <name>` makes recordings
+        // replay a T1 streaming fixture instead of the microphone/provider. Release builds don't have this
+        // case (FlutterMethodNotImplemented), and Dart also checks kDebugMode.
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-ShinsokuSceneLiveFixture"), arguments.indices.contains(index + 1) {
+          result(arguments[index + 1])
+        } else {
+          result(nil)
+        }
+#endif
       default:
         result(FlutterMethodNotImplemented)
       }

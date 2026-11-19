@@ -53,7 +53,14 @@ class SmokeTestConfig {
 }
 
 /// The fix a failed status offers (DESIGN §7: errors carry their fix).
-enum StatusFix { none, microphone, providerSettings }
+enum StatusFix {
+  none,
+  microphone,
+  providerSettings,
+
+  /// A recording failed or dropped: record again (what was heard is kept).
+  retry,
+}
 
 class SmokeTestStatus {
   const SmokeTestStatus({

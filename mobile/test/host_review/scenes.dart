@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shinsoku_mobile/app/shell_scaffold.dart';
 import 'package:shinsoku_mobile/features/drafts/draft_editor_page.dart';
 import 'package:shinsoku_mobile/features/drafts/drafts_view.dart';
-import 'package:shinsoku_mobile/features/record/live_transcript.dart';
+import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/features/record/record_view.dart';
 import 'package:shinsoku_mobile/features/settings/field_rules_view.dart';
 import 'package:shinsoku_mobile/features/settings/keyboard_setup_view.dart';

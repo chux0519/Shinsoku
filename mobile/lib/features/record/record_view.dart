@@ -1,10 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shinsoku_mobile/features/record/live_transcript.dart';
 import 'package:shinsoku_mobile/services/capture_types.dart';
+import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
 import 'package:shinsoku_mobile/ui/ui.dart';
+
+/// Text for the Record area that changed elsewhere (Drafts edited the
+/// Record screen's draft). A new [revision] replaces the area's text once.
+@immutable
+class RecordExternalEdit {
+  const RecordExternalEdit(this.revision, this.text);
+
+  final int revision;
+  final String text;
+}
 
 /// DESIGN §7 Record (home), live-01 "the transcript is the text field":
 /// status line, one borderless transcript area that fills live while
@@ -23,6 +33,8 @@ class RecordView extends StatefulWidget {
     this.transcript,
     this.onSaveText,
     this.onCopyText,
+    this.onDoneText,
+    this.externalEdit,
     this.onOpenMicrophoneSettings,
     this.onOpenSettings,
     this.profileReason,
@@ -49,6 +61,14 @@ class RecordView extends StatefulWidget {
   /// the keyboard's Insert and the clipboard.
   final ValueChanged<String>? onCopyText;
 
+  /// Done after an edit: save like [onSaveText] and republish the text as the
+  /// keyboard's latest (coordinator decision 2026-11-19). Falls back to
+  /// [onSaveText].
+  final ValueChanged<String>? onDoneText;
+
+  /// The Record screen's draft was edited elsewhere; see [RecordExternalEdit].
+  final RecordExternalEdit? externalEdit;
+
   /// Fix for "Microphone access is off".
   final VoidCallback? onOpenMicrophoneSettings;
 
@@ -59,10 +79,10 @@ class RecordView extends StatefulWidget {
   final String? profileReason;
 
   @override
-  State<RecordView> createState() => _RecordViewState();
+  State<RecordView> createState() => RecordViewState();
 }
 
-class _RecordViewState extends State<RecordView> {
+class RecordViewState extends State<RecordView> {
   final _controller = SkTranscriptController();
   final _focus = FocusNode(debugLabel: 'transcript');
 
@@ -85,11 +105,20 @@ class _RecordViewState extends State<RecordView> {
   }
 
   @override
-  void didUpdateWidget(RecordView old) {
-    super.didUpdateWidget(old);
+  void didUpdateWidget(RecordView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final old = oldWidget;
     if (old.transcript != widget.transcript) {
       old.transcript?.removeListener(_onLive);
       widget.transcript?.addListener(_onLive);
+    }
+    final edit = widget.externalEdit;
+    if (edit != null &&
+        edit.revision != old.externalEdit?.revision &&
+        !_readOnly &&
+        edit.text != _controller.text) {
+      _controller.showText(edit.text);
+      _baseline = edit.text;
     }
     _sync(duringBuild: true);
   }
@@ -172,14 +201,16 @@ class _RecordViewState extends State<RecordView> {
           _loaded = t.committed;
         }
       case LivePhase.failed:
-        if (previous != LivePhase.failed) {
-          if (t.committed.isNotEmpty) {
-            // Words heard before the failure: kept, not yet in any draft.
-            _controller.showText(t.committed);
-            _baseline = '';
-          } else if (_controller.hasPending) {
-            _controller.showText(_controller.text);
-          }
+        // Words heard before the failure (committed + pending) stay; the
+        // shell keeps them as this recording's draft (L2/L3).
+        final heard = t.text;
+        if (heard.isNotEmpty &&
+            (previous != LivePhase.failed || heard != _loaded)) {
+          _controller.showText(heard);
+          _baseline = heard;
+          _loaded = heard;
+        } else if (_controller.hasPending) {
+          _controller.showText(_controller.text);
         }
       case LivePhase.idle:
         if (_controller.hasPending) _controller.showText(_controller.text);
@@ -188,7 +219,10 @@ class _RecordViewState extends State<RecordView> {
     _phase = t.phase;
   }
 
-  /// Saves unsaved edits into the current draft.
+  /// Saves unsaved edits (IME composition committed first) into the
+  /// current draft. The shell calls this before any recording starts (L3/L4).
+  void keepEdits() => _keepEdits();
+
   void _keepEdits({bool later = false}) {
     _controller.commitComposing();
     if (!_dirty) return;
@@ -212,7 +246,12 @@ class _RecordViewState extends State<RecordView> {
   }
 
   void _done() {
-    _keepEdits();
+    _controller.commitComposing();
+    if (_dirty) {
+      final text = _controller.text;
+      _baseline = text;
+      (widget.onDoneText ?? widget.onSaveText)?.call(text);
+    }
     _focus.unfocus();
     setState(() {});
   }
@@ -376,6 +415,10 @@ class _RecordViewState extends State<RecordView> {
           widget.onOpenMicrophoneSettings,
         ),
         StatusFix.providerSettings => ('Open Settings', widget.onOpenSettings),
+        StatusFix.retry => (
+          SkStrings.tryAgain,
+          widget.captureState == CaptureState.idle ? _record : null,
+        ),
         StatusFix.none => (null, null),
       };
       return SkStatusLine(
@@ -408,10 +451,13 @@ class _RecordViewState extends State<RecordView> {
         icon: Icons.check_circle_outline_rounded,
         tone: SkTone.success,
         text: status.label,
-        // Timing details are for smoke runs; people get the next step.
+        // Timing details are for smoke runs; people get the next step. A new
+        // result was published (auto-copy); a saved edit says so itself.
         detail: SmokeTestConfig.enabled
             ? status.detail
-            : 'Copied. Paste it anywhere, or insert it from the keyboard.',
+            : status.transcript != null
+            ? SkStrings.resultCopied
+            : null,
       ),
       CaptureState.idle => const SkStatusLine(
         icon: Icons.mic_none_rounded,
