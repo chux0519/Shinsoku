@@ -1077,5 +1077,9 @@
   "proLockedDesktop": "Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro.",
   "@proLockedDesktop": {
     "description": "Desktop tab without Pro: what it is."
+  },
+  "proUnlockShort": "Get Pro",
+  "@proUnlockShort": {
+    "description": "Short button next to Cancel in the profile editor without Pro: opens the Shinsoku Pro sheet."
   }
 }

@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -875,6 +874,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get proLockedDesktop =>
       'Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro.';
+
+  @override
+  String get proUnlockShort => 'Get Pro';
 }
 
 /// The translations for English (`en_XA`).
@@ -1777,4 +1779,7 @@ class AppLocalizationsEnXa extends AppLocalizationsEn {
   @override
   String get proLockedDesktop =>
       '[Üšé ţhîš îPhöñé àš à wîréléšš mîçröphöñé för Šhîñšökü öñ ýöür Màç ör PÇ: špéàk héré, ţhé ţéxţ làñđš öñ ţhé çömpüţér. Đéškţöp îš pàrţ öf Šhîñšökü Prö. lörém îpšüm đölör šîţ àméţ çöñšéçţéţür àđîpîšçîñĝ élîţ šéđ]';
+
+  @override
+  String get proUnlockShort => '[Ĝéţ Prö lö]';
 }

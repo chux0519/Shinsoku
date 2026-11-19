@@ -1602,6 +1602,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use this iPhone as a wireless microphone for Shinsoku on your Mac or PC: speak here, the text lands on the computer. Desktop is part of Shinsoku Pro.'**
   String get proLockedDesktop;
+
+  /// Short button next to Cancel in the profile editor without Pro: opens the Shinsoku Pro sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Pro'**
+  String get proUnlockShort;
 }
 
 class _AppLocalizationsDelegate

@@ -103,7 +103,7 @@ class _ProfileEditorSheetState extends State<ProfileEditorSheet> {
         if (locked)
           SkButton(
             key: const ValueKey('profile-unlock'),
-            label: l.proBuy,
+            label: l.proUnlockShort,
             expand: true,
             onPressed: () => showProSheet(context),
           )

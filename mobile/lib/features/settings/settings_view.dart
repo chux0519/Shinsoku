@@ -200,6 +200,9 @@ class _SettingsViewState extends State<SettingsView> {
     return SkPage(
       title: l.settingsTitle,
       children: [
+        // pricing-01: first, so Restore Purchases is easy to find.
+        _ProSection(),
+        gap,
         SkSection(
           label: l.settingsSectionRecognition,
           children: [
@@ -339,8 +342,6 @@ class _SettingsViewState extends State<SettingsView> {
           onPressed: _save,
         ),
         gap,
-        _ProSection(),
-        gap,
         SkSection(
           label: l.settingsSectionProfiles,
           children: [
@@ -475,7 +476,19 @@ class _ProSection extends StatelessWidget {
           leading: Icons.workspace_premium_outlined,
           title: l.proName,
           subtitle: l.proSettingsSubtitle,
-          value: state.owned ? l.proStatusUnlocked : state.productPrice,
+          // A short trailing label: the row's value column would squeeze
+          // the subtitle for a price this short.
+          trailing: switch (state.owned
+              ? l.proStatusUnlocked
+              : state.productPrice) {
+            final String text => Text(
+              text,
+              style: SkType.body.copyWith(
+                color: SkColors.of(context).textSecondary,
+              ),
+            ),
+            null => null,
+          },
           chevron: true,
           onTap: () => showProSheet(context),
         ),
