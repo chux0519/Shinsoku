@@ -1,30 +1,25 @@
 # release-01 round-01 — STATE
 
-## Done
-- R1 (merged, PR #47): iPhone only, 1.0.0, privacy manifests, microphone string in 10 languages, M06 guard.
-- R2 (branch `release-01-r2-metadata`): store metadata in 10 languages (`docs/store/`), `tool/store_metadata.py`
-  (check / push dry-run / --apply / review-zh), lint R08. Details: `R2-implementation.md`.
+## Done (2026-11-21)
+- R1 (#47) iPhone only, 1.0.0, privacy manifests, M06 key guard. R2 (#48) store metadata in 10 languages, pushed.
+  R3 (#49) 61 screenshots (zh-Hans 7, others 6), uploaded. R4 privacy/support pages live on potafree.net
+  (potafree.net repo #5, deployed by the user). tf-22/23: build 1.0.0 (23), VALID.
+- App Store Connect: price free (Pro IAP $4.99), 175 territories without China mainland, App Privacy
+  "Data Not Collected" (published 2026-11-21), review detail with the dedicated review Soniox key (notes only).
+- **Submitted for review 2026-11-21 00:09 (local)**: submission 53ecdd57, iOS 1.0.0 (23) + IAP Shinsoku Pro,
+  both WAITING_FOR_REVIEW. Release type MANUAL.
 
-## In progress
-- R3 (branch `release-01-r3-screenshots`, PR open): store screenshots 6 host scenes × 10 locales,
-  framing, upload dry run, StoreSceneTests (Messages, else Safari start page) for the keyboard frame, zh-Hans only (passed on iPhone 17);
-  final: zh-Hans 7 screenshots, other locales 6 (61 total). Next: coordinator review/merge, then
-  `python3 tool/store_screenshots.py --apply`. Details: `R3-implementation.md`.
-- R4 (website) — other worker.
+## Lesson (R5)
+- The first non-consumable IAP cannot be submitted through the API (FIRST_NON_CONSUMABLE_MUST_BE_SUBMITTED_ON_VERSION).
+  A first API submit went out without the IAP; it was cancelled before review and redone: IAP page > Add for Review
+  (creates the draft), version added to that draft, submitted. `tool/asc_submit.py` now stops if the IAP has not
+  been added for review yet.
 
 ## Next
-- Coordinator review/merge of R2; `python3 tool/store_metadata.py push --apply` (coordinator) once the user has
-  reviewed `docs/store/review-zh.md`. Then R3 (screenshots; captions from the metadata wording) → R5.
+- Wait for App Review. On approval: ask the user before releasing (manual release).
+- On rejection: read the message in App Review, fix, new build via `tool/next_build.py`, resubmit.
+- Known script bug: `tool/store_metadata.py` first push gives 409s until rerun (fetch version localizations again
+  after creating app info localizations).
 
-## Open decisions / user actions
-- `REVIEW_SONIOX_API_KEY` is not in `.env` yet.
-- Chinese review of the store text: `docs/store/review-zh.md`.
-- Name: plain "Shinsoku" (current) or with a keyword ("Shinsoku: Voice Keyboard")?
-
-## How to verify R2
-`python3 tool/store_metadata.py check` → ok; `python3 tool/review_lint.py` → all ok;
-`python3 tool/store_metadata.py push` → dry-run diff (24 changes at 849950f, nothing sent).
-
-## How to verify R3
-`tool/store_shots.sh` → `build/venv-store/bin/python tool/store_frames.py` → open
-`build/store/screenshots/index.html`; `python3 tool/store_screenshots.py` (dry run).
+## Open user actions
+- Chinese review tables: `docs/store/review-zh.md`, `docs/i18n/review-zh.md`.
