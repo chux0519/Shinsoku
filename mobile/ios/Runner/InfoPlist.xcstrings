@@ -43,7 +43,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku는 로컬 네트워크를 사용해 Shinsoku 데스크톱을 찾고 연결합니다."
+            "value" : "Shinsoku는 로컬 네트워크를 사용해 Shinsoku 데스크톱을 찾고 연결해요."
           }
         },
         "pt-BR" : {
@@ -72,61 +72,61 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku verwendet das Mikrofon für die Spracheingabe."
+            "value" : "Shinsoku nimmt deine Stimme beim Diktieren auf und sendet sie an den gewählten Spracherkennungsdienst oder an deinen gekoppelten Computer."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku uses the microphone to capture voice input."
+            "value" : "Shinsoku records your voice while you dictate and sends it to the speech provider you chose, or to your paired computer."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku usa el micrófono para la entrada de voz."
+            "value" : "Shinsoku graba tu voz mientras dictas y la envía al proveedor de voz que elegiste o a tu ordenador vinculado."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku utilise le micro pour la saisie vocale."
+            "value" : "Shinsoku enregistre votre voix pendant la dictée et l’envoie au service de reconnaissance vocale choisi ou à votre ordinateur jumelé."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku usa il microfono per l’input vocale."
+            "value" : "Shinsoku registra la tua voce mentre detti e la invia al servizio vocale scelto o al tuo computer abbinato."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsokuは音声入力のためにマイクを使用します。"
+            "value" : "音声入力の間、Shinsokuはマイクで録音し、選んだ音声認識サービスまたはペアリングしたデスクトップに送ります。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku는 음성 입력을 위해 마이크를 사용합니다."
+            "value" : "Shinsoku는 받아쓰는 동안 음성을 녹음해 선택한 음성 인식 서비스나 페어링한 데스크톱으로 보내요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O Shinsoku usa o microfone para a entrada de voz."
+            "value" : "O Shinsoku grava sua voz enquanto você dita e a envia ao provedor de voz escolhido ou ao seu computador pareado."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku 使用麦克风进行语音输入。"
+            "value" : "Shinsoku 在你听写时录音，并发送到你选择的语音识别服务或已配对的电脑。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shinsoku 會使用麥克風擷取語音輸入。"
+            "value" : "Shinsoku 會在你聽寫時錄音，並傳送到你選擇的語音辨識服務或已配對的電腦。"
           }
         }
       }

@@ -1,0 +1,7 @@
+// The keyboard extension carries the app's version and build number (from pubspec.yaml via Flutter's
+// Generated.xcconfig): App Store Connect rejects an extension whose CFBundleShortVersionString or
+// CFBundleVersion differs from the containing app's.
+#include? "../Flutter/Generated.xcconfig"
+
+MARKETING_VERSION = $(FLUTTER_BUILD_NAME)
+CURRENT_PROJECT_VERSION = $(FLUTTER_BUILD_NUMBER)
