@@ -40,3 +40,12 @@ description: |
   認識できる言語はサービスによって異なります。Sonioxは日本語、英語、中国語、韓国語、ドイツ語、フランス語、スペイン語、ポルトガル語、イタリア語など数十の言語に対応しています。
 whats_new: |
   ShinsokuのiPhone版、最初のリリースです。
+# Screenshot captions (R3), in upload order; tool/store_frames.py wraps them to at most 2 lines.
+captions:
+  record-live: "話すそばから文字に"
+  keyboard: "どのAppでも|キーボードから音声入力"
+  record-done: "整ったテキストを|そのまま編集・挿入"
+  drafts: "録音はすべて|下書きに保存"
+  profiles: "用途に合わせた|プロファイル"
+  field-rules: "入力欄ごとに|自動で切り替え"
+  desktop: "iPhoneを|MacやPCのマイクに"

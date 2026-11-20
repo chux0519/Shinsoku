@@ -26,6 +26,10 @@ FIELDS = ['name', 'subtitle', 'promotional_text', 'description', 'keywords', 'wh
 # Apple's limits; keywords are counted in UTF-8 bytes (stricter than Apple's character count, on purpose).
 LIMITS = {'name': 30, 'subtitle': 30, 'promotional_text': 170, 'description': 4000, 'whats_new': 4000}
 KEYWORD_BYTES = 100
+# Screenshot captions (release-01 R3): one per scene, in upload order (tool/store_frames.py). Not sent by push;
+# tool/store_frames.py checks that each fits in 2 lines on the 1320×2868 canvas; '|' marks the line break.
+CAPTION_SCENES = ['record-live', 'keyboard', 'record-done', 'drafts', 'profiles', 'field-rules', 'desktop']
+CAPTION_MAX = 48  # characters; a quick bound, the real fit check is in tool/store_frames.py
 # Other products and trademarks never go into keywords (App Review guideline 2.3.7).
 TRADEMARKS = ['siri', 'apple', 'iphone', 'ios', 'whisper', 'wispr', 'chatgpt', 'openai', 'gpt', 'google', 'gboard',
               'otter', 'superwhisper', 'typeless', 'willow', 'aqua', 'spokenly', 'voiceink', 'microsoft', 'copilot',
@@ -202,7 +206,18 @@ def check():
         if re.search(r'<[a-zA-Z/][^>]*>', data.get('description', '')):
             problems.append(f'{loc}: description has HTML tags (plain text only)')
         problems += check_keywords(loc, data)
-        unknown = set(data) - set(FIELDS)
+        caps = data.get('captions')
+        if not isinstance(caps, dict):
+            problems.append(f'{loc}: captions missing')
+        else:
+            if list(caps) != CAPTION_SCENES:
+                problems.append(f'{loc}: captions must be {CAPTION_SCENES} in this order, got {list(caps)}')
+            for k, v in caps.items():
+                if not isinstance(v, str) or not v.strip() or '\n' in v:
+                    problems.append(f'{loc}: caption {k} empty or not one line')
+                elif len(v) > CAPTION_MAX:
+                    problems.append(f'{loc}: caption {k} {len(v)} chars > {CAPTION_MAX}')
+        unknown = set(data) - set(FIELDS) - {'captions'}
         if unknown:
             problems.append(f'{loc}: unknown fields {sorted(unknown)}')
         texts.append((loc, '\n'.join(str(v) for v in data.values())))
@@ -402,6 +417,10 @@ def review_zh():
            '| Field | English | 简体中文 (zh-Hans) | 繁體中文 (zh-Hant) |', '|---|---|---|---|']
     for f in FIELDS:
         out.append(f'| {FIELD_LABELS[f]} | {cell(en[f])} | {cell(hans[f])} | {cell(hant[f])} |')
+    out += ['', '## Screenshot captions (upload order)', '',
+            '| Scene | English | 简体中文 (zh-Hans) | 繁體中文 (zh-Hant) |', '|---|---|---|---|']
+    for k in CAPTION_SCENES:
+        out.append(f"| {k} | {cell(en['captions'][k])} | {cell(hans['captions'][k])} | {cell(hant['captions'][k])} |")
     app = load(STORE / 'app.yaml')
     out += ['', '## App-level (all languages)', '', '| Field | Value |', '|---|---|']
     for k in ('primary_category', 'secondary_category', 'copyright', 'privacy_url', 'support_url', 'marketing_url'):
