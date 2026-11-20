@@ -7,7 +7,7 @@
 
 ## In progress
 - R3 (branch `release-01-r3-screenshots`, PR open): store screenshots 6 host scenes × 10 locales,
-  framing, upload dry run, StoreSceneTests (Notes, zh-Hans/zh-Hant) for the keyboard frame; round 2 done
+  framing, upload dry run, StoreSceneTests (Messages, else Safari start page; zh-Hans/zh-Hant) for the keyboard frame; round 2 done
   (Profiles page, localized translation-profile description in the app). Details: `R3-implementation.md`.
 - R4 (website) — other worker.
 

@@ -38,16 +38,20 @@ Nothing was sent to App Store Connect (dry run only).
 SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
   bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh <iPhone 17 UDID> build/store/keyboard
 ```
-Optional `TEST_RUNNER_STORE_LOCALES=zh-Hans`. Per locale: seeds "title\nbody" (fixture text) as latest (Runner
-launched with `-AppleLanguages`), opens **Notes** in that language (dismisses first-run sheets, New Note), Shinsoku
-keyboard → Insert; PHASE `store-<locale>-ready` / `-inserted`; then deletes the note (best effort, SCENE line
-`note-deleted`). No Safari, no `data:` URL. The shared simulator's language is never changed, so the keyboard
-keys show the system language (zh-Hans); the zh-Hant frame has Simplified keyboard labels next to a Traditional
-note. `SCENE_STATUS_BAR=clean` overrides the status bar to 9:41 and clears it on exit. Then rerun
-`store_frames.py`: it picks `build/store/keyboard/light/PHASE-*-store-<locale>-inserted.png` (or
-`build/store/keyboard/<locale>.png`) as 02-keyboard for zh-Hans/zh-Hant (`KEYBOARD_LOCALES`); the other locales
-ship 6 screenshots. Not run on a simulator by me: Notes labels (compose, onboarding, delete) are matched in
-en/zh-Hans/zh-Hant with a toolbar fallback; a failed step attaches `FAIL-<step>` with the element tree.
+Optional `TEST_RUNNER_STORE_LOCALES=zh-Hans`. Round 3 (tier-B run: Notes is not installed on the shared
+iPhone 17 runtime): the host app is **Messages** (New Message, recipient left empty, the text in the body; the
+compose sheet is cancelled and the draft discarded afterwards), else **Safari's start page** (address/search
+field, nothing loaded, no URL). The test checks `SIMULATOR_ROOT/Applications/{MobileSMS,MobileSafari}.app`
+before launching anything and skips (XCTSkip, clear message) when neither exists; SCENE lines `store-host`
+say which app was used. Per locale: seeds the fixture text as latest (Runner launched with `-AppleLanguages`),
+the host app in the same language, Shinsoku keyboard → Insert; PHASE `store-<locale>-ready` / `-inserted`.
+The shared simulator's language is never changed, so the keyboard keys show the system language (zh-Hans);
+the zh-Hant frame has Simplified keyboard labels. `SCENE_STATUS_BAR=clean` overrides the status bar to 9:41 and
+clears it on exit. Then rerun `store_frames.py`: it picks `build/store/keyboard/light/PHASE-*-store-<locale>-inserted.png`
+(or `build/store/keyboard/<locale>.png`) as 02-keyboard for zh-Hans/zh-Hant (`KEYBOARD_LOCALES`); the other
+locales ship 6 screenshots. Not run on a simulator by me: Messages labels (compose, onboarding, body, cancel,
+discard) are matched in en/zh-Hans/zh-Hant plus known identifiers; a failed step attaches `FAIL-<step>` with
+the element tree.
 
 ## Round 2 (coordinator review)
 1. 04-profiles starts at the Profiles heading (own page, see above); checked in all 10 locales.
@@ -57,7 +61,8 @@ en/zh-Hans/zh-Hant with a toolbar fallback; a failed step attaches `FAIL-<step>`
    (sent to the model) stays English; an edited one shows as written. Test:
    `test/services/profile_list_description_test.dart` (10 locales, edited prompt, legacy ZH -> EN seed).
    Every locale's 04 now shows the localized line.
-3. Keyboard frame: Notes instead of the Safari page; zh-Hans and zh-Hant only.
+3. Keyboard frame: zh-Hans and zh-Hant only; host app Messages, else Safari's start page (round 3; Notes is
+   not installed on the shared runtime).
 
 ## Open points for the coordinator
 - zh-Hant keyboard frame: keys in Simplified Chinese (system language); keep or drop zh-Hant's frame.
