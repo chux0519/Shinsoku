@@ -7,7 +7,8 @@ import XCTest
 ///   SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
 ///     tool/ios_keyboard_scene.sh <UDID> build/store/keyboard
 /// Host app, first one installed on the simulator (checked under SIMULATOR_ROOT/Applications before launching):
-///   1. Messages (com.apple.MobileSMS): New Message, recipient left empty, the text in the message body.
+///   1. Messages (com.apple.MobileSMS): the first existing thread (simulator fixture, +1 555 numbers), the text in
+///      its message field; never sent, cleared afterwards.
 ///   2. Safari's start page: the address/search field (start page behind it, no URL loaded).
 /// Neither installed → the test is skipped with a message (XCTSkip), nothing fails. Notes is not on the shared
 /// iPhone 17 runtime (2026-11-20).
@@ -18,8 +19,8 @@ import XCTest
 ///   PHASE-xx-store-<locale>-ready     the field focused, the Shinsoku keyboard up ("Latest text ready")
 ///   PHASE-xx-store-<locale>-inserted  after Insert: the text in the field (the store frame)
 /// tool/store_frames.py picks `light/PHASE-*-store-<locale>-inserted.png`.
-/// Messages: the compose sheet is cancelled and its draft discarded afterwards (best effort, SCENE line
-/// `compose-cancelled`). No contacts, keys or real names: the text is the store fixture text
+/// Messages: the inserted text is deleted (system keyboard) and the thread left (best effort, SCENE line
+/// `thread-cleared`). No contacts, keys or real names: the text is the store fixture text
 /// (mobile/test/host_review/store_fixtures.dart).
 final class StoreSceneTests: SceneTestCase {
     private let messages = XCUIApplication(bundleIdentifier: "com.apple.MobileSMS")
@@ -44,11 +45,8 @@ final class StoreSceneTests: SceneTestCase {
 
     /// Messages labels (English, zh-Hans, zh-Hant).
     private enum M {
-        static let compose = ["Compose", "New Message", "撰写", "撰寫", "新信息", "新訊息", "新建信息", "新增訊息"]
         static let onboarding = ["Continue", "继续", "繼續", "Not Now", "以后", "稍後", "OK", "好"]
         static let body = ["Message", "iMessage", "Text Message", "信息", "訊息", "短信", "簡訊", "文本信息", "文字訊息"]
-        static let cancel = ["Cancel", "取消"]
-        static let discard = ["Delete Draft", "Discard", "删除草稿", "刪除草稿", "删除", "刪除", "放弃", "放棄"]
     }
 
     /// Whether the app bundle is on the simulator runtime (launching a missing app fails the test outright).
@@ -111,48 +109,66 @@ final class StoreSceneTests: SceneTestCase {
             let value = (field.value as? String) ?? ""
             print("SCENE inserted \(store.locale): '\(value)'")
             check(value.contains(store.text), "\(store.locale)-field-text", "field: \(value)")
-            if host == .messages { cancelCompose(step: store.locale) }
+            if host == .messages { leaveThread(field, step: store.locale) }
         }
     }
 
     // MARK: Messages
 
-    /// Messages in the locale, New Message, recipient left empty; returns the focused message body.
+    override var extraFailureApps: [XCUIApplication] { [messages] }
+
+    /// Messages in the locale, the first existing thread (the simulator's fixture threads, +1 555 numbers),
+    /// its message input focused. iOS 27's list has no compose button in the tree (round 4 run).
     private func messageBody(arguments: [String], step: String) -> XCUIElement {
         messages.terminate()
         messages.launchArguments = arguments
         messages.launch()
-        let compose = messages.buttons.matching(NSPredicate(
-            format: "label IN %@ OR identifier IN[c] %@", M.compose, ["composeButton", "Compose"]
-        )).firstMatch
-        for _ in 0..<4 where !compose.waitForExistence(timeout: 3) {
+        let thread = messages.cells.firstMatch
+        for _ in 0..<4 where !thread.waitForExistence(timeout: 3) {
             let next = messages.buttons.matching(labelEquals: M.onboarding).firstMatch
             guard next.exists else { break }
             next.tap()
         }
-        tap(compose, "\(step)-messages-compose")
+        if thread.exists {
+            thread.tap()
+        } else {
+            // The list rows may not be exposed as cells: tap the first row (below the large title).
+            print("SCENE messages: no cell in the tree, tapping the first row by coordinate")
+            messages.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.22)).tap()
+        }
         let body = messages.descendants(matching: .any).matching(NSPredicate(
             format: "(elementType == %d OR elementType == %d) AND (identifier IN[c] %@ OR label IN %@ "
                 + "OR placeholderValue IN %@)",
             XCUIElement.ElementType.textView.rawValue, XCUIElement.ElementType.textField.rawValue,
-            ["messageBodyField", "messageBodyView"], M.body, M.body
+            ["messageBodyField", "messageBodyView", "MessageEntryView", "entryView"], M.body, M.body
         )).firstMatch
-        require(body, "\(step)-message-body", timeout: 10)
+        if !body.waitForExistence(timeout: 8) {
+            // Fall back to any text input in the conversation, then to the entry bar's position.
+            print("SCENE messages tree:\n\(messages.debugDescription)")
+            let any = messages.textViews.firstMatch.exists ? messages.textViews.firstMatch : messages.textFields.firstMatch
+            if any.exists {
+                any.tap()
+                return any
+            }
+            messages.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.93)).tap()
+            require(messages.textViews.firstMatch, "\(step)-message-body", timeout: 5)
+            return messages.textViews.firstMatch
+        }
         body.tap()
         return body
     }
 
-    /// Best effort, never fails: Cancel the compose sheet and discard the draft.
-    private func cancelCompose(step: String) {
-        let cancel = messages.buttons.matching(labelEquals: M.cancel).firstMatch
-        guard cancel.waitForExistence(timeout: 3) else {
-            print("SCENE compose-cancelled \(step): false (no Cancel)")
-            return
+    /// Best effort, never fails: clear the inserted text (nothing is sent) and leave the thread.
+    private func leaveThread(_ field: XCUIElement, step: String) {
+        let value = (field.value as? String) ?? ""
+        if !value.isEmpty {
+            restoreKeyboard(in: messages)
+            field.tap()
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count + 2))
         }
-        cancel.tap()
-        let discard = messages.buttons.matching(labelEquals: M.discard).firstMatch
-        if discard.waitForExistence(timeout: 3) { discard.tap() }
-        print("SCENE compose-cancelled \(step): true")
+        let left = ((field.value as? String) ?? "").isEmpty || (field.value as? String) == field.placeholderValue
+        print("SCENE thread-cleared \(step): \(left)")
+        messages.navigationBars.buttons.element(boundBy: 0).tap()
     }
 
     // MARK: Safari start page (fallback)

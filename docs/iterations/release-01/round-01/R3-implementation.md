@@ -39,8 +39,14 @@ SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
   bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh <iPhone 17 UDID> build/store/keyboard
 ```
 Optional `TEST_RUNNER_STORE_LOCALES=zh-Hans`. Round 3 (tier-B run: Notes is not installed on the shared
-iPhone 17 runtime): the host app is **Messages** (New Message, recipient left empty, the text in the body; the
-compose sheet is cancelled and the draft discarded afterwards), else **Safari's start page** (address/search
+iPhone 17 runtime): the host app is **Messages**, else **Safari's start page**. Round 4 (iOS 27's Messages list
+has no compose button in the tree): the first existing thread (`cells[0]`, the simulator's fixture threads
++1 (888) 555-1212 / +1 (555) 564-8583; coordinate tap on the first row if rows are not cells), its input field
+by identifier/placeholder (`messageBodyField`, `iMessage`, 信息/訊息/短信…), else any text view/field, else a tap
+on the entry bar; the Messages tree is printed to the log on that fallback and attached on failure
+(`extraFailureApps`; the FAIL tree used to be SpringBoard's). Nothing is sent: the inserted text is deleted with
+the system keyboard and the thread left (SCENE `thread-cleared`). The frame shows the fixture number (fictional
+555) in the thread header. Otherwise (address/search
 field, nothing loaded, no URL). The test checks `SIMULATOR_ROOT/Applications/{MobileSMS,MobileSafari}.app`
 before launching anything and skips (XCTSkip, clear message) when neither exists; SCENE lines `store-host`
 say which app was used. Per locale: seeds the fixture text as latest (Runner launched with `-AppleLanguages`),
