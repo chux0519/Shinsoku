@@ -1,6 +1,6 @@
 # Iteration release-01 — Shinsoku 1.0 on the App Store
 
-Status: **draft, waiting for the user's confirmation.** Base: `main` after pricing-01 (TestFlight 22, sandbox
+Status: **confirmed by the user 2026-11-20.** Base: `main` after pricing-01 (TestFlight 22, sandbox
 purchase passed). Goal: version 1.0.0 submitted for review with the Shinsoku Pro IAP.
 
 ## Decisions (user, 2026-11-19)
