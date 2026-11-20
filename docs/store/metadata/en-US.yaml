@@ -1,0 +1,42 @@
+# App Store metadata — en-US (release-01 R2). Check: python3 tool/store_metadata.py check
+name: "Shinsoku"
+subtitle: "Voice keyboard & AI dictation"
+promotional_text: |
+  Fast, accurate voice typing for every app. Bring your own Soniox or Bailian key, pay the provider only for what you use, and unlock Pro once. No subscription.
+keywords: "speech,text,talk,dictate,transcribe,transcription,typing,rewrite,translate,notes,hands-free,mic"
+description: |
+  Speak, and Shinsoku turns your voice into clean text, ready for whatever app you're typing in.
+
+  Words appear live while you talk. When you stop, AI clean-up tidies filler words and punctuation, and the Shinsoku keyboard inserts the result right where your cursor is.
+
+  BRING YOUR OWN KEY. NO SUBSCRIPTION.
+  Shinsoku needs an API key from a speech provider: Soniox or Bailian (Alibaba Cloud Model Studio). AI clean-up and translation use Bailian or another OpenAI-compatible service. You pay the provider directly, only for what you use. There's no Shinsoku account and no subscription.
+
+  FREE
+  • Live text while you speak, editable in place when you stop
+  • A keyboard for every app: tap Record, speak, then insert the text
+  • AI clean-up with built-in profiles: Dictation, Chat, Review and translation into English
+  • Switch profiles in the app or right from the keyboard
+  • Drafts: every recording is kept, ready to edit or copy
+  • Made for iPhone Duo: Record on one side, Drafts or Settings on the other
+
+  SHINSOKU PRO: ONE-TIME PURCHASE
+  • Custom profiles: write your own prompts and edit any profile
+  • Automatic switching per app: field rules for search, web address, email and message fields, plus Shortcuts actions
+  • Desktop: use your iPhone as a wireless microphone for Shinsoku on your Mac or PC
+  Family Sharing included.
+
+  PRIVATE BY DESIGN
+  • No account, no ads, no analytics
+  • Audio and text go straight from your iPhone to the provider you chose, with your key
+  • Your API keys stay on your device, in the iOS Keychain
+  • The keyboard sends nothing over the network. Full Access only lets it pick up the text you dictated in Shinsoku
+
+  GET STARTED
+  1. Create an API key with Soniox or Bailian and add it in Settings.
+  2. Add the keyboard: Settings › General › Keyboard › Keyboards › Add New Keyboard › Shinsoku, then turn on Allow Full Access.
+  3. Tap Record and start speaking.
+
+  Which languages you can speak depends on your provider. Soniox recognizes dozens of languages, including English, Chinese, Japanese, Korean, German, French, Spanish, Portuguese and Italian.
+whats_new: |
+  The first release of Shinsoku for iPhone.

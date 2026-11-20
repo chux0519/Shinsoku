@@ -1,21 +1,22 @@
 # release-01 round-01 — STATE
 
 ## Done
-- R1 (branch `release-01-r1-app`): iPhone only, 1.0.0 with the keyboard following the app version, privacy
-  manifests (app + keyboard), microphone usage string in 10 languages, key scan + M06 guard. Details and
-  checks: `R1-implementation.md`. Tier A + builds pass at `db8ddb3`.
+- R1 (merged, PR #47): iPhone only, 1.0.0, privacy manifests, microphone string in 10 languages, M06 guard.
+- R2 (branch `release-01-r2-metadata`): store metadata in 10 languages (`docs/store/`), `tool/store_metadata.py`
+  (check / push dry-run / --apply / review-zh), lint R08. Details: `R2-implementation.md`.
 
 ## In progress
 - R4 (website) — other worker.
 
 ## Next
-- Coordinator review/merge of R1; R2 (metadata) → R3 (screenshots) → R5.
+- Coordinator review/merge of R2; `python3 tool/store_metadata.py push --apply` (coordinator) once the user has
+  reviewed `docs/store/review-zh.md`. Then R3 (screenshots; captions from the metadata wording) → R5.
 
 ## Open decisions / user actions
 - `REVIEW_SONIOX_API_KEY` is not in `.env` yet.
-- Chinese review of the new microphone string (`docs/i18n/review-zh.md`, last section).
+- Chinese review of the store text: `docs/store/review-zh.md`.
+- Name: plain "Shinsoku" (current) or with a keyword ("Shinsoku: Voice Keyboard")?
 
-## How to verify R1
-`cd mobile && flutter build ios --simulator --debug --no-pub`, then check
-`build/ios/iphonesimulator/Runner.app{,/PlugIns/ShinsokuKeyboard.appex}/Info.plist` (1.0.0, same build,
-`UIDeviceFamily [1]`) and both `PrivacyInfo.xcprivacy`.
+## How to verify R2
+`python3 tool/store_metadata.py check` → ok; `python3 tool/review_lint.py` → all ok;
+`python3 tool/store_metadata.py push` → dry-run diff (24 changes at 849950f, nothing sent).
