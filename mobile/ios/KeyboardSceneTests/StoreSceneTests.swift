@@ -90,7 +90,10 @@ final class StoreSceneTests: SceneTestCase {
             let arguments = ["-AppleLanguages", "(\(store.language))", "-AppleLocale", store.region]
             // The locale's text becomes the latest, through the app's real publish path.
             runner.terminate()
-            launchRunner(["-ShinsokuSceneResetLatest", "YES", "-ShinsokuSceneSeedLatest", store.text] + arguments,
+            // Fresh built-in profiles in the locale (the keyboard's profile chip shows 听写 / 聽寫), the default
+            // selection, and the locale's text as the latest, through the app's real paths.
+            launchRunner(["-ShinsokuSceneResetProfiles", "YES", "-ShinsokuSceneResetSelection", "YES",
+                          "-ShinsokuSceneResetLatest", "YES", "-ShinsokuSceneSeedLatest", store.text] + arguments,
                          shotName: "store-\(store.locale)-app")
 
             let app = host == .messages ? messages : safari
@@ -211,17 +214,33 @@ final class StoreSceneTests: SceneTestCase {
         print("SCENE system keyboard restored: \(!hostKey(app, "Record").exists)")
     }
 
+    /// The globe follows the host app's language: in a zh-Hant app it reads 下一個鍵盤 (round 5 run).
+    private static let globeLabels = L.nextKeyboard + ["下一個鍵盤", "切換鍵盤"]
+
+    /// zh-Hant forms of the keyboard strings this scene matches (tool/i18n/native.json), in case the extension
+    /// follows the host app's language; `variants` covers English and zh-Hans.
+    private static let keyboardZhHant: [String: String] = [
+        "Record": "錄音",
+        "Latest text ready": "最新的文字已就緒",
+        "Insert latest text": "插入最新的文字",
+        "Inserted": "已插入",
+    ]
+
+    private static func labels(_ english: String) -> [String] {
+        variants(english) + [keyboardZhHant[english]].compactMap { $0 }
+    }
+
     private func hostGlobe(_ app: XCUIApplication) -> XCUIElement {
         app.buttons.matching(
-            NSPredicate(format: "label IN[c] %@ OR identifier IN[c] %@", L.nextKeyboard, L.nextKeyboard)
+            NSPredicate(format: "label IN[c] %@ OR identifier IN[c] %@", Self.globeLabels, Self.globeLabels)
         ).firstMatch
     }
 
     private func hostKey(_ app: XCUIApplication, _ label: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(labelEquals: Self.variants(label)).firstMatch
+        app.descendants(matching: .any).matching(labelEquals: Self.labels(label)).firstMatch
     }
 
     private func hostStatus(_ app: XCUIApplication, _ text: String) -> XCUIElement {
-        app.staticTexts.matching(labelEquals: Self.variants(text)).firstMatch
+        app.staticTexts.matching(labelEquals: Self.labels(text)).firstMatch
     }
 }

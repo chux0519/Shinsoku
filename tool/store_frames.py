@@ -207,6 +207,43 @@ def compose(locale: str, scene: str, screen: Image.Image, look: str) -> Image.Im
     return canvas
 
 
+def clean_status_bar(img: Image.Image) -> Image.Image:
+    """Simulator frames: replace the top 54 pt (the status bar, with the '◀ Shinsoku' breadcrumb and the charging
+    battery) by a clean 9:41 bar like the host renders draw. Geometry from the iPhone 17 status bar (402 pt wide,
+    positions from the scene's element tree); colours follow the background just below the strip."""
+    img = img.convert('RGB')
+    k = img.width / 402
+    strip = round(54 * k)
+    bg = img.getpixel((img.width // 2, strip + round(4 * k)))
+    lum = 0.2126 * bg[0] + 0.7152 * bg[1] + 0.0722 * bg[2]
+    fg = (0, 0, 0) if lum > 140 else (255, 255, 255)
+    faint = tuple(round(f * 0.4 + b * 0.6) for f, b in zip(fg, bg))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, img.width, strip], fill=bg)
+    f = font('en-US', round(17 * k), 600)
+    d.text((round(73.5 * k), round(25 * k)), '9:41', font=f, fill=fg, anchor='mm')
+    # cellular: 4 bars in 19.3 × 13 pt at (288, 25.7)
+    x0, y1 = 288 * k, (25.7 + 13) * k
+    for i, h in enumerate((4.5, 7, 9.5, 12)):
+        x = x0 + i * 5.1 * k
+        d.rounded_rectangle([x, y1 - h * k, x + 3.4 * k, y1], radius=1 * k, fill=fg)
+    # wi-fi: 3 arcs in 17 × 12.3 pt at (314.7, 26.3)
+    cx, cy = (314.7 + 8.5) * k, (26.3 + 12.3) * k
+    for r, w in ((12.3, 2.6), (8.2, 2.6), (3.6, 3.6)):
+        box = [cx - r * k, cy - r * k, cx + r * k, cy + r * k]
+        if r < 4:
+            d.pieslice(box, 225, 315, fill=fg)
+        else:
+            d.arc(box, 225, 315, fill=fg, width=round(w * k))
+    # battery: 27.7 × 13 pt at (339, 26.3), full
+    bx, by, bw, bh = 339 * k, 26.3 * k, 25 * k, 13 * k
+    d.rounded_rectangle([bx, by, bx + bw, by + bh], radius=4 * k, outline=faint, width=max(1, round(1 * k)))
+    pad = 2 * k
+    d.rounded_rectangle([bx + pad, by + pad, bx + bw - pad, by + bh - pad], radius=2.5 * k, fill=fg)
+    d.rounded_rectangle([bx + bw + 1 * k, by + 4.5 * k, bx + bw + 2.6 * k, by + bh - 4.5 * k], radius=1 * k, fill=faint)
+    return img
+
+
 def raw_for(locale: str, scene: str, look: str):
     if scene == 'keyboard':
         p = KEYBOARD / f'{locale}.png'  # a hand-picked frame wins
@@ -291,6 +328,8 @@ def main():
                 continue
             n += 1
             img = Image.open(src)
+            if scene == 'keyboard':
+                img = clean_status_bar(img)
             if scene != 'keyboard' and img.size != (W, H):
                 print(f'FAIL {loc}/{scene}: render is {img.size}, expected {(W, H)}')
                 status = 1

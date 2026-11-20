@@ -59,6 +59,20 @@ locales ship 6 screenshots. Not run on a simulator by me: Messages labels (compo
 discard) are matched in en/zh-Hans/zh-Hant plus known identifiers; a failed step attaches `FAIL-<step>` with
 the element tree.
 
+## Keyboard frame round 5 (coordinator run: zh-Hans 02 ok)
+1. zh-Hant failed at "shinsoku-keyboard": in a zh-Hant host app the globe reads 下一個鍵盤 (system keyboard UI
+   follows the app's language). The scene now matches 下一個鍵盤/切換鍵盤 too, and the zh-Hant forms of the four
+   keyboard strings it uses (錄音, 最新的文字已就緒, 插入最新的文字, 已插入; tool/i18n/native.json).
+2. Profile chip showed "Dictation": profiles stored by earlier English scenes. New DEBUG hook
+   `-ShinsokuSceneResetProfiles YES` (AppDelegate, `#if DEBUG`, before the engine starts, like the other scene
+   hooks): deletes the flutter_secure_storage item `voice_profiles.v1` (service
+   `flutter_secure_storage_service`), so `VoiceProfileStore.load` creates the built-ins in the launch language
+   (听写 / 聽寫) and publishes them for the keyboard; provider settings and the region marker stay. The scene
+   also passes `-ShinsokuSceneResetSelection YES`. Nothing is uninstalled. (A Dart-side hook over the channel
+   was tried first; its extra round trip at launch broke 6 shell tests' timing, so it is native only.)
+3. `store_frames.py` `clean_status_bar()`: simulator frames get their top 54 pt replaced by a clean 9:41 bar
+   (signal, Wi-Fi, full battery; colours from the background below), no breadcrumb, no charging battery.
+
 ## Round 2 (coordinator review)
 1. 04-profiles starts at the Profiles heading (own page, see above); checked in all 10 locales.
 2. The translation profile's list subtitle was the English prompt (real app behaviour). Fixed in the app:
