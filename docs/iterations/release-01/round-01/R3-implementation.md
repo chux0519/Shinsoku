@@ -32,7 +32,7 @@ Nothing was sent to App Store Connect (dry run only).
   must mark the break with `|`** (character breaks split words, e.g. 电/脑) — `--check` fails otherwise.
   Pseudo-length check: English captions +40 % must still fit. Result: all fit at 96 px.
 
-## Keyboard frame (tier B, coordinator) — round 2: Notes, zh-Hans + zh-Hant only
+## Keyboard frame (tier B, coordinator): Messages or Safari start page, zh-Hans + zh-Hant only
 `KeyboardSceneTests/StoreSceneTests.swift` (in the test target; `--build-only` passes):
 ```
 SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
