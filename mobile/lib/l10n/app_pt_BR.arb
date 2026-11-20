@@ -136,6 +136,7 @@
   "profileChatIntent": "Deixar o texto curto e informal",
   "profileReviewName": "Revisar",
   "profileReviewIntent": "Segurar o texto para revisão manual",
+  "profileTranslationDescription": "Traduzir a fala para o inglês",
   "profileZhToEnName": "ZH → EN",
   "profileZhToEnIntent": "Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
   "profileTranslateToEnName": "Traduzir → EN",

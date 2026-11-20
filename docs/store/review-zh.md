@@ -13,6 +13,18 @@ How to review: mark a row (or write the better wording next to it) and send it b
 | Keywords (≤100 bytes) | speech,text,talk,dictate,transcribe,transcription,typing,rewrite,translate,notes,hands-free,mic | 听写,语音转文字,转写,打字,录音转文字,翻译,润色,笔记,输入法,口述,速记 | 聽寫,語音轉文字,轉錄,打字,錄音轉文字,翻譯,潤飾,筆記,輸入法,口述,速記 |
 | What's New | The first release of Shinsoku for iPhone. | Shinsoku 的首个 iPhone 版本。 | Shinsoku 的第一個 iPhone 版本。 |
 
+## Screenshot captions (upload order)
+
+| Scene | English | 简体中文 (zh-Hans) | 繁體中文 (zh-Hant) |
+|---|---|---|---|
+| record-live | See your words as you speak | 边说边出字 | 邊說邊出字 |
+| keyboard | Dictate in any app with the keyboard | 在任何 App 里\|用键盘语音输入 | 在任何 App 裡\|用鍵盤語音輸入 |
+| record-done | Clean text, ready to edit and insert | 说完即得整洁文字\|可改可插入 | 說完即得整齊文字\|可改可插入 |
+| drafts | Every recording kept as a draft | 每次录音都存为草稿 | 每次錄音都存為草稿 |
+| profiles | Profiles for every way you write | 不同场景，用不同模式 | 不同情境，用不同模式 |
+| field-rules | The right profile for each field | 不同输入框，自动换模式 | 不同輸入欄位\|自動換模式 |
+| desktop | Your iPhone as a mic for Mac or PC | iPhone 变成\|电脑的无线麦克风 | iPhone 變成\|電腦的無線麥克風 |
+
 ## App-level (all languages)
 
 | Field | Value |

@@ -23,6 +23,7 @@ class NearbyMicrophoneView extends StatefulWidget {
   const NearbyMicrophoneView({
     required this.profiles,
     @visibleForTesting this.initialDesktops = const [],
+    @visibleForTesting this.previewConnected = false,
     super.key,
   });
 
@@ -31,6 +32,10 @@ class NearbyMicrophoneView extends StatefulWidget {
   /// Host renders only: start with these desktops listed and the first one
   /// selected (untrusted), without discovery.
   final List<NearbyDesktop> initialDesktops;
+
+  /// Host renders only (store screenshots): show the first of
+  /// [initialDesktops] as trusted and connected, with no connection made.
+  final bool previewConnected;
 
   @override
   State<NearbyMicrophoneView> createState() => _NearbyMicrophoneViewState();
@@ -65,7 +70,7 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
   bool get _recording =>
       _audioSubscription != null ||
       _client.state == NearbyConnectionState.streaming;
-  bool get _connected => _client.authenticated;
+  bool get _connected => widget.previewConnected || _client.authenticated;
 
   @override
   void initState() {
@@ -78,6 +83,16 @@ class _NearbyMicrophoneViewState extends State<NearbyMicrophoneView> {
         logText: 'Verify the desktop fingerprint',
         code: 'verify_fingerprint',
       );
+      if (widget.previewConnected) {
+        _trusted = true;
+        _fingerprintConfirmed = true;
+        _status = NearbyClientStatus(
+          state: NearbyConnectionState.authenticated,
+          logText: 'Connected',
+          code: 'connected',
+          arg: widget.initialDesktops.first.serviceName,
+        );
+      }
     }
     _statusSubscription = _client.statuses.listen((status) {
       if (mounted) {

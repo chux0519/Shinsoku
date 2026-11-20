@@ -40,3 +40,12 @@ description: |
   Los idiomas que se reconocen dependen del proveedor. Soniox reconoce decenas de idiomas, entre ellos español, inglés, chino, japonés, coreano, alemán, francés, portugués e italiano.
 whats_new: |
   Primera versión de Shinsoku para iPhone.
+# Screenshot captions (R3), in upload order; tool/store_frames.py wraps them to at most 2 lines.
+captions:
+  record-live: "Tus palabras aparecen en directo"
+  keyboard: "Dicta en cualquier app con el teclado"
+  record-done: "Texto limpio, listo para insertar"
+  drafts: "Cada grabación se guarda como borrador"
+  profiles: "Un perfil para cada forma de escribir"
+  field-rules: "El perfil adecuado para cada campo"
+  desktop: "Tu iPhone como micro para Mac o PC"

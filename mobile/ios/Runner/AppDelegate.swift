@@ -1,5 +1,6 @@
 import Flutter
 import OSLog
+import Security
 import UIKit
 
 // iPhone Duo division regions (the fold), bridged to Dart as
@@ -165,6 +166,24 @@ final class DivisionRegionStream: NSObject, FlutterStreamHandler {
     applySceneProfileArguments(
       resetSelection: value(after: "-ShinsokuSceneResetSelection") == "YES"
     )
+    if value(after: "-ShinsokuSceneResetProfiles") == "YES" {
+      resetStoredProfiles()
+    }
+  }
+
+  /// release-01 R3 scene hook: `-ShinsokuSceneResetProfiles YES` deletes Dart's stored profile list
+  /// (flutter_secure_storage: generic password, service `flutter_secure_storage_service`, account
+  /// `voice_profiles.v1`) before the engine starts, so `VoiceProfileStore.load` creates the built-ins in the
+  /// launch language again and publishes them for the keyboard. The region-defaults marker stays, so provider
+  /// settings are untouched.
+  private static func resetStoredProfiles() {
+    let query: [CFString: Any] = [
+      kSecClass: kSecClassGenericPassword,
+      kSecAttrService: "flutter_secure_storage_service",
+      kSecAttrAccount: "voice_profiles.v1",
+    ]
+    let status = SecItemDelete(query as CFDictionary)
+    log.notice("scene reset profiles: status=\(status)")
   }
 
   private static func applySceneProfileArguments(resetSelection: Bool) {

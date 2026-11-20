@@ -52,6 +52,11 @@ API key (kept as "API" + the local word for key), Wi-Fi (de: WLAN, as on iOS), i
 | Translate -> EN | 翻訳→英 | 翻譯→英 | 번역→영 | Übersetzen → EN | Traducir → EN | 翻译→英 | Traduire → EN | Traduzir → EN | Traduci → EN |
 | JA / KO / DE / ES / FR / PT / IT -> EN | 日→英 | — | 한→영 | DE → EN | ES → EN | — | FR → EN | PT → EN | IT → EN |
 
+Translation profile description in the profile list (`profileTranslationDescription`; the instruction sent to the
+model stays English): ja 話した内容を英語に翻訳 · zh-Hant 把說的話翻譯成英文 · ko 말한 내용을 영어로 번역 ·
+de Gesprochenes ins Englische übersetzen · es Traducir lo hablado al inglés · zh-Hans 把说的话翻译成英文 ·
+fr Traduire la parole en anglais · pt-BR Traduzir a fala para o inglês · it Tradurre il parlato in inglese.
+
 Only the translation profile of the device's own language is created (I3), so each language needs only its own
 short form; the rest are filled for completeness (e.g. ja `韓→英`, zh `日→英`).
 

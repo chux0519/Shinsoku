@@ -588,12 +588,15 @@ class SceneTestCase: XCTestCase {
     }
 
     /// `FAIL-<step>`: screenshot, element tree of the foreground app, and SpringBoard's (system snippets, alerts).
+    /// Other apps a scene drives (e.g. Messages in StoreSceneTests): considered for the foreground tree.
+    var extraFailureApps: [XCUIApplication] { [] }
+
     func attachFailure(_ step: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "FAIL-\(step)"
         attachment.lifetime = .keepAlways
         add(attachment)
-        let foreground = [safari, settings, shortcuts, runner, springboard]
+        let foreground = (extraFailureApps + [safari, settings, shortcuts, runner, springboard])
             .first { $0.state == .runningForeground } ?? springboard
         let trees = [("", foreground), ("-springboard", springboard)]
         for (suffix, app) in trees where suffix.isEmpty || app != foreground {

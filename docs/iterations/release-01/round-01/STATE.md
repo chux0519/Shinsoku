@@ -6,6 +6,10 @@
   (check / push dry-run / --apply / review-zh), lint R08. Details: `R2-implementation.md`.
 
 ## In progress
+- R3 (branch `release-01-r3-screenshots`, PR open): store screenshots 6 host scenes × 10 locales,
+  framing, upload dry run, StoreSceneTests (Messages, else Safari start page) for the keyboard frame, zh-Hans only (passed on iPhone 17);
+  final: zh-Hans 7 screenshots, other locales 6 (61 total). Next: coordinator review/merge, then
+  `python3 tool/store_screenshots.py --apply`. Details: `R3-implementation.md`.
 - R4 (website) — other worker.
 
 ## Next
@@ -20,3 +24,7 @@
 ## How to verify R2
 `python3 tool/store_metadata.py check` → ok; `python3 tool/review_lint.py` → all ok;
 `python3 tool/store_metadata.py push` → dry-run diff (24 changes at 849950f, nothing sent).
+
+## How to verify R3
+`tool/store_shots.sh` → `build/venv-store/bin/python tool/store_frames.py` → open
+`build/store/screenshots/index.html`; `python3 tool/store_screenshots.py` (dry run).

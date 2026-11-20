@@ -458,6 +458,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get profileReviewIntent => 'Text zur manuellen Prüfung zurückhalten';
 
   @override
+  String get profileTranslationDescription =>
+      'Gesprochenes ins Englische übersetzen';
+
+  @override
   String get profileZhToEnName => 'ZH → EN';
 
   @override

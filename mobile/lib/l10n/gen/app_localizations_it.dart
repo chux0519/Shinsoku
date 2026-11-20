@@ -457,6 +457,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get profileReviewIntent => 'Tenere il testo per una revisione manuale';
 
   @override
+  String get profileTranslationDescription => 'Tradurre il parlato in inglese';
+
+  @override
   String get profileZhToEnName => 'ZH → EN';
 
   @override

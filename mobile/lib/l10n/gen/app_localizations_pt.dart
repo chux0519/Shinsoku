@@ -454,6 +454,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get profileReviewIntent => 'Segurar o texto para revisão manual';
 
   @override
+  String get profileTranslationDescription => 'Traduzir a fala para o inglês';
+
+  @override
   String get profileZhToEnName => 'ZH → EN';
 
   @override
@@ -1332,6 +1335,9 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get profileReviewIntent => 'Segurar o texto para revisão manual';
+
+  @override
+  String get profileTranslationDescription => 'Traduzir a fala para o inglês';
 
   @override
   String get profileZhToEnName => 'ZH → EN';

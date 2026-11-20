@@ -438,6 +438,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get profileReviewIntent => '직접 검토하도록 텍스트를 보류';
 
   @override
+  String get profileTranslationDescription => '말한 내용을 영어로 번역';
+
+  @override
   String get profileZhToEnName => '중→영';
 
   @override

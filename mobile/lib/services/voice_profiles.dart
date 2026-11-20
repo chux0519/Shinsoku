@@ -165,6 +165,22 @@ VoiceProfile translationProfile(AppLocalizations l, String? source) {
   );
 }
 
+/// The one-line description of [profile] in profile lists. The built-in
+/// translation profiles' instructions are English on purpose (they go to the
+/// AI model), so while one is unchanged the list shows a short description in
+/// [l]'s language instead; an edited instruction shows as written.
+String profileListDescription(AppLocalizations l, VoiceProfile profile) {
+  if (profile.id == zhToEnProfileId || profile.id == translateToEnProfileId) {
+    final intent = profile.intent.trim();
+    final builtIn = {
+      for (final source in [...translationSourceLanguages, null])
+        translationProfile(l, source).intent.trim(),
+    };
+    if (builtIn.contains(intent)) return l.profileTranslationDescription;
+  }
+  return profile.intent;
+}
+
 class VoiceProfileStore {
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),

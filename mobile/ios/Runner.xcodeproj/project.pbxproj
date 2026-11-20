@@ -27,6 +27,7 @@
 		8A6D123601B1C0D000000001 /* SceneSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123701B1C0D000000001 /* SceneSupport.swift */; };
 		8A6D123801B1C0D000000001 /* ProfileKeyboardSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */; };
 		8A6D123A01B1C0D000000001 /* LiveSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */; };
+		8A6D125A01B1C0D000000001 /* StoreSceneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D125B01B1C0D000000001 /* StoreSceneTests.swift */; };
 		8A6D124001B1C0D000000001 /* KeyboardProfileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124101B1C0D000000001 /* KeyboardProfileResolver.swift */; };
 		8A6D124201B1C0D000000001 /* KeyboardProfileButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */; };
 		8A6D124401B1C0D000000001 /* ProfileGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6D123101B1C0D000000001 /* ProfileGroup.swift */; };
@@ -131,6 +132,7 @@
 		8A6D123701B1C0D000000001 /* SceneSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneSupport.swift; sourceTree = "<group>"; };
 		8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileKeyboardSceneTests.swift; sourceTree = "<group>"; };
 		8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSceneTests.swift; sourceTree = "<group>"; };
+		8A6D125B01B1C0D000000001 /* StoreSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreSceneTests.swift; sourceTree = "<group>"; };
 		8A6D125101B1C0D000000001 /* ProStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProStore.swift; sourceTree = "<group>"; };
 		8A6D125301B1C0D000000001 /* Shinsoku.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Shinsoku.storekit; sourceTree = "<group>"; };
 		8A6D125501B1C0D000000001 /* ProSceneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProSceneTests.swift; sourceTree = "<group>"; };
@@ -231,6 +233,7 @@
 				8A6D123701B1C0D000000001 /* SceneSupport.swift */,
 				8A6D123901B1C0D000000001 /* ProfileKeyboardSceneTests.swift */,
 				8A6D123B01B1C0D000000001 /* LiveSceneTests.swift */,
+				8A6D125B01B1C0D000000001 /* StoreSceneTests.swift */,
 				8A6D125501B1C0D000000001 /* ProSceneTests.swift */,
 			);
 			path = KeyboardSceneTests;
@@ -623,6 +626,7 @@
 				8A6D123601B1C0D000000001 /* SceneSupport.swift in Sources */,
 				8A6D123801B1C0D000000001 /* ProfileKeyboardSceneTests.swift in Sources */,
 				8A6D123A01B1C0D000000001 /* LiveSceneTests.swift in Sources */,
+				8A6D125A01B1C0D000000001 /* StoreSceneTests.swift in Sources */,
 				8A6D125401B1C0D000000001 /* ProSceneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
