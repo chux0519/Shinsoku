@@ -59,9 +59,11 @@ fi
 # (.env included) without printing the values.
 CHECK_DIR="$(mktemp -d)"
 unzip -q "$IPA_PATH" -d "$CHECK_DIR"
+CHECKED=0
 for var in $(compgen -v | grep -E '_API_KEY$' | grep -v '^APPSTORE_'); do
   value="${!var:-}"
   [[ ${#value} -ge 8 ]] || continue
+  CHECKED=$((CHECKED + 1))
   if grep -rqaF -- "$value" "$CHECK_DIR"; then
     rm -rf "${CHECK_DIR:?}"
     echo "M06: the value of $var was found inside the IPA; refusing to upload." >&2
@@ -70,6 +72,11 @@ for var in $(compgen -v | grep -E '_API_KEY$' | grep -v '^APPSTORE_'); do
   echo "M06: $var not in IPA"
 done
 rm -rf "${CHECK_DIR:?}"
+# A worktree has no .env: then nothing was compared and the check would pass silently.
+if [[ $CHECKED -eq 0 ]]; then
+  echo "M06: no *_API_KEY value to check (no .env next to mobile/?); refusing to upload." >&2
+  exit 1
+fi
 
 xcrun altool --upload-app \
   --type ios \
