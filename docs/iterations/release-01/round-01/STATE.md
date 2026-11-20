@@ -7,7 +7,8 @@
 
 ## In progress
 - R3 (branch `release-01-r3-screenshots`, PR open): store screenshots 6 host scenes × 10 locales,
-  framing, upload dry run, StoreSceneTests for the keyboard frame. Details: `R3-implementation.md`.
+  framing, upload dry run, StoreSceneTests (Notes, zh-Hans/zh-Hant) for the keyboard frame; round 2 done
+  (Profiles page, localized translation-profile description in the app). Details: `R3-implementation.md`.
 - R4 (website) — other worker.
 
 ## Next
@@ -15,8 +16,7 @@
   reviewed `docs/store/review-zh.md`. Then R3 (screenshots; captions from the metadata wording) → R5.
 
 ## Open decisions / user actions
-- R3 keyboard frame: the keyboard extension shows the system language (Chinese on the shared simulators) in
-  every locale — keyboard frame for zh only, or a temporary simulator language switch (user's call).
+- R3 keyboard frame: zh-Hans + zh-Hant only (decided); zh-Hant's keys show Simplified (system language) — keep or drop.
 - `REVIEW_SONIOX_API_KEY` is not in `.env` yet.
 - Chinese review of the store text: `docs/store/review-zh.md`.
 - Name: plain "Shinsoku" (current) or with a keyword ("Shinsoku: Voice Keyboard")?

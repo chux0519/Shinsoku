@@ -9,9 +9,9 @@ Nothing was sent to App Store Connect (dry run only).
    (9:41, full bars, full battery), Pro owned. One flutter process per locale (UI font loaded once).
    Output `build/store/raw/<locale>/NN-<scene>-<theme>.png` + `.json` (cut paragraphs listed).
    Scenes: record-live (mid-sentence, pending words dimmed), record-done (cleaned text + "Dictation · default"),
-   drafts (5 drafts incl. a translation and the custom profile), profiles (Settings scrolled to Profiles:
-   4 built-ins in the locale + custom "Polite email"; Soniox selected so no provider URL shows, key field off
-   screen and empty), field-rules (Email → custom profile, picker open), desktop (paired + connected to
+   drafts (5 drafts incl. a translation and the custom profile), profiles (round 2: Settings › Profiles on its
+   own page under a "Profiles" title — `SettingsProfilesSection`, extracted from Settings unchanged — so the
+   screen starts at the heading: 4 built-ins in the locale + custom "Polite email"), field-rules (Email → custom profile, picker open), desktop (paired + connected to
    `example-mac`, 192.0.2.10).
    Fixtures: `store_fixtures.dart`, natural text per locale, no names/hosts/keys.
 2. `build/venv-store/bin/python tool/store_frames.py [--look light|dark] [--locales …] [--check]`: Pillow from
@@ -32,25 +32,35 @@ Nothing was sent to App Store Connect (dry run only).
   must mark the break with `|`** (character breaks split words, e.g. 电/脑) — `--check` fails otherwise.
   Pseudo-length check: English captions +40 % must still fit. Result: all fit at 96 px.
 
-## Keyboard frame (tier B, coordinator)
+## Keyboard frame (tier B, coordinator) — round 2: Notes, zh-Hans + zh-Hant only
 `KeyboardSceneTests/StoreSceneTests.swift` (in the test target; `--build-only` passes):
 ```
 SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
   bash /Volumes/ZT/dev/Xcode/with-xcode.sh 27.2 bash tool/ios_keyboard_scene.sh <iPhone 17 UDID> build/store/keyboard
 ```
-Optional `TEST_RUNNER_STORE_LOCALES=en-US,zh-Hans,ja`. Per locale: seeds the fixture text as latest (Runner
-launched with `-AppleLanguages`), opens a chat-style `data:` page in Safari in that language, Shinsoku
-keyboard → Insert; PHASE `store-<locale>-ready` / `-inserted`. `SCENE_STATUS_BAR=clean` (new) overrides the
-status bar to 9:41 and clears it on exit. Then rerun `store_frames.py`: it picks
-`build/store/keyboard/light/PHASE-*-store-<locale>-inserted.png` (or `build/store/keyboard/<locale>.png`) as
-02-keyboard; without it each locale has 6 screenshots.
+Optional `TEST_RUNNER_STORE_LOCALES=zh-Hans`. Per locale: seeds "title\nbody" (fixture text) as latest (Runner
+launched with `-AppleLanguages`), opens **Notes** in that language (dismisses first-run sheets, New Note), Shinsoku
+keyboard → Insert; PHASE `store-<locale>-ready` / `-inserted`; then deletes the note (best effort, SCENE line
+`note-deleted`). No Safari, no `data:` URL. The shared simulator's language is never changed, so the keyboard
+keys show the system language (zh-Hans); the zh-Hant frame has Simplified keyboard labels next to a Traditional
+note. `SCENE_STATUS_BAR=clean` overrides the status bar to 9:41 and clears it on exit. Then rerun
+`store_frames.py`: it picks `build/store/keyboard/light/PHASE-*-store-<locale>-inserted.png` (or
+`build/store/keyboard/<locale>.png`) as 02-keyboard for zh-Hans/zh-Hant (`KEYBOARD_LOCALES`); the other locales
+ship 6 screenshots. Not run on a simulator by me: Notes labels (compose, onboarding, delete) are matched in
+en/zh-Hans/zh-Hant with a toolbar fallback; a failed step attaches `FAIL-<step>` with the element tree.
+
+## Round 2 (coordinator review)
+1. 04-profiles starts at the Profiles heading (own page, see above); checked in all 10 locales.
+2. The translation profile's list subtitle was the English prompt (real app behaviour). Fixed in the app:
+   `profileListDescription()` shows the new ARB string `profileTranslationDescription` (10 languages + pseudo,
+   glossary note) for the built-in translation profiles while their instruction is unchanged; the instruction
+   (sent to the model) stays English; an edited one shows as written. Test:
+   `test/services/profile_list_description_test.dart` (10 locales, edited prompt, legacy ZH -> EN seed).
+   Every locale's 04 now shows the localized line.
+3. Keyboard frame: Notes instead of the Safari page; zh-Hans and zh-Hant only.
 
 ## Open points for the coordinator
-- **Keyboard language:** the extension follows the *system* language (shared simulators are Chinese, must not
-  change), so keyboard keys read Chinese in every locale's frame (the SCENE line `keyboard-language` records
-  it). Options: use the keyboard frame only for zh-Hans/zh-Hant (others ship 6 screenshots), or ask the user
-  to allow a temporary simulator language switch.
-- Safari's minimized address capsule shows `data:` in the keyboard frame.
+- zh-Hant keyboard frame: keys in Simplified Chinese (system language); keep or drop zh-Hant's frame.
 - ASC en-US also has old `APP_IPHONE_65` and `APP_IPAD_PRO_129` sets; the script leaves other display types
   alone (the iPad set may need deleting by hand since 1.0 is iPhone-only).
 - Fixture texts are duplicated in `StoreSceneTests.swift` (Swift cannot read the Dart file); keep in sync.
@@ -60,8 +70,8 @@ status bar to 9:41 and clears it on exit. Then rerun `store_frames.py`: it picks
 - `host_fonts.dart`: font loading moved out of `host_review_test.dart` (shared; host review unchanged,
   smoke-run en + ja).
 
-## Verified at this commit
+## Verified (round 2)
 `flutter analyze` clean; `tool/test_diff.sh` no new failures; `python3 tool/review_lint.py` all ok;
 `store_metadata.py check` ok; `store_frames.py --check` ok; 60 screenshots rendered + framed and reviewed on
-the contact sheet; `tool/ios_keyboard_scene.sh --build-only` TEST BUILD SUCCEEDED (generated files restored);
+the contact sheet (all ten 04 rechecked); profile_list_description_test passes; `tool/ios_keyboard_scene.sh --build-only` TEST BUILD SUCCEEDED (generated files restored);
 `store_screenshots.py` dry run: 10 locales, new APP_IPHONE_67 sets, 6 files each, nothing sent.
