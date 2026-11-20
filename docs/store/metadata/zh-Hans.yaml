@@ -1,0 +1,42 @@
+# App Store metadata — zh-Hans (release-01 R2). Mainland-neutral (Singapore, Malaysia, overseas readers).
+name: "Shinsoku"
+subtitle: "AI 语音输入键盘，说完即成文字"
+promotional_text: |
+  在任何 App 里快速、准确地用语音打字。使用你自己的 Soniox 或 Bailian API 密钥，按用量直接付给服务商；Pro 一次买断，没有订阅。
+keywords: "听写,语音转文字,转写,打字,录音转文字,翻译,润色,笔记,输入法,口述,速记"
+description: |
+  开口说话，Shinsoku 就把你的声音变成整洁的文字，直接用在你正在输入的 App 里。
+
+  说话时文字实时出现；说完后，AI 后处理会去掉口头禅、补好标点，再由 Shinsoku 键盘插入到光标所在的位置。
+
+  自带密钥，没有订阅
+  Shinsoku 需要语音识别服务的 API 密钥：Soniox 或 Bailian（Alibaba Cloud Model Studio）。AI 后处理和翻译使用 Bailian 或其他兼容 OpenAI 的服务。费用按用量直接付给服务商。没有 Shinsoku 账户，也没有订阅。
+
+  免费功能
+  • 边说边出字，说完可直接在原处修改
+  • 适用于所有 App 的键盘：轻点“录音”，说话，然后插入文字
+  • 内置模式的 AI 后处理：听写、聊天、检查，以及翻译成英文
+  • 在 App 里或直接在键盘上切换模式
+  • 草稿：每次录音都会保留，可随时编辑或复制
+  • 为 iPhone Duo 设计：展开后一边录音，另一边看草稿或设置
+
+  SHINSOKU PRO：一次买断
+  • 自定模式：编写自己的提示词，编辑任何模式
+  • 按 App 自动切换：搜索、网址、邮件、消息等输入框规则，以及快捷指令操作
+  • 电脑：把 iPhone 当作 Mac 或 PC 上 Shinsoku 的无线麦克风
+  支持家人共享。
+
+  重视隐私
+  • 无需账户，没有广告，没有数据分析
+  • 音频和文字从你的 iPhone 直接发送到你选择的服务商，使用的是你的密钥
+  • API 密钥只保存在你的设备上（iOS 钥匙串）
+  • 键盘不会通过网络发送任何内容；“完全访问”只用于读取你在 Shinsoku 里说出的文字
+
+  开始使用
+  1. 在 Soniox 或 Bailian 创建 API 密钥，并在 Shinsoku 的设置中添加。
+  2. 添加键盘：设置 › 通用 › 键盘 › 键盘 › 添加新键盘 › Shinsoku，然后打开“允许完全访问”。
+  3. 轻点“录音”，开始说话。
+
+  能识别哪些语言取决于你的服务商。Soniox 支持数十种语言，包括中文、英文、日文、韩文、德文、法文、西班牙文、葡萄牙文和意大利文。
+whats_new: |
+  Shinsoku 的首个 iPhone 版本。

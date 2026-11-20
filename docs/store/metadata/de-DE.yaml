@@ -1,0 +1,42 @@
+# App Store metadata — de-DE (release-01 R2). "du", as in Apple's German iOS text.
+name: "Shinsoku"
+subtitle: "Sprache zu Text, in jeder App"
+promotional_text: |
+  Schnell und genau per Stimme schreiben, in jeder App. Mit deinem eigenen Soniox- oder Bailian-Schlüssel zahlst du nur, was du nutzt. Pro kaufst du einmal. Kein Abo.
+keywords: "diktieren,diktat,spracheingabe,tastatur,transkribieren,transkription,KI,schreiben,übersetzen"
+description: |
+  Sprich einfach – Shinsoku macht aus deiner Stimme sauberen Text, direkt für die App, in der du gerade schreibst.
+
+  Die Wörter erscheinen live, während du sprichst. Danach räumt die KI-Nachbearbeitung Füllwörter und Satzzeichen auf, und die Shinsoku-Tastatur fügt das Ergebnis genau an der Cursorposition ein.
+
+  EIGENER SCHLÜSSEL. KEIN ABO.
+  Shinsoku braucht einen API-Schlüssel eines Spracherkennungsdienstes: Soniox oder Bailian (Alibaba Cloud Model Studio). KI-Nachbearbeitung und Übersetzung nutzen Bailian oder einen anderen OpenAI-kompatiblen Dienst. Du zahlst direkt beim Anbieter und nur, was du nutzt. Kein Shinsoku-Konto, kein Abo.
+
+  KOSTENLOS
+  • Live-Text beim Sprechen, danach direkt an Ort und Stelle bearbeiten
+  • Eine Tastatur für jede App: auf „Aufnahme“ tippen, sprechen, Text einfügen
+  • KI-Nachbearbeitung mit fertigen Profilen: Diktat, Chat, Prüfen und Übersetzung ins Englische
+  • Profile in der App oder direkt in der Tastatur wechseln
+  • Entwürfe: Jede Aufnahme bleibt erhalten, zum Bearbeiten oder Kopieren
+  • Für das iPhone Duo gemacht: aufgeklappt links Aufnahme, rechts Entwürfe oder Einstellungen
+
+  SHINSOKU PRO: EINMALIGER KAUF
+  • Eigene Profile: schreib deine eigenen Prompts und bearbeite jedes Profil
+  • Automatisch je App wechseln: Feldregeln für Suche, Webadresse, E-Mail und Nachricht, dazu Kurzbefehle-Aktionen
+  • Computer: Nutze dein iPhone als drahtloses Mikrofon für Shinsoku auf deinem Mac oder PC
+  Mit Familienfreigabe.
+
+  PRIVAT VON ANFANG AN
+  • Kein Konto, keine Werbung, keine Analyse
+  • Audio und Text gehen mit deinem Schlüssel direkt vom iPhone zum gewählten Anbieter
+  • Deine API-Schlüssel bleiben auf deinem Gerät, im iOS-Schlüsselbund
+  • Die Tastatur sendet nichts übers Netzwerk. Voller Zugriff dient nur dazu, den in Shinsoku diktierten Text zu übernehmen
+
+  SO GEHT’S LOS
+  1. Erstelle einen API-Schlüssel bei Soniox oder Bailian und füge ihn in den Shinsoku-Einstellungen hinzu.
+  2. Tastatur hinzufügen: Einstellungen › Allgemein › Tastatur › Tastaturen › Tastatur hinzufügen › Shinsoku, dann „Vollen Zugriff erlauben“ einschalten.
+  3. Auf „Aufnahme“ tippen und lossprechen.
+
+  Welche Sprachen erkannt werden, hängt vom Anbieter ab. Soniox erkennt Dutzende Sprachen, darunter Deutsch, Englisch, Chinesisch, Japanisch, Koreanisch, Französisch, Spanisch, Portugiesisch und Italienisch.
+whats_new: |
+  Die erste Version von Shinsoku für das iPhone.
