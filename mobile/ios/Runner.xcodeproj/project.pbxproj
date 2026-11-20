@@ -113,6 +113,7 @@
 		8A6D120501B1C0D000000001 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
 		8A6D120601B1C0D000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A6D120701B1C0D000000001 /* ShinsokuKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShinsokuKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A6D126001B1C0D000000001 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 		8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShinsokuKeyboard.entitlements; sourceTree = "<group>"; };
 		8A6D120901B1C0D000000001 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		8A6D121B01B1C0D000000001 /* KeyboardTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardTheme.swift; sourceTree = "<group>"; };
@@ -211,6 +212,7 @@
 				8A6D124301B1C0D000000001 /* KeyboardProfileButton.swift */,
 				8A6D120601B1C0D000000001 /* Info.plist */,
 				8A6D120801B1C0D000000001 /* ShinsokuKeyboard.entitlements */,
+				8A6D126001B1C0D000000001 /* Version.xcconfig */,
 				B255E799D2AA640CAA96F3DF /* Localizable.xcstrings */,
 			);
 			path = ShinsokuKeyboard;
@@ -736,7 +738,7 @@
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Profile;
@@ -748,7 +750,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -816,12 +818,12 @@
 		};
 		8A6D121701B1C0D000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A6D126001B1C0D000000001 /* Version.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
@@ -831,7 +833,6 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -842,12 +843,12 @@
 		};
 		8A6D121801B1C0D000000001 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A6D126001B1C0D000000001 /* Version.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
@@ -857,7 +858,6 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -867,12 +867,12 @@
 		};
 		8A6D121901B1C0D000000001 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A6D126001B1C0D000000001 /* Version.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ShinsokuKeyboard/ShinsokuKeyboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShinsokuKeyboard/Info.plist;
@@ -882,7 +882,6 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -904,7 +903,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Runner;
 			};
 			name = Debug;
@@ -921,7 +920,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.KeyboardSceneTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Runner;
 			};
 			name = Release;
@@ -938,7 +937,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.potafree.shinsoku.KeyboardSceneTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Runner;
 			};
 			name = Profile;
@@ -998,7 +997,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -1053,7 +1052,7 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -1065,7 +1064,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 21;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = DKSW9646HG;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
