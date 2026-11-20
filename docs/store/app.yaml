@@ -1,0 +1,42 @@
+# App-level App Store fields (release-01 R2). Pushed by `tool/store_metadata.py push`.
+bundle_id: "net.potafree.shinsoku"
+version: "1.0.0"
+primary_category: "PRODUCTIVITY"
+secondary_category: "UTILITIES"
+copyright: "2026 Potafree LLC"
+privacy_url: "https://potafree.net/shinsoku/privacy/"
+support_url: "https://potafree.net/shinsoku/support/"
+# Page: potafree.net repo, src/pages/products/shinsoku.astro
+marketing_url: "https://potafree.net/products/shinsoku"
+# No third-party content (the app shows only what the user dictates).
+content_rights: "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+# Manual release after approval (release-01 plan, R5).
+release_type: "MANUAL"
+# Age rating questionnaire: every answer "none" / no. Not made for kids (no kidsAgeBand).
+age_rating:
+  alcoholTobaccoOrDrugUseOrReferences: "NONE"
+  contests: "NONE"
+  gamblingSimulated: "NONE"
+  gunsOrOtherWeapons: "NONE"
+  horrorOrFearThemes: "NONE"
+  matureOrSuggestiveThemes: "NONE"
+  medicalOrTreatmentInformation: "NONE"
+  profanityOrCrudeHumor: "NONE"
+  sexualContentGraphicAndNudity: "NONE"
+  sexualContentOrNudity: "NONE"
+  violenceCartoonOrFantasy: "NONE"
+  violenceRealistic: "NONE"
+  violenceRealisticProlongedGraphicOrSadistic: "NONE"
+  advertising: false
+  ageAssurance: false
+  datingAndRelationships: false
+  gambling: false
+  healthOrWellnessTopics: false
+  lootBox: false
+  messagingAndChat: false
+  parentalControls: false
+  sharedLocation: false
+  socialMedia: false
+  socialMediaAgeRestricted: false
+  unrestrictedWebAccess: false
+  userGeneratedContent: false
