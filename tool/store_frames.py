@@ -8,8 +8,11 @@ Needs Pillow, from a venv under build/ (never a global install):
 
 Inputs:
   build/store/raw/<locale>/NN-<scene>-<look>.png   host renders, 1320×2868 (tool/store_shots.sh)
-  build/store/keyboard/<locale>.png                keyboard frame from the simulator (StoreSceneTests,
-                                                   coordinator, tier B); 1206×2622 on iPhone 17. Optional.
+  build/store/keyboard/<look>/PHASE-*-store-<locale>-inserted.png
+                                                   keyboard frame from the simulator (StoreSceneTests run by
+                                                   tool/ios_keyboard_scene.sh into build/store/keyboard, coordinator,
+                                                   tier B; 1206×2622 on iPhone 17), or build/store/keyboard/<locale>.png
+                                                   to override. Optional: missing frames are listed.
   docs/store/metadata/<locale>.yaml  captions      one per scene, in upload order
 Output:
   build/store/screenshots/<locale>/NN-<scene>.png  1320×2868 RGB (no alpha), NN = upload order
@@ -202,8 +205,11 @@ def compose(locale: str, scene: str, screen: Image.Image, look: str) -> Image.Im
 
 def raw_for(locale: str, scene: str, look: str):
     if scene == 'keyboard':
-        p = KEYBOARD / f'{locale}.png'
-        return p if p.is_file() else None
+        p = KEYBOARD / f'{locale}.png'  # a hand-picked frame wins
+        if p.is_file():
+            return p
+        hits = sorted((KEYBOARD / look).glob(f'PHASE-*-store-{locale}-inserted.png'))
+        return hits[-1] if hits else None
     hits = sorted((RAW / locale).glob(f'[0-9][0-9]-{scene}-{look}.png'))
     return hits[0] if hits else None
 
