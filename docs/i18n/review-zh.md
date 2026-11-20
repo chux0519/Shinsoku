@@ -388,6 +388,7 @@ How to review: mark a row (or write the better wording next to it) and send it b
 | Shinsoku Profile | Shinsoku 模式 | Shinsoku 模式 |
 | Shinsoku could not save the profile. | Shinsoku 无法保存模式。 | Shinsoku 無法儲存模式。 |
 | Shinsoku profile: %@ | Shinsoku 模式：%@ | Shinsoku 模式：%@ |
+| Switching profiles from Shortcuts needs Shinsoku Pro. | 通过“快捷指令”切换模式需要 Shinsoku Pro。 | 從「捷徑」切換模式需要 Shinsoku Pro。 |
 | The Shinsoku profile "%@" no longer exists. | Shinsoku 模式“%@”已不存在。 | Shinsoku 模式「%@」已不存在。 |
 
 ## Siri / Spotlight phrases and ready-made Shortcuts tiles
@@ -405,4 +406,4 @@ How to review: mark a row (or write the better wording next to it) and send it b
 | English | 简体中文 (zh-Hans) | 繁體中文 (zh-Hant) |
 |---|---|---|
 | Shinsoku uses your local network to find and connect to your Shinsoku desktop. | Shinsoku 使用本地网络查找并连接你的 Shinsoku 电脑。 | Shinsoku 會使用區域網路尋找並連線到你的 Shinsoku 電腦。 |
-| Shinsoku uses the microphone to capture voice input. | Shinsoku 使用麦克风进行语音输入。 | Shinsoku 會使用麥克風擷取語音輸入。 |
+| Shinsoku records your voice while you dictate and sends it to the speech provider you chose, or to your paired computer. | Shinsoku 在你听写时录音，并发送到你选择的语音识别服务或已配对的电脑。 | Shinsoku 會在你聽寫時錄音，並傳送到你選擇的語音辨識服務或已配對的電腦。 |

@@ -51,7 +51,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Shinsoku uses the microphone to capture voice input.</string>
+	<string>Shinsoku records your voice while you dictate and sends it to the speech provider you chose, or to your paired computer.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Shinsoku uses your local network to find and connect to your Shinsoku desktop.</string>
 	<key>NSBonjourServices</key>
