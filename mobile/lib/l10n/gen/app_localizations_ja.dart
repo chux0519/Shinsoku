@@ -439,6 +439,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get profileReviewIntent => 'テキストを手動で確認するために保留する';
 
   @override
+  String get profileTranslationDescription => '話した内容を英語に翻訳';
+
+  @override
   String get profileZhToEnName => '中→英';
 
   @override

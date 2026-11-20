@@ -459,6 +459,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Garder le texte pour une relecture manuelle';
 
   @override
+  String get profileTranslationDescription => 'Traduire la parole en anglais';
+
+  @override
   String get profileZhToEnName => 'ZH → EN';
 
   @override

@@ -450,6 +450,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileReviewIntent => 'Hold transcript for manual review';
 
   @override
+  String get profileTranslationDescription => 'Translate speech into English';
+
+  @override
   String get profileZhToEnName => 'ZH -> EN';
 
   @override
@@ -1340,6 +1343,10 @@ class AppLocalizationsEnXa extends AppLocalizationsEn {
   @override
   String get profileReviewIntent =>
       '[Hölđ ţràñšçrîpţ för màñüàl révîéw lörém îpšüm]';
+
+  @override
+  String get profileTranslationDescription =>
+      '[Ţràñšlàţé špééçh îñţö Éñĝlîšh lörém îpšüm]';
 
   @override
   String get profileZhToEnName => '[ZH -> ÉÑ lö]';

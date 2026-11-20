@@ -348,7 +348,7 @@ class _SettingsViewState extends State<SettingsView> {
             for (final profile in widget.profiles)
               SkListRow(
                 title: profile.name,
-                subtitle: profile.intent,
+                subtitle: profileListDescription(l, profile),
                 subtitleMaxLines: 1,
                 chevron: true,
                 onTap: widget.onProfileOpened == null

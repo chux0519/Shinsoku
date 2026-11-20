@@ -932,6 +932,12 @@ abstract class AppLocalizations {
   /// **'Hold transcript for manual review'**
   String get profileReviewIntent;
 
+  /// One-line description of the built-in translation profiles (ZH -> EN, Translate -> EN, …) in the profile list. Their instruction to the AI model stays English; this text replaces it in the list while the instruction is unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate speech into English'**
+  String get profileTranslationDescription;
+
   /// Name of the built-in Chinese-to-English profile.
   ///
   /// In en, this message translates to:

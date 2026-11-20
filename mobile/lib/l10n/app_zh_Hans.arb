@@ -136,6 +136,7 @@
   "profileChatIntent": "让文字简洁、口语化",
   "profileReviewName": "检查",
   "profileReviewIntent": "保留文本，供手动检查",
+  "profileTranslationDescription": "把说的话翻译成英文",
   "profileZhToEnName": "中→英",
   "profileZhToEnIntent": "Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
   "profileTranslateToEnName": "翻译→英",

@@ -136,6 +136,7 @@
   "profileChatIntent": "Text knapp und locker formulieren",
   "profileReviewName": "Prüfen",
   "profileReviewIntent": "Text zur manuellen Prüfung zurückhalten",
+  "profileTranslationDescription": "Gesprochenes ins Englische übersetzen",
   "profileZhToEnName": "ZH → EN",
   "profileZhToEnIntent": "Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text.",
   "profileTranslateToEnName": "Übersetzen → EN",

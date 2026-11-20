@@ -184,6 +184,7 @@ How to review: mark a row (or write the better wording next to it) and send it b
 | Make the text concise and conversational | 让文字简洁、口语化 | 讓文字簡潔、口語化 |
 | Review | 检查 | 檢查 |
 | Hold transcript for manual review | 保留文本，供手动检查 | 保留文字，供手動檢查 |
+| Translate speech into English | 把说的话翻译成英文 | 把說的話翻譯成英文 |
 | ZH -> EN | 中→英 | 中→英 |
 | Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text. | Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text. | Translate Chinese speech into natural English. Preserve the meaning, keep it concise, and return only the English text. |
 | Translate -> EN | 翻译→英 | 翻譯→英 |

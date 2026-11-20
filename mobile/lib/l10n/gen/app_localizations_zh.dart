@@ -431,6 +431,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileReviewIntent => '保留文本，供手动检查';
 
   @override
+  String get profileTranslationDescription => '把说的话翻译成英文';
+
+  @override
   String get profileZhToEnName => '中→英';
 
   @override
@@ -1252,6 +1255,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get profileReviewIntent => '保留文本，供手动检查';
+
+  @override
+  String get profileTranslationDescription => '把说的话翻译成英文';
 
   @override
   String get profileZhToEnName => '中→英';
@@ -2076,6 +2082,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get profileReviewIntent => '保留文字，供手動檢查';
+
+  @override
+  String get profileTranslationDescription => '把說的話翻譯成英文';
 
   @override
   String get profileZhToEnName => '中→英';
