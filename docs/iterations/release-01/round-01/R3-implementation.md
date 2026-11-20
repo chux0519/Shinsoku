@@ -32,7 +32,7 @@ Nothing was sent to App Store Connect (dry run only).
   must mark the break with `|`** (character breaks split words, e.g. 电/脑) — `--check` fails otherwise.
   Pseudo-length check: English captions +40 % must still fit. Result: all fit at 96 px.
 
-## Keyboard frame (tier B, coordinator): Messages or Safari start page, zh-Hans + zh-Hant only
+## Keyboard frame (tier B, coordinator): Messages or Safari start page, zh-Hans only
 `KeyboardSceneTests/StoreSceneTests.swift` (in the test target; `--build-only` passes):
 ```
 SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
@@ -58,6 +58,13 @@ clears it on exit. Then rerun `store_frames.py`: it picks `build/store/keyboard/
 locales ship 6 screenshots. Not run on a simulator by me: Messages labels (compose, onboarding, body, cancel,
 discard) are matched in en/zh-Hans/zh-Hant plus known identifiers; a failed step attaches `FAIL-<step>` with
 the element tree.
+
+## Final (coordinator, 2026-11-20)
+The scene passed for zh-Hans and zh-Hant, but zh-Hant's keyboard keys render Simplified (the simulator runs
+zh-Hans and its language is never changed). **Only zh-Hans gets the keyboard frame** (`KEYBOARD_LOCALES =
+{'zh-Hans'}`, StoreSceneTests zh-Hans only): zh-Hans ships 7 screenshots (02-keyboard: first Messages thread,
+chip 听写, clean 9:41 bar), the other 9 locales 6. Reframed: 61 screenshots, captions check ok, reviewed.
+Earlier notes below that mention zh-Hant keyboard frames are superseded by this.
 
 ## Keyboard frame round 5 (coordinator run: zh-Hans 02 ok)
 1. zh-Hant failed at "shinsoku-keyboard": in a zh-Hant host app the globe reads 下一個鍵盤 (system keyboard UI
@@ -85,7 +92,6 @@ the element tree.
    not installed on the shared runtime).
 
 ## Open points for the coordinator
-- zh-Hant keyboard frame: keys in Simplified Chinese (system language); keep or drop zh-Hant's frame.
 - ASC en-US also has old `APP_IPHONE_65` and `APP_IPAD_PRO_129` sets; the script leaves other display types
   alone (the iPad set may need deleting by hand since 1.0 is iPhone-only).
 - Fixture texts are duplicated in `StoreSceneTests.swift` (Swift cannot read the Dart file); keep in sync.

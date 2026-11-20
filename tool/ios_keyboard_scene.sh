@@ -36,8 +36,8 @@ KEYBOARD_ID=net.potafree.shinsoku.keyboard
 # Which scene: the keyboard scene by default; profile-01 P2: SCENE_TEST=KeyboardSceneTests/ProfileIntentSceneTests;
 # profile-01 P3 (keyboard profile switch): SCENE_TEST=KeyboardSceneTests/ProfileKeyboardSceneTests;
 # live-01 T3 (live transcript, edit, Insert; dropped connection): SCENE_TEST=KeyboardSceneTests/LiveSceneTests;
-# release-01 R3 (App Store keyboard frames in Messages, else Safari's start page; zh-Hans + zh-Hant): SCENE_TEST=KeyboardSceneTests/StoreSceneTests
-# (TEST_RUNNER_STORE_LOCALES=zh-Hans limits the locales).
+# release-01 R3 (App Store keyboard frames in Messages, else Safari's start page; zh-Hans only): SCENE_TEST=KeyboardSceneTests/StoreSceneTests
+# (TEST_RUNNER_STORE_LOCALES limits the locales).
 SCENE_TEST=${SCENE_TEST:-KeyboardSceneTests/KeyboardSceneTests}
 # SCENE_STATUS_BAR=clean: 9:41, full bars, charged battery for the run (simctl status_bar override, cleared on exit).
 STATUS_BAR=${SCENE_STATUS_BAR:-}

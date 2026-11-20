@@ -12,9 +12,9 @@ import XCTest
 ///   2. Safari's start page: the address/search field (start page behind it, no URL loaded).
 /// Neither installed → the test is skipped with a message (XCTSkip), nothing fails. Notes is not on the shared
 /// iPhone 17 runtime (2026-11-20).
-/// Locales: **zh-Hans and zh-Hant only** (coordinator, 2026-11-20). The keyboard extension follows the system
-/// language and the shared simulators run in Chinese, which must never be changed (AGENTS.md).
-/// `TEST_RUNNER_STORE_LOCALES=zh-Hans` limits the run. Per locale:
+/// Locale: **zh-Hans only** (coordinator, 2026-11-20). The keyboard extension follows the system language
+/// (zh-Hans on the shared simulators, never changed, AGENTS.md); in zh-Hant its keys rendered Simplified, so
+/// zh-Hant ships without a keyboard frame. `TEST_RUNNER_STORE_LOCALES` stays for future locales. Per locale:
 ///   PHASE-xx-store-<locale>-app       Shinsoku launched in the locale, the text seeded as the latest
 ///   PHASE-xx-store-<locale>-ready     the field focused, the Shinsoku keyboard up ("Latest text ready")
 ///   PHASE-xx-store-<locale>-inserted  after Insert: the text in the field (the store frame)
@@ -39,8 +39,6 @@ final class StoreSceneTests: SceneTestCase {
     private static let all: [Store] = [
         Store(locale: "zh-Hans", language: "zh-Hans", region: "zh_SG",
               text: "跟大家同步一下：发布改到周四，所以我们周三下午之前要把更新说明写完。"),
-        Store(locale: "zh-Hant", language: "zh-Hant", region: "zh_TW",
-              text: "跟大家同步一下：發布改到週四，所以我們週三下午之前要把更新說明寫完。"),
     ]
 
     /// Messages labels (English, zh-Hans, zh-Hant).
@@ -60,7 +58,7 @@ final class StoreSceneTests: SceneTestCase {
         let wanted = (ProcessInfo.processInfo.environment["STORE_LOCALES"] ?? "")
             .split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let stores = wanted.isEmpty ? Self.all : Self.all.filter { wanted.contains($0.locale) }
-        check(!stores.isEmpty, "store-locales", "no known locale in STORE_LOCALES=\(wanted) (zh-Hans, zh-Hant)")
+        check(!stores.isEmpty, "store-locales", "no known locale in STORE_LOCALES=\(wanted) (zh-Hans)")
 
         let hasMessages = Self.installed("MobileSMS.app")
         // Without SIMULATOR_ROOT nothing can be checked; Safari is then assumed (the other scenes use it).
