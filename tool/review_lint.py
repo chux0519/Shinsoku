@@ -146,6 +146,17 @@ def translations():
     return problems
 
 
+@rule('R08', 'App Store metadata passes tool/store_metadata.py check (limits, keywords, every locale, no keys)')
+def store_metadata():
+    if not (ROOT / 'docs' / 'store' / 'metadata').is_dir():
+        return []
+    out = subprocess.run([sys.executable, str(ROOT / 'tool' / 'store_metadata.py'), 'check'], cwd=ROOT,
+                         capture_output=True, text=True)
+    if out.returncode == 0:
+        return []
+    return [line for line in out.stdout.splitlines() if line.startswith('FAIL')] or [out.stderr.strip()]
+
+
 def main(argv):
     selected = argv or sorted(RULES)
     failed = False
