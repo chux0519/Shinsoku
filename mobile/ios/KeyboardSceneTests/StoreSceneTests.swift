@@ -1,84 +1,61 @@
 import XCTest
 
-/// Tier-B scene for the App Store keyboard screenshot (release-01 R3): the Shinsoku keyboard over a chat-style
-/// page in Safari, the locale's dictated text inserted into the message field.
+/// Tier-B scene for the App Store keyboard screenshot (release-01 R3): the Shinsoku keyboard in a new note in
+/// Notes, the locale's dictated text inserted. Notes, not a Safari page: no `data:` URL in the frame.
 ///
 /// Run by the coordinator only (iPhone 17, clean status bar):
 ///   SCENE_TEST=KeyboardSceneTests/StoreSceneTests SCENE_STATUS_BAR=clean \
 ///     tool/ios_keyboard_scene.sh <UDID> build/store/keyboard
-/// Limit the locales with `TEST_RUNNER_STORE_LOCALES=en-US,ja` (xcodebuild passes TEST_RUNNER_* to the test as
-/// STORE_LOCALES); default: all 10 store locales. Per locale:
+/// Locales: **zh-Hans and zh-Hant only** (coordinator, 2026-11-20). The keyboard extension follows the system
+/// language and the shared simulators run in Chinese, which must never be changed (AGENTS.md); other store
+/// locales ship without a keyboard frame. `TEST_RUNNER_STORE_LOCALES=zh-Hans` limits the run.
+/// Per locale:
 ///   PHASE-xx-store-<locale>-app       Shinsoku launched in the locale, the text seeded as the latest
-///   PHASE-xx-store-<locale>-ready     the chat page in Safari, the Shinsoku keyboard up ("Latest text ready")
-///   PHASE-xx-store-<locale>-inserted  after Insert: the text in the message field (the store frame)
+///   PHASE-xx-store-<locale>-ready     a new note, the Shinsoku keyboard up ("Latest text ready")
+///   PHASE-xx-store-<locale>-inserted  after Insert: the text in the note (the store frame)
 /// tool/store_frames.py picks `light/PHASE-*-store-<locale>-inserted.png`.
-///
-/// Language: the Runner and Safari get `-AppleLanguages (<lang>) -AppleLocale <locale>`. The keyboard extension
-/// follows the **system** language (the shared simulators run in Chinese and must not be changed), so its keys
-/// read Chinese in every locale's frame; the SCENE line `keyboard-language` records what the Record key said.
+/// The note is deleted afterwards (best effort; SCENE line `note-deleted`).
 /// No keys and no real names: the text is the store fixture text (mobile/test/host_review/store_fixtures.dart).
 final class StoreSceneTests: SceneTestCase {
+    private let notes = XCUIApplication(bundleIdentifier: "com.apple.mobilenotes")
+
     private struct Store {
         let locale: String
         let language: String
         let region: String
-        let incoming: String
-        let placeholder: String
-        let text: String
+        let title: String
+        let body: String
+        /// Title line + body: Notes shows the first line as the note's title.
+        var text: String { title + "\n" + body }
     }
 
     private static let all: [Store] = [
-        Store(locale: "en-US", language: "en", region: "en_US",
-              incoming: "Are we still on for the launch this week?", placeholder: "Message",
-              text: "Quick update for the team: the launch moves to Thursday, so let’s finish the release notes "
-                + "by Wednesday afternoon."),
-        Store(locale: "zh-Hans", language: "zh-Hans", region: "zh_SG",
-              incoming: "这周的发布还按原计划吗？", placeholder: "信息",
-              text: "跟大家同步一下：发布改到周四，所以我们周三下午之前要把更新说明写完。"),
-        Store(locale: "zh-Hant", language: "zh-Hant", region: "zh_TW",
-              incoming: "這週的發布還照原計畫嗎？", placeholder: "訊息",
-              text: "跟大家同步一下：發布改到週四，所以我們週三下午之前要把更新說明寫完。"),
-        Store(locale: "ja", language: "ja", region: "ja_JP",
-              incoming: "今週のリリースは予定どおりですか？", placeholder: "メッセージ",
-              text: "チームの皆さんへ。リリースは木曜日に変更になったので、水曜日の午後までにリリースノートを仕上げましょう。"),
-        Store(locale: "ko", language: "ko", region: "ko_KR",
-              incoming: "이번 주 출시는 예정대로인가요?", placeholder: "메시지",
-              text: "팀 공지입니다. 출시가 목요일로 바뀌었으니 수요일 오후까지 릴리스 노트를 마무리해 주세요."),
-        Store(locale: "de-DE", language: "de", region: "de_DE",
-              incoming: "Bleibt es beim Launch diese Woche?", placeholder: "Nachricht",
-              text: "Kurzes Update fürs Team: Der Launch ist jetzt am Donnerstag, also lasst uns die Release Notes "
-                + "bis Mittwochnachmittag fertigstellen."),
-        Store(locale: "fr-FR", language: "fr", region: "fr_FR",
-              incoming: "Le lancement est toujours prévu cette semaine ?", placeholder: "Message",
-              text: "Petit point pour l’équipe : le lancement passe à jeudi, donc finissons les notes de version "
-                + "d’ici mercredi après-midi."),
-        Store(locale: "es-ES", language: "es", region: "es_ES",
-              incoming: "¿Seguimos con el lanzamiento esta semana?", placeholder: "Mensaje",
-              text: "Una actualización para el equipo: el lanzamiento pasa al jueves, así que terminemos las notas "
-                + "de la versión antes del miércoles por la tarde."),
-        Store(locale: "pt-BR", language: "pt-BR", region: "pt_BR",
-              incoming: "O lançamento continua para esta semana?", placeholder: "Mensagem",
-              text: "Atualização rápida para o time: o lançamento mudou para quinta, então vamos fechar as notas "
-                + "da versão até quarta à tarde."),
-        Store(locale: "it", language: "it", region: "it_IT",
-              incoming: "Il lancio è ancora previsto per questa settimana?", placeholder: "Messaggio",
-              text: "Aggiornamento veloce per il team: il lancio slitta a giovedì, quindi chiudiamo le note di "
-                + "rilascio entro mercoledì pomeriggio."),
+        Store(locale: "zh-Hans", language: "zh-Hans", region: "zh_SG", title: "周四发布",
+              body: "跟大家同步一下：发布改到周四，所以我们周三下午之前要把更新说明写完。"),
+        Store(locale: "zh-Hant", language: "zh-Hant", region: "zh_TW", title: "週四發布",
+              body: "跟大家同步一下：發布改到週四，所以我們週三下午之前要把更新說明寫完。"),
     ]
+
+    /// Notes labels (English, zh-Hans, zh-Hant).
+    private enum N {
+        static let compose = ["New Note", "Compose", "新建备忘录", "新增備忘錄", "撰写", "撰寫"]
+        static let onboarding = ["Continue", "继续", "繼續", "Not Now", "以后", "稍後", "Done", "完成"]
+        static let delete = ["Delete", "删除", "刪除"]
+        static let back = ["Notes", "备忘录", "備忘錄", "Back", "返回"]
+    }
 
     func testStoreKeyboardScene() throws {
         let wanted = (ProcessInfo.processInfo.environment["STORE_LOCALES"] ?? "")
             .split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let stores = wanted.isEmpty ? Self.all : Self.all.filter { wanted.contains($0.locale) }
-        check(!stores.isEmpty, "store-locales", "no known locale in STORE_LOCALES=\(wanted)")
+        check(!stores.isEmpty, "store-locales", "no known locale in STORE_LOCALES=\(wanted) (zh-Hans, zh-Hant)")
 
         ensureKeyboardAdded()
         setFullAccess(true)
         addTeardownBlock { [unowned self] in
             self.runner.terminate()
-            self.safari.terminate()
-            self.safari.launchArguments = Self.englishArguments
-            self.restoreSystemKeyboard()
+            self.restoreNotesKeyboard()
+            self.notes.terminate()
         }
 
         for store in stores {
@@ -88,44 +65,107 @@ final class StoreSceneTests: SceneTestCase {
             launchRunner(["-ShinsokuSceneResetLatest", "YES", "-ShinsokuSceneSeedLatest", store.text] + arguments,
                          shotName: "store-\(store.locale)-app")
 
-            safari.terminate()
-            safari.launchArguments = arguments
-            safari.launch()
-            safari.open(URL(string: Self.pageURL(store))!)
-            let message = field()
-            require(message, "\(store.locale)-message-field", timeout: 15)
-            message.tap()
-            switchToShinsoku(retapping: message, step: "\(store.locale)-shinsoku-keyboard")
-            let record = key("Record")
-            print("SCENE keyboard-language \(store.locale): Record key '\(record.label)'")
-            require(statusText("Latest text ready"), "\(store.locale)-latest-ready", timeout: 5)
+            notes.terminate()
+            notes.launchArguments = arguments
+            notes.launch()
+            let body = newNote(step: store.locale)
+            switchNotesToShinsoku(body, step: "\(store.locale)-shinsoku-keyboard")
+            print("SCENE keyboard-language \(store.locale): Record key '\(noteKey("Record").label)'")
+            require(noteStatus("Latest text ready"), "\(store.locale)-latest-ready", timeout: 5)
             shot("store-\(store.locale)-ready")
 
-            tap(key("Insert latest text"), "\(store.locale)-insert")
-            require(statusText("Inserted"), "\(store.locale)-inserted", timeout: 5)
-            // Let the caret settle and the field grow before the frame.
-            Thread.sleep(forTimeInterval: 1)
+            tap(noteKey("Insert latest text"), "\(store.locale)-insert")
+            require(noteStatus("Inserted"), "\(store.locale)-inserted", timeout: 5)
+            Thread.sleep(forTimeInterval: 1)  // caret and layout settle
             shot("store-\(store.locale)-inserted")
-            check(fieldValue().contains(store.text), "\(store.locale)-field-text", "field: \(fieldValue())")
+            let value = (body.value as? String) ?? ""
+            check(value.contains(store.body), "\(store.locale)-note-text", "note: \(value)")
+            deleteCurrentNote(step: store.locale)
         }
     }
 
-    /// A neutral chat page: one incoming bubble and the message field (a textarea, found by `field()`).
-    private static func pageURL(_ store: Store) -> String {
-        let html = """
-            <meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>
-            <title>\(store.placeholder)</title>
-            <style>
-            body{margin:0;font:17px -apple-system,sans-serif;background:#fff;color:#1c2426}
-            .log{padding:24px 14px 8px;display:flex;flex-direction:column;gap:8px}
-            .in{align-self:flex-start;max-width:78%;background:#e9e9eb;border-radius:18px;padding:9px 13px}
-            .bar{display:flex;padding:8px 10px;border-top:1px solid #e5e5ea}
-            textarea{flex:1;font:17px -apple-system,sans-serif;border:1px solid #d1d1d6;border-radius:18px;
-            padding:8px 13px;height:7.5em;resize:none;outline:none}
-            </style>
-            <div class=log><div class=in>\(store.incoming)</div></div>
-            <div class=bar><textarea aria-label='\(store.placeholder)' placeholder='\(store.placeholder)'></textarea></div>
-            """
-        return "data:text/html;charset=utf-8," + html.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+    // MARK: Notes
+
+    /// Dismisses first-run sheets, creates a note and returns its text view (focused, keyboard up).
+    private func newNote(step: String) -> XCUIElement {
+        let compose = notes.buttons.matching(labelEquals: N.compose).firstMatch
+        for _ in 0..<4 where !compose.waitForExistence(timeout: 3) {
+            let next = notes.buttons.matching(labelEquals: N.onboarding).firstMatch
+            guard next.exists else { break }
+            next.tap()
+        }
+        if compose.exists {
+            compose.tap()
+        } else {
+            // Fallback: the compose button is the last toolbar button.
+            let last = notes.toolbars.buttons.element(boundBy: max(0, notes.toolbars.buttons.count - 1))
+            require(last, "\(step)-notes-compose", timeout: 5)
+            last.tap()
+        }
+        let body = notes.textViews.firstMatch
+        require(body, "\(step)-note-body", timeout: 10)
+        if !body.hasKeyboardFocusCompat { body.tap() }
+        return body
+    }
+
+    /// Cycles input modes with the globe until the Shinsoku keyboard (its Record key) is up.
+    private func switchNotesToShinsoku(_ target: XCUIElement, step: String) {
+        for _ in 0..<6 {
+            if noteKey("Record").waitForExistence(timeout: 2) { return }
+            let globe = notesGlobe()
+            if globe.exists { globe.tap() } else { target.tap() }
+        }
+        require(noteKey("Record"), step, timeout: 2)
+    }
+
+    /// Best effort, never fails: swipe the newest note away in the list.
+    private func deleteCurrentNote(step: String) {
+        let back = notes.navigationBars.buttons.matching(labelEquals: N.back).firstMatch
+        if back.waitForExistence(timeout: 3) {
+            back.tap()
+        } else {
+            notes.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+        let first = notes.cells.firstMatch
+        guard first.waitForExistence(timeout: 5) else {
+            print("SCENE note-deleted \(step): false (list not found)")
+            return
+        }
+        first.swipeLeft()
+        let delete = notes.buttons.matching(labelEquals: N.delete).firstMatch
+        if delete.waitForExistence(timeout: 3) { delete.tap() }
+        print("SCENE note-deleted \(step): \(delete.exists ? "unknown" : "true")")
+    }
+
+    /// Best effort: put the system keyboard back for the next scene.
+    private func restoreNotesKeyboard() {
+        guard notes.state == .runningForeground else { return }
+        for _ in 0..<6 where noteKey("Record").waitForExistence(timeout: 2) {
+            let globe = notesGlobe()
+            guard globe.exists else { break }
+            globe.tap()
+        }
+        print("SCENE system keyboard restored (notes): \(!noteKey("Record").exists)")
+    }
+
+    private func notesGlobe() -> XCUIElement {
+        notes.buttons.matching(
+            NSPredicate(format: "label IN[c] %@ OR identifier IN[c] %@", L.nextKeyboard, L.nextKeyboard)
+        ).firstMatch
+    }
+
+    private func noteKey(_ label: String) -> XCUIElement {
+        notes.descendants(matching: .any).matching(labelEquals: Self.variants(label)).firstMatch
+    }
+
+    private func noteStatus(_ text: String) -> XCUIElement {
+        notes.staticTexts.matching(labelEquals: Self.variants(text)).firstMatch
+    }
+}
+
+private extension XCUIElement {
+    /// `hasKeyboardFocus` via KVC (not public API on every SDK).
+    var hasKeyboardFocusCompat: Bool {
+        (value(forKey: "hasKeyboardFocus") as? Bool) ?? false
     }
 }

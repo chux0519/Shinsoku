@@ -12,7 +12,8 @@ Inputs:
                                                    keyboard frame from the simulator (StoreSceneTests run by
                                                    tool/ios_keyboard_scene.sh into build/store/keyboard, coordinator,
                                                    tier B; 1206×2622 on iPhone 17), or build/store/keyboard/<locale>.png
-                                                   to override. Optional: missing frames are listed.
+                                                   to override. zh-Hans and zh-Hant only (KEYBOARD_LOCALES);
+                                                   a missing frame is listed, not an error.
   docs/store/metadata/<locale>.yaml  captions      one per scene, in upload order
 Output:
   build/store/screenshots/<locale>/NN-<scene>.png  1320×2868 RGB (no alpha), NN = upload order
@@ -47,6 +48,9 @@ OUT = ROOT / 'build' / 'store' / 'screenshots'
 W, H = 1320, 2868
 SCENES = store_metadata.CAPTION_SCENES
 PRO_SCENES = {'profiles', 'field-rules', 'desktop'}
+# The keyboard extension shows the system language (Chinese on the shared simulators, never changed), so only
+# these locales get the keyboard frame; the others ship 6 screenshots (coordinator, 2026-11-20).
+KEYBOARD_LOCALES = {'zh-Hans', 'zh-Hant'}
 LOOKS = {
     'light': {'bg': (0x1F, 0x64, 0x70), 'text': (0xFF, 0xFF, 0xFF), 'tag_bg': (0xD6, 0xEC, 0xEF),
               'tag_text': (0x1F, 0x64, 0x70), 'edge': (255, 255, 255, 60)},
@@ -279,6 +283,8 @@ def main():
         n = 0
         missing = []
         for scene in SCENES:
+            if scene == 'keyboard' and loc not in KEYBOARD_LOCALES:
+                continue
             src = raw_for(loc, scene, a.look)
             if src is None:
                 missing.append(scene)
