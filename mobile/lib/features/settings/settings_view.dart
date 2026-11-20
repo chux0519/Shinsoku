@@ -195,7 +195,6 @@ class _SettingsViewState extends State<SettingsView> {
         : _bailianTextModelController.text.trim();
     const gap = SizedBox(height: SkSpace.xl);
     const fieldGap = SizedBox(height: SkSpace.m);
-    final owned = ProScope.ownedOf(context);
 
     return SkPage(
       title: l.settingsTitle,
@@ -342,64 +341,13 @@ class _SettingsViewState extends State<SettingsView> {
           onPressed: _save,
         ),
         gap,
-        SkSection(
-          label: l.settingsSectionProfiles,
-          children: [
-            for (final profile in widget.profiles)
-              SkListRow(
-                title: profile.name,
-                subtitle: profileListDescription(l, profile),
-                subtitleMaxLines: 1,
-                chevron: true,
-                onTap: widget.onProfileOpened == null
-                    ? null
-                    : () => widget.onProfileOpened!(profile),
-              ),
-            // Creating a profile needs Pro (pricing-01); without it the row
-            // opens the Pro sheet.
-            SkListRow(
-              key: const ValueKey('settings-add-profile'),
-              leading: Icons.add_rounded,
-              title: l.settingsAddProfile,
-              accentTitle: true,
-              trailing: owned ? null : const SkProBadge(),
-              onTap: owned
-                  ? widget.onProfileAdded
-                  : () => showProSheet(context),
-            ),
-            SkListRow(
-              leading: Icons.apps_rounded,
-              title: l.settingsUseInApps,
-              subtitle: l.settingsUseInAppsSubtitle,
-              trailing: owned ? null : const SkProBadge(),
-              chevron: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (context) => widget.onOpenShortcuts == null
-                      ? UseInAppsView.withSystemVersion()
-                      : UseInAppsView.withSystemVersion(
-                          onOpenShortcuts: widget.onOpenShortcuts!,
-                        ),
-                ),
-              ),
-            ),
-            SkListRow(
-              leading: Icons.text_fields_rounded,
-              title: l.settingsFieldRules,
-              subtitle: l.settingsFieldRulesSubtitle,
-              trailing: owned ? null : const SkProBadge(),
-              chevron: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (context) => FieldRulesView(
-                    profiles: widget.profiles,
-                    rules: widget.fieldRules,
-                    onChanged: widget.onFieldRulesChanged ?? (_) async {},
-                  ),
-                ),
-              ),
-            ),
-          ],
+        SettingsProfilesSection(
+          profiles: widget.profiles,
+          onProfileAdded: widget.onProfileAdded,
+          onProfileOpened: widget.onProfileOpened,
+          fieldRules: widget.fieldRules,
+          onFieldRulesChanged: widget.onFieldRulesChanged,
+          onOpenShortcuts: widget.onOpenShortcuts,
         ),
         gap,
         SkSection(
@@ -507,6 +455,95 @@ class _ProSection extends StatelessWidget {
                     }
                   },
           ),
+      ],
+    );
+  }
+}
+
+/// Settings › Profiles: the profiles, Add profile (Pro), Use in apps and Field
+/// rules. Also rendered on its own for the store screenshots ([label] empty
+/// when a page title already says Profiles).
+class SettingsProfilesSection extends StatelessWidget {
+  const SettingsProfilesSection({
+    required this.profiles,
+    this.onProfileAdded,
+    this.onProfileOpened,
+    this.fieldRules = const FieldRules(),
+    this.onFieldRulesChanged,
+    this.onOpenShortcuts,
+    this.label,
+    super.key,
+  });
+
+  final List<VoiceProfile> profiles;
+  final VoidCallback? onProfileAdded;
+  final ValueChanged<VoiceProfile>? onProfileOpened;
+  final FieldRules fieldRules;
+  final Future<void> Function(FieldRules rules)? onFieldRulesChanged;
+  final Future<bool> Function()? onOpenShortcuts;
+
+  /// Section label; null = "Profiles", '' = none.
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final owned = ProScope.ownedOf(context);
+    return SkSection(
+      label: label == '' ? null : (label ?? l.settingsSectionProfiles),
+      children: [
+        for (final profile in profiles)
+          SkListRow(
+            title: profile.name,
+            subtitle: profileListDescription(l, profile),
+            subtitleMaxLines: 1,
+            chevron: true,
+            onTap: onProfileOpened == null
+                ? null
+                : () => onProfileOpened!(profile),
+          ),
+        // Creating a profile needs Pro (pricing-01); without it the row
+        // opens the Pro sheet.
+        SkListRow(
+          key: const ValueKey('settings-add-profile'),
+          leading: Icons.add_rounded,
+          title: l.settingsAddProfile,
+          accentTitle: true,
+          trailing: owned ? null : const SkProBadge(),
+          onTap: owned ? onProfileAdded : () => showProSheet(context),
+        ),
+        SkListRow(
+          leading: Icons.apps_rounded,
+          title: l.settingsUseInApps,
+          subtitle: l.settingsUseInAppsSubtitle,
+          trailing: owned ? null : const SkProBadge(),
+          chevron: true,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => onOpenShortcuts == null
+                  ? UseInAppsView.withSystemVersion()
+                  : UseInAppsView.withSystemVersion(
+                      onOpenShortcuts: onOpenShortcuts!,
+                    ),
+            ),
+          ),
+        ),
+        SkListRow(
+          leading: Icons.text_fields_rounded,
+          title: l.settingsFieldRules,
+          subtitle: l.settingsFieldRulesSubtitle,
+          trailing: owned ? null : const SkProBadge(),
+          chevron: true,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => FieldRulesView(
+                profiles: profiles,
+                rules: fieldRules,
+                onChanged: onFieldRulesChanged ?? (_) async {},
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

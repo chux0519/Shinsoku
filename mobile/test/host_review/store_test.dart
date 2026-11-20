@@ -29,7 +29,6 @@ import 'package:shinsoku_mobile/services/field_rules.dart';
 import 'package:shinsoku_mobile/services/live_transcript.dart';
 import 'package:shinsoku_mobile/services/pro_entitlement.dart';
 import 'package:shinsoku_mobile/services/profile_reason.dart';
-import 'package:shinsoku_mobile/services/provider_settings.dart';
 import 'package:shinsoku_mobile/services/region_defaults.dart';
 import 'package:shinsoku_mobile/services/smoke_test.dart';
 import 'package:shinsoku_mobile/services/voice_profiles.dart';
@@ -184,26 +183,21 @@ final _scenes = <String, _Scene>{
       onCopy: (_) {},
     ),
   ),
-  // Settings, scrolled to Profiles (see _setups); no key in the field.
+  // Settings › Profiles on its own page (the section as Settings shows it),
+  // so the screen starts at the heading; no key field in view.
   'profiles': (c) => _shell(
     c,
     3,
-    SettingsView(
-      microphoneAllowed: true,
-      keyboardExtensionEnabled: true,
-      cloudProcessingEnabled: true,
-      providerSettings: ProviderSettings.defaults().copyWith(
-        speechProvider: 'soniox',
-      ),
-      providerSettingsLoading: false,
-      providerSettingsSaving: false,
-      onMicrophonePressed: () {},
-      onKeyboardChanged: (_) {},
-      onCloudProcessingChanged: (_) {},
-      onProviderSettingsSaved: (_) async {},
-      profiles: c.profiles,
-      onProfileAdded: () {},
-      onProfileOpened: (_) {},
+    SkPage(
+      title: c.l.settingsSectionProfiles,
+      children: [
+        SettingsProfilesSection(
+          profiles: c.profiles,
+          label: '',
+          onProfileAdded: () {},
+          onProfileOpened: (_) {},
+        ),
+      ],
     ),
   ),
   'field-rules': (c) => FieldRulesView(
@@ -239,24 +233,6 @@ final _scenes = <String, _Scene>{
 
 /// Steps after a scene settles, before the screenshot.
 final _setups = <String, Future<void> Function(WidgetTester t, _Ctx c)>{
-  'profiles': (t, c) async {
-    // The settings list builds lazily: scroll until the Add row exists, then
-    // put the Profiles section (built-ins + custom above it) near the top.
-    final add = find.byKey(const ValueKey('settings-add-profile'));
-    await t.scrollUntilVisible(
-      add,
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    // First profile row just below the status bar and the section label.
-    final first = find.text(c.profiles.first.name);
-    final scrollable = Scrollable.of(t.element(first));
-    scrollable.position.jumpTo(
-      (scrollable.position.pixels + t.getTopLeft(first).dy - _padding.top - 56)
-          .clamp(0, scrollable.position.maxScrollExtent),
-    );
-    await t.pumpAndSettle();
-  },
   // The picker for Email open, the custom profile selected.
   'field-rules': (t, c) async {
     await t.tap(find.text(c.text.emailProfileName));
