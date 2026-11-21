@@ -9,6 +9,9 @@
 - **Submitted for review 2026-11-21 00:09 (local)**: submission 53ecdd57, iOS 1.0.0 (23) + IAP Shinsoku Pro,
   both WAITING_FOR_REVIEW. Release type MANUAL.
 
+- **Approved and released 2026-11-21** (user: "通过了 可以发了"): 1.0.0 READY_FOR_SALE, IAP APPROVED.
+  https://apps.apple.com/app/id6779534781
+
 ## Lesson (R5)
 - The first non-consumable IAP cannot be submitted through the API (FIRST_NON_CONSUMABLE_MUST_BE_SUBMITTED_ON_VERSION).
   A first API submit went out without the IAP; it was cancelled before review and redone: IAP page > Add for Review
@@ -16,8 +19,7 @@
   been added for review yet.
 
 ## Next
-- Wait for App Review. On approval: ask the user before releasing (manual release).
-- On rejection: read the message in App Review, fix, new build via `tool/next_build.py`, resubmit.
+- Check the product page in a few hours (stores roll out gradually); then iteration close-out.
 - Known script bug: `tool/store_metadata.py` first push gives 409s until rerun (fetch version localizations again
   after creating app info localizations).
 
